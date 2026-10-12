@@ -1,0 +1,145 @@
+<title>Ten-Lecture Build Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a run sheet. Quality bar first, then the reusable pipeline as a numbered stage strip, then the run itself, then open questions. */
+:root {
+  --bg: #f3f2ee; --paper: #ffffff; --ink: #1a1c20; --muted: #5d626b; --line: #dad9d3;
+  --hl: #2459d6; --hl-bg: #e5ecfb; --warn: #b2441f; --warn-bg: #fbe8df; --ok: #217a4a;
+  --f-d: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-b: "Figtree", "Helvetica Neue", Arial, sans-serif;
+  --f-m: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121315; --paper: #1b1c20; --ink: #ecebe6; --muted: #9ea2aa; --line: #2e3035;
+  --hl: #86a8ff; --hl-bg: #1c2540; --warn: #f2a07f; --warn-bg: #36221a; --ok: #7fd3a2; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121315; --paper: #1b1c20; --ink: #ecebe6; --muted: #9ea2aa; --line: #2e3035;
+  --hl: #86a8ff; --hl-bg: #1c2540; --warn: #f2a07f; --warn-bg: #36221a; --ok: #7fd3a2; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-b); font-size: 17px; line-height: 1.55; }
+.page { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 44px 100px; }
+h1, h2, h3 { font-family: var(--f-d); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 800; line-height: 1.04; letter-spacing: -.015em; }
+h2 { font-size: 26px; font-weight: 800; margin: 64px 0 14px; }
+h3 { font-size: 18px; font-weight: 600; }
+p { margin: 0 0 12px; }
+.k { font-family: var(--f-m); font-size: 12px; color: var(--hl); margin-bottom: 12px; }
+.lede { font-size: 19px; max-width: 64ch; margin-top: 16px; }
+.bar { margin-top: 28px; background: var(--ink); color: var(--bg); border-radius: 14px; padding: 22px 24px; }
+.bar strong { font-family: var(--f-d); font-size: 22px; display: block; margin-bottom: 6px; }
+.bar p { margin: 0; color: var(--bg); opacity: .85; }
+.have { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+.have div { background: var(--paper); border-radius: 10px; padding: 12px 14px; }
+.have b { display: block; font-family: var(--f-d); font-size: 26px; font-variant-numeric: tabular-nums; }
+.have span { font-size: 14px; color: var(--muted); }
+.stages { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; counter-reset: s; border-top: 2px solid var(--ink); }
+.stages li { counter-increment: s; display: grid; grid-template-columns: 52px minmax(0, 1fr) minmax(0, 1.1fr); gap: 4px 20px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.stages li::before { content: counter(s, decimal-leading-zero); font-family: var(--f-m); color: var(--hl); padding-top: 2px; }
+.stages .how { color: var(--muted); font-size: 15.5px; }
+.tag { font-family: var(--f-m); font-size: 11.5px; padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+.t-script { background: var(--line); color: var(--ink); }
+.t-llm { background: var(--hl-bg); color: var(--hl); }
+@media (max-width: 760px) { .stages li { grid-template-columns: 40px minmax(0, 1fr); } .stages .how { grid-column: 2; } }
+.code { font-family: var(--f-m); font-size: 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; white-space: pre; margin-top: 12px; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px 32px; }
+@media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--paper); border-radius: 12px; padding: 18px 20px; min-width: 0; }
+.card ul, .card ol { margin: 8px 0 0; padding-left: 20px; }
+.card li + li { margin-top: 5px; }
+.anim { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 860px) { .anim { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.anim div { background: var(--paper); border-radius: 10px; padding: 14px; border-top: 3px solid var(--hl); }
+.anim b { font-family: var(--f-d); display: block; margin-bottom: 4px; }
+.anim span { font-size: 15px; color: var(--muted); }
+.checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.checks div { background: var(--paper); border-radius: 10px; padding: 14px 16px; }
+.checks b { display: block; font-family: var(--f-d); }
+.checks span { font-size: 15px; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+.tw { overflow-x: auto; background: var(--paper); border-radius: 12px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--f-m); font-size: 11.5px; color: var(--muted); font-weight: 500; }
+td.n { font-family: var(--f-m); white-space: nowrap; }
+.risk { background: var(--warn-bg); border-radius: 12px; padding: 16px 20px; }
+.risk h3 { color: var(--warn); }
+.risk ul { margin: 8px 0 0; padding-left: 20px; }
+.risk li + li { margin-top: 6px; }
+</style>
+
+<div class="page">
+  <div class="k">10 lectures · full run · plan for approval</div>
+  <h1>From ten class recordings to a ten-lecture learning site</h1>
+  <p class="lede">Two goals at once: finish all ten lectures end to end, and leave behind a pipeline where a new video goes in and a finished, checked lecture page comes out. Nothing starts until you say go.</p>
+  <div class="bar"><strong>Quality must not drop for quantity.</strong><p>Every lecture gets the same depth Lecture 1 got: corrected transcript, board read frame by frame, a complete knowledge ledger, two independent fact-checks, and a page that has to pass coverage, a blind exam and a design critic before it counts as done.</p></div>
+  <div class="have">
+    <div><b>10</b><span>videos in vedio/</span></div>
+    <div><b>~32 h</b><span>of class recording</span></div>
+    <div><b>1</b><span>lecture already through phase 1</span></div>
+    <div><b>9</b><span>still to transcribe</span></div>
+  </div>
+
+  <h2>The reusable pipeline</h2>
+  <p>One command per video. Each stage writes to <code>lectures/&lt;id&gt;/</code>, can be re-run on its own, and skips work that's already done. Plain scripts do the mechanical work; every judgement step is a Claude Code call on your subscription (<code>claude -p</code>), driven by a prompt file and a skill, never an API key.</p>
+  <ol class="stages">
+    <li><h3>Ingest <span class="tag t-script">script</span></h3><div class="how">Extract 16 kHz audio and sample board frames with timestamps; detect scene changes.</div></li>
+    <li><h3>Transcribe <span class="tag t-script">script</span></h3><div class="how">mlx-whisper on the GPU. Spot-checks the spoken language first; Hindi-heavy lectures switch to the Hinglish model.</div></li>
+    <li><h3>Speakers <span class="tag t-script">script</span></h3><div class="how">sherpa-onnx diarization, merged onto the transcript.</div></li>
+    <li><h3>Correct <span class="tag t-llm">Claude</span></h3><div class="how">The existing correction skill, about 16 chunks per lecture in parallel; the verify script must pass.</div></li>
+    <li><h3>Read the board <span class="tag t-llm">Claude</span></h3><div class="how">Every board state transcribed, every diagram described, transcript flags resolved.</div></li>
+    <li><h3>Ledger <span class="tag t-llm">Claude</span></h3><div class="how">Three analysts in parallel, then a gap hunter, then an editor who merges audio and board items. A script proves no item is lost.</div></li>
+    <li><h3>Fact-check <span class="tag t-llm">Claude</span></h3><div class="how">Three topic checkers with web sources, then an independent second checker re-opens every source.</div></li>
+    <li><h3>Design the lesson <span class="tag t-llm">Claude</span></h3><div class="how">Flow, sections, where each figure, prompt and animation goes; every ledger item placed.</div></li>
+    <li><h3>Animations <span class="tag t-llm">Claude</span></h3><div class="how">Research, storyboard script, Remotion build, render check (details below).</div></li>
+    <li><h3>Build the page <span class="tag t-llm">Claude</span></h3><div class="how">Writing, SVG figures and components in the Whiteboard Notebook system, inside one Astro site.</div></li>
+    <li><h3>Prove it <span class="tag t-llm">Claude</span> <span class="tag t-script">script</span></h3><div class="how">Coverage script, blind exam, design critic, learner and accessibility test; fix and re-run until all pass.</div></li>
+  </ol>
+<div class="code">./pipeline/run.sh vedio/new-class.mp4        # all stages for one video
+./pipeline/run.sh vedio/new-class.mp4 --from ledger   # resume from a stage
+./pipeline/run.sh --all                       # every video not yet done</div>
+
+  <h2>Animations, done properly</h2>
+  <p>Lecture 1's samples only had placeholders. This time each animation goes through four steps, captured as an <code>explainer-animation</code> skill so later lectures get the same treatment.</p>
+  <div class="anim">
+    <div><b>1 · Decide</b><span>Pick the 3–5 mechanisms per lecture where motion is the lesson (a write replicating and lagging, a Kafka rebalance, long polling holding a connection).</span></div>
+    <div><b>2 · Script</b><span>A storyboard: scenes, timing, on-screen labels, captions, the ledger items it teaches, the still frame for reduced motion.</span></div>
+    <div><b>3 · Build</b><span>Remotion compositions in the Whiteboard Notebook style, played in the page with play, pause, scrub and 0.5× speed.</span></div>
+    <div><b>4 · Check</b><span>Render key frames to images, review them against the script, then a critic pass. Nothing ships unseen.</span></div>
+  </div>
+
+  <h2>Who does what in this run</h2>
+  <div class="two">
+    <div class="card"><h3>Per lecture (about 25 agents)</h3>
+      <ul><li>16 transcript correctors, one per chunk</li><li>1 board reader</li><li>3 ledger analysts, 1 gap hunter, 1 editor</li><li>3 fact-checkers, 1 independent verifier</li><li>1 lesson designer, 1–2 writers, 1 diagram illustrator</li><li>1 animation storyboarder, 1 animation builder</li><li>Coverage auditor, blind examiner, design critic, learner tester</li></ul></div>
+    <div class="card"><h3>Across the course (once)</h3>
+      <ul><li>Course architect: lecture order, chapters, cross-links between lectures, shared glossary</li><li>Design-system engineer: turns Whiteboard Notebook into reusable components and the figure kit</li><li>Animation researcher: what works for system design motion, writes the skill</li><li>Final reviewer: walks the whole site as a reader</li></ul></div>
+  </div>
+
+  <h2>Cross-checks</h2>
+  <div class="checks">
+    <div><b>Nothing dropped</b><span>Transcript verify script; ledger gap hunter; every original item mapped; page coverage script on data tags.</span></div>
+    <div><b>Knowledge transfers</b><span>One agent writes an exam from the lecture, a different one answers from the page only.</span></div>
+    <div><b>Correct facts</b><span>Two independent fact-checks; every outside fact sourced and re-opened.</span></div>
+    <div><b>Board matches</b><span>Each redrawn figure compared with its board frame.</span></div>
+    <div><b>Looks authored</b><span>Design critic on real screenshots, desktop and phone, light and dark.</span></div>
+    <div><b>Works for a reader</b><span>Learner and accessibility pass; final whole-site walkthrough.</span></div>
+  </div>
+
+  <h2>Order and timing</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Step</th><th>What happens</th><th>Rough time</th></tr></thead>
+    <tbody>
+      <tr><td class="n">1</td><td>Build the pipeline and skills; animation research; design system as components</td><td>2–4 h</td></tr>
+      <tr><td class="n">2</td><td>Transcribe and diarize lectures 2–10 (GPU and CPU in parallel, one video at a time on the GPU)</td><td>5–7 h of machine time</td></tr>
+      <tr><td class="n">3</td><td>Correct, board, ledger, fact-check, lectures 2–10 in parallel as each transcript lands</td><td>overlaps with step 2</td></tr>
+      <tr><td class="n">4</td><td>Course structure: order, chapters, cross-links</td><td>1 h</td></tr>
+      <tr><td class="n">5</td><td>Build and prove all ten lecture pages plus animations</td><td>6–10 h</td></tr>
+    </tbody></table></div>
+
+  <h2>Risks</h2>
+  <div class="risk"><h3>Things that can slow or stop the run</h3>
+    <ul><li><b>Usage limits.</b> Lecture 1 alone hit a limit once. Ten lectures with ~250 agent runs will likely hit limits again; the pipeline resumes where it stopped, but wall-clock time stretches.</li>
+      <li><b>The Mac must stay awake</b> for the transcription hours; I'd run it under <code>caffeinate</code>.</li>
+      <li><b>Public site, paid course.</b> Pages use our own writing and redrawn diagrams, no board screenshots. The repo is already public and holds board frames; you may want those out of it.</li></ul></div>
+</div>
