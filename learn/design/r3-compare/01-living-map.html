@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scaling the Database</title>
+<meta name="description" content="Lecture 1, building Medium: a guided tour across Medium's architecture as the database is scaled with bigger machines, read replicas and shards.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800&family=Overpass+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f1ede3; --paper2:#f8f5ee; --sheet:#fbf9f4; --ink:#1e1f21; --ink2:#4d4b45; --muted:#7c786d;
+  --rule:#d6cfbf; --grid:#cfc7b5; --focus:#0b7566; --focus-soft:rgba(11,117,102,.11);
+  --alert:#c23a22; --alert-soft:rgba(194,58,34,.10); --write:#b4730a; --write-soft:rgba(180,115,10,.14);
+  --ghost:#a9a294; --node:#fbf9f4; --shadow:rgba(30,31,33,.10);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#181915; --paper2:#1f201b; --sheet:#20211c; --ink:#ebe5d6; --ink2:#bdb6a5; --muted:#8e887a;
+    --rule:#36372f; --grid:#33342c; --focus:#41c2ab; --focus-soft:rgba(65,194,171,.13);
+    --alert:#ff6d50; --alert-soft:rgba(255,109,80,.13); --write:#e3a641; --write-soft:rgba(227,166,65,.15);
+    --ghost:#5f5c52; --node:#20211c; --shadow:rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#181915; --paper2:#1f201b; --sheet:#20211c; --ink:#ebe5d6; --ink2:#bdb6a5; --muted:#8e887a;
+  --rule:#36372f; --grid:#33342c; --focus:#41c2ab; --focus-soft:rgba(65,194,171,.13);
+  --alert:#ff6d50; --alert-soft:rgba(255,109,80,.13); --write:#e3a641; --write-soft:rgba(227,166,65,.15);
+  --ghost:#5f5c52; --node:#20211c; --shadow:rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:"Overpass",system-ui,sans-serif;font-size:16px;line-height:1.5;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.mono{font-family:"Overpass Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh;height:100dvh}
+header.top{display:flex;align-items:center;gap:14px;padding:10px 20px;border-bottom:1px solid var(--rule);background:var(--paper)}
+.top .t{display:flex;align-items:baseline;gap:12px;min-width:0}
+.top h1{font-size:19px;font-weight:800;margin:0;letter-spacing:-.01em;white-space:nowrap}
+.top .crumb{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sp{flex:1}
+.tbtn{background:none;border:1px solid var(--rule);border-radius:999px;padding:5px 13px 3px;font-size:14px;cursor:pointer;color:var(--ink2);display:inline-flex;align-items:center;gap:6px;min-height:34px}
+.tbtn:hover{border-color:var(--ink2);color:var(--ink)}
+.tbtn svg{width:15px;height:15px;margin-top:-2px}
+
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 0;min-height:0;transition:grid-template-columns .35s ease}
+.stage.open{grid-template-columns:minmax(0,1fr) 452px}
+.left{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;min-width:0}
+.mapwrap{position:relative;min-height:0;overflow:hidden}
+#map{display:block;width:100%;height:100%;touch-action:pan-y}
+#map text{font-family:"Overpass",system-ui,sans-serif;fill:var(--ink)}
+#map .mono, #map text.mono{font-family:"Overpass Mono",monospace}
+
+/* nodes */
+.node{cursor:pointer;transition:opacity .2s}
+.node .sh{fill:var(--node);stroke:var(--ink);stroke-width:1.6}
+.node .lid{fill:none;stroke:var(--ink);stroke-width:1.6}
+.node.rep .sh,.node.rep .lid{stroke-dasharray:5 4}
+.node.ghost{cursor:pointer}
+.node.ghost .sh,.node.ghost .lid{stroke:var(--ghost);stroke-dasharray:4 4;fill:none}
+.node.ghost text{fill:var(--muted)!important}
+.node.focus .sh{stroke:var(--focus);stroke-width:2.6;fill:var(--focus-soft)}
+.node.focus .lid{stroke:var(--focus);stroke-width:2.6}
+.node.hot .sh{stroke:var(--alert);stroke-width:2.6;fill:var(--alert-soft)}
+.node.hot .lid{stroke:var(--alert);stroke-width:2.6}
+.node.down .sh{stroke:var(--alert);stroke-dasharray:3 4;fill:none}
+.node.down .lid{stroke:var(--alert);stroke-dasharray:3 4}
+.node.down text{fill:var(--alert)!important}
+.node text.lb{font-size:15px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.node text.sub{font-size:14.5px;fill:var(--muted);text-anchor:middle;pointer-events:none}
+.node .people{fill:none;stroke:var(--ink);stroke-width:1.6}
+.node.focus .people{stroke:var(--focus)}
+.node .plus circle{fill:var(--paper);stroke:var(--ink2);stroke-width:1.2}
+.node .plus path{stroke:var(--ink2);stroke-width:1.6}
+.node:hover .plus circle,.node:focus-visible .plus circle{fill:var(--focus);stroke:var(--focus)}
+.node:hover .plus path,.node:focus-visible .plus path{stroke:var(--paper)}
+.node:focus-visible{outline:none}
+.node:focus-visible .sh{stroke:var(--focus);stroke-width:3}
+.node.chip .sh{fill:var(--paper)}
+.node.chip text.lb{font-size:13px;font-family:"Overpass Mono",monospace}
+
+/* edges */
+.edge{fill:none;stroke:var(--ink2);stroke-width:1.5}
+.edge.rep{stroke-dasharray:6 5;stroke:var(--ink2)}
+.edge.ghost{stroke:var(--ghost);stroke-dasharray:2 5}
+.edge.hot{stroke:var(--alert);stroke-width:2.4}
+.edge.w{stroke:var(--write);stroke-width:2.2}
+.edge.fx{stroke:var(--focus);stroke-width:2.4}
+.edge.rep.fx{stroke:var(--focus)}
+.edge.dimmed{opacity:.35}
+
+/* dots */
+.dot{fill:var(--ink2)}
+.dot.w{fill:var(--write)}
+.dot.hot{fill:var(--alert)}
+
+/* annotations */
+#ann{transition:opacity .35s ease}
+#ann text{font-size:15px;fill:var(--ink2)}
+#ann .big{font-size:17px;font-weight:700;fill:var(--ink)}
+#ann .acc{fill:var(--focus);font-weight:700}
+#ann .al{fill:var(--alert);font-weight:700}
+#ann .wr{fill:var(--write);font-weight:700}
+#ann .tag rect{fill:var(--paper);stroke:var(--ink2);stroke-width:1}
+#ann .tag.f rect{stroke:var(--focus);stroke-width:1.5}
+#ann .tag.a rect{stroke:var(--alert);stroke-width:1.5}
+#ann .ln{stroke:var(--ink2);stroke-width:1.2;fill:none}
+#ann .lnf{stroke:var(--focus);stroke-width:2;fill:none}
+#ann .lna{stroke:var(--alert);stroke-width:2;fill:none}
+#ann .num circle{fill:var(--focus)} #ann .num text{fill:var(--paper);font-weight:800;font-size:14px;text-anchor:middle;dominant-baseline:central}
+#ann .clk{cursor:pointer}
+.mapnote{position:absolute;left:20px;bottom:12px;font-size:13px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;pointer-events:none}
+.mapnote i{display:inline-block;width:22px;height:0;border-top:1.6px solid var(--ink2);vertical-align:middle;margin-right:6px}
+.mapnote i.d{border-top-style:dashed}
+.mapnote b.r,.mapnote b.w{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ink2);margin-right:6px;vertical-align:1px}
+.mapnote b.w{border-radius:1px;background:var(--write)}
+
+/* caption bar */
+.cap{border-top:1px solid var(--rule);background:var(--paper2);padding:14px 22px 12px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"nav say chip" "scrub scrub scrub";gap:10px 18px;align-items:center}
+.nav{grid-area:nav;display:flex;gap:8px;align-items:center}
+.nbtn{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--ink);background:var(--paper);cursor:pointer;display:grid;place-items:center}
+.nbtn.next{background:var(--ink);color:var(--paper)}
+.nbtn:disabled{opacity:.35;cursor:default}
+.nbtn svg{width:20px;height:20px}
+.say{grid-area:say;min-width:0}
+.say .meta{font-size:13px;color:var(--muted);display:flex;gap:10px;align-items:baseline}
+.say .meta .ch{font-variant:small-caps;letter-spacing:.06em;font-weight:700;color:var(--ink2);text-transform:lowercase;font-size:15px}
+.say .meta .ct{font-family:"Overpass Mono",monospace}
+.say p{margin:2px 0 0;font-size:21px;font-weight:600;line-height:1.32;letter-spacing:-.005em;text-wrap:pretty}
+.say .reply{font-size:16px;font-weight:400;color:var(--ink2);margin-top:4px}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.opt{border:1.5px solid var(--ink2);background:var(--paper);border-radius:999px;padding:6px 14px 4px;font-size:15px;cursor:pointer}
+.opt:hover{border-color:var(--focus);color:var(--focus)}
+.opt.picked{border-color:var(--focus);background:var(--focus-soft)}
+.skip{background:none;border:none;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:14px;padding:6px 4px}
+.t-f{color:var(--focus);font-weight:700}
+.t-a{color:var(--alert);font-weight:700}
+.t-w{color:var(--write);font-weight:700}
+.t-r{font-weight:700;color:var(--ink)}
+.t-rep{text-decoration:underline dashed 2px;text-underline-offset:4px}
+.t-m{text-decoration:underline solid 2px;text-underline-offset:4px}
+.chipbtn{grid-area:chip;border:1.5px solid var(--focus);color:var(--focus);background:transparent;border-radius:10px;padding:8px 14px 6px;font-size:15px;font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center;white-space:nowrap}
+.chipbtn:hover{background:var(--focus-soft)}
+.chipbtn .pl{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--focus);color:var(--paper);font-weight:800;line-height:1;padding-top:2px}
+.scrub{grid-area:scrub;position:relative;padding-top:20px}
+.chaps{position:absolute;left:0;right:0;top:0;height:20px}
+.chaps button{position:absolute;top:0;background:none;border:none;padding:0 0 0 7px;font-size:13px;color:var(--muted);cursor:pointer;border-left:1.5px solid var(--rule);white-space:nowrap;line-height:18px}
+.chaps button.on{color:var(--ink);font-weight:700;border-left-color:var(--focus)}
+.ticks{display:flex;gap:3px;height:10px}
+.ticks span{flex:1;background:var(--rule);border-radius:2px}
+.ticks span.done{background:var(--ink2)}
+.ticks span.now{background:var(--focus)}
+input.range{position:absolute;left:0;right:0;bottom:-8px;width:100%;margin:0;height:26px;opacity:0;cursor:pointer}
+input.range:focus-visible + .ticks{outline:3px solid var(--focus);outline-offset:4px;border-radius:3px}
+.play{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--rule);background:none;cursor:pointer;display:grid;place-items:center}
+.play svg{width:16px;height:16px}
+
+/* sheet */
+.sheet{background:var(--sheet);border-left:1px solid var(--rule);overflow:hidden;min-width:0;display:flex;flex-direction:column}
+.sheet .grab{display:none}
+.sheethead{display:flex;align-items:center;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--rule)}
+.sheethead svg.g{width:40px;height:40px;flex:none}
+.sheethead h2{margin:0;font-size:22px;font-weight:800;letter-spacing:-.01em;line-height:1.15}
+.sheethead .k{font-size:13px;color:var(--muted)}
+.sheethead .x{margin-left:auto;width:38px;height:38px;border-radius:50%;border:1px solid var(--rule);background:none;cursor:pointer;font-size:20px;line-height:1;flex:none}
+.cards{overflow:auto;flex:1;overscroll-behavior:contain;scroll-behavior:smooth}
+.card{padding:6px 22px 40px}
+.card section{padding:16px 0 18px;border-bottom:1px solid var(--rule);scroll-margin-top:8px}
+.card section:last-child{border-bottom:none}
+.card section.lit{box-shadow:inset 3px 0 0 var(--focus);padding-left:14px;margin-left:-14px;transition:box-shadow .3s}
+.card h3{font-size:17px;font-weight:800;margin:0 0 6px;line-height:1.3;letter-spacing:-.005em}
+.card p{margin:6px 0;font-size:15.5px;color:var(--ink2)}
+.card p b{color:var(--ink)}
+.card ul{margin:6px 0;padding-left:18px;color:var(--ink2);font-size:15.5px}
+.card li{margin:4px 0}
+.lbl{font-variant:small-caps;text-transform:lowercase;letter-spacing:.07em;font-weight:700;font-size:14px;color:var(--muted)}
+.wrong{border-left:2px solid var(--muted);padding:2px 0 2px 12px;margin:10px 0}
+.wrong q{font-style:italic;color:var(--ink2)}
+.wrong q::before{content:"\201C"} .wrong q::after{content:"\201D"}
+.fc{border-left:2px solid var(--focus);padding:2px 0 2px 12px;margin:10px 0;font-size:15px;color:var(--ink2)}
+.fc p{font-size:15px;margin:3px 0}
+.fc a,.card a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--focus);text-underline-offset:3px}
+.fc .src{font-size:13.5px}
+.asked{margin:10px 0}
+.asked .q{font-weight:700;color:var(--ink);font-size:15.5px}
+.asked .a{color:var(--ink2);font-size:15.5px;margin-top:2px}
+.asked + .asked{border-top:1px dashed var(--rule);padding-top:10px}
+.bignum{font-family:"Overpass Mono",monospace;font-size:34px;font-weight:600;letter-spacing:-.02em;line-height:1.1;color:var(--ink)}
+.bignum small{font-size:15px;color:var(--muted);font-family:"Overpass",sans-serif;font-weight:400;letter-spacing:0;margin-left:8px}
+pre.code{font-family:"Overpass Mono",monospace;font-size:13.5px;line-height:1.55;background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;overflow-x:auto;color:var(--ink);margin:8px 0}
+pre.code .c{color:var(--muted)}
+pre.code .w{color:var(--write)}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:15px;margin-top:8px}
+.vs h4{margin:0;font-size:15px}
+.vs .pro{color:var(--ink2)} .vs .pro::before{content:"+ ";color:var(--focus);font-weight:800}
+.vs .con{color:var(--ink2)} .vs .con::before{content:"\2212 ";color:var(--alert);font-weight:800}
+.ladder{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-family:"Overpass Mono",monospace;font-size:13.5px;margin:8px 0}
+.ladder span{border:1px solid var(--rule);border-radius:4px;padding:1px 6px 0}
+.ladder span.x{border-color:var(--alert);color:var(--alert)}
+.fig{display:block;width:100%;height:auto;margin:6px 0}
+.fig text{font-family:"Overpass",sans-serif;font-size:13px;fill:var(--ink2)}
+.fig .s{fill:var(--node);stroke:var(--ink);stroke-width:1.4}
+.fig .sd{fill:var(--node);stroke:var(--ink);stroke-width:1.4;stroke-dasharray:4 3}
+.fig .l{fill:none;stroke:var(--ink2);stroke-width:1.4}
+.fig .ld{fill:none;stroke:var(--ink2);stroke-width:1.4;stroke-dasharray:5 4}
+.fig .f{stroke:var(--focus)!important}
+.fig .ft{fill:var(--focus)!important;font-weight:700}
+.fig .at{fill:var(--alert)!important}
+.fig .a{stroke:var(--alert)!important}
+
+/* try-it */
+.try{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:12px 14px;margin-top:8px}
+.try label{display:grid;grid-template-columns:1fr auto;font-size:14.5px;color:var(--ink2);margin-top:6px}
+.try label output{font-family:"Overpass Mono",monospace;color:var(--ink);font-weight:600}
+.try input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--focus);margin:4px 0 2px;height:24px}
+.try .res{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:8px}
+.try .res .n{font-family:"Overpass Mono",monospace;font-size:30px;font-weight:600;color:var(--focus);line-height:1}
+.try .res .u{font-size:15px;color:var(--ink2)}
+.try .warn{font-size:14.5px;color:var(--alert);margin-top:6px;min-height:1.2em}
+.try .note{font-size:13.5px;color:var(--muted);margin-top:6px}
+.try svg{display:block;width:100%;height:auto;margin-top:8px}
+.try .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.try .row button{border:1.5px solid var(--ink2);background:var(--sheet);border-radius:8px;padding:6px 10px 4px;font-size:14.5px;cursor:pointer}
+.try .row button:hover{border-color:var(--focus)}
+.vals{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:15px;margin-top:8px;font-family:"Overpass Mono",monospace}
+.vals .stale{color:var(--alert)}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:14.5px;margin-top:8px}
+.bars .b{height:12px;background:var(--rule);border-radius:3px;position:relative;overflow:hidden}
+.bars .b i{position:absolute;inset:0 auto 0 0;background:var(--focus);border-radius:3px;transition:width .3s}
+.bars .b i.al{background:var(--alert)}
+.bars output{font-family:"Overpass Mono",monospace;font-weight:600}
+
+/* outline dialog */
+dialog#outline{border:1px solid var(--rule);border-radius:14px;background:var(--sheet);color:var(--ink);width:min(720px,calc(100vw - 32px));max-height:min(86vh,860px);padding:0}
+dialog#outline::backdrop{background:rgba(20,20,18,.45)}
+.ohead{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--sheet)}
+.ohead h2{margin:0;font-size:19px}
+.ohead .x{margin-left:auto}
+.obody{padding:8px 20px 24px;overflow:auto;max-height:calc(min(86vh,860px) - 60px)}
+.obody h3{font-size:14px;margin:18px 0 6px;color:var(--muted);font-variant:small-caps;text-transform:lowercase;letter-spacing:.07em}
+.obody ol{margin:0;padding:0;list-style:none}
+.obody li button{display:grid;grid-template-columns:34px 1fr;text-align:left;width:100%;background:none;border:none;padding:6px 0;cursor:pointer;font-size:16px;color:var(--ink2);border-radius:6px}
+.obody li button:hover{color:var(--ink);background:var(--focus-soft)}
+.obody li button .mono{color:var(--muted);font-size:14px;padding-top:2px}
+.obody .parts{display:flex;flex-wrap:wrap;gap:8px}
+.obody .parts button{border:1px solid var(--rule);background:none;border-radius:999px;padding:5px 12px 3px;cursor:pointer;font-size:15px}
+
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- phone ---------- */
+@media (max-width:760px){
+  header.top{padding:8px 14px;gap:8px}
+  .top h1{font-size:17px}
+  .top .crumb{display:none}
+  .tbtn{padding:5px 10px 3px;min-height:36px}
+  .tbtn .w{display:none}
+  .stage.open{grid-template-columns:minmax(0,1fr) 0}
+  .cap{padding:10px 16px 12px;grid-template-columns:minmax(0,1fr);grid-template-areas:"say" "scrub" "nav";gap:8px}
+  .say p{font-size:17.5px;line-height:1.35}
+  .say .reply{font-size:15px}
+  .chipbtn{display:none}
+  .say .chipm{display:inline-flex}
+  .nav{justify-content:space-between}
+  .nav .grow{flex:1;display:flex;justify-content:center}
+  .chaps{display:none}
+  .scrub{padding-top:2px}
+  .mapnote{display:none}
+  .sheet{position:fixed;left:0;right:0;bottom:0;height:82vh;height:82dvh;border-left:none;border-top:1px solid var(--rule);border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .32s ease;z-index:20;box-shadow:0 -8px 30px var(--shadow)}
+  .stage.open .sheet{transform:none}
+  .sheet .grab{display:block;width:44px;height:5px;border-radius:3px;background:var(--rule);margin:8px auto 0}
+  .sheethead{padding:8px 16px 10px}
+  .sheethead h2{font-size:20px}
+  .card{padding:4px 16px 40px}
+  .scrim{position:fixed;inset:0;background:rgba(20,20,18,.32);z-index:15;opacity:0;pointer-events:none;transition:opacity .3s}
+  .stage.open .scrim{opacity:1;pointer-events:auto}
+}
+.chipm{display:none;margin-top:8px;border:1.5px solid var(--focus);color:var(--focus);background:transparent;border-radius:10px;padding:6px 12px 4px;font-size:15px;font-weight:700;cursor:pointer;gap:8px;align-items:center}
+.chipm .pl{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--focus);color:var(--paper);font-weight:800;line-height:1;padding-top:2px}
+@media (min-width:761px){ .scrim{display:none} .nav .grow{display:contents} }
+@media (prefers-reduced-motion: reduce){
+  *{transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="t"><h1>Scaling the database</h1><span class="crumb">Lecture 1 · building Medium</span></div>
+    <span class="sp"></span>
+    <button class="tbtn" id="btnOutline" aria-haspopup="dialog"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h12M2 8h12M2 12h8"/></svg><span class="w">All steps</span></button>
+    <button class="tbtn" id="btnMotion" aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="3.5" height="10" rx="1"/><rect x="9.5" y="3" width="3.5" height="10" rx="1"/></svg><span class="w" id="motionTxt">Still dots</span></button>
+    <button class="tbtn" id="btnTheme" aria-label="Switch colour theme"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg><span class="w" id="themeTxt">Dark</span></button>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="left">
+      <div class="mapwrap" id="mapwrap">
+        <svg id="map" role="group" aria-label="Medium's architecture map. Use the step controls below; select a part to open its card.">
+          <defs>
+            <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" style="fill:var(--grid)"/></pattern>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--ink2)"/></marker>
+            <marker id="ahf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--focus)"/></marker>
+            <marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--alert)"/></marker>
+            <marker id="ahw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--write)"/></marker>
+          </defs>
+          <rect id="bg" x="-2000" y="-2000" width="5000" height="5000" fill="url(#grid)"/>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <g id="dots"></g>
+          <g id="ann"></g>
+        </svg>
+        <div class="mapnote" aria-hidden="true"><span><i></i>request</span><span><i class="d"></i>replica pulls from master</span><span><b class="r"></b>read</span><span><b class="w"></b>write</span></div>
+      </div>
+
+      <div class="cap" id="cap">
+        <div class="nav">
+          <button class="nbtn prev" id="prev" aria-label="Previous step"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12.5 4.5L7 10l5.5 5.5"/></svg></button>
+          <span class="grow"><button class="play" id="play" aria-label="Play the tour" aria-pressed="false"><svg viewBox="0 0 16 16" fill="currentColor" id="playIco"><path d="M4 2.5v11l9.5-5.5z"/></svg></button></span>
+          <button class="nbtn next" id="next" aria-label="Next step"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7.5 4.5L13 10l-5.5 5.5"/></svg></button>
+        </div>
+        <div class="say" id="say" aria-live="polite">
+          <div class="meta"><span class="ch" id="chName"></span><span class="ct" id="count"></span></div>
+          <p id="sentence"></p>
+          <div id="askArea"></div>
+          <button class="chipm" id="chipM"><span class="pl" aria-hidden="true">+</span><span></span></button>
+        </div>
+        <button class="chipbtn" id="chip"><span class="pl" aria-hidden="true">+</span><span></span></button>
+        <div class="scrub">
+          <div class="chaps" id="chaps"></div>
+          <input type="range" class="range" id="range" min="1" max="22" value="1" aria-label="Tour step">
+          <div class="ticks" id="ticks" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+    <aside class="sheet" id="sheet" aria-labelledby="sheetTitle" aria-hidden="true">
+      <div class="grab" aria-hidden="true"></div>
+      <div class="sheethead">
+        <svg class="g" id="sheetGlyph" viewBox="0 0 40 40" aria-hidden="true"></svg>
+        <div><h2 id="sheetTitle" tabindex="-1">Card</h2><div class="k" id="sheetSub"></div></div>
+        <button class="x" id="sheetClose" aria-label="Close card">×</button>
+      </div>
+      <div class="cards" id="cards">
+
+<!-- ===================== READERS ===================== -->
+<article class="card" id="card-readers" hidden data-title="Readers" data-sub="where the load comes from">
+  <section id="readers-moment" data-k="L-0078">
+    <h3>Many at once, not many in total</h3>
+    <p>Scaling is the ability to handle a large number of <b>concurrent</b> requests. A million requests spread over a day is easy. Ten thousand in the same second is the problem.</p>
+  </section>
+  <section id="readers-read" data-k="L-0105">
+    <h3>Most of them only read</h3>
+    <p>Far more people read a blog than write one; far more watch YouTube than upload to it. That skew is what makes read replicas worth having later in this tour.</p>
+  </section>
+  <section id="readers-spike" data-k="L-0091 L-0092">
+    <h3>Your own team causes the biggest spike</h3>
+    <svg class="fig" viewBox="0 0 400 110" aria-label="Users jump at the moment a campaign message is sent; machines added by autoscaling arrive later">
+      <path class="l" d="M20 90H380M20 90V12"/>
+      <path class="l a" d="M20 84H150L158 22H380" style="stroke-width:2.2"/>
+      <path class="l f" d="M20 80H190V64H230V46H270V30H380" style="stroke-width:2.2"/>
+      <text x="162" y="18" class="at">push sent: users arrive</text>
+      <text x="236" y="60" class="ft">machines catch up</text>
+      <text x="22" y="106">time →</text>
+    </svg>
+    <p>A campaign SMS or push notification brings everyone at the same moment. Marketing has to tell engineering before sending, so the infrastructure is ready; otherwise the result is an outage, unhappy users and lost business.</p>
+  </section>
+</article>
+
+<!-- ===================== CDN (context) ===================== -->
+<article class="card" id="card-cdn" hidden data-title="CDN" data-sub="earlier in the lecture: caching">
+  <section id="cdn-ctx">
+    <h3>Already on the map from the caching part</h3>
+    <p>The CDN caches static files and some API responses close to readers, so many requests never reach Medium's servers. This tour leaves it alone: everything that gets past it still needs the servers and the database behind it.</p>
+  </section>
+</article>
+
+<!-- ===================== LB ===================== -->
+<article class="card" id="card-lb" hidden data-title="Load balancer" data-sub="spreads requests across API servers">
+  <section id="lb-what" data-k="L-0097 L-0098">
+    <h3>The box that makes "more servers" possible</h3>
+    <p>Readers talk to one address. The load balancer forwards each request to one of the API servers behind it, so adding a server adds capacity. For Medium the plan is: a bigger API server first, then a load balancer and several servers.</p>
+    <p>Here it stays a box. How a load balancer is built is the subject of week 3.</p>
+  </section>
+  <section id="lb-ft" data-k="L-0076">
+    <h3>What it buys besides capacity</h3>
+    <p>If one server dies, the others keep answering: the board listed <b>fault tolerance</b> next to linear growth as the gains of horizontal scaling, with <b>complex architecture</b> and <b>network partitioning</b> as the costs.</p>
+  </section>
+</article>
+
+<!-- ===================== API ===================== -->
+<article class="card" id="card-api" hidden data-title="API servers" data-sub="Hulk, then Minions">
+  <section id="api-two" data-k="L-0079 L-0073 L-0075 L-0087">
+    <h3>Two ways to add capacity</h3>
+    <svg class="fig" viewBox="0 0 400 140" aria-label="Vertical: one box grows taller. Horizontal: five equal boxes side by side.">
+      <rect class="s" x="30" y="70" width="60" height="34" rx="4"/>
+      <path class="l" d="M98 87h18" marker-end="url(#ah)"/>
+      <rect class="s f" x="124" y="26" width="76" height="78" rx="4" style="fill:var(--focus-soft)"/>
+      <text x="162" y="70" text-anchor="middle" style="font-weight:700;fill:var(--ink)">api</text>
+      <text x="30" y="128">Vertical · board: <tspan style="font-weight:700;fill:var(--ink)">Hulk</tspan></text>
+      <g transform="translate(232 0)">
+        <rect class="s" x="0" y="50" width="28" height="22" rx="3"/><rect class="s" x="34" y="50" width="28" height="22" rx="3"/><rect class="s" x="68" y="50" width="28" height="22" rx="3"/><rect class="s" x="102" y="50" width="28" height="22" rx="3"/><rect class="s f" x="136" y="50" width="28" height="22" rx="3" style="fill:var(--focus-soft)"/>
+        <text x="0" y="128">Horizontal · board: <tspan style="font-weight:700;fill:var(--ink)">Minions</tspan></text>
+      </g>
+    </svg>
+    <p><b>Vertical</b>: more CPU, RAM and disk in the same machine. <b>Horizontal</b>: more machines, sharing the traffic. Once one machine can't grow any further, horizontal is the only way on, and it is generally preferred.</p>
+  </section>
+  <section id="api-cost" data-k="L-0074 L-0076">
+    <h3>What each one costs</h3>
+    <div class="vs">
+      <h4>Vertical</h4><h4>Horizontal</h4>
+      <div class="pro">easy to manage</div><div class="pro">grows linearly</div>
+      <div class="con">downtime risk</div><div class="pro">fault tolerance</div>
+      <div></div><div class="con">complex architecture</div>
+      <div></div><div class="con">network partitioning</div>
+    </div>
+    <p style="font-size:14px;color:var(--muted)">These pros and cons were written on the board, not discussed aloud.</p>
+  </section>
+  <section id="api-ceiling" data-k="L-0080 L-0081 L-0082 L-0083 L-0084 L-0086">
+    <h3>Why the bigger box stops</h3>
+    <div class="ladder" aria-label="Machine sizes"><span>16 GB</span>→<span>32</span>→<span>64</span>→<span>128</span>→<span>256</span>→<span>512 GB</span>→<span>1 TB</span>→<span>2 TB</span>→<span>4 TB</span>→<span class="x">?</span></div>
+    <p>Changing the machine type in the AWS console walks up this ladder. It ends somewhere. Why?</p>
+    <div class="wrong"><span class="lbl">wrong turn from class</span><br><q>AWS doesn't give me an option beyond this.</q> A senior engineer gave the lecturer this answer, and it doesn't hold: very large machines exist; supercomputers exist.</div>
+    <p><b>The limit is the hardware interface.</b> A phone whose slot supports 256 GB won't recognise a 512 GB card. RAM in its slot, a disk or network card on the motherboard, a USB stick in its port: each moves bytes over a bus, and both sides must speak the same hardware protocol. A bigger part needs different hardware, and the data centre has to have it.</p>
+    <p style="font-size:14.5px;color:var(--muted)">The lecturer learned this in a data centre during his third year of college, where his microprocessor professor showed him the physical limits.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>The ceiling is real, but cost usually arrives first: the largest instances cost far more per unit of capacity, and one machine is still a single point of failure. <span class="src">(Fact-check note.)</span></p></div>
+  </section>
+  <section id="api-math" data-k="L-0088 L-0089 L-0094">
+    <h3>How many machines does 500 req/s need?</h3>
+    <div class="try" id="tryMachines">
+      <label>Traffic to handle <output id="tmT">500 req/s</output><input type="range" id="tmTarget" min="100" max="5000" step="100" value="500" aria-label="Traffic to handle, requests per second"></label>
+      <label>One machine's capacity, from a load test <output id="tmC">100 req/s</output><input type="range" id="tmCap" min="50" max="1000" step="50" value="100" aria-label="One machine's capacity, requests per second"></label>
+      <div class="res"><span class="n" id="tmN">5</span><span class="u">machines = traffic ÷ one machine's capacity</span></div>
+      <svg id="tmFig" viewBox="0 0 360 44" aria-hidden="true"></svg>
+      <div class="note">The class's numbers: 100 req/s per machine, 500 req/s needed, 5 machines. Holds only while nothing shared (database, cache) is the bottleneck.</div>
+    </div>
+    <p>One machine's capacity is its <b>unit economics</b>. The only way to know it is a <b>load test</b>; there is no formula that turns "32 GB" into "5,000 req/s". Amazon plans Prime Day this way: the BI team forecasts orders, engineering divides by one machine's capacity and checks there are enough machines.</p>
+    <div class="fc"><span class="lbl">lecture</span><p>"Linear amplification" (called a standard term in class).</p><span class="lbl">more precisely</span><p>The usual name is <b>linear scalability</b>: with no shared bottleneck, N machines handle about N times the load of one.</p></div>
+  </section>
+  <section id="api-auto" data-k="L-0090 L-0091 L-0093 L-0131 L-0132">
+    <h3>Autoscaling reacts; a campaign needs you to act first</h3>
+    <p>An <b>autoscaling group</b> only launches instances and adds them behind the load balancer. The rules are yours, for example: average cluster CPU above 60% → add one node. Each new node is horizontal scaling.</p>
+    <ul>
+      <li>Small spikes: fine, there is breathing room to scale up.</li>
+      <li>A sudden, large spike: users arrive before new machines are ready. Scale first, then let marketing send the message.</li>
+    </ul>
+    <div class="fc"><span class="lbl">lecture</span><p>Autoscaling groups "don't work at scale".</p><span class="lbl">more precisely</span><p>Reactive scaling lags, but for spikes you know about AWS offers <b>scheduled scaling</b> (raise capacity at a set time), <b>predictive scaling</b> for recurring daily or weekly patterns, and <b>warm pools</b> of pre-initialised instances. <span class="src"><a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-scheduled-scaling.html">AWS: scheduled</a> · <a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-predictive-scaling.html">predictive</a> · <a href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-warm-pools.html">warm pools</a></span></p></div>
+  </section>
+  <section id="api-start" data-k="L-0095 L-0096 L-0097 L-0120">
+    <h3>Start with one big box</h3>
+    <svg class="fig" viewBox="0 0 400 120" aria-label="Board curve: capacity rises steeply while scaling vertically, then continues as a long plateau scaled horizontally">
+      <path class="l" d="M24 100H380M24 100V10"/>
+      <path class="l f" d="M24 100C60 40 90 30 140 28H370" style="stroke-width:2.4"/>
+      <text x="44" y="22" class="ft">scale vertically</text>
+      <text x="250" y="20" class="ft">then horizontally</text>
+      <text x="200" y="76">no premature optimisation</text>
+    </svg>
+    <p>A young product scales vertically; horizontal scaling makes deployment complex, so it waits until it's needed. API servers are the easy part to scale out because they keep no state: an autoscaling group, a Kubernetes Horizontal Pod Autoscaler and a load balancer do the job. The data underneath is the hard part.</p>
+  </section>
+</article>
+
+<!-- ===================== ROUTER ===================== -->
+<article class="card" id="card-router" hidden data-title="Routing" data-sub="code inside every API server">
+  <section id="router-nobody" data-k="L-0110 L-0112">
+    <h3>The database doesn't split reads from writes</h3>
+    <p>All writes go to the master; reads should go to replicas. Nothing does that for you in the basic setup: the application decides, query by query, which reads can be slightly stale (replica) and which must be fresh (master).</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>The MySQL and PostgreSQL servers themselves don't split traffic, but drivers and managed services can: Aurora's reader endpoint balances connections across replicas, and PostgreSQL's libpq picks a primary or standby with <span class="mono">target_session_attrs</span>. <span class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html">Aurora endpoints</a> · <a href="https://www.postgresql.org/docs/current/libpq-connect.html">libpq</a></span></p></div>
+  </section>
+  <section id="router-code" data-k="L-0111">
+    <h3>Two connection strings, two objects</h3>
+<pre class="code"><span class="c"># one per database, made at startup</span>
+<span class="w">primary</span> = connect(PRIMARY_URL)
+replica = connect(REPLICA_URL)
+
+def create_post(p):            <span class="c"># a write</span>
+    <span class="w">primary</span>.execute("INSERT ...", p)
+
+def get_profile(user_id):      <span class="c"># can be a bit stale</span>
+    return replica.query("SELECT ...", user_id)</pre>
+    <p>The same for MySQL, Postgres or MongoDB: two connections, and each handler uses the one that fits its query.</p>
+  </section>
+  <section id="router-proxy" data-k="L-0125 L-0114">
+    <h3>Only one connection string in your app?</h3>
+    <p>Then a proxy-like layer is doing this routing for you. Not every team has one, which is why the naive way, the API server deciding itself, comes first. Proxy layers for replicas and shards are covered in weeks 5–6.</p>
+  </section>
+  <section id="router-pools" data-k="L-0126 L-0127 L-0387">
+    <h3>A pool per database</h3>
+    <div class="asked"><div class="q"><span class="lbl">asked in class</span><br>Doesn't holding pools and heartbeats to several databases load the API server?</div>
+    <div class="a">You need it anyway: to send each query to the right database, the API server must hold connections to all of them. TCP connections to a database are stateful, so each database gets its own pool, kept by the API server or by a proxy. As API servers are added, the choice of replica still lives in their business logic.</div></div>
+  </section>
+  <section id="router-shard" data-k="L-0117 L-0118">
+    <h3>With shards: one more decision</h3>
+<pre class="code">shard = shards[hash(user_id) % 3]   <span class="c"># fixed user → shard</span>
+return shard.query("SELECT ...", user_id)</pre>
+    <p>The API server opens a connection to every shard, works out which user the request is for, forwards it, and returns the answer. The mapping from user to shard must not change.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>Plain <span class="mono">hash % N</span> remaps nearly every key when N changes. Consistent hashing, fixed key ranges (as Vitess uses) or a lookup directory move only a fraction. <span class="src"><a href="https://en.wikipedia.org/wiki/Consistent_hashing">Consistent hashing</a> · <a href="https://vitess.io/docs/reference/features/sharding/">Vitess sharding</a></span></p></div>
+  </section>
+</article>
+
+<!-- ===================== MASTER ===================== -->
+<article class="card" id="card-master" hidden data-title="Database (master)" data-sub="the part everything leans on">
+  <section id="master-lean" data-k="L-0102 L-0099">
+    <h3>If it goes down, everything is down</h3>
+    <p>The database is the most critical and most brittle component. Adding API servers doesn't make it stronger; it forwards more queries to it, and to the cache and every other service behind them.</p>
+    <div class="wrong"><span class="lbl">wrong turn</span><br><q>Horizontal scaling means adding API servers, done.</q> The extra requests those servers accept land on stateful parts like the database and cache, which fall over unless they were scaled for it.</div>
+  </section>
+  <section id="master-bottom" data-k="L-0100 L-0101">
+    <h3>Scale bottom-up</h3>
+    <svg class="fig" viewBox="0 0 400 96" aria-label="Order: 1 database, 2 API servers, 3 let users in">
+      <g><circle cx="40" cy="40" r="12" style="fill:var(--ink2)"/><text x="40" y="44" text-anchor="middle" style="fill:var(--paper);font-weight:800">3</text><text x="40" y="76" text-anchor="middle">let users in</text></g>
+      <path class="l" d="M70 40H140" marker-end="url(#ah)"/>
+      <rect class="s" x="150" y="24" width="80" height="32" rx="4"/><text x="190" y="45" text-anchor="middle" style="fill:var(--ink);font-weight:700">api</text>
+      <text x="190" y="76" text-anchor="middle">2 · then API servers</text>
+      <path class="l" d="M236 40H296" marker-end="url(#ah)"/>
+      <path class="s f" d="M310 22a30 7 0 0 1 60 0v36a30 7 0 0 1 -60 0z" style="fill:var(--focus-soft);stroke-width:2.2"/><path class="l f" d="M310 22a30 7 0 0 0 60 0" style="stroke-width:2.2"/>
+      <text x="340" y="84" text-anchor="middle" class="ft">1 · database first</text>
+    </svg>
+    <p>Before a big campaign: make sure the database and every service you depend on can take the load, then scale the API servers, then let users in. For a large campaign this is an organisation-wide effort; the teams you depend on should document how they scale.</p>
+    <div class="fc"><span class="lbl">lecture</span><p>Cascading failures, where one component going down takes its dependants with it, are the root cause of most major outages.</p><span class="lbl">more precisely</span><p>No dataset shows "most". Google's SRE book treats cascading failure as a major failure class whose most common trigger is overload. <span class="src"><a href="https://sre.google/sre-book/addressing-cascading-failures/">Google SRE book, ch. 22</a></span></p></div>
+  </section>
+  <section id="master-three" data-k="L-0121 L-0103 L-0390 L-0115">
+    <h3>Three ways, in this order</h3>
+    <svg class="fig" viewBox="0 0 400 118" aria-label="Board redraw: vertical scaling, read replicas, sharding">
+      <path class="s" d="M14 44a14 4 0 0 1 28 0v26a14 4 0 0 1 -28 0z"/><path class="l" d="M14 44a14 4 0 0 0 28 0"/>
+      <path class="l" d="M48 58h14" marker-end="url(#ah)"/>
+      <path class="s" d="M68 36a20 5 0 0 1 40 0v40a20 5 0 0 1 -40 0z"/><path class="l" d="M68 36a20 5 0 0 0 40 0"/>
+      <text x="14" y="108">1 · bigger machine</text>
+      <rect class="s" x="160" y="12" width="56" height="18" rx="3"/>
+      <path class="l" d="M188 30v10H164v10M188 40h36v10" marker-end="url(#ah)"/>
+      <path class="s" d="M152 56a12 4 0 0 1 24 0v22a12 4 0 0 1 -24 0z"/><path class="l" d="M152 56a12 4 0 0 0 24 0"/>
+      <path class="sd" d="M212 56a12 4 0 0 1 24 0v22a12 4 0 0 1 -24 0z"/>
+      <path class="ld" d="M210 70H180" marker-end="url(#ah)"/>
+      <text x="150" y="108">2 · read replicas</text>
+      <rect class="s" x="300" y="12" width="56" height="18" rx="3"/>
+      <path class="l" d="M328 30v10M290 40h76M290 40v12M328 40v12M366 40v12"/>
+      <path class="s" d="M278 56a12 4 0 0 1 24 0v22a12 4 0 0 1 -24 0z"/><path class="s" d="M316 56a12 4 0 0 1 24 0v22a12 4 0 0 1 -24 0z"/><path class="s" d="M354 56a12 4 0 0 1 24 0v22a12 4 0 0 1 -24 0z"/>
+      <text x="290" y="108">3 · sharding</text>
+    </svg>
+    <p>The easy fix is a bigger machine type in the console. It has the same ceiling as any machine, so next come read replicas, and when the master still gets more than it can handle, sharding. Multi-master comes last, "only if you want to make things overtly complicated".</p>
+  </section>
+  <section id="master-fail" data-k="L-0122 L-0123">
+    <h3>When the master dies</h3>
+    <p>A replica can be promoted to master by leader election. If you are building a cloud database, you implement that; if you use one, the provider handles it, and doing it yourself is a pain most product companies skip.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>On Amazon RDS, Multi-AZ fails over automatically to a synchronous standby that doesn't serve reads; RDS read replicas are promoted by you, by hand. Aurora promotes a reader automatically, typically in under 60 seconds. <span class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html">RDS Multi-AZ</a> · <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.Promote.html">promoting a replica</a> · <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Aurora HA</a></span></p></div>
+  </section>
+  <section id="master-asked" data-k="L-0130 L-0356 L-0357 L-0388 L-0389">
+    <h3>Asked in class</h3>
+    <div class="asked"><div class="q">Can a replica take writes too?</div><div class="a">Then it isn't a read replica: it's <b>multi-master</b>, and you must resolve write conflicts in a way that depends entirely on the use case. That's why writes are scaled by sharding instead.</div></div>
+    <div class="asked"><div class="q">What about clustered servers like Oracle RAC, so the database never goes down?</div><div class="a">There is no one way to build a system; this is the week-1 view. Database fault tolerance comes in week 5.</div></div>
+    <div class="wrong"><span class="lbl">wrong turn from class</span><br><q>Clustering is a kind of vertical scaling.</q> A cluster is several machines, so it is horizontal.</div>
+    <div class="fc"><span class="lbl">lecture</span><p>A vendor's database cluster looks like one database but splits the data across storage nodes, i.e. it is sharding underneath.</p><span class="lbl">more precisely</span><p>Shared-nothing clusters (MongoDB sharded clusters, Vitess) do shard. Shared-disk clusters like Oracle RAC don't: several instances share one copy of the data. <span class="src"><a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/adrac/rac_db.html">Oracle RAC</a> · <a href="https://vitess.io/docs/reference/features/sharding/">Vitess</a></span></p></div>
+  </section>
+</article>
+
+<!-- ===================== REPLICA ===================== -->
+<article class="card" id="card-replica" hidden data-title="Read replica" data-sub="a copy that answers reads">
+  <section id="rep-ratio" data-k="L-0104 L-0106">
+    <h3>Reads outnumber writes</h3>
+    <div class="bignum">90:10 <span style="color:var(--muted)">or</span> 99:1<small>read : write, most applications</small></div>
+    <p>If almost all database traffic is reads, handling reads well solves most of the scaling problem. That is the whole case for replicas.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>True for content and social apps; logging, metrics, IoT and chat are often write-heavy. Measure your own ratio first. <span class="src">(Fact-check note.)</span></p></div>
+  </section>
+  <section id="rep-try" data-k="L-0104 L-0326">
+    <h3>How many replicas does your ratio need?</h3>
+    <div class="try" id="tryRep">
+      <label>Read share <output id="trR">90 : 10</output><input type="range" id="trRatio" min="50" max="99" step="1" value="90" aria-label="Percentage of queries that are reads"></label>
+      <label>Queries per second at peak <output id="trQ">10,000</output><input type="range" id="trQps" min="1000" max="60000" step="1000" value="10000" aria-label="Queries per second at peak"></label>
+      <div class="res"><span class="n" id="trN">5</span><span class="u" id="trU">replicas, plus the master for writes</span></div>
+      <svg id="trFig" viewBox="0 0 360 92" aria-hidden="true"></svg>
+      <div class="bars"><span>master</span><div class="b"><i id="trBar"></i></div><output id="trLoad">52%</output></div>
+      <div class="warn" id="trWarn"></div>
+      <div class="note">Example numbers, not from class: each node serves 2,000 queries/s; each replica costs the master 2% for sending changes. Reads all go to replicas; writes all go to the master.</div>
+    </div>
+  </section>
+  <section id="rep-what" data-k="L-0107 L-0108">
+    <h3>A second copy, kept up to date</h3>
+    <p>A master node, a replica node, and <b>asynchronous replication</b> between them. It is close to a built-in database feature that you configure; SRE teams set it up all the time, and "how to set up MySQL replication" is a fine search.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>MySQL and PostgreSQL replication are asynchronous by default; semi-synchronous and synchronous modes exist. <span class="src"><a href="https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html">MySQL semisync</a> · <a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL standby</a></span></p></div>
+  </section>
+  <section id="rep-pull" data-k="L-0109">
+    <h3>Who starts the copying?</h3>
+    <svg class="fig" viewBox="0 0 400 100" aria-label="The replica sends a request to the master for changes since its position; changes flow back">
+      <path class="s" d="M40 30a34 8 0 0 1 68 0v44a34 8 0 0 1 -68 0z" style="stroke-width:2"/><path class="l" d="M40 30a34 8 0 0 0 68 0"/>
+      <text x="74" y="60" text-anchor="middle" style="fill:var(--ink);font-weight:700">master</text>
+      <path class="sd" d="M292 30a34 8 0 0 1 68 0v44a34 8 0 0 1 -68 0z"/>
+      <text x="326" y="60" text-anchor="middle" style="fill:var(--ink);font-weight:700">replica</text>
+      <path class="l f" d="M284 40H118" marker-end="url(#ahf)" style="stroke-width:2"/>
+      <text x="200" y="32" text-anchor="middle" class="ft">“changes since my position?”</text>
+      <path class="ld" d="M118 70H284" marker-end="url(#ah)"/>
+      <text x="200" y="90" text-anchor="middle">new changes stream back</text>
+    </svg>
+    <div class="wrong"><span class="lbl">wrong turn</span><br><q>The master pushes its writes to the replicas.</q> The class's correction: the replica calls the master and pulls the changes.</div>
+    <div class="fc"><span class="lbl">more precisely</span><p>The replica opens the connection and asks from its position; after that the primary streams new events down that connection as they happen (MySQL's binlog dump thread, PostgreSQL's walsender). So "the master never pushes" is too strong: the replica starts it, the primary keeps sending. <span class="src"><a href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">MySQL replication threads</a> · <a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL</a></span></p></div>
+  </section>
+  <section id="rep-lag" data-k="L-0113">
+    <h3>Send money, then read the balance from a replica</h3>
+    <div class="try" id="tryLag">
+      <label>Replica lag <output id="tlL">800 ms</output><input type="range" id="tlLag" min="100" max="3000" step="100" value="800" aria-label="Replica lag in milliseconds"></label>
+      <div class="row"><button id="tlWrite">Friend sends 500</button><button id="tlRM">Read balance: master</button><button id="tlRR">Read balance: replica</button></div>
+      <div class="vals" id="tlVals"><span>master</span><span id="tlM">balance 0</span><span>replica</span><span id="tlRv">balance 0</span><span>you see</span><span id="tlSee">–</span></div>
+      <div class="note">Lag value is an example you can change.</div>
+    </div>
+    <p>A profile can come from a replica. An account balance is a <b>critical read</b>: it goes to the master, or your friend says the money is sent and you don't see it.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>Lag is measurable: on RDS for MySQL the <span class="mono">ReplicaLag</span> metric reports Seconds_Behind_Master; PostgreSQL streaming replication is usually under a second behind if the standby keeps up. MySQL <b>semisynchronous</b> replication holds each commit until at least one replica has received it, at the cost of slower commits. <span class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.Monitor.html">RDS ReplicaLag</a> · <a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL</a> · <a href="https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html">MySQL semisync</a></span></p></div>
+  </section>
+  <section id="rep-cost" data-k="L-0324 L-0325 L-0326 L-0327 L-0383">
+    <h3>Every replica costs the master a little</h3>
+    <p>Each replica fetching changes uses some of the master's CPU, memory and network. Small per replica, but it adds up, so you don't hang many replicas off one master. As API servers are added, keep adding replicas, because one database can only serve so many requests (and, a student added, so many connections).</p>
+    <div class="bignum">~5<small>replicas per master, the class's working limit</small></div>
+    <div class="fc"><span class="lbl">more precisely</span><p>There's no general ceiling of five. RDS for MySQL allows up to 15 read replicas per source and Aurora up to 15 readers; in PostgreSQL the limit is <span class="mono">max_wal_senders</span>. AWS advises giving each replica the same compute and storage as the source. <span class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html">RDS MySQL replicas</a> · <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Aurora</a></span></p></div>
+    <div class="fc"><span class="lbl">lecture</span><p>Some databases let a replica read the whole binlog file directly (e.g. over SSH); others send changes via SQL or their own protocol, which costs the master.</p><span class="lbl">more precisely</span><p>Changes travel over the replication protocol (MySQL binlog dump, PostgreSQL WAL streaming) or as log files shipped through an archive (PostgreSQL file-based log shipping). <span class="src"><a href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">MySQL</a> · <a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL</a></span></p></div>
+  </section>
+  <section id="rep-tree" data-k="L-0328 L-0329">
+    <h3>Need 15 but the master can feed 5?</h3>
+    <svg class="fig" viewBox="0 0 400 110" aria-label="One master feeds five replicas; each feeds two more, fifteen in total">
+      <path class="s" d="M184 8a16 4 0 0 1 32 0v20a16 4 0 0 1 -32 0z" style="stroke-width:2"/>
+      <g id="treeFig"></g>
+      <text x="230" y="24">master</text>
+      <text x="8" y="106">5 at the top + 2 under each = 15 replicas</text>
+    </svg>
+    <p>A replica can itself be the source for other replicas. The class's example: five on the top layer, each feeding two or three of its own.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>This is cascading replication (PostgreSQL; RDS supports replicas of replicas for MySQL and MariaDB). Each hop is asynchronous and adds lag. <span class="src"><a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL</a> · <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.html">RDS replicas</a></span></p></div>
+  </section>
+  <section id="rep-asked" data-k="L-0382 L-0330">
+    <h3>Asked in class</h3>
+    <div class="asked"><div class="q">The data is too big to cache. How do you build a read-heavy API?</div><div class="a">Read replicas: keep redundant copies and serve reads from them.</div></div>
+    <div class="fc"><span class="lbl">more precisely</span><p>You rarely need to cache everything: reads usually cluster on a small hot subset, so a partial cache plus replicas (and later shards) is the usual mix. <span class="src"><a href="https://redis.io/docs/latest/develop/reference/client-side-caching/">Redis docs</a></span></p></div>
+    <div class="asked"><div class="q">If replicas start hurting the master, is that the time to shard?</div><div class="a">Yes. That proposal came from a student and the lecturer agreed three times over.</div></div>
+  </section>
+</article>
+
+<!-- ===================== SHARDS ===================== -->
+<article class="card" id="card-shards" hidden data-title="Shards" data-sub="split the rows across masters">
+  <section id="sh-why" data-k="L-0115 L-0389">
+    <h3>When writes outgrow one master</h3>
+    <p>Replicas share the reads. Every write still goes to one master, so when the master gets more than it can handle, even after replicas and a bigger machine, you split the data. Sharding is preferred to multi-master for scaling writes because multi-master needs conflict resolution specific to each use case.</p>
+  </section>
+  <section id="sh-split" data-k="L-0116 L-0128">
+    <h3>Slices, not copies</h3>
+    <svg class="fig" viewBox="0 0 400 104" aria-label="Three shards, each a master holding a different third of the rows">
+      <g id="shardFig"></g>
+    </svg>
+    <div class="wrong"><span class="lbl">wrong turn from class</span><br><q>So shards are three identical copies of the database?</q> No: each holds a mutually exclusive subset, for example a third of the rows. Copies are replicas.</div>
+    <p>Every shard is a master, and each can have its own replicas.</p>
+  </section>
+  <section id="sh-try" data-k="L-0117">
+    <h3>Add one shard: how many users have to move?</h3>
+    <div class="try" id="tryShard">
+      <label>Shards now <output id="tsN">3 → 4</output><input type="range" id="tsShards" min="2" max="12" step="1" value="3" aria-label="Number of shards before adding one"></label>
+      <div class="bars">
+        <span>hash % N</span><div class="b"><i id="tsMod" class="al"></i></div><output id="tsModV">75%</output>
+        <span>hash ring</span><div class="b"><i id="tsRing"></i></div><output id="tsRingV">25%</output>
+      </div>
+      <div class="note">Computed live on 20,000 example user IDs (FNV-1a hash; ring with 160 points per shard).</div>
+    </div>
+    <p>The class routed with <span class="mono">hash(user_id)</span> and a fixed mapping. Fixed is the point: with plain modulo, changing the shard count breaks the mapping for most users.</p>
+  </section>
+  <section id="sh-naive" data-k="L-0118 L-0119">
+    <h3>Build the naive version first</h3>
+    <p>Three shards means three database connections from the API server: find the user, forward to that shard, return the result. Production systems often add a proxy layer, but not every database has one, so build the basic way locally before adding that complexity. Sharding proxies are covered in week 5.</p>
+  </section>
+  <section id="sh-key" data-k="L-0373">
+    <h3>Is there a formula for sharding?</h3>
+    <p>No golden formula or magic number. Study the data and how it is accessed, then decide. Databases get their own weeks later.</p>
+    <div class="fc"><span class="lbl">added from AWS DynamoDB guidance</span><p>Pick a key with many distinct, evenly used values, like user ID. Keys with few values (a status code) or time buckets (creation date) make hot shards. <span class="src"><a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-uniform-load.html">AWS DynamoDB</a></span></p></div>
+  </section>
+  <section id="sh-vertical" data-k="L-0129">
+    <h3>Asked in class: put some tables on another database?</h3>
+    <p>Moving, say, 30 of 100 tables to a second database was named <b>vertical sharding</b>. It needs a connection pool to each database too.</p>
+    <div class="fc"><span class="lbl">more precisely</span><p>Usually called vertical or functional partitioning; AWS describes splitting tables that aren't joined in the same query onto different hosts as one form of sharding. <span class="src">(Fact-check: accurate.)</span></p></div>
+  </section>
+  <section id="sh-who" data-k="L-0358">
+    <h3>Do you have to shard it yourself?</h3>
+    <div class="fc"><span class="lbl">lecture</span><p>Paid vendors handle sharding for you; with open-source databases that lack native sharding you implement it.</p><span class="lbl">more precisely</span><p>The line isn't paid versus open source. MongoDB, Cassandra, Vitess (for MySQL) and Citus (for PostgreSQL) shard natively; stock MySQL and PostgreSQL are the main cases where you shard in the app or add a layer. <span class="src"><a href="https://vitess.io/docs/reference/features/sharding/">Vitess</a></span></p></div>
+  </section>
+</article>
+
+<!-- ===================== GHOSTS ===================== -->
+<article class="card" id="card-cache" hidden data-title="Cache" data-sub="taught earlier in this lecture">
+  <section id="cache-ctx">
+    <h3>Faded on this map on purpose</h3>
+    <p>The centralised cache was covered in the caching part. In this tour it matters once: like the database, it is stateful, so it also has to be ready before the API servers scale out.</p>
+  </section>
+</article>
+<article class="card" id="card-queue" hidden data-title="Queue" data-sub="next in the lecture: delegation">
+  <section id="queue-ctx">
+    <h3>Coming after scaling</h3>
+    <p>Work that doesn't need to finish inside the request (counting a post's views, sending notifications) moves to a queue and workers. That is the next part of the lecture; it stays faded here.</p>
+  </section>
+</article>
+
+      </div>
+    </aside>
+  </div>
+</div>
+
+<dialog id="outline" aria-labelledby="oTitle">
+  <div class="ohead"><h2 id="oTitle">The tour as text</h2><button class="tbtn x" id="oClose">Close</button></div>
+  <div class="obody" id="obody"></div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const NS="http://www.w3.org/2000/svg";
+let store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const RM = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+/* ---------------- theme ---------------- */
+function applyTheme(t){ if(t) document.documentElement.setAttribute("data-theme",t); else document.documentElement.removeAttribute("data-theme");
+  const dark = t ? t==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; $("#themeTxt").textContent = dark ? "Light" : "Dark"; }
+applyTheme(store.get("lm-theme"));
+$("#btnTheme").onclick=()=>{ const cur=document.documentElement.getAttribute("data-theme"); const dark = cur ? cur==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; const n = dark?"light":"dark"; store.set("lm-theme",n); applyTheme(n); };
+
+/* ---------------- tour script ---------------- */
+const CHAPS=[["One box",1],["Many boxes",5],["The database",9],["Read replicas",11],["Shards",19]];
+const STEPS=[
+ {s:'Medium starts with one <span class="t-f">API server</span> and one database; every reader\'s request passes through both.', focus:["api0"], card:["api","api-start"], k:"L-0097"},
+ {s:'Scaling means handling many requests <b>at the same moment</b>, not many over a day.', focus:["readers"], card:["readers","readers-moment"], k:"L-0078", st:{rate:11}},
+ {s:'First move: give the <span class="t-f">API server</span> more CPU and RAM. The board called this Hulk.', focus:["api0"], card:["api","api-two"], k:"L-0073 L-0079 L-0080", st:{apiBig:1}},
+ {ask:{q:'The bigger-machine ladder ends somewhere. Why?', o:[
+    ['AWS has no bigger option','A senior engineer gave the lecturer that answer, and the class rejected it: very large machines exist.'],
+    ['The hardware can\'t take a bigger part','That is the class\'s answer.'],
+    ['It gets too expensive','True in practice as well: the fact-check notes cost usually bites before the hard ceiling.']]},
+  s:'The box stops where the hardware stops: slots and buses only accept parts they were built for.', focus:["api0"], card:["api","api-ceiling"], k:"L-0081 L-0082 L-0083 L-0084", st:{apiBig:1, ceil:"api"}},
+ {s:'Second move, Minions: a <span class="t-f">load balancer</span> and more servers. At 100 req/s each, 500 req/s needs 5.', focus:["lb"], card:["api","api-math"], k:"L-0075 L-0087 L-0088 L-0076", st:{lb:1,api:5,apiBig:0,rate:6}},
+ {s:'Autoscaling adds servers after CPU climbs; for a planned campaign, add them before the message goes out.', focus:["api0","api1","api2","api3","api4"], card:["api","api-auto"], k:"L-0090 L-0091 L-0092 L-0093 L-0131 L-0132"},
+ {s:'The catch: five API servers send five times the queries to the same <span class="t-a">one database</span>.', focus:[], hot:["m"], card:["master","master-lean"], k:"L-0099 L-0120", st:{rate:12}},
+ {s:'So scale bottom-up: database first, then API servers, then let the readers in.', focus:["m"], card:["master","master-bottom"], k:"L-0100 L-0101"},
+ {s:'Everything leans on the <span class="t-f">database</span>. Its first fix is a bigger machine, up to the same ceiling.', focus:["m"], card:["master","master-three"], k:"L-0102 L-0103", st:{dbBig:1, ceil:"db"}},
+ {s:'On a blog, about 90 of every 100 queries are <span class="t-r">reads</span>; only 10 are <span class="t-w">writes</span>.', focus:["m"], card:["replica","rep-ratio"], k:"L-0104 L-0105 L-0106", st:{split:1}},
+ {s:'Add a <span class="t-f t-rep">read replica</span>: a second copy of the data that answers reads.', focus:["r0"], card:["replica","rep-what"], k:"L-0107 L-0108", st:{rep:1}},
+ {s:'The <span class="t-rep">replica</span> connects to the <span class="t-m">master</span> and asks for every change since its last position.', focus:["r0"], fe:["rep"], card:["replica","rep-pull"], k:"L-0109"},
+ {s:'Nothing routes for you: the API server holds a <span class="t-w">write</span> connection and a <span class="t-r">read</span> connection and picks per query.', focus:["rt"], card:["router","router-code"], k:"L-0110 L-0111 L-0112 L-0125", st:{router:1}},
+ {s:'Copying is asynchronous, so the <span class="t-rep">replica</span> is always slightly behind the master.', focus:["r0"], card:["replica","rep-lag"], k:"L-0107 L-0113", st:{rate:3}},
+ {ask:{q:'A friend says the money is sent. Where should your balance read go?', o:[
+    ['A replica: it\'s only a read','The replica may still be a moment behind, and the old balance is what you would see.'],
+    ['The master','That is where the class sent it.']]},
+  s:'Balance reads go to the <span class="t-m">master</span>; a profile page can live with a little lag on the <span class="t-rep">replica</span>.', focus:["m","r0"], card:["replica","rep-lag"], k:"L-0113 L-0112"},
+ {s:'More API servers need more <span class="t-f t-rep">replicas</span>, but each one costs the master a little; the class stopped near five.', focus:["r0","r1","r2","r3","r4"], card:["replica","rep-cost"], k:"L-0383 L-0324 L-0325 L-0326 L-0387", st:{rep:5}},
+ {s:'Need 15? <span class="t-rep">Replicas</span> can feed replicas: five at the top, each feeding two more.', focus:["t0","t1","t2","t3","t4","t5","t6","t7","t8","t9"], card:["replica","rep-tree"], k:"L-0328 L-0329 L-0327", st:{tree:1}},
+ {s:'If the master dies, a <span class="t-f">replica is promoted</span> to take its place.', focus:["r0"], card:["master","master-fail"], k:"L-0122 L-0123 L-0130", st:{fail:1}},
+ {s:'Replicas share the reads. Every <span class="t-w">write</span> still lands on <span class="t-a">one master</span>.', focus:[], hot:["m"], card:["shards","sh-why"], k:"L-0115 L-0330 L-0388 L-0389", st:{wr:.55, rate:9}},
+ {ask:{q:'Three shards: three copies of the data, or three slices of it?', o:[
+    ['Three copies','That guess came up in class. Copies are replicas; shards don\'t overlap.'],
+    ['Three slices','Each shard holds a mutually exclusive subset.']]},
+  s:'Sharding splits the rows: each <span class="t-f">shard</span> is a master holding its own third of the users.', focus:["m","s1","s2"], card:["shards","sh-split"], k:"L-0116 L-0128 L-0129", st:{shards:1, wr:.3}},
+ {s:'The API server hashes the user ID to pick a <span class="t-f">shard</span>, with one connection pool per shard.', focus:["rt"], card:["router","router-shard"], k:"L-0117 L-0118 L-0119 L-0126 L-0127 L-0373", st:{wr:.3}},
+ {s:'The class\'s order: bigger machine, then read replicas, then shards. Multi-master only if you must.', focus:[], card:["master","master-three"], k:"L-0121 L-0390 L-0095 L-0096 L-0356 L-0357 L-0358"}
+];
+const N=STEPS.length;
+const PERSIST=["api","apiBig","lb","dbBig","rep","split","router","shards"];
+function stateAt(n){ // n: 0-based
+  let S={api:1,apiBig:0,lb:0,dbBig:0,rep:0,split:0,router:0,shards:0};
+  for(let i=0;i<=n;i++){ const st=STEPS[i].st||{}; for(const k of PERSIST) if(k in st) S[k]=st[k]; }
+  const st=STEPS[n].st||{};
+  S.ceil=st.ceil||null; S.tree=!!st.tree; S.fail=!!st.fail; S.rate=st.rate||4; S.wr=st.wr!=null?st.wr:(S.split?.1:0);
+  if(S.shards){ S.tree=false; }
+  S.focus=new Set(STEPS[n].focus||[]); S.hot=new Set(STEPS[n].hot||[]); S.fe=new Set(STEPS[n].fe||[]);
+  S.n=n; return S;
+}
+
+/* ---------------- geometry ---------------- */
+let O="h";
+const G={
+ h:{W:1200,H:650, readers:[80,330], cdn:[210,330], lb:[345,330], api1:[510,330], apiX:i=>[510,330+(i-2)*80], TX:660, TY:330,
+    cache:[510,62], queue:[510,600], m:[830,222], rY:462, rX:j=>780+j*92, r1:[960,462], YB:370, YL:528, tY:604, tDx:23,
+    sh:k=>[790+k*170,222], shRY:450, shDx:38, BUS:118, fail:[1000,222],
+    sz:{readers:[78,62], box:[112,50], boxBig:[176,92], lb:[34,124], cdn:[96,44], db:[86,98], dbBig:[120,132], rep:[58,62], t:[32,40], sr:[44,54], gh:[118,44], chip:[86,32]}},
+ v:{W:360,H:600, readers:[180,26], cdn:[180,80], lb:[180,126], api1:[180,186], apiX:i=>[180+(i-2)*64,186], TX:180, TY:244,
+    cache:[318,126], queue:[42,126], m:[180,318], rY:432, rX:j=>52+j*64, r1:[262,432], YB:392, YL:490, tY:540, tDx:15,
+    sh:k=>[62+k*118,318], shRY:432, shDx:26, BUS:244, fail:[296,318],
+    sz:{readers:[60,44], boxS:[56,40], box:[100,40], boxBig:[150,62], lb:[160,20], cdn:[80,30], db:[70,80], dbBig:[96,100], rep:[44,52], t:[22,30], sr:[34,44], gh:[70,30], chip:[74,26]}}
+};
+const NODE_IDS=["readers","cdn","lb","api0","api1","api2","api3","api4","cache","queue","m","r0","r1","r2","r3","r4","t0","t1","t2","t3","t4","t5","t6","t7","t8","t9","s1","s2","q0","q1","q2","q3","rt"];
+const TYPE={readers:"people",cdn:"box",lb:"box",cache:"box",queue:"box",m:"cyl",s1:"cyl",s2:"cyl",rt:"chip"};
+NODE_IDS.forEach(id=>{ if(!TYPE[id]) TYPE[id]= id.startsWith("api")?"box":"cyl"; });
+const PART={readers:"readers",cdn:"cdn",lb:"lb",cache:"cache",queue:"queue",m:"master",rt:"router",s1:"shards",s2:"shards"};
+NODE_IDS.forEach(id=>{ if(!PART[id]){ if(id.startsWith("api")) PART[id]="api"; else if(/^[rtq]\d/.test(id)) PART[id]="replica"; }});
+
+function layout(S){
+  const g=G[O], z=g.sz, L={};
+  const put=(id,xy,wh,o,extra)=>{L[id]=Object.assign({x:xy[0],y:xy[1],w:wh[0],h:wh[1],o:o},extra||{});};
+  put("readers",g.readers,z.readers,1,{label:"readers"});
+  put("cdn",g.cdn,z.cdn,1,{label:"CDN",cls:"ctx"});
+  put("lb",g.lb,z.lb,S.lb?1:.55,{label:O==="h"?"":"load balancer",cls:S.lb?"":"ghost",sub:O==="h"?(S.lb?"load balancer":"later: LB"):""});
+  for(let i=0;i<5;i++){
+    if(S.api===1){ const big=S.apiBig; put("api"+i, g.api1, big?z.boxBig:z.box, i===0?1:0, {label:i===0?"api":""}); }
+    else put("api"+i, g.apiX(i), z.boxS||z.box, 1, {label:"api"});
+  }
+  put("cache",g.cache,z.gh,.6,{label:"cache",cls:"ghost",sub:O==="h"?"later":""});
+  put("queue",g.queue,z.gh,.6,{label:"queue",cls:"ghost",sub:O==="h"?"later":""});
+  // database
+  const mBig = S.dbBig && !S.shards;
+  if(S.shards){
+    put("m",g.sh(0),z.db,1,{label:"shard 1"}); put("s1",g.sh(1),z.db,1,{label:"shard 2"}); put("s2",g.sh(2),z.db,1,{label:"shard 3"});
+  } else {
+    put("m",g.m,mBig?z.dbBig:z.db,1,{label:S.rep?"master":"database"});
+    put("s1",g.m,[10,10],0,{label:""}); put("s2",g.m,[10,10],0,{label:""});
+  }
+  // replicas
+  for(let j=0;j<5;j++){
+    let xy, o=0, wh=z.rep, label="";
+    if(S.shards){ if(j<2){ const s=g.sh(0); xy=[s[0]+(j?1:-1)*g.shDx, g.shRY]; o=1; wh=z.sr; } else { xy=[g.sh(0)[0],g.shRY]; o=0; wh=[10,10]; } }
+    else if(S.rep===1){ xy= j===0? g.r1 : g.r1; o= j===0?1:0; label=j===0?"replica":""; }
+    else if(S.rep===5){ xy=[g.rX(j), g.rY]; o=1; }
+    else { xy=[L.m.x, L.m.y]; o=0; wh=[10,10]; }
+    put("r"+j, xy, wh, o, {label, rep:1});
+  }
+  if(S.fail && S.rep===5){ L.r0.x=g.fail[0]; L.r0.y=g.fail[1]; L.r0.w=z.db[0]; L.r0.h=z.db[1]; L.r0.rep=0; L.r0.label="new master"; L.m.label=""; L.m.down=1; }
+  for(let t=0;t<10;t++){
+    const p=L["r"+Math.floor(t/2)], side=t%2?1:-1;
+    if(S.tree) put("t"+t,[p.x+side*g.tDx, g.tY], z.t, 1, {rep:1}); else put("t"+t,[p.x,p.y],[8,8],0,{rep:1});
+  }
+  for(let q=0;q<4;q++){
+    const k=1+Math.floor(q/2), side=q%2?1:-1, s=g.sh(k);
+    if(S.shards) put("q"+q,[s[0]+side*g.shDx,g.shRY], z.sr, 1, {rep:1}); else put("q"+q,[L.m.x,L.m.y],[8,8],0,{rep:1});
+  }
+  put("rt",[g.TX,g.TY],z.chip,S.router?1:0,{label:S.shards?"hash()":"R / W"});
+  // classes
+  for(const id in L){ const n=L[id]; n.cls=n.cls||""; if(S.focus.has(id)) n.cls+=" focus"; if(S.hot.has(id)) n.cls+=" hot"; if(n.rep) n.cls+=" rep"; if(n.down) n.cls+=" down"; }
+  return L;
+}
+
+/* ---------------- edges ---------------- */
+function edgeList(S,P){
+  const g=G[O], E=[], H=O==="h";
+  const R=(n)=>[n.x+n.w/2,n.y], Lf=(n)=>[n.x-n.w/2,n.y], T=(n)=>[n.x,n.y-n.h/2], B=(n)=>[n.x,n.y+n.h/2];
+  const vis=id=>P[id]&&P[id].o>0.02;
+  const add=(id,pts,cls,o,arrow)=>E.push({id,pts,cls:cls||"",o:o==null?1:o,arrow:arrow!==false});
+  const rd=P.readers, cdn=P.cdn, lb=P.lb;
+  if(H){ add("in",[[rd.x+rd.w/2,rd.y],Lf(cdn)]); } else { add("in",[[rd.x,rd.y+rd.h/2],T(cdn)]); }
+  const apis=[0,1,2,3,4].filter(i=>vis("api"+i));
+  if(S.lb){
+    add("c2l", H?[R(cdn),Lf(lb)]:[B(cdn),T(lb)]);
+    apis.forEach(i=>{ const a=P["api"+i];
+      if(H){ const ey=Math.max(lb.y-lb.h/2+12,Math.min(lb.y+lb.h/2-12,a.y)); const mx=(lb.x+lb.w/2+a.x-a.w/2)/2; add("l2a"+i,[[lb.x+lb.w/2,ey],[mx,ey],[mx,a.y],Lf(a)],"",a.o); }
+      else { const ex=Math.max(lb.x-lb.w/2+12,Math.min(lb.x+lb.w/2-12,a.x)); const my=(lb.y+lb.h/2+a.y-a.h/2)/2; add("l2a"+i,[[ex,lb.y+lb.h/2],[ex,my],[a.x,my],T(a)],"",a.o); }
+    });
+  } else {
+    const a=P.api0; add("c2a0", H?[R(cdn),Lf(a)]:[B(cdn),T(a)]);
+    add("lbg", H?[[lb.x,lb.y-lb.h/2],[lb.x,lb.y+lb.h/2]]:[[lb.x-lb.w/2,lb.y],[lb.x+lb.w/2,lb.y]],"ghost",0,false);
+  }
+  // api -> trunk
+  apis.forEach(i=>{ const a=P["api"+i];
+    if(H) add("a"+i+"t",[R(a),[g.TX,a.y],[g.TX,g.TY]],"",a.o,false);
+    else add("a"+i+"t",[B(a),[a.x,g.TY],[g.TX,g.TY]],"",a.o,false);
+  });
+  // ghost links
+  const a0 = S.api===5 ? (H?P.api0:P.api4) : P.api0, aq = S.api===5 ? (H?P.api4:P.api0) : P.api0;
+  if(H){ add("gc",[T(a0),B(P.cache)],"ghost",1,false); add("gq",[B(aq),T(P.queue)],"ghost",1,false); }
+  else { add("gc",[[P.cache.x,P.cache.y+P.cache.h/2],[P.cache.x,a0.y],[a0.x+a0.w/2,a0.y]],"ghost",1,false); add("gq",[[P.queue.x,P.queue.y+P.queue.h/2],[P.queue.x,aq.y],[aq.x-aq.w/2,aq.y]],"ghost",1,false); }
+  // writes
+  const hotM = S.hot.has("m");
+  const wcls = (S.split? "w":"") + (hotM?" hot":"");
+  if(S.shards){
+    ["m","s1","s2"].forEach((id,k)=>{ const s=P[id];
+      if(H) add("ts"+k,[[g.TX,g.TY],[g.TX,g.BUS],[s.x,g.BUS],T(s)],"w"+(S.focus.has("rt")?" fx":""),1);
+      else add("ts"+k,[[g.TX,g.TY],[s.x,g.TY],T(s)],"w"+(S.focus.has("rt")?" fx":""),1);
+    });
+  } else if(S.fail){
+    const r=P.r0; if(H) add("tw",[[g.TX,g.TY],[g.TX,g.BUS],[r.x,g.BUS],T(r)],"w fx",1); else add("tw",[[g.TX,g.TY],[r.x,g.TY],T(r)],"w fx",1);
+  } else {
+    const m=P.m; if(H) add("tw",[[g.TX,g.TY],[g.TX,m.y],Lf(m)],wcls,1); else add("tw",[[g.TX,g.TY],T(m)],wcls,1);
+  }
+  // reads -> replicas (lane)
+  const reps=[];
+  if(S.shards){ ["r0","r1","q0","q1","q2","q3"].forEach(id=>reps.push(id)); }
+  else if(S.rep){ for(let j=0;j<5;j++) if(P["r"+j].o>0.02 && !(S.fail&&j===0)) reps.push("r"+j); if(S.tree) for(let t=0;t<10;t++) reps.push("t"+t); }
+  const laneX = H? g.TX : 14;
+  reps.forEach(id=>{ const r=P[id], below = r.y>g.YL;
+    const end = below? T(r) : B(r);
+    if(H) add("rr_"+id,[[g.TX,g.TY],[g.TX,g.YL],[r.x,g.YL],end],"",r.o);
+    else add("rr_"+id,[[g.TX,g.TY],[laneX,g.TY],[laneX,g.YL],[r.x,g.YL],end],"",r.o);
+  });
+  // replication (replica -> parent), dashed, arrow at parent
+  const fx = S.fe.has("rep");
+  const repEdge=(id,pid,yb)=>{ const r=P[id], p=P[pid]; if(!r||!p) return; add("rep_"+id,[T(r),[r.x,yb],[p.x,yb],B(p)],"rep"+(fx?" fx":""),Math.min(r.o,p.o)); };
+  if(S.shards){
+    const ybS = g.shRY - (O==="h"?52:40);
+    repEdge("r0","m",ybS); repEdge("r1","m",ybS); repEdge("q0","s1",ybS); repEdge("q1","s1",ybS); repEdge("q2","s2",ybS); repEdge("q3","s2",ybS);
+  } else if(S.rep){
+    for(let j=0;j<5;j++){ const id="r"+j; if(P[id].o<0.02) continue; if(S.fail){ if(j>0) repEdge(id,"r0",g.YB); } else repEdge(id,"m",g.YB); }
+    if(S.tree) for(let t=0;t<10;t++){ const pid="r"+Math.floor(t/2), p=P[pid], c=P["t"+t]; const yb=(p.y+p.h/2+c.y-c.h/2)/2; repEdge("t"+t,pid,yb); }
+  }
+  return E;
+}
+
+/* ---------------- DOM build ---------------- */
+const svg=$("#map"), gN=$("#nodes"), gE=$("#edges"), gD=$("#dots"), gA=$("#ann");
+const nodeEl={};
+const LEAD={readers:1,cdn:1,lb:1,api0:1,cache:1,queue:1,m:1,r0:1,s1:1,rt:1};
+NODE_IDS.forEach(id=>{
+  const g=document.createElementNS(NS,"g"); g.setAttribute("class","node"); g.dataset.id=id; g.dataset.part=PART[id];
+  const t=TYPE[id];
+  if(t==="people"){ g.innerHTML='<rect class="hit" fill="transparent"/><g class="people"></g><text class="sub"></text>'; }
+  else if(t==="cyl"){ g.innerHTML='<path class="sh"/><path class="lid"/><text class="lb"></text>'; }
+  else { g.innerHTML='<rect class="sh" rx="5"/><text class="lb"></text><text class="sub"></text>'; }
+  if(LEAD[id]){ const p=document.createElementNS(NS,"g"); p.setAttribute("class","plus"); p.innerHTML='<circle r="9"/><path d="M-4 0h8M0 -4v8"/>'; g.appendChild(p);
+    g.setAttribute("tabindex","0"); g.setAttribute("role","button"); }
+  g.addEventListener("click",e=>{ e.stopPropagation(); openCard(PART[id]); });
+  g.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openCard(PART[id]); }});
+  gN.appendChild(g); nodeEl[id]=g;
+});
+const TITLES={readers:"Readers",cdn:"CDN",lb:"Load balancer",api:"API servers",router:"Routing",master:"Database (master)",replica:"Read replica",shards:"Shards",cache:"Cache",queue:"Queue"};
+
+function cylPath(x,y,w,h){ const rx=w/2, ry=Math.max(2,Math.min(h*.12,w*.16)), t=y-h/2+ry, b=y+h/2-ry;
+  return [`M${x-rx} ${t}A${rx} ${ry} 0 0 1 ${x+rx} ${t}V${b}A${rx} ${ry} 0 0 1 ${x-rx} ${b}Z`, `M${x-rx} ${t}A${rx} ${ry} 0 0 0 ${x+rx} ${t}`]; }
+function peoplePath(x,y,w,h){ let d=""; const n=3, sp=w/3; for(let i=0;i<n;i++){ const cx=x-sp+i*sp, cy=y-h*.18+(i===1?-h*.08:0), r=h*.12;
+  d+=`M${cx+r} ${cy}A${r} ${r} 0 1 0 ${cx-r} ${cy}A${r} ${r} 0 1 0 ${cx+r} ${cy}M${cx-r*1.7} ${cy+h*.48}Q${cx-r*1.7} ${cy+r*1.5} ${cx} ${cy+r*1.5}Q${cx+r*1.7} ${cy+r*1.5} ${cx+r*1.7} ${cy+h*.48}`; } return d; }
+
+function drawNode(id,n){
+  const g=nodeEl[id], t=TYPE[id];
+  g.style.opacity=n.o; g.style.pointerEvents = n.o<0.3?"none":"auto";
+  g.setAttribute("class","node "+(n.cls||"")+(t==="chip"?" chip":""));
+  if(n.o<0.3) g.setAttribute("tabindex","-1"); else if(LEAD[id]) g.setAttribute("tabindex","0");
+  if(LEAD[id]) g.setAttribute("aria-label",(TITLES[PART[id]]||id)+": open card");
+  const fs = O==="h"?15:13.5;
+  if(t==="people"){ g.querySelector(".people").setAttribute("d",""); g.querySelector(".people").innerHTML=`<path d="${peoplePath(n.x,n.y,n.w,n.h)}"/>`;
+    const hit=g.querySelector(".hit"); hit.setAttribute("x",n.x-n.w/2); hit.setAttribute("y",n.y-n.h/2); hit.setAttribute("width",n.w); hit.setAttribute("height",n.h+14);
+    const s=g.querySelector(".sub"); if(O==="h"){ s.setAttribute("x",n.x); s.setAttribute("y",n.y+n.h/2+16); s.style.textAnchor="middle"; } else { s.setAttribute("x",n.x-n.w/2-8); s.setAttribute("y",n.y+5); s.style.textAnchor="end"; } s.textContent=n.label; s.style.fontSize=(O==="h"?15:13)+"px"; s.style.fill="var(--ink2)"; }
+  else if(t==="cyl"){ const [b,l]=cylPath(n.x,n.y,n.w,n.h); g.querySelector(".sh").setAttribute("d",b); g.querySelector(".lid").setAttribute("d",l);
+    const tx=g.querySelector(".lb"); tx.setAttribute("x",n.x); tx.setAttribute("y",n.y+n.h*.08); tx.textContent=n.label||""; tx.style.fontSize=(n.w<75?fs-1.5:fs)+"px"; }
+  else { const r=g.querySelector(".sh"); r.setAttribute("x",n.x-n.w/2); r.setAttribute("y",n.y-n.h/2); r.setAttribute("width",Math.max(0,n.w)); r.setAttribute("height",Math.max(0,n.h)); r.setAttribute("rx", t==="chip"?n.h/2:5);
+    const tx=g.querySelector(".lb"); tx.setAttribute("x",n.x); tx.setAttribute("y",n.y+(O==="h"?1:1)); tx.textContent=n.label||""; tx.style.fontSize=(t==="chip"?(O==="h"?14:13):(n.w>150?fs+3:fs))+"px";
+    const s=g.querySelector(".sub"); if(s){ s.textContent=n.sub||""; s.setAttribute("x",n.x); s.setAttribute("y",n.y+n.h/2+16); } }
+  const p=g.querySelector(".plus"); if(p){ p.setAttribute("transform",`translate(${n.x+n.w/2+ (t==="cyl"?2:-2)} ${n.y-n.h/2+(t==="cyl"?6:2)})`); p.style.display = n.o>0.3?"":"none"; }
+}
+
+const edgeEl={};
+function polyD(p){ return "M"+p.map(q=>q[0].toFixed(1)+" "+q[1].toFixed(1)).join("L"); }
+function drawEdges(E){
+  const seen=new Set();
+  E.forEach(e=>{ seen.add(e.id); let el=edgeEl[e.id]; if(!el){ el=document.createElementNS(NS,"path"); gE.appendChild(el); edgeEl[e.id]=el; }
+    el.setAttribute("d",polyD(e.pts)); el.setAttribute("class","edge "+e.cls); el.style.opacity=e.o;
+    const m = !e.arrow?null : /hot/.test(e.cls)?"aha": /fx/.test(e.cls)?"ahf": /\bw\b/.test(e.cls)?"ahw":"ah";
+    if(m) el.setAttribute("marker-end",`url(#${m})`); else el.removeAttribute("marker-end"); });
+  for(const id in edgeEl) if(!seen.has(id)){ edgeEl[id].remove(); delete edgeEl[id]; }
+  curEdges={}; E.forEach(e=>curEdges[e.id]=e);
+}
+let curEdges={};
+
+/* ---------------- tween ---------------- */
+let cur=null, from=null, tgt=null, t0=0, DUR=700, S=null, step=0;
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function lerpNode(a,b,k){ return {x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k,w:a.w+(b.w-a.w)*k,h:a.h+(b.h-a.h)*k,o:a.o+(b.o-a.o)*k,label:b.o>=a.o||k>.5?b.label:a.label,sub:b.sub,cls:b.cls,rep:b.rep}; }
+function setViewBox(){ const g=G[O]; svg.setAttribute("viewBox",`0 0 ${g.W} ${g.H}`); svg.setAttribute("preserveAspectRatio","xMidYMid meet"); }
+
+/* ---------------- dots ---------------- */
+let dots=[], lastSpawn=0, motionOn=!RM.matches, rr=0, rrRep=0, lastT=0;
+function routeFor(kind){
+  const E=curEdges, seq=[];
+  const ap=[0,1,2,3,4].filter(i=>E["a"+i+"t"]); if(!ap.length) return null;
+  const i=ap[(rr++)%ap.length];
+  seq.push("in"); if(S.lb) seq.push("c2l","l2a"+i); else seq.push("c2a0");
+  seq.push("a"+i+"t");
+  if(kind==="w"){ if(S.shards) seq.push("ts"+Math.floor(Math.random()*3)); else seq.push("tw"); }
+  else { const rs=Object.keys(E).filter(k=>k.startsWith("rr_")); if(rs.length) seq.push(rs[(rrRep++)%rs.length]); else seq.push("tw"); }
+  let pts=[]; for(const id of seq){ const e=E[id]; if(!e) return null; pts=pts.concat(e.pts); }
+  return pts;
+}
+function polyLen(p){ let L=0; for(let i=1;i<p.length;i++) L+=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]); return L; }
+function pointAt(p,d){ for(let i=1;i<p.length;i++){ const l=Math.hypot(p[i][0]-p[i-1][0],p[i][1]-p[i-1][1]); if(d<=l){ const k=l?d/l:0; return [p[i-1][0]+(p[i][0]-p[i-1][0])*k,p[i-1][1]+(p[i][1]-p[i-1][1])*k]; } d-=l; } return p[p.length-1]; }
+function spawn(){
+  const kind = Math.random()<S.wr ? "w":"r"; const pts=routeFor(kind); if(!pts) return;
+  const el=document.createElementNS(NS, kind==="w"?"rect":"circle");
+  const r=O==="h"?4.2:3.4;
+  if(kind==="w"){ el.setAttribute("width",r*1.9); el.setAttribute("height",r*1.9); el.setAttribute("class","dot w"); } else { el.setAttribute("r",r); el.setAttribute("class","dot"+(S.hot.has("m")&&!S.split?" hot":"")); }
+  gD.appendChild(el); dots.push({el,pts,len:polyLen(pts),d:0,kind,r});
+}
+function tickDots(dt,now){
+  const sp=(O==="h"?300:210)*(dt/1000);
+  for(const d of dots){ d.d+=sp; const [x,y]=pointAt(d.pts,d.d); if(d.kind==="w"){ d.el.setAttribute("x",x-d.r*.95); d.el.setAttribute("y",y-d.r*.95);} else { d.el.setAttribute("cx",x); d.el.setAttribute("cy",y);} }
+  dots=dots.filter(d=>{ if(d.d>=d.len){ d.el.remove(); return false;} return true; });
+  if(now-lastSpawn>1000/S.rate){ lastSpawn=now; spawn(); }
+}
+function clearDots(){ dots.forEach(d=>d.el.remove()); dots=[]; }
+function staticDots(){ // reduced motion: a frozen sample along routes
+  clearDots(); const n=Math.min(14,Math.round(S.rate*1.5));
+  for(let i=0;i<n;i++){ spawn(); const d=dots[dots.length-1]; if(!d) continue; d.d=d.len*((i*0.37)%1); const [x,y]=pointAt(d.pts,d.d); if(d.kind==="w"){d.el.setAttribute("x",x-d.r);d.el.setAttribute("y",y-d.r);} else {d.el.setAttribute("cx",x);d.el.setAttribute("cy",y);} }
+}
+
+function loop(now){
+  const dt=Math.min(64,now-(lastT||now)); lastT=now;
+  if(tgt){
+    const k=DUR?Math.min(1,(now-t0)/DUR):1, e=ease(k);
+    for(const id of NODE_IDS){ cur[id]=lerpNode(from[id],tgt[id],e); drawNode(id,cur[id]); }
+    drawEdges(edgeList(S,cur));
+    if(k>=1){ tgt=null; }
+  }
+  if(motionOn) tickDots(dt,now);
+  requestAnimationFrame(loop);
+}
+
+/* ---------------- annotations ---------------- */
+function tag(x,y,txt,cls,anchor){ const fs=O==="h"?15:13, w=txt.length*fs*.56+18, h=fs+12; const x0= anchor==="end"?x-w: anchor==="start"?x: x-w/2;
+  return `<g class="tag ${cls||""}"><rect x="${x0}" y="${y-h/2}" width="${w}" height="${h}" rx="${h/2}"/><text x="${x0+w/2}" y="${y+fs*.36}" text-anchor="middle" ${cls==="f"?'class="acc"':cls==="a"?'class="al"':''}>${txt}</text></g>`; }
+function txt(x,y,s,cls,anchor){ return `<text x="${x}" y="${y}" class="${cls||""}" text-anchor="${anchor||"start"}" style="font-size:${O==="h"?15:13}px">${s}</text>`; }
+function num(x,y,n){ const r=O==="h"?13:11; return `<g class="num"><circle cx="${x}" cy="${y}" r="${r}"/><text x="${x}" y="${y+1}" style="font-size:${O==="h"?14:12}px">${n}</text></g>`; }
+function annotate(S,P){
+  const H=O==="h", g=G[O], n=S.n, a=[]; const A=P.api0, M=P.m;
+  const apiTop = S.api===5? (H?P.api0.y-P.api0.h/2:P.api0.y-P.api0.h/2) : A.y-A.h/2;
+  switch(n){
+   case 0: a.push(H? txt(A.x, A.y+A.h/2+26,"one server","","middle")+txt(M.x,M.y+M.h/2+26,"one database","","middle") : txt(A.x+A.w/2+8,A.y+4,"one server")+txt(M.x+M.w/2+8,M.y+4,"one database")); break;
+   case 1: a.push(H? tag(P.readers.x+10,P.readers.y-70,"same second, not same day","f") : tag(P.readers.x+102,P.readers.y-2,"same second","f")); break;
+   case 2: a.push(H? tag(A.x,A.y-A.h/2-26,"16 GB → 32 → 64 … → 4 TB","f")+txt(A.x,A.y+A.h/2+28,"board: Hulk","big","middle")
+                  : tag(A.x+A.w/2+52,A.y-22,"16 GB → … 4 TB","f")+txt(A.x+A.w/2+8,A.y+18,"Hulk","big")); break;
+   case 3: { const y=A.y-A.h/2-(H?20:12); a.push(`<path class="lna" d="M${A.x-(H?120:80)} ${y}H${A.x+(H?120:80)}" stroke-dasharray="7 5"/>`+ (H? txt(A.x,y-12,"hardware limit","al","middle") : txt(A.x+84,y+4,"hardware limit","al","start"))); break; }
+   case 4: a.push(H? txt(A.x,apiTop-48,"board: Minions","big","middle")+tag(A.x,apiTop-22,"100 req/s each × 5 = 500","f")
+                  : tag(180,P.api0.y+P.api0.h/2+16,"100 req/s each × 5 = 500","f")); break;
+   case 5: { if(H){ const x=A.x-75, y=P.queue.y-8; a.push(`<g transform="translate(${x+250} ${y-40})"><path class="ln" d="M0 46H150M0 46V0"/><path class="lna" d="M0 42H52L58 6H150"/><path class="lnf" d="M0 40H80V28H104V16H128V8H150"/>${txt(60,4,"users","al")}${txt(108,62,"servers","acc")}</g>`+tag(A.x,apiTop-22,"CPU > 60% → +1 server","f")); }
+             else { a.push(tag(180,P.api0.y+P.api0.h/2+16,"CPU > 60% → +1 server","f")); } break; }
+   case 6: a.push(H? tag(g.TX+2,g.TY+36,"5× queries","a","start")+txt(M.x,M.y+M.h/2+26,"one database","al","middle") : tag(250,g.TY+18,"5× queries","a")); break;
+   case 7: a.push(H? num(M.x+M.w/2+22,M.y-M.h/2+6,1)+txt(M.x+M.w/2+40,M.y-M.h/2+11,"scale first","acc")+num(A.x+70,apiTop-22,2)+txt(A.x+88,apiTop-17,"then")+num(P.readers.x+44,P.readers.y-44,3)+txt(P.readers.x+62,P.readers.y-39,"then let in")
+                  : num(M.x+M.w/2+18,M.y,1)+txt(M.x+M.w/2+34,M.y+4,"scale first","acc")+num(P.api4.x+P.api4.w/2-4,P.api4.y-P.api4.h/2-12,2)+txt(P.api4.x-P.api4.w/2-30,P.api4.y-P.api4.h/2-8,"then")+num(P.readers.x+48,P.readers.y,3)+txt(P.readers.x+64,P.readers.y+4,"then let in")); break;
+   case 8: { const y=M.y-M.h/2-(H?18:10); a.push(`<path class="lna" d="M${M.x-(H?90:70)} ${y}H${M.x+(H?90:70)}" stroke-dasharray="7 5"/>`+(H?txt(M.x,y-12,"same ceiling","al","middle"):txt(M.x+74,y+4,"same ceiling","al"))); break; }
+   case 9: a.push(H? tag(g.TX+70,g.TY+34,"90 reads : 10 writes","","start") : tag(268,g.TY+20,"90 reads : 10 writes")); break;
+   case 10: { const r=P.r0; a.push(H? txt(r.x,r.y+r.h/2+24,"copy of the data","acc","middle") : txt(r.x,r.y+r.h/2+16,"copy","acc","middle")); break; }
+   case 11: { const r=P.r0; a.push(H? tag((r.x+M.x)/2+30,g.YB+24,"“changes since my position?”","f") : tag(190,g.YL+26,"“changes since my position?”","f")); break; }
+   case 12: { const rt=P.rt; a.push(H? tag(rt.x+8,rt.y-38,"inside every API server","","start")+txt(g.TX+16,M.y-12,"W → master","wr")+txt(g.TX+14,g.YL+24,"R → replica","") : tag(rt.x,rt.y+30,"inside every API server")); break; }
+   case 13: { const r=P.r0; if(H){ a.push(`<g transform="translate(${r.x+48} ${r.y-58})">${txt(0,0,"master  balance 500","acc")}${txt(0,22,"replica balance 0","al")}${txt(0,44,"lag ≈ 0.8 s (example)","")}</g>`);} else { a.push(`<g transform="translate(${r.x-r.w/2-10} ${r.y-4})">${txt(0,0,"replica: 0","al","end")}${txt(0,17,"lag 0.8 s, example","","end")}</g>`+txt(M.x+M.w/2+8,M.y+4,"500","acc")); } break; }
+   case 14: { const r=P.r0; if(H){ a.push(tag(g.TX+56,M.y-30,"balance → master","f","start")+tag(r.x+40,r.y-50,"profile → replica","","start")); } else { a.push(tag(M.x+M.w/2+52,M.y-28,"balance → master","f")+tag(P.r0.x+30,P.r0.y+P.r0.h/2+20,"profile → replica")); } break; }
+   case 15: a.push(H? tag(P.r4.x+30,g.YB-34,"each costs the master a little","f","end")+txt(P.r2.x,g.YL+28,"class: about 5 per master","","middle") : tag(190,g.YL+26,"~5 per master (class)","f")); break;
+   case 16: a.push(H? tag(P.t9.x+6,P.t9.y-P.t9.h/2-28,"5 + 10 = 15","f","end") : tag(300,P.t9.y+P.t9.h/2+18,"5 + 10 = 15","f")); break;
+   case 17: a.push(`<path class="lna" d="M${M.x-16} ${M.y-16}l32 32M${M.x+16} ${M.y-16}l-32 32"/>`+txt(M.x,M.y+M.h/2+(H?24:16),"master down","al","middle")+(H? txt(P.r0.x,P.r0.y+P.r0.h/2+24,"promoted","acc","middle") : txt(P.r0.x,P.r0.y+P.r0.h/2+16,"promoted","acc","middle"))); break;
+   case 18: a.push(H? tag(M.x,M.y-M.h/2-26,"all writes, one machine","a") : tag(M.x+M.w/2+60,M.y-40,"all writes here","a")); break;
+   case 19: { ["m","s1","s2"].forEach((id,k)=>{ const s=P[id]; a.push(H? txt(s.x+8,s.y+s.h/2+22,["users A–H","users I–Q","users R–Z"][k]) : ""); });
+              if(!H) a.push(txt(180,P.q0.y+P.q0.h/2+20,"each shard: a third of the users","","middle"));
+              if(H) a.push(txt(P.q3.x+22,g.YL+26,"example split; the class routed by hash of user ID","","end")); break; }
+   case 20: { const rt=P.rt; a.push(H? tag(rt.x-8,rt.y+36,"user 4182 → hash → shard 2","f","end") : tag(180,rt.y+28,"user 4182 → shard 2","f")); break; }
+   case 21: if(H){ a.push(num(A.x-150,apiTop-28,1)+txt(A.x-130,apiTop-23,"bigger machine")+num(P.r0.x,g.YL+30,2)+txt(P.r0.x+20,g.YL+35,"replicas")+num(P.s2.x,P.s2.y-P.s2.h/2-28,3)+txt(P.s2.x-20,P.s2.y-P.s2.h/2-23,"shards","","end")); }
+            else { a.push(tag(180,P.q0.y+P.q0.h/2+24,"bigger box → replicas → shards","f")); } break;
+  }
+  return a.join("");
+}
+
+/* ---------------- caption + controls ---------------- */
+const answered={};
+function chapOf(n){ let c=0; CHAPS.forEach((ch,i)=>{ if(n+1>=ch[1]) c=i; }); return c; }
+function renderCaption(){
+  const st=STEPS[step];
+  $("#chName").textContent=CHAPS[chapOf(step)][0]; $("#count").textContent=(step+1)+" / "+N;
+  const ask=st.ask, area=$("#askArea"), p=$("#sentence");
+  area.innerHTML="";
+  if(ask && answered[step]==null){
+    p.innerHTML=ask.q; p.dataset.k="";
+    const d=document.createElement("div"); d.className="opts";
+    ask.o.forEach((o,i)=>{ const b=document.createElement("button"); b.className="opt"; b.textContent=o[0]; b.onclick=()=>{ answered[step]=i; renderCaption(); }; d.appendChild(b); });
+    const sk=document.createElement("button"); sk.className="skip"; sk.textContent="Skip to the answer"; sk.onclick=()=>{ answered[step]=-1; renderCaption(); }; d.appendChild(sk);
+    area.appendChild(d);
+  } else {
+    p.innerHTML=st.s; p.dataset.k=st.k||"";
+    if(ask && answered[step]>=0){ const r=document.createElement("div"); r.className="reply"; r.innerHTML="<b>"+ask.o[answered[step]][0]+":</b> "+ask.o[answered[step]][1]; area.appendChild(r); }
+  }
+  const [part,sec]=st.card; const sub=document.querySelector("#"+CSS.escape(sec)+" h3");
+  const label=TITLES[part]+(sub?" · "+sub.textContent:"");
+  $("#chip").querySelector("span:last-child").textContent=TITLES[part]; $("#chip").title=label; $("#chip").setAttribute("aria-label","Open card: "+label);
+  $("#chipM").querySelector("span:last-child").textContent="Open "+TITLES[part].toLowerCase()+" card";
+  $("#prev").disabled=step===0; $("#next").disabled=step===N-1;
+  $("#range").value=step+1; $("#range").setAttribute("aria-valuetext","Step "+(step+1)+" of "+N+": "+CHAPS[chapOf(step)][0]);
+  $$("#ticks span").forEach((s,i)=>s.className= i<step?"done": i===step?"now":"");
+  $$("#chaps button").forEach((b,i)=>b.classList.toggle("on",i===chapOf(step)));
+}
+function buildScrub(){
+  const t=$("#ticks"); t.innerHTML=""; for(let i=0;i<N;i++) t.appendChild(document.createElement("span"));
+  const c=$("#chaps"); c.innerHTML=""; CHAPS.forEach(([name,s],i)=>{ const b=document.createElement("button"); b.textContent=name; b.style.left=((s-1)/N*100)+"%"; b.onclick=()=>goTo(s-1); c.appendChild(b); });
+}
+let annTimer=null;
+function goTo(n,instant){
+  n=Math.max(0,Math.min(N-1,n)); const changed = n!==step || !S; step=n;
+  S=stateAt(step);
+  const L=layout(S);
+  if(!cur){ cur=L; }
+  from=JSON.parse(JSON.stringify(cur)); tgt=L; t0=performance.now(); DUR=(instant||RM.matches)?0:700;
+  if(DUR===0){ for(const id of NODE_IDS){ cur[id]=tgt[id]; drawNode(id,cur[id]); } drawEdges(edgeList(S,cur)); tgt=null; }
+  clearTimeout(annTimer); gA.style.opacity=0;
+  const html=annotate(S,L);
+  annTimer=setTimeout(()=>{ gA.innerHTML=html; gA.style.opacity=1; }, DUR?Math.min(380,DUR*.55):0);
+  if(DUR===0){ gA.innerHTML=html; gA.style.opacity=1; }
+  if(changed){ clearDots(); }
+  if(!motionOn) setTimeout(staticDots, DUR+20);
+  renderCaption();
+  try{ history.replaceState(null,"","#step-"+(step+1)); }catch(e){}
+  store.set("lm-step",String(step));
+  if(sheetOpen) litSection(STEPS[step].card, false);
+}
+$("#prev").onclick=()=>{ stopPlay(); goTo(step-1); };
+$("#next").onclick=()=>{ stopPlay(); goTo(step+1); };
+$("#range").addEventListener("input",e=>{ stopPlay(); goTo(+e.target.value-1); });
+$("#chip").onclick=()=>{ const [p,s]=STEPS[step].card; openCard(p,s); };
+$("#chipM").onclick=$("#chip").onclick;
+document.addEventListener("keydown",e=>{
+  if($("#outline").open) return;
+  if(e.target.closest && e.target.closest("input,textarea,select")) return;
+  if(e.key==="ArrowRight"||e.key==="PageDown"){ e.preventDefault(); stopPlay(); goTo(step+1); }
+  else if(e.key==="ArrowLeft"||e.key==="PageUp"){ e.preventDefault(); stopPlay(); goTo(step-1); }
+  else if(e.key==="Home"){ goTo(0); } else if(e.key==="End"){ goTo(N-1); }
+  else if(e.key==="Escape" && sheetOpen){ closeCard(); }
+});
+// swipe on map (phone)
+(function(){ let sx=null, sy=null; const w=$("#mapwrap");
+  w.addEventListener("touchstart",e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; },{passive:true});
+  w.addEventListener("touchend",e=>{ if(sx==null) return; const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy; if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.4){ stopPlay(); goTo(step+(dx<0?1:-1)); } sx=null; },{passive:true});
+})();
+// play
+let playT=null;
+function stopPlay(){ if(playT){ clearInterval(playT); playT=null; $("#play").setAttribute("aria-pressed","false"); $("#play").setAttribute("aria-label","Play the tour"); $("#playIco").innerHTML='<path d="M4 2.5v11l9.5-5.5z"/>'; } }
+$("#play").onclick=()=>{ if(playT){ stopPlay(); return; } if(step===N-1) goTo(0); $("#play").setAttribute("aria-pressed","true"); $("#play").setAttribute("aria-label","Pause the tour"); $("#playIco").innerHTML='<rect x="3" y="2.5" width="3.5" height="11" rx="1"/><rect x="9.5" y="2.5" width="3.5" height="11" rx="1"/>';
+  playT=setInterval(()=>{ if(step>=N-1){ stopPlay(); return; } if(STEPS[step].ask && answered[step]==null) answered[step]=-1; goTo(step+1); }, 5200); };
+// motion toggle
+function setMotion(on){ motionOn=on; $("#btnMotion").setAttribute("aria-pressed",String(!on)); $("#motionTxt").textContent= on?"Still dots":"Moving dots";
+  $("#btnMotion").querySelector("svg").innerHTML = on? '<rect x="3" y="3" width="3.5" height="10" rx="1"/><rect x="9.5" y="3" width="3.5" height="10" rx="1"/>' : '<path d="M4 2.5v11l9.5-5.5z"/>';
+  if(!on) staticDots(); else clearDots(); }
+$("#btnMotion").onclick=()=>setMotion(!motionOn);
+
+/* ---------------- sheet ---------------- */
+let sheetOpen=false, lastFocus=null;
+const GLYPH={
+ readers:'<path d="M12 15a4 4 0 1 0 0.01 0M5 32q0-9 7-9t7 9M28 15a4 4 0 1 0 0.01 0M21 32q0-9 7-9t7 9" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+ cdn:'<rect x="5" y="12" width="30" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 3"/>',
+ lb:'<rect x="15" y="5" width="10" height="30" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+ api:'<rect x="9" y="9" width="24" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="6" y="18" width="24" height="14" rx="3" fill="var(--sheet)" stroke="currentColor" stroke-width="1.8"/>',
+ router:'<rect x="4" y="13" width="32" height="14" rx="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 20h16" stroke="currentColor" stroke-width="1.8"/>',
+ master:'<path d="M9 9a11 3.5 0 0 1 22 0v22a11 3.5 0 0 1-22 0z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 9a11 3.5 0 0 0 22 0" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+ replica:'<path d="M9 9a11 3.5 0 0 1 22 0v22a11 3.5 0 0 1-22 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3"/>',
+ shards:'<path d="M3 12a6 2 0 0 1 12 0v16a6 2 0 0 1-12 0zM14 12a6 2 0 0 1 12 0v16a6 2 0 0 1-12 0zM25 12a6 2 0 0 1 12 0v16a6 2 0 0 1-12 0z" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+ cache:'<rect x="6" y="12" width="28" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 3"/>',
+ queue:'<rect x="6" y="12" width="28" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="3 3"/>'
+};
+function openCard(part, sec){
+  if(!sheetOpen) lastFocus=document.activeElement;
+  $$(".card").forEach(c=>c.hidden = c.id!=="card-"+part);
+  const c=$("#card-"+part); $("#sheetTitle").textContent=c.dataset.title; $("#sheetSub").textContent=c.dataset.sub||"";
+  $("#sheetGlyph").innerHTML=GLYPH[part]||""; $("#sheetGlyph").style.color="var(--focus)";
+  $("#stage").classList.add("open"); $("#sheet").setAttribute("aria-hidden","false"); sheetOpen=true;
+  const target = sec || (STEPS[step].card[0]===part ? STEPS[step].card[1] : null);
+  $("#cards").scrollTop=0;
+  $$(".card section").forEach(s=>s.classList.remove("lit"));
+  if(target){ const s=document.getElementById(target); if(s){ s.classList.add("lit"); setTimeout(()=>{ const c=$("#cards"); c.scrollTop += s.getBoundingClientRect().top - c.getBoundingClientRect().top - 4; }, 60); } }
+  setTimeout(()=>$("#sheetTitle").focus({preventScroll:true}), 30);
+}
+function litSection(card, scroll){ const [part,sec]=card; const vis=$("#card-"+part); if(!vis || vis.hidden) return; $$(".card section").forEach(s=>s.classList.toggle("lit", s.id===sec)); }
+function closeCard(){ $("#stage").classList.remove("open"); $("#sheet").setAttribute("aria-hidden","true"); sheetOpen=false; if(lastFocus && lastFocus.focus) lastFocus.focus({preventScroll:true}); }
+$("#sheetClose").onclick=closeCard; $("#scrim").onclick=closeCard;
+// drag-to-close on phone
+(function(){ const sh=$("#sheet"), hd=$(".sheethead"); let y0=null;
+  const startDrag=e=>{ if(innerWidth>760) return; y0=e.touches[0].clientY; };
+  [sh.querySelector(".grab"),hd].forEach(el=>el.addEventListener("touchstart",startDrag,{passive:true}));
+  sh.addEventListener("touchmove",e=>{ if(y0==null) return; const dy=e.touches[0].clientY-y0; if(dy>0) sh.style.transform=`translateY(${dy}px)`; },{passive:true});
+  sh.addEventListener("touchend",e=>{ if(y0==null) return; const dy=e.changedTouches[0].clientY-y0; sh.style.transform=""; y0=null; if(dy>90) closeCard(); });
+})();
+
+/* ---------------- outline ---------------- */
+function buildOutline(){
+  const b=$("#obody"); let h="";
+  CHAPS.forEach(([name,s],ci)=>{ const e = ci<CHAPS.length-1?CHAPS[ci+1][1]-1:N; h+=`<h3>${name}</h3><ol>`;
+    for(let i=s-1;i<e;i++){ const st=STEPS[i]; const plain=st.s.replace(/<[^>]+>/g,""); h+=`<li><button data-go="${i}" data-k="${st.k||""}"><span class="mono">${String(i+1).padStart(2,"0")}</span><span>${plain}</span></button></li>`; }
+    h+="</ol>"; });
+  h+=`<h3>Cards</h3><div class="parts">`+["readers","lb","api","router","master","replica","shards"].map(p=>`<button data-card="${p}">${TITLES[p]}</button>`).join("")+`</div>`;
+  b.innerHTML=h;
+  b.addEventListener("click",e=>{ const g=e.target.closest("[data-go]"); if(g){ $("#outline").close(); goTo(+g.dataset.go); } const c=e.target.closest("[data-card]"); if(c){ $("#outline").close(); openCard(c.dataset.card); } });
+}
+$("#btnOutline").onclick=()=>$("#outline").showModal(); $("#oClose").onclick=()=>$("#outline").close();
+
+/* ---------------- try-its ---------------- */
+// machines
+function tm(){ const t=+$("#tmTarget").value, c=+$("#tmCap").value, n=Math.ceil(t/c);
+  $("#tmT").textContent=t.toLocaleString("en")+" req/s"; $("#tmC").textContent=c+" req/s"; $("#tmN").textContent=n;
+  let s=""; const show=Math.min(n,24); for(let i=0;i<show;i++) s+=`<rect x="${2+i*14.6}" y="8" width="11" height="24" rx="2" style="fill:var(--focus-soft);stroke:var(--focus);stroke-width:1.2"/>`;
+  if(n>24) s+=`<text x="356" y="26" text-anchor="end" style="font-size:13px;fill:var(--ink2)">+${n-24} more</text>`; $("#tmFig").innerHTML=s; }
+["#tmTarget","#tmCap"].forEach(id=>$(id).addEventListener("input",tm)); tm();
+// replicas
+function cylMini(x,y,w,h,dash,cls){ const [b,l]=cylPath(x,y,w,h); return `<path d="${b}" style="fill:var(--node);stroke:${cls||"var(--ink)"};stroke-width:1.3;${dash?"stroke-dasharray:4 3":""}"/><path d="${l}" style="fill:none;stroke:${cls||"var(--ink)"};stroke-width:1.3"/>`; }
+function tr(){ const r=+$("#trRatio").value, q=+$("#trQps").value, CAP=2000, COST=.02;
+  const reads=q*r/100, writes=q-reads, n=Math.ceil(reads/CAP), load=(writes/CAP)+n*COST;
+  $("#trR").textContent=r+" : "+(100-r); $("#trQ").textContent=q.toLocaleString("en"); $("#trN").textContent=n;
+  $("#trU").textContent=(n===1?"replica":"replicas")+" for "+Math.round(reads).toLocaleString("en")+" reads/s; the master takes "+Math.round(writes).toLocaleString("en")+" writes/s";
+  const pct=Math.round(load*100); $("#trLoad").textContent=pct+"%"; const bar=$("#trBar"); bar.style.width=Math.min(100,pct)+"%"; bar.className= pct>=100?"al":"";
+  let w=""; if(pct>=100) w="The master can't take the writes: replicas won't help here. Time to shard.";
+  else if(n>15) w="More than 15: past the RDS limit per source. Replicas of replicas, or shards.";
+  else if(n>5) w="More than the class's ~5 per master: feed some replicas from replicas.";
+  $("#trWarn").textContent=w;
+  let s=cylMini(26,46,34,56,false, pct>=100?"var(--alert)":"var(--ink)")+`<text x="26" y="88" text-anchor="middle" style="font-size:12px;fill:var(--ink2)">master</text>`;
+  const show=Math.min(n,14); for(let i=0;i<show;i++) s+=cylMini(70+i*20,52,15,30,true,"var(--focus)");
+  if(n>14) s+=`<text x="356" y="58" text-anchor="end" style="font-size:13px;fill:var(--ink2)">+${n-14}</text>`;
+  $("#trFig").innerHTML=s; }
+["#trRatio","#trQps"].forEach(id=>$(id).addEventListener("input",tr)); tr();
+// lag demo
+(function(){ let master=0, replica=0, timer=null;
+  const show=()=>{ $("#tlM").textContent="balance "+master; $("#tlRv").textContent="balance "+replica; $("#tlRv").className= replica!==master?"stale":""; };
+  $("#tlLag").addEventListener("input",e=>$("#tlL").textContent=e.target.value+" ms");
+  $("#tlWrite").onclick=()=>{ master+=500; show(); const lag=+$("#tlLag").value; const v=master; clearTimeout(timer); timer=setTimeout(()=>{ replica=v; show(); }, lag); $("#tlSee").textContent="(your friend: “sent!”)"; };
+  $("#tlRM").onclick=()=>{ $("#tlSee").textContent="balance "+master+" (fresh)"; $("#tlSee").className=""; };
+  $("#tlRR").onclick=()=>{ $("#tlSee").textContent="balance "+replica+(replica!==master?"  (stale: the replica hasn't caught up)":"  (caught up)"); $("#tlSee").className= replica!==master?"stale":""; };
+  show(); })();
+// shard resize
+function fnv(s){ let h=0x811c9dc5; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,0x01000193)>>>0; } h^=h>>>16; h=Math.imul(h,0x85ebca6b)>>>0; h^=h>>>13; return h>>>0; }
+const IDS=[]; for(let i=0;i<20000;i++) IDS.push(fnv("user:"+(100000+i*7)));
+function ring(n){ const pts=[]; for(let s=0;s<n;s++) for(let v=0;v<160;v++) pts.push([fnv("shard-"+s+"#"+v),s]); pts.sort((a,b)=>a[0]-b[0]); return pts; }
+function look(R,h){ let lo=0,hi=R.length; while(lo<hi){ const m=(lo+hi)>>1; if(R[m][0]<h) lo=m+1; else hi=m; } return R[lo%R.length][1]; }
+function ts(){ const n=+$("#tsShards").value; $("#tsN").textContent=n+" → "+(n+1);
+  let mod=0, rg=0; const A=ring(n), B=ring(n+1);
+  for(const h of IDS){ if(h%n!==h%(n+1)) mod++; if(look(A,h)!==look(B,h)) rg++; }
+  const pm=Math.round(mod/IDS.length*100), pr=Math.round(rg/IDS.length*100);
+  $("#tsMod").style.width=pm+"%"; $("#tsRing").style.width=pr+"%"; $("#tsModV").textContent=pm+"%"; $("#tsRingV").textContent=pr+"%"; }
+$("#tsShards").addEventListener("input",ts); ts();
+// static figures in cards
+(function(){ let s=""; for(let j=0;j<5;j++){ const x=40+j*80; s+=`<path class="ld" d="M${x} 44V36H200V30"/>`+cylMini(x,52,22,26,true); for(let k=0;k<2;k++){ const tx=x-14+k*28; s+=`<path class="ld" d="M${tx} 78V72H${x}V66"/>`+cylMini(tx,86,14,18,true); } } $("#treeFig").innerHTML=s; })();
+(function(){ let s=""; const labs=["users A–H","users I–Q","users R–Z"]; for(let k=0;k<3;k++){ const x=70+k*130; s+=cylMini(x,44,70,60,false,"var(--focus)"); for(let r=0;r<3;r++) s+=`<path d="M${x-26} ${32+r*12}H${x+26}" style="stroke:var(--ink2);stroke-width:1;opacity:.6"/>`; s+=`<text x="${x}" y="96" text-anchor="middle" style="font-weight:700;fill:var(--ink)">${labs[k]}</text>`; } $("#shardFig").innerHTML=s; })();
+
+/* ---------------- orientation ---------------- */
+function pickO(){ const w=$("#mapwrap").clientWidth, h=$("#mapwrap").clientHeight; return (innerWidth<=760 || h>w*1.05)?"v":"h"; }
+function relayout(){ const o=pickO(); if(o!==O){ O=o; setViewBox(); cur=null; clearDots(); goTo(step,true); } }
+window.addEventListener("resize",()=>{ clearTimeout(window.__rz); window.__rz=setTimeout(relayout,120); });
+
+/* ---------------- init ---------------- */
+buildScrub(); buildOutline();
+O=pickO(); setViewBox();
+let start=0; const m=location.hash.match(/step-(\d+)/); if(m) start=+m[1]-1; else { const s=+store.get("lm-step"); if(s>=0 && s<N) start=s; }
+step=-1; goTo(start,true);
+if(!motionOn) setMotion(false);
+requestAnimationFrame(loop);
+window.__lm={goTo,openCard,closeCard,get step(){return step;},answer:(i)=>{answered[step]=i;renderCaption();}, setMotion};
+})();
+</script>
+</body>
+</html>

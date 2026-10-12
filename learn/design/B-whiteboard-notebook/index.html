@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaling the Database</title>
+<meta name="description" content="Lecture 01, section 2.4: why Medium scales its database first, and three ways to do it: a bigger machine, read replicas, sharding.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..600&family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..800,0..1,0..1,0..1&display=swap" rel="stylesheet">
+<script>
+  document.documentElement.classList.replace('no-js','js');
+  try { var t = localStorage.getItem('wb-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --paper:#FBF8F1; --fig-bg:#FDFBF6; --ink:#2B2B2B; --ink-2:#5E5A52; --ink-3:#8A857B;
+  --rule:rgba(43,43,43,.16); --rule-2:rgba(43,43,43,.08); --grid:rgba(43,43,43,.065);
+  --blue:#1F5FBF; --red:#C8102E; --green:#2E7D32;
+  --blue-wash:rgba(31,95,191,.09); --red-wash:rgba(200,16,46,.07); --green-wash:rgba(46,125,50,.08);
+  --note:#F4EBC3; --note-ink:#3A3320; --code-bg:#F3EFE5;
+  --focus:#1F5FBF;
+  --serif:"Literata", Georgia, "Times New Roman", serif;
+  --hand:"Recursive", ui-sans-serif, system-ui, sans-serif;
+  --step--1:.875rem; --step-0:1.1875rem; --step-1:1.375rem; --step-2:1.75rem; --step-3:clamp(2.1rem,1.4rem + 3vw,3.1rem);
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:72px;
+  --measure:66ch;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1E2321; --fig-bg:#232927; --ink:#ECEAE3; --ink-2:#B9B8B0; --ink-3:#8E918A;
+    --rule:rgba(236,234,227,.18); --rule-2:rgba(236,234,227,.08); --grid:rgba(236,234,227,.055);
+    --blue:#86ADEE; --red:#F2848B; --green:#86C98F;
+    --blue-wash:rgba(134,173,238,.12); --red-wash:rgba(242,132,139,.1); --green-wash:rgba(134,201,143,.1);
+    --note:#34362A; --note-ink:#ECE6CC; --code-bg:#262C2A; --focus:#86ADEE;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1E2321; --fig-bg:#232927; --ink:#ECEAE3; --ink-2:#B9B8B0; --ink-3:#8E918A;
+  --rule:rgba(236,234,227,.18); --rule-2:rgba(236,234,227,.08); --grid:rgba(236,234,227,.055);
+  --blue:#86ADEE; --red:#F2848B; --green:#86C98F;
+  --blue-wash:rgba(134,173,238,.12); --red-wash:rgba(242,132,139,.1); --green-wash:rgba(134,201,143,.1);
+  --note:#34362A; --note-ink:#ECE6CC; --code-bg:#262C2A; --focus:#86ADEE;
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:72px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:var(--step-0);line-height:1.62;
+  font-optical-sizing:auto;font-variant-numeric:oldstyle-nums proportional-nums;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+p{margin:0 0 1.05em;text-wrap:pretty;hanging-punctuation:first}
+a{color:inherit;text-decoration-color:var(--blue);text-decoration-thickness:1.5px;text-underline-offset:3px}
+a:hover{color:var(--blue)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:2px}
+strong{font-weight:620}
+em{font-style:italic}
+.hand{font-family:var(--hand);font-variation-settings:"CASL" 1,"MONO" 0;font-weight:500;letter-spacing:.005em}
+.scribble{font-family:var(--hand);font-variation-settings:"CASL" 1,"CRSV" 1,"MONO" 0,"slnt" -3;font-weight:560}
+.mono,code,pre{font-family:var(--hand);font-variation-settings:"CASL" 0,"MONO" 1;font-variant-numeric:tabular-nums lining-nums}
+code{font-size:.84em;background:var(--code-bg);padding:.08em .32em;border-radius:3px;white-space:nowrap}
+.skip{position:absolute;left:-999px;top:8px;background:var(--paper);padding:8px 12px;z-index:30}
+.skip:focus{left:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- grid: body | wide ---------- */
+.col{display:grid;grid-template-columns:[full-start] minmax(16px,1fr) [wide-start] minmax(0,96px) [body-start] min(var(--measure),calc(100% - 32px)) [body-end] minmax(0,96px) [wide-end] minmax(16px,1fr) [full-end]}
+.col>*{grid-column:body;min-width:0}
+.col>.wide{grid-column:wide}
+.col>.full{grid-column:full}
+
+/* ---------- top bar ---------- */
+.bar{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--rule-2)}
+.bar-in{display:flex;align-items:center;gap:var(--s4);max-width:1180px;margin:0 auto;padding:10px 16px;font-size:var(--step--1)}
+.crumb{display:flex;gap:6px;align-items:baseline;min-width:0;white-space:nowrap;overflow:hidden;color:var(--ink-2)}
+.crumb a{text-decoration:none}
+.crumb a:hover{text-decoration:underline}
+.crumb .here{color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.crumb .sep{color:var(--ink-3)}
+.bar .spacer{flex:1}
+.prog-label{color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.btn{font:inherit;font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:550;font-size:var(--step--1);color:var(--ink);background:transparent;
+  border:1.5px solid var(--ink);border-radius:4px 5px 4px 6px;padding:6px 12px;cursor:pointer;line-height:1.2;min-height:36px}
+.btn:hover{background:var(--rule-2)}
+.btn[disabled]{opacity:.35;cursor:default}
+.btn.ghost{border-color:var(--rule)}
+.progress{height:2px;background:transparent}
+.progress>i{display:block;height:100%;width:0;background:var(--blue);transform-origin:left}
+@media (max-width:640px){ .crumb .opt{display:none} }
+
+/* ---------- lecture header ---------- */
+.lecture{padding-top:var(--s7)}
+.kicker{font-size:var(--step--1);color:var(--ink-2);margin:0 0 var(--s3)}
+h1{font-size:var(--step-3);line-height:1.06;font-weight:640;letter-spacing:-.018em;margin:0 0 var(--s4);text-wrap:balance;font-variation-settings:"opsz" 72}
+.dek{font-size:var(--step-1);line-height:1.45;color:var(--ink-2);margin:0 0 var(--s5);max-width:58ch}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:var(--step--1);color:var(--ink-2);margin:0 0 var(--s6);padding:0;list-style:none}
+.toc{border-top:1.5px solid var(--ink);border-bottom:1px solid var(--rule);padding:var(--s3) 0 var(--s4);margin-bottom:var(--s8)}
+.toc summary{cursor:pointer;font-size:var(--step--1);color:var(--ink-2);padding:4px 0;list-style:none}
+.toc summary::-webkit-details-marker{display:none}
+.toc summary::before{content:"+ ";font-family:var(--hand)}
+.toc[open] summary::before{content:"− "}
+.toc ol{list-style:none;margin:var(--s2) 0 0;padding:0;font-size:1.02rem;line-height:1.5}
+.toc li{display:grid;grid-template-columns:3.2em 1fr;align-items:baseline;padding:3px 0}
+.toc li .no{font-size:.86em;color:var(--ink-3)}
+.toc ol ol{grid-column:1 / -1;margin:2px 0 4px}
+.toc ol ol li{grid-template-columns:3.2em 1fr}
+.toc a{text-decoration:none}
+.toc a:hover{text-decoration:underline}
+.toc .now a{font-weight:620}
+.toc .now .you{font-size:.84em;color:var(--blue);margin-left:.6em;white-space:nowrap}
+.toc .dim{color:var(--ink-2)}
+
+/* ---------- section ---------- */
+.sec-head{margin-bottom:var(--s5)}
+.sec-no{font-size:1rem;color:var(--ink-2);margin:0 0 var(--s1)}
+h2{font-size:clamp(1.9rem,1.5rem + 1.6vw,2.45rem);line-height:1.1;font-weight:640;letter-spacing:-.014em;margin:0 0 var(--s3);text-wrap:balance}
+.sec-dek{font-style:italic;color:var(--ink-2);font-size:var(--step-1);line-height:1.45;margin:0 0 var(--s4)}
+.sec-meta{font-size:var(--step--1);color:var(--ink-2);margin:0}
+h3{font-size:var(--step-2);line-height:1.2;font-weight:620;letter-spacing:-.008em;margin:var(--s7) 0 var(--s3);text-wrap:balance;scroll-margin-top:80px}
+h3 .anchor{font-family:var(--hand);font-size:.6em;color:var(--ink-3);text-decoration:none;margin-left:.35em;opacity:0}
+h3:hover .anchor,h3 .anchor:focus-visible{opacity:1}
+.lead-in{margin-bottom:var(--s4)}
+.term{font-weight:620}
+.term.blue{color:var(--blue)} .term.red{color:var(--red)} .term.green{color:var(--green)}
+.nb{white-space:nowrap}
+.num-tab{font-variant-numeric:lining-nums tabular-nums}
+
+/* notation key */
+.key{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;margin:0 0 var(--s7);padding:var(--s3) 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font-size:var(--step--1);color:var(--ink-2)}
+.key-title{flex-basis:100%;color:var(--ink);font-weight:600}
+.key li{display:flex;align-items:center;gap:6px}
+.key .key-svg{width:40px;height:26px;flex:none;display:inline-block}
+
+/* key rule */
+.rule{margin:var(--s6) 0 var(--s6);padding:var(--s5) var(--s5) var(--s4);border:1.6px solid var(--ink);border-radius:5px 3px 6px 4px / 4px 6px 3px 5px}
+.rule-label{font-size:var(--step--1);color:var(--ink-2);margin:0 0 var(--s1)}
+.rule-text{font-size:clamp(1.4rem,1.2rem + 1vw,1.75rem);line-height:1.25;font-weight:640;margin:0 0 var(--s3);letter-spacing:-.01em}
+.rule-text .mark{background:linear-gradient(transparent 62%, var(--blue-wash) 62%)}
+.rule p:last-of-type{margin-bottom:var(--s3)}
+.rule .bottomup{display:block;width:100%;max-width:480px;height:auto;margin-top:var(--s2)}
+
+/* figures */
+figure{margin:var(--s6) 0 var(--s6)}
+.sheet{background-color:var(--fig-bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;background-position:-1px -1px;border:1px solid var(--rule);border-radius:2px}
+figcaption{font-size:var(--step--1);line-height:1.5;color:var(--ink-2);margin-top:var(--s3);max-width:var(--measure)}
+figcaption .fig-no{color:var(--ink);font-weight:600;margin-right:.5em}
+.panels{display:grid;grid-template-columns:repeat(3,1fr)}
+.panels>div{padding:var(--s4) var(--s2) var(--s2)}
+.panels>div+div{border-left:1px dashed var(--rule)}
+@media (max-width:760px){.panels{grid-template-columns:1fr}.panels>div+div{border-left:0;border-top:1px dashed var(--rule)}.panels svg{max-width:340px;margin:0 auto}}
+.fig-svg{display:block;width:100%;height:auto;overflow:visible}
+.fig-svg path{fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.fig-svg .ink{stroke:var(--ink)}
+.fig-svg path.blue{stroke:var(--blue)} .fig-svg path.red{stroke:var(--red)} .fig-svg path.green{stroke:var(--green)}
+.fig-svg .shape{fill:var(--fig-bg)}
+.fig-svg .fillpaper{fill:var(--fig-bg)}
+.fig-svg .lifeline{stroke:var(--ink);opacity:.32;stroke-width:1.1}
+.fig-svg .thin{stroke-width:1.1}
+.fig-svg .faint{opacity:.5}
+.fig-svg .dot{fill:var(--ink)}
+.fig-svg text{fill:var(--ink);font-family:var(--hand);font-variation-settings:"CASL" 1,"CRSV" 1,"MONO" 0,"slnt" -3;font-weight:520}
+.fig-svg .t-mono{font-variation-settings:"CASL" 0,"CRSV" 0,"MONO" 1,"slnt" 0;font-weight:450}
+.fig-svg .t-title{font-weight:640}
+.fig-svg .t-num{font-weight:720;font-variation-settings:"CASL" 1,"slnt" 0}
+.fig-svg text.muted{fill:var(--ink-2)}
+.fig-svg text.blue{fill:var(--blue)} .fig-svg text.red{fill:var(--red)} .fig-svg text.green{fill:var(--green)}
+.fig-svg.poster path{stroke-width:3.4}
+.fig-svg.poster .thick{stroke-width:7}
+.fig-svg.poster .head{stroke-width:3.4}
+
+/* step-through */
+.stepper{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:var(--s6);align-items:start;padding:var(--s5)}
+.stepper .lag{max-width:420px}
+.steps-panel{position:sticky;top:84px}
+.steps-head{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s4)}
+.counter{font-size:var(--step--1);color:var(--ink-2);font-variant-numeric:tabular-nums;min-width:5ch}
+.steps{list-style:none;margin:0;padding:0;font-size:1.02rem;line-height:1.5}
+.steps li{display:grid;grid-template-columns:30px 1fr;gap:8px;padding:var(--s2) 0;border-top:1px dashed var(--rule)}
+.steps li:first-child{border-top:0}
+.steps .n{font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:700;font-size:.85rem;width:24px;height:24px;border:1.5px solid currentColor;border-radius:50%;display:grid;place-items:center;margin-top:2px;color:var(--ink-2)}
+.steps button.go{all:unset;cursor:pointer;display:contents}
+.js .steps li{opacity:.45;transition:opacity .2s}
+.js .steps li.now{opacity:1}
+.js .steps li.now .n{color:var(--ink);background:var(--fig-bg)}
+.js .steps li.future{opacity:.3}
+.kbd-hint{font-size:.8rem;color:var(--ink-3);margin-top:var(--s3)}
+.no-js .step-controls,.no-js .kbd-hint{display:none}
+.js .lag .step{transition:opacity .25s ease}
+.js .lag .step.past{opacity:.38}
+.js .lag .step.future{opacity:0;visibility:hidden}
+.lag:focus-visible{outline:2px solid var(--focus);outline-offset:6px}
+@media (max-width:860px){
+  .stepper{grid-template-columns:1fr;padding:var(--s4) var(--s3)}
+  .stepper .lag{margin:0 auto;width:100%}
+  .steps-panel{position:static}
+  .js .steps li:not(.now){display:none}
+  .js .steps li.now{border-top:0}
+}
+
+/* pause and think */
+.think{background:var(--note);color:var(--note-ink);padding:var(--s5);margin:var(--s6) 0;border-radius:1px}
+.think-label{font-size:var(--step--1);font-weight:650;margin:0 0 var(--s2);letter-spacing:.01em}
+.think p{margin-bottom:var(--s4)}
+.think .choices{display:flex;flex-wrap:wrap;gap:var(--s3)}
+.think .btn{color:var(--note-ink);border-color:currentColor}
+.think .btn[aria-pressed="true"]{background:var(--note-ink);color:var(--note)}
+.think .answer{margin-top:var(--s4);padding-top:var(--s4);border-top:1px dashed currentColor}
+.think .answer p:last-child{margin-bottom:0}
+.think .verdict{font-size:.95rem;font-weight:600;margin-bottom:var(--s2)}
+.no-js .think .choices{display:none}
+
+/* source citation */
+.cite{font-size:.8em;font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:550;vertical-align:.12em;white-space:nowrap;text-decoration:none;color:var(--blue);margin-left:.15em}
+.cite:hover{text-decoration:underline}
+blockquote.src{margin:var(--s4) 0 var(--s5);padding:0 0 0 var(--s4);border-left:2px solid var(--ink);font-style:italic;color:var(--ink)}
+blockquote.src footer{font-style:normal;font-size:var(--step--1);color:var(--ink-2);margin-top:var(--s2)}
+
+/* code */
+pre{background:var(--code-bg);padding:var(--s4) var(--s4);overflow-x:auto;font-size:.82rem;line-height:1.6;border-radius:2px;margin:var(--s4) 0 var(--s5);tab-size:2}
+pre code{background:none;padding:0;font-size:inherit;white-space:pre}
+pre .c{color:var(--ink-2);font-variation-settings:"CASL" 1,"MONO" 1;font-style:normal}
+pre .k{color:var(--blue)}
+pre .w{color:var(--red)}
+
+/* asides */
+details.aside{margin:var(--s5) 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:var(--s3) 0}
+details.aside summary{cursor:pointer;font-weight:600;font-size:1.02rem;list-style:none;display:flex;gap:10px;align-items:baseline}
+details.aside summary::-webkit-details-marker{display:none}
+details.aside summary::before{content:"+";font-family:var(--hand);font-weight:700;color:var(--ink-2);width:1ch}
+details.aside[open] summary::before{content:"−"}
+details.aside summary .why{font-weight:400;color:var(--ink-2);font-size:var(--step--1);margin-left:auto;white-space:nowrap}
+details.aside .body{padding:var(--s3) 0 0 calc(1ch + 10px);font-size:1.06rem}
+details.aside .body p:last-child{margin-bottom:0}
+@media (max-width:520px){ details.aside summary{flex-wrap:wrap} details.aside summary .why{margin-left:calc(1ch + 10px);flex-basis:100%} }
+
+/* clip placeholder */
+.clip-lead{font-style:italic}
+.clip .stage{position:relative;aspect-ratio:2 / 1;overflow:hidden}
+.clip .stage>svg{position:absolute;inset:0;width:100%;height:100%}
+.play{position:absolute;left:var(--s4);bottom:var(--s4);display:flex;align-items:center;gap:10px;font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:600;font-size:.95rem;
+  color:var(--ink);background:var(--fig-bg);border:1.6px solid var(--ink);border-radius:999px;padding:6px 16px 6px 8px;cursor:pointer;min-height:44px}
+.play svg{position:static;width:28px;height:28px}
+.play:hover{background:var(--paper)}
+.play .dur{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:var(--s3) 0 0}
+.chips button{font-family:var(--hand);font-variation-settings:"CASL" 1;font-size:.82rem;color:var(--ink-2);background:transparent;border:1px solid var(--rule);border-radius:3px;padding:5px 9px;cursor:pointer;min-height:32px}
+.chips button:hover{color:var(--ink);border-color:var(--ink)}
+.chips .t{font-variation-settings:"CASL" 0,"MONO" 1;margin-right:5px;color:var(--ink-3)}
+.clip-status{font-size:var(--step--1);color:var(--ink-2);min-height:1.5em;margin:var(--s2) 0 0}
+
+/* trade-off table */
+.trade{width:100%;border-collapse:collapse;font-size:1rem;line-height:1.45}
+.trade th,.trade td{text-align:left;vertical-align:top;padding:12px 14px 12px 0;border-bottom:1px solid var(--rule)}
+.trade thead th{border-bottom:1.6px solid var(--ink);font-weight:640;font-size:1.05rem;padding-bottom:10px}
+.trade thead th .th-svg{display:block;width:64px;height:34px;margin-bottom:4px}
+.trade thead th .th-svg path{fill:var(--fig-bg);stroke:var(--ink);stroke-width:1.5}
+.trade tbody th{font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:560;font-size:.9rem;color:var(--ink-2);width:9.5em;padding-top:14px}
+.trade td.bad{color:var(--red)}
+.trade td.bad::before{content:"✕ ";font-family:var(--hand);font-weight:700}
+@media (max-width:700px){
+  .trade thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .trade,.trade tbody,.trade tr,.trade th,.trade td{display:block;width:auto}
+  .trade tr{padding:10px 0 6px;border-bottom:1.6px solid var(--ink)}
+  .trade tbody th{border:0;padding:0 0 4px;font-size:.95rem;color:var(--ink)}
+  .trade td{display:grid;grid-template-columns:7.5em 1fr;gap:10px;border:0;padding:4px 0;border-top:1px dashed var(--rule)}
+  .trade td::before{content:attr(data-col);font-family:var(--hand);font-variation-settings:"CASL" 1;font-size:.85rem;color:var(--ink-2);font-weight:560}
+  .trade td.bad::before{content:attr(data-col);color:var(--ink-2)}
+}
+
+/* recall */
+.recall{margin:var(--s4) 0 0;padding:0;list-style:none;counter-reset:q}
+.recall li{counter-increment:q;padding:var(--s4) 0;border-top:1px solid var(--rule)}
+.recall li:last-child{border-bottom:1px solid var(--rule)}
+.recall .q{display:grid;grid-template-columns:2.2em 1fr;margin:0 0 var(--s3)}
+.recall .q::before{content:counter(q);font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:700;color:var(--ink-2)}
+.recall details{margin-left:2.2em}
+.recall summary{cursor:pointer;font-family:var(--hand);font-variation-settings:"CASL" 1;font-weight:560;font-size:.92rem;color:var(--blue);width:fit-content;list-style:none;padding:4px 0}
+.recall summary::-webkit-details-marker{display:none}
+.recall details[open] summary{color:var(--ink-2)}
+.recall details p{font-size:1.05rem;margin:var(--s2) 0 0}
+
+/* section end */
+.sec-end{margin:var(--s8) 0 var(--s7);padding-top:var(--s5);border-top:1.5px solid var(--ink);display:grid;gap:var(--s4)}
+.next{display:flex;justify-content:space-between;gap:var(--s4);align-items:baseline;text-decoration:none;font-size:var(--step-1);font-weight:620}
+.next .lbl{font-size:var(--step--1);font-weight:400;color:var(--ink-2)}
+.concepts{font-size:var(--step--1);color:var(--ink-2);margin:0}
+.concepts a{color:var(--ink)}
+footer.page{font-size:var(--step--1);color:var(--ink-2);padding:var(--s5) 0 var(--s8)}
+
+/* rail (wide screens) */
+.rail{display:none}
+@media (min-width:1420px){
+  .rail{display:block;position:fixed;top:96px;left:calc(50% - 460px - 224px);width:196px;font-size:.86rem;line-height:1.4}
+  .rail p{color:var(--ink-3);margin:0 0 8px}
+  .rail ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--rule)}
+  .rail a{display:block;padding:5px 0 5px 12px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--ink-2)}
+  .rail a:hover{color:var(--ink)}
+  .rail a[aria-current="true"]{color:var(--ink);border-left-color:var(--blue)}
+}
+
+@media (max-width:640px){
+  body{font-size:1.09rem;line-height:1.6}
+  h3{margin-top:var(--s6)}
+  .rule{padding:var(--s4)}
+  .think{padding:var(--s4)}
+  .kbd-hint{display:none}
+  .play{left:8px;bottom:8px;padding:2px 10px 2px 4px;font-size:.8rem;min-height:36px;gap:6px}
+  .play .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .play svg{width:24px;height:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
+@media print{
+  .bar,.rail,.step-controls,.play,.chips,.kbd-hint,.think .choices{display:none!important}
+  .js .lag .step{opacity:1!important;visibility:visible!important}
+  .js .steps li{display:grid!important;opacity:1!important}
+  details>*{display:block}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#s2-4">Skip to section 2.4</a>
+
+<header class="bar">
+  <div class="bar-in">
+    <nav class="crumb hand" aria-label="Breadcrumb">
+      <a href="#" class="opt">System design</a><span class="sep opt">/</span>
+      <a href="#top">Lecture 01</a><span class="sep">/</span>
+      <a href="#" class="opt">2 Scaling</a><span class="sep opt">/</span>
+      <span class="here" aria-current="page">2.4 The database</span>
+    </nav>
+    <span class="spacer"></span>
+    <span class="prog-label hand" id="prog-label" aria-hidden="true">§2.4</span>
+    <button class="btn ghost" id="theme" type="button" aria-label="Switch colour theme"><span id="theme-label">Blackboard</span></button>
+  </div>
+  <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+</header>
+
+<nav class="rail hand" aria-label="In this section">
+  <p>§2.4 on this page</p>
+  <ol>
+    <li><a href="#first">Why the database goes first</a></li>
+    <li><a href="#bigger">A bigger machine</a></li>
+    <li><a href="#replicas">Read replicas</a></li>
+    <li><a href="#lag">Replication lag</a></li>
+    <li><a href="#sharding">Sharding</a></li>
+    <li><a href="#compare">Side by side</a></li>
+    <li><a href="#recall">Check yourself</a></li>
+  </ol>
+</nav>
+
+<main id="top">
+<div class="col lecture">
+  <p class="kicker hand">Lecture 01 · week 1, day 2 · running case: Medium</p>
+  <h1>Medium under load</h1>
+  <p class="dek">Caching at every level, then the rest of the framework: scaling, concurrency, delegation and communication, each worked through on Medium.</p>
+  <ul class="meta hand">
+    <li>From a live whiteboard class</li>
+    <li>Last reviewed 11 Oct 2026</li>
+    <li><a href="#">Found an error?</a></li>
+  </ul>
+
+  <details class="toc hand" open id="toc">
+    <summary>Contents of this lecture</summary>
+    <ol>
+      <li class="dim"><span class="no">1</span><a href="#">Caching at every level</a></li>
+      <li><span class="no">2</span><a href="#">Scaling</a>
+        <ol>
+          <li class="dim"><span class="no">2.1</span><a href="#">What scaling means</a></li>
+          <li class="dim"><span class="no">2.2</span><a href="#">Vertical, horizontal, and the hardware ceiling</a></li>
+          <li class="dim"><span class="no">2.3</span><a href="#">Autoscaling and planned spikes</a></li>
+          <li class="now"><span class="no">2.4</span><span><a href="#s2-4" aria-current="location">Scaling the database</a><span class="you scribble">you are here</span></span></li>
+        </ol>
+      </li>
+      <li class="dim"><span class="no">3</span><a href="#">Concurrency</a></li>
+      <li class="dim"><span class="no">4</span><a href="#">Delegation</a></li>
+      <li class="dim"><span class="no">5</span><a href="#">Communication</a></li>
+    </ol>
+  </details>
+</div>
+
+<article class="col" id="s2-4" aria-labelledby="h-s2-4">
+  <header class="sec-head">
+    <p class="sec-no hand">§ 2.4</p>
+    <h2 id="h-s2-4">Scaling the database</h2>
+    <p class="sec-dek">Why the database is scaled before anything else, and the three ways to give it room: a bigger machine, read replicas, sharding.</p>
+    <p class="sec-meta hand">About 12 min · class 00:45–01:05 and Q&amp;A 02:37–03:09</p>
+  </header>
+
+  <ul class="key hand" aria-label="Notation used in every figure">
+    <li class="key-title hand">Notation, same in every figure</li>
+    <li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><path class="ink shape" d="M7 4C15.1 3.7 23 4 31 4L34 7C33.8 11 34.1 15.1 34 19L31 22C23.1 21.9 15 21.8 7 22L4 19C4.3 14.9 4.3 10.8 4 7L7 4Z"/></svg><span>api server</span></li><li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><g class="cyl"><path class="ink shape" d="M8 5C8.4 9.2 8.2 13.9 8 18C8 19.8 12.9 21.2 19 21.2C25.1 21.2 30 19.8 30 18C29.4 13.5 29.8 9.2 30 5"/><path class="ink shape" d="M30 5C29.6 6.8 25 8 19 8.2C12.9 8.3 8 6.9 8 5C8 3.5 13.3 1.7 19 1.8C25 2.1 29.9 3.4 30 5Z"/></g></svg><span>master / database</span></li><li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><g class="cyl"><path class="ink shape" d="M8 5C7.9 9.6 8 13.5 8 18C8 19.8 12.9 21.2 19 21.2C25.1 21.2 30 19.8 30 18C30.1 13.7 30 9.2 30 5" stroke-dasharray="5 4"/><path class="ink shape" d="M30 5C30.2 6.8 24.9 8 19 8.2C12.8 7.9 8 6.5 8 5C7.7 2.9 12.6 2 19 1.8C24.8 1.8 30.2 3.2 30 5Z" stroke-dasharray="5 4"/></g></svg><span>replica</span></li><li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><g class="arrow"><path class="blue" d="M1.8 13.2C13.1 13.2 24.7 13.3 36 13"/><path class="blue head" d="M29.5 16.2C31.7 15.3 34.1 14.4 36 13C33.9 12.2 31.5 11.2 29.5 9.8"/></g></svg><span>request</span></li><li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><g class="arrow"><path class="green" d="M2.1 13.2C13.1 13.2 24.8 13 36 13"/><path class="green head" d="M30.2 15.8C32.5 14.9 34.3 14.1 36 13C33.7 12.1 31.7 11.1 29.3 9.5"/></g></svg><span>ack, success</span></li><li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><g class="arrow"><path class="red" d="M1.7 13.1C13.1 12.6 24.8 13 36 13"/><path class="red head" d="M29.9 15.9C32 15.2 33.9 14.3 36 13C33.9 12.2 31.6 11.3 29.6 10"/></g></svg><span>failure, stale</span></li><li><svg viewBox="0 0 40 26" aria-hidden="true" class="fig-svg key-svg"><g class="arrow"><path class="ink" d="M2.2 13.3C13.4 12.9 24.8 12.8 36 13" stroke-dasharray="6 5"/><path class="ink head" d="M30.1 15.8C32.2 15 34 13.9 36 13C33.9 12 32 10.9 30.1 9.8"/></g></svg><span>async copy</span></li>
+  </ul>
+
+  <h3 id="first">Why the database goes first <a class="anchor" href="#first" aria-label="Link to this heading">#</a></h3>
+  <p>In 2.2 Medium got a load balancer and a row of API servers behind it. API servers keep no state, so adding them is arithmetic: if one handles <span class="nb">100 requests</span> a second and a campaign will bring 500, you run five. Done right, capacity grows in a straight line with the number of machines.</p>
+  <p>The requests don’t stop at the API servers, though. Each one they accept turns into work for whatever they depend on: the database, a shared cache, other teams’ services. Medium’s database is still one machine. Widen the API fleet five times and you have built something that sends five times the queries to a component nobody touched.</p>
+  <p>When that component falls over, everything waiting on it fails too, and then everything waiting on <em>those</em>, until users can’t load a page. That chain is a <strong>cascading failure</strong>, and it shows up again and again in outage reports.</p>
+
+  <p class="clip-lead">Before you play it: the campaign message goes out and five API servers are ready. Which box gives out first?</p>
+  <figure class="wide clip" id="clip-cascade" aria-labelledby="clip-cap">
+    <div class="stage sheet">
+      <svg class="fig-svg poster" viewBox="0 0 1280 640" role="img" aria-labelledby="t5871"><title id="t5871">Clip poster: a cascading failure</title><desc>End state of the clip. A campaign spike of users goes through a load balancer to five API servers. They send five times the queries to one unchanged database, which is crossed out in red. Red dashed timeouts flow back and the API servers fail with it.</desc><g><path class="ink" d="M132 150C132.2 156.8 127 162.7 120 162.4C113.7 162.3 107.9 156.9 108 150C108.3 143.2 113.4 137.5 120 137.6C127 137.5 131.6 143.3 132 150Z"/><path class="ink" d="M120.2 162.1C120 177.9 120 193.8 120 210"/><path class="ink" d="M97.8 180C112.6 178.4 127.4 177.3 142 176"/><path class="ink" d="M119.8 209.9C113.9 220.5 108.3 231.6 102 242"/><path class="ink" d="M120.1 210.2C126.2 220.5 132.2 231.3 138 242"/></g><g class="arrow"><path class="ink" d="M170.2 199.8C210 233.9 251.2 266.8 292 300"/><path class="ink head" d="M278.6 296.8C283.2 298.3 287.4 299.1 292 300C289.9 295.8 287.9 292.1 286.4 287.7"/></g><g><path class="ink" d="M132 300C131.8 306.8 127 312.8 120 312.4C113.4 312.2 107.8 307.2 108 300C108.3 292.9 113.6 287.5 120 287.6C126.6 287.3 132.3 293.5 132 300Z"/><path class="ink" d="M119.8 312.1C120.5 327.8 120 344.1 120 360"/><path class="ink" d="M97.9 330.2C112.8 328.8 127.5 327.8 142 326"/><path class="ink" d="M120 359.7C114.1 370.9 108 381.3 102 392"/><path class="ink" d="M119.8 360.1C125.7 370.9 132 381.5 138 392"/></g><g class="arrow"><path class="ink" d="M169.8 349.9C210.7 354.3 251.3 357.2 292 360"/><path class="ink head" d="M279.3 365.7C283.4 364.1 287.7 362 292 360C288 357.6 283.8 355.4 280.1 352.6"/></g><g><path class="ink" d="M132 450C131.8 456.7 126.7 462.1 120 462.4C113.7 462.8 107.6 456.8 108 450C108.2 443.1 113.7 437.6 120 437.6C126.4 437.6 132.1 443 132 450Z"/><path class="ink" d="M120.1 462.2C120 478.2 120.1 494 120 510"/><path class="ink" d="M98.3 479.8C112.5 479 127.2 477.5 142 476"/><path class="ink" d="M120.2 510.2C113.7 520.5 107.7 531.3 102 542"/><path class="ink" d="M120 509.7C126 520.7 132.1 531.2 138 542"/></g><g class="arrow"><path class="ink" d="M169.8 499.7C210.6 473.3 251.2 446.8 292 420"/><path class="ink head" d="M284.4 432.4C287.4 428.3 289.5 424.1 292 420C287.1 420.7 282.8 421.2 278 421.5"/></g><text class="t-hand" x="190" y="100" text-anchor="middle" font-size="34">campaign spike</text><path class="ink shape" d="M303 220C314.4 219.6 325.8 219.7 337 220L340 223C340.5 314.4 340.6 405.8 340 497L337 500C325.6 500.3 314.2 500.5 303 500L300 497C298.8 405.8 299.4 314.2 300 223L303 220Z"/><text class="t-mono" x="320" y="200" text-anchor="middle" font-size="30">lb</text><path class="ink shape faint" d="M501 262C562.5 261.7 623.5 262.1 685 262L688 265C688.8 299.6 688.5 334.1 688 369L685 372C623.9 373.3 562.5 372.7 501 372L498 369C497.5 334.2 497.6 299.9 498 265L501 262Z"/><path class="ink shape faint" d="M487 276C548.3 275.9 609.7 275.5 671 276L674 279C674.3 313.4 674.1 348.4 674 383L671 386C609.7 385.2 548.3 385.3 487 386L484 383C484.7 348.5 484.4 313.6 484 279L487 276Z"/><path class="red shape" d="M473 290C534.4 289 595.5 289.3 657 290L660 293C660 327.6 660.3 362.4 660 397L657 400C595.5 399 534.1 399.4 473 400L470 397C469.6 362.1 469.6 327.5 470 293L473 290Z"/><text class="t-mono" x="565" y="356" text-anchor="middle" font-size="36">api</text><text class="t-hand" x="565" y="452" text-anchor="middle" font-size="32">×5 servers</text><g class="arrow"><path class="blue" d="M341.9 345.3C383.2 345.5 424.5 345.6 466 345"/><path class="blue head" d="M453.2 351.4C457.3 349.4 461.8 347.1 466 345C461.8 342.9 457.5 340.7 453.2 338.2"/></g><g class="arrow"><path class="blue thick" d="M661.7 329.9C741.1 329.1 820.7 329.3 900 330"/><path class="blue thick head" d="M883.9 337.9C889.5 335.4 894.9 332.9 900 330C894.5 327.4 889.4 324.9 884.4 322"/></g><text class="t-hand blue" x="780" y="310" text-anchor="middle" font-size="32">5× queries</text><g class="cyl"><path class="red shape" d="M918 250C918.1 316.8 917.9 383.2 918 450C918 462.1 959.4 472 1010 472C1060.6 472 1102 462.1 1102 450C1101.7 383.1 1101.6 316.7 1102 250"/><path class="red shape" d="M1102 250C1102.1 262.4 1061.2 271.8 1010 272C959.3 272.3 917.8 262.3 918 250C918.1 238.2 959.5 227.8 1010 228C1060.9 227.7 1101.9 237.8 1102 250Z"/></g><path class="red thick" d="M1077.7 213.9C1093.5 229 1108.6 244.5 1124 260"/><path class="red thick" d="M1124 213.8C1108.4 229 1093.1 244.5 1078 260"/><text class="t-hand" x="1010" y="540" text-anchor="middle" font-size="32">one database, unchanged</text><g class="arrow"><path class="red" d="M899.8 412C821.4 411.6 742.4 411.6 664 412" stroke-dasharray="6 5"/><path class="red head" d="M676.1 406C671.9 407.8 667.9 409.7 664 412C668 413.5 672 416 676 418"/></g><text class="t-hand red" x="780" y="444" text-anchor="middle" font-size="30">timeouts</text><text class="t-hand red" x="565" y="216" text-anchor="middle" font-size="30">fails with it</text></svg>
+      <button class="play" type="button" id="play" aria-describedby="clip-cap">
+        <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 8.6 L19.6 14 L11 19.4 Z" fill="currentColor"/></svg>
+        <span class="lbl">Play clip</span> <span class="dur">0:24</span>
+      </button>
+    </div>
+    <ol class="chips" aria-label="Chapters">
+      <li><button type="button" data-t="0:00"><span class="t">0:00</span>spike arrives</button></li>
+      <li><button type="button" data-t="0:06"><span class="t">0:06</span>API fleet scales</button></li>
+      <li><button type="button" data-t="0:13"><span class="t">0:13</span>database saturates</button></li>
+      <li><button type="button" data-t="0:19"><span class="t">0:19</span>cascade</button></li>
+    </ol>
+    <p class="clip-status hand" id="clip-status" role="status"></p>
+    <figcaption id="clip-cap"><span class="fig-no hand">Clip 2.4·1</span>Five API servers forward five times the queries to one database. It saturates, the servers time out waiting on it, and the site goes down with it. The poster is the clip’s last frame.</figcaption>
+  </figure>
+
+  <p>So the order matters more than the amount:</p>
+
+  <div class="rule" role="note" aria-labelledby="rule-text">
+    <p class="rule-label scribble">The rule for this whole chapter</p>
+    <p class="rule-text" id="rule-text">Scale <span class="mark">bottom up</span>: the database first, then the API servers.</p>
+    <p>Before a big campaign, confirm that everything you depend on can take the load, then widen the API fleet, then let the users in. How another team scales its service is their problem; that it <em>has</em> scaled before you send traffic is yours.</p>
+    <svg class="fig-svg bottomup" viewBox="0 0 480 146" role="img" aria-labelledby="t2962"><title id="t2962">Scale bottom up</title><desc>A user, an API server and a database in a row. Step 1 is under the database: scale it first. Step 2 is under the API server: then scale the API servers.</desc><g><path class="ink" d="M46 26C45.9 29.2 43.2 32.3 40 32.2C36.3 32 33.9 29.3 34 26C33.9 22.9 36.8 19.5 40 19.8C43.5 19.7 45.7 22.8 46 26Z"/><path class="ink" d="M40.2 32.2C39.8 39.8 39.9 47.9 40 56"/><path class="ink" d="M29.2 40.9C36.4 40 43.9 39.4 51 39"/><path class="ink" d="M39.9 56C37 61.2 33.9 66.5 31 72"/><path class="ink" d="M40.2 55.9C43.3 61.5 46.3 66.4 49 72"/></g><path class="ink" d="M61.9 56.3C97.2 55.5 132.5 55.5 168 56"/><path class="ink shape" d="M171 38C203.7 37.9 236.1 38 269 38L272 41C271.8 50.8 271.8 61 272 71L269 74C236.5 74.1 203.4 73.9 171 74L168 71C167.8 61 167.9 51 168 41L171 38Z"/><text class="t-mono" x="220" y="61" text-anchor="middle" font-size="14">api</text><path class="ink" d="M272.2 55.8C311.4 55.9 350.8 56.1 390 56"/><g class="cyl"><path class="ink shape" d="M394 38C394.4 49.3 394.3 60.8 394 72C394 75 403 77.5 414 77.5C425 77.5 434 75 434 72C434.1 60.6 434 49.2 434 38"/><path class="ink shape" d="M434 38C433.9 40.9 425.1 43.5 414 43.5C402.8 43.8 394.1 41.2 394 38C393.6 35.2 403 32.6 414 32.5C425 32.6 433.6 34.8 434 38Z"/></g><g class="arrow"><path class="ink" d="M413.9 88C413.8 94.8 413.8 101.4 414 108"/><path class="ink head" d="M410.8 101.4C411.7 104 412.6 106.1 414 108C414.5 106 415.4 103.9 416.8 102.1"/></g><g class="arrow"><path class="ink" d="M219.8 82.2C219.9 90.6 219.9 99.3 220 108"/><path class="ink head" d="M216.7 101.6C217.7 104.1 218.5 105.9 220 108C220.6 105.8 221.9 103.8 223.2 101.9"/></g><g class="num"><path class="ink fillpaper" d="M361 127C361 131.9 356.8 135.5 352 135.4C347.2 135.5 342.8 131.4 343 127C342.8 122.7 347 118.8 352 118.6C356.7 118.8 361.1 122 361 127Z"/><text class="t-num ink" x="352" y="131.2" text-anchor="middle" font-size="12">1</text></g><text class="t-hand" x="367" y="132" text-anchor="start" font-size="14">database first</text><g class="num"><path class="ink fillpaper" d="M161 127C160.8 131.2 156.6 135.1 152 135.4C146.9 135.6 143.3 131.4 143 127C142.8 122.8 147 118.5 152 118.6C156.8 118.6 160.7 122.7 161 127Z"/><text class="t-num ink" x="152" y="131.2" text-anchor="middle" font-size="12">2</text></g><text class="t-hand" x="167" y="132" text-anchor="start" font-size="14">then api servers</text></svg>
+  </div>
+
+  <p>The database deserves this care more than any other part. It is the most critical and most brittle piece of Medium’s infrastructure: every story and every account lives there, and when it goes down, everything is down. There are three common ways to give it room, and they are usually reached for in this order:</p>
+
+  <figure class="wide" id="fig-three" aria-labelledby="fig-three-cap">
+    <div class="panels sheet">
+      <div><svg class="fig-svg" viewBox="0 0 300 280" role="img" aria-labelledby="t4487"><title id="t4487">Vertical scaling</title><desc>A small database cylinder (16 GB) becomes a bigger one (32 GB up to 4 TB). A red dashed line above marks the hardware ceiling.</desc><text class="t-hand red" x="150" y="34" text-anchor="middle" font-size="14">hardware ceiling</text><path class="red" d="M150 48C194.6 49.1 239.4 48.6 284 48" stroke-dasharray="3 5"/><g class="cyl"><path class="ink shape" d="M32 128C32.1 145.5 31.8 162.6 32 180C32 183.6 42.8 186.5 56 186.5C69.2 186.5 80 183.6 80 180C79.7 162.8 79.4 145.6 80 128"/><path class="ink shape" d="M80 128C80.4 131.7 69.3 134.2 56 134.5C42.4 134.5 31.6 131.3 32 128C31.8 124 42.7 121.5 56 121.5C69.5 121.5 80.1 124.4 80 128Z"/></g><g class="arrow"><path class="ink" d="M94.1 158C114.9 157.9 135.5 157.9 156 158"/><path class="ink head" d="M148.2 161.8C151.1 160.8 153.7 159.4 156 158C153.6 157.2 150.6 155.6 148.4 154.3"/></g><text class="t-hand muted" x="125" y="146" text-anchor="middle" font-size="12.5">bigger type</text><g class="cyl"><path class="ink shape" d="M170 80C169.5 114.9 169.6 149.1 170 184C170 190.1 189.8 195 214 195C238.2 195 258 190.1 258 184C258.3 149.2 257.9 114.6 258 80"/><path class="ink shape" d="M258 80C258.4 86.3 238 90.8 214 91C189.4 90.6 170.2 85.8 170 80C170 73.9 189.5 69.2 214 69C238 69.1 257.7 73.9 258 80Z"/></g><text class="t-mono" x="56" y="214" text-anchor="middle" font-size="13">16 GB</text><text class="t-mono" x="214" y="220" text-anchor="middle" font-size="13">32 GB … 4 TB</text><text class="t-title" x="150" y="266" text-anchor="middle" font-size="17">vertical scaling</text></svg></div>
+      <div><svg class="fig-svg" viewBox="0 0 300 280" role="img" aria-labelledby="t4668"><title id="t4668">Read replicas</title><desc>The API server sends writes to the master (solid cylinder) and reads to a replica (dashed cylinder). The master’s changes reach the replica asynchronously; the replica pulls them. The master asks: still every write on me?</desc><path class="ink shape" d="M14 8C42.2 7.3 70 7.6 98 8C99.8 9.8 102.2 12.1 104 14C103.7 24.5 103.9 35.1 104 46C102.1 48.2 99.9 49.8 98 52C82.1 52.1 66.1 52.3 50.2 52C52 72.1 52.9 91.9 54 112C47.7 91.8 41.4 72.1 34.9 52C28 52.2 21.1 52.1 14 52C12 49.8 9.8 47.8 8 46C7.9 35.5 8 24.6 8 14C10.2 12 12 10.2 14 8Z"/><text class="t-hand" x="56" y="26" text-anchor="middle" font-size="12.5">still every</text><text class="t-hand" x="56" y="42" text-anchor="middle" font-size="12.5">write on me?</text><path class="ink shape" d="M115 24C139.5 24.8 164.4 24.6 189 24L192 27C192.1 36.5 192.3 45.5 192 55L189 58C164.2 57.9 139.6 58.1 115 58L112 55C112.1 45.5 112.2 36.2 112 27L115 24Z"/><text class="t-mono" x="152" y="46" text-anchor="middle" font-size="14">api</text><g class="arrow"><path class="blue" d="M132.1 58C131.7 69.5 131.8 80.6 132 92C111.8 92.3 91.8 92 72 92C71.9 101.1 72.1 110.6 72 120"/><path class="blue head" d="M67.9 111.4C69.3 114.3 70.3 117.2 72 120C72.9 117.5 74.7 114.6 76 112.4"/></g><g class="arrow"><path class="blue" d="M172 57.7C171.8 69.1 171.7 80.5 172 92C191.2 91.5 210.6 91.9 230 92C229.9 101.3 229.9 110.7 230 120"/><path class="blue head" d="M226 112.2C227.3 114.7 228.6 117.6 230 120C230.9 117.5 232.1 114.7 233.6 112.4"/></g><text class="t-hand blue" x="102" y="85" text-anchor="middle" font-size="13">writes</text><text class="t-hand blue" x="203" y="85" text-anchor="middle" font-size="13">reads</text><g class="cyl"><path class="ink shape" d="M44 128C43.9 147.5 43.8 166.9 44 186C44 190.1 56.6 193.5 72 193.5C87.4 193.5 100 190.1 100 186C99.9 166.6 99.9 147.4 100 128"/><path class="ink shape" d="M100 128C100.2 132.3 87.2 135.3 72 135.5C56.3 135.8 43.8 131.8 44 128C43.9 124.2 56.2 120.2 72 120.5C87.8 120.8 99.7 123.8 100 128Z"/></g><g class="cyl"><path class="ink shape" d="M202 128C201.7 147.3 201.7 166.8 202 186C202 190.1 214.6 193.5 230 193.5C245.4 193.5 258 190.1 258 186C258.4 166.7 258.1 147.5 258 128" stroke-dasharray="5 4"/><path class="ink shape" d="M258 128C257.8 132.2 245.6 135.3 230 135.5C214.4 135.6 202.1 132.3 202 128C201.9 123.6 214.8 120.3 230 120.5C245.7 120.7 258.4 123.5 258 128Z" stroke-dasharray="5 4"/></g><g class="arrow"><path class="ink" d="M105.8 160C135.9 160.1 165.8 160.4 196 160" stroke-dasharray="6 5"/><path class="ink head" d="M187.7 164.1C190.4 162.8 193.5 161.6 196 160C193.4 158.8 190.8 157.2 188 155.8"/></g><text class="t-hand" x="151" y="151" text-anchor="middle" font-size="12.5">async copy</text><text class="t-hand muted" x="151" y="178" text-anchor="middle" font-size="11.5">replica pulls</text><text class="t-mono" x="72" y="214" text-anchor="middle" font-size="13">master</text><text class="t-mono" x="230" y="214" text-anchor="middle" font-size="13">replica ×N</text><text class="t-hand muted" x="230" y="231" text-anchor="middle" font-size="11.5">≈5 per master</text><text class="t-title" x="150" y="266" text-anchor="middle" font-size="17">read replicas</text></svg></div>
+      <div><svg class="fig-svg" viewBox="0 0 300 280" role="img" aria-labelledby="t9442"><title id="t9442">Sharding</title><desc>The API server hashes the user ID to pick one of three shards. Each shard is a master holding a third of the users.</desc><path class="ink shape" d="M95 16C131.9 15.1 168.1 15.3 205 16L208 19C208.1 32.9 208 47.2 208 61L205 64C168.6 63.3 131.7 63.3 95 64L92 61C92.4 47.1 92.3 32.9 92 19L95 16Z"/><text class="t-mono" x="150" y="36" text-anchor="middle" font-size="14">api</text><text class="t-mono muted" x="150" y="54" text-anchor="middle" font-size="11">hash(user_id)</text><g class="arrow"><path class="blue" d="M118.2 64.3C117.7 75.5 117.7 86.9 118 98C97.3 97.3 76.6 97.7 56 98C55.8 108.4 56 119.1 56 130"/><path class="blue head" d="M51.9 122.4C52.8 124.9 54.5 127.7 56 130C57.3 127.2 58.8 124.3 60.1 121.6"/></g><g class="arrow"><path class="blue" d="M150.3 63.8C150.4 85.9 150.4 108.1 150 130"/><path class="blue head" d="M145.7 121.6C146.8 124.7 148.6 127.2 150 130C151.2 127.5 152.5 124.7 154 122.2"/></g><g class="arrow"><path class="blue" d="M181.8 64C182.1 75.1 182.2 86.7 182 98C202.8 97.9 223.3 98 244 98C244.3 108.6 244.4 119.5 244 130"/><path class="blue head" d="M240.1 121.9C241.3 125 242.5 127.3 244 130C244.9 127.2 246.6 124.4 247.8 121.9"/></g><g class="cyl"><path class="ink shape" d="M30 138C29.4 155.8 29.6 174.1 30 192C30 195.8 41.7 199 56 199C70.3 199 82 195.8 82 192C81.7 174.1 81.7 156.1 82 138"/><path class="ink shape" d="M82 138C81.7 141.9 70.2 144.8 56 145C41.7 144.9 29.9 141.8 30 138C30 133.9 41.4 131.1 56 131C70.5 131 82.3 134.2 82 138Z"/></g><text class="t-mono" x="56" y="218" text-anchor="middle" font-size="13">shard 0</text><text class="t-hand muted" x="56" y="235" text-anchor="middle" font-size="11.5">⅓ of users</text><g class="cyl"><path class="ink shape" d="M124 138C123.4 156.1 123.9 174.2 124 192C124 195.8 135.7 199 150 199C164.3 199 176 195.8 176 192C175.7 174.2 175.7 156.2 176 138"/><path class="ink shape" d="M176 138C176.3 141.6 164.2 145.2 150 145C135.4 144.7 124.3 141.8 124 138C124.2 133.8 135.6 131.1 150 131C164 130.8 176.1 134.5 176 138Z"/></g><text class="t-mono" x="150" y="218" text-anchor="middle" font-size="13">shard 1</text><text class="t-hand muted" x="150" y="235" text-anchor="middle" font-size="11.5">⅓ of users</text><g class="cyl"><path class="ink shape" d="M218 138C217.2 156 217.7 174 218 192C218 195.8 229.7 199 244 199C258.3 199 270 195.8 270 192C270.1 173.8 270 155.8 270 138"/><path class="ink shape" d="M270 138C270 141.9 258.4 144.7 244 145C229.4 144.8 218.3 142.3 218 138C218.3 133.8 229.3 131.4 244 131C258.3 131.2 269.9 134.1 270 138Z"/></g><text class="t-mono" x="244" y="218" text-anchor="middle" font-size="13">shard 2</text><text class="t-hand muted" x="244" y="235" text-anchor="middle" font-size="11.5">⅓ of users</text><text class="t-title" x="150" y="266" text-anchor="middle" font-size="17">sharding</text></svg></div>
+    </div>
+    <figcaption id="fig-three-cap"><span class="fig-no hand">Fig 2.4·a</span>A bigger machine, copies that take reads, and exclusive slices that each take their own writes. Redrawn from the class board at 00:56.</figcaption>
+  </figure>
+
+  <h3 id="bigger">A bigger machine <a class="anchor" href="#bigger" aria-label="Link to this heading">#</a></h3>
+  <p>The quickest fix needs no code. In the cloud console you change the database’s instance type: <span class="nb">16 GB</span> of RAM becomes 32, then 64, 128, 256, <span class="nb">512 GB</span>, <span class="nb">1 TB</span>, <span class="nb">2 TB</span>, <span class="nb">4 TB</span>. Most young products should stay here as long as they can, because every step after this one makes deployment more complex.</p>
+  <p>The ladder has a top rung, and the reason is physical. A larger size needs different hardware, and every part has to speak the same bus protocol as the board it plugs into. A phone whose card slot supports <span class="nb">256 GB</span> won’t read a <span class="nb">512 GB</span> card for the same reason. Unless the data center has the next machine up, there is nowhere to go. (“The console doesn’t offer a bigger one” describes the symptom, not the cause.)</p>
+
+  <h3 id="replicas">Read replicas <a class="anchor" href="#replicas" aria-label="Link to this heading">#</a></h3>
+  <p>Most applications read far more than they write: <span class="num-tab">90:10</span> is common and <span class="num-tab">99:1</span> is not unusual. Medium is a clear case. For every person writing a story, many more are reading it. If reads are most of the load, moving reads off the main database removes most of the problem.</p>
+  <p>A <strong>read replica</strong> is a second database that keeps a copy of the <strong>master</strong>’s data. All writes go to the master, and the replica receives them <em>asynchronously</em>, a little later. MySQL, PostgreSQL and MongoDB all ship this as configuration you switch on rather than code you write.</p>
+  <p>One detail is usually told backwards. The master doesn’t push changes out; the replica connects to the master and pulls them. PostgreSQL’s documentation describes its streaming replication this way:</p>
+  <blockquote class="src">
+    <p>“The standby connects to the primary, which streams WAL records to the standby as they’re generated … Streaming replication is asynchronous by default, in which case there is a small delay between committing a transaction in the primary and the changes becoming visible in the standby.”</p>
+    <footer class="hand">PostgreSQL documentation, §26.2.5 Streaming Replication <a class="cite" href="https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION" rel="noopener">postgresql.org ↗</a></footer>
+  </blockquote>
+  <p>The same page puts that delay at “typically under one second”, provided the standby can keep up with the load. Under a second sounds harmless. Whether it is depends on who is reading.</p>
+  <p>The database won’t split reads from writes for you. In the plain version, the API server does it: it opens one connection to each database, and every handler picks the right one for its query.</p>
+<pre><code><span class="k">const</span> master  = <span class="k">new</span> Pool({ connectionString: env.DB_MASTER_URL });
+<span class="k">const</span> replica = <span class="k">new</span> Pool({ connectionString: env.DB_REPLICA_URL });
+
+<span class="c">// a reader's profile can be a moment old: replica</span>
+<span class="k">await</span> replica.query(<span class="w">'SELECT * FROM users WHERE id = $1'</span>, [userId]);
+
+<span class="c">// publishing a story is a write: always the master</span>
+<span class="k">await</span> master.query(
+  <span class="w">'INSERT INTO stories (author_id, body) VALUES ($1, $2)'</span>,
+  [userId, body]
+);</code></pre>
+  <p>Which reads may go to a replica is a judgement per query. A profile can be a moment stale. A bank balance can’t: if a friend says the money is sent and your app reads from a replica that hasn’t caught up, the money looks missing. Reads like that are <strong>critical reads</strong>, and they go to the master. Proxies exist that route queries for you behind a single connection string, but not every stack has one, and you should know what they are doing.</p>
+
+  <aside class="think" aria-labelledby="think-q">
+    <p class="think-label scribble">Pause and think</p>
+    <p id="think-q">The moment a writer presses <em>Publish</em>, Medium shows them their story, which means reading it straight back from the database. Which connection should that read use?</p>
+    <div class="choices" role="group" aria-label="Your answer">
+      <button class="btn" type="button" data-pick="replica" aria-pressed="false">The replica: it’s a read</button>
+      <button class="btn" type="button" data-pick="master" aria-pressed="false">The master</button>
+    </div>
+    <div class="answer" id="think-answer">
+      <p class="hand verdict" id="think-verdict" aria-live="polite"></p>
+      <p>The master, at least for the writer. For that one person this is a critical read: they just wrote the data, and they will notice if it is missing. A replica that hasn’t pulled the change yet returns nothing, and the writer concludes the publish failed. Readers arriving later can use the replica; a moment of lag costs them nothing. The next figure shows that window.</p>
+    </div>
+  </aside>
+
+  <h3 id="lag">Replication lag, step by step <a class="anchor" href="#lag" aria-label="Link to this heading">#</a></h3>
+  <p class="lead-in">Here is one story being published while a reader asks for it. Step through with the buttons or the arrow keys:</p>
+  <figure class="wide" id="fig-lag" aria-labelledby="fig-lag-cap">
+    <div class="stepper sheet">
+      <div class="lag-wrap" tabindex="0" id="lag-focus" aria-label="Replication lag figure. Use left and right arrow keys to step." aria-describedby="lag-live">
+        <svg class="fig-svg lag" viewBox="0 0 420 600" role="img" aria-labelledby="t7667"><title id="t7667">Replication lag, step by step</title><desc>Swim lanes for API server, master and replica, time running down. 1: the API server sends INSERT story 42 to the master. 2: the master commits and acknowledges. 3: a read for story 42 goes to the replica and returns zero rows, a stale read. 4: the replica asks the master for changes since its position and receives story 42; the gap between commit and apply is the replication lag. 5: the same read now returns story 42.</desc><path class="ink shape" d="M45 20C61.8 20.1 78.5 19.9 95 20L98 23C97.8 30.8 97.7 39.2 98 47L95 50C78.2 50 61.8 49.8 45 50L42 47C42.1 39 42 31 42 23L45 20Z"/><text class="t-mono" x="70" y="40" text-anchor="middle" font-size="13">api</text><g class="cyl"><path class="ink shape" d="M180 20C180.1 28.8 180 37.5 180 46C180 49 189 51.5 200 51.5C211 51.5 220 49 220 46C219.3 37.5 219.6 28.8 220 20"/><path class="ink shape" d="M220 20C220 23.2 210.9 25.8 200 25.5C188.7 25.6 179.9 23.4 180 20C179.9 16.9 189 14.8 200 14.5C211.2 14.3 220 17.4 220 20Z"/></g><g class="cyl"><path class="ink shape" d="M310 20C309.9 28.9 310.1 37.3 310 46C310 49 319 51.5 330 51.5C341 51.5 350 49 350 46C349.7 37.1 349.7 28.7 350 20" stroke-dasharray="5 4"/><path class="ink shape" d="M350 20C350.2 23.2 340.9 25.4 330 25.5C318.7 25.6 309.7 22.7 310 20C310 17.2 319.2 14.3 330 14.5C340.7 14.2 349.8 16.6 350 20Z" stroke-dasharray="5 4"/></g><text class="t-hand" x="70" y="72" text-anchor="middle" font-size="13">api server</text><text class="t-hand" x="200" y="72" text-anchor="middle" font-size="13">master</text><text class="t-hand" x="330" y="72" text-anchor="middle" font-size="13">replica</text><path class="lifeline" d="M70.2 84C69.7 252 69.8 419.9 70 588"/><path class="lifeline" d="M199.8 83.9C201.3 251.8 201 420 200 588"/><path class="lifeline" d="M330.1 84C328.9 252 329.2 420.2 330 588"/><g class="arrow"><path class="lifeline" d="M15.9 95.8C16.2 258.5 16.1 421.1 16 584"/><path class="lifeline head" d="M12.4 577.3C13.3 579.5 14.6 581.9 16 584C16.4 581.9 17.5 579.9 18.8 578.3"/></g><text class="t-hand muted" x="21" y="100" text-anchor="start" font-size="11" transform="rotate(90 21 100)">time</text><g class="step" data-step="1"><g class="arrow"><path class="blue" d="M70.3 118.2C112.6 126.8 155.5 136.1 198 146"/><path class="blue head" d="M189.2 148.2C192.2 147.9 195 146.8 198 146C195.6 144.5 193.1 142 190.6 140.1"/></g><text class="t-mono blue" x="78" y="110" text-anchor="start" font-size="13">INSERT story 42</text><g class="num"><path class="blue fillpaper" d="M53 118C53 122.9 48.8 126.1 44 126.4C38.9 126.4 35.1 122.6 35 118C35 113.3 39.3 109.6 44 109.6C49.3 110 53.1 113.7 53 118Z"/><text class="t-num blue" x="44" y="122.2" text-anchor="middle" font-size="12">1</text></g></g><g class="step" data-step="2"><circle class="dot" cx="200" cy="150" r="3.2"/><text class="t-hand" x="208" y="154" text-anchor="start" font-size="13">commit</text><g class="arrow"><path class="green" d="M200 166.2C157.3 176.3 114.8 186.2 72 196"/><path class="green head" d="M79.4 190.1C76.5 192 74.6 194 72 196C75 196.5 77.4 197.3 80.4 198"/></g><text class="t-hand green" x="90" y="216" text-anchor="start" font-size="13">ok, published</text><g class="num"><path class="green fillpaper" d="M53 196C53.3 200.9 49.3 204.3 44 204.4C38.8 204.3 35.3 200.6 35 196C35.2 191.1 39.4 187.9 44 187.6C48.7 187.8 53.1 191.4 53 196Z"/><text class="t-num green" x="44" y="200.2" text-anchor="middle" font-size="12">2</text></g></g><g class="step" data-step="3"><g class="arrow"><path class="blue" d="M69.7 250C155.9 259.4 241.9 269.2 328 280"/><path class="blue head" d="M319.4 283.1C322.5 282.1 325.3 281.2 328 280C325.2 278.3 322.5 276.5 320.1 274.7"/></g><text class="t-mono blue" x="78" y="242" text-anchor="start" font-size="13">SELECT story 42</text><g class="arrow"><path class="red" d="M330.1 296.2C243.8 306.1 158 316.3 72 326"/><path class="red head" d="M79.1 320.9C76.8 322.4 74 323.9 72 326C74.8 326.8 77.8 328 80.5 329.1"/></g><text class="t-hand red" x="322" y="330" text-anchor="end" font-size="13">0 rows: stale</text><g class="num"><path class="blue fillpaper" d="M53 250C53.2 254.3 48.9 258.7 44 258.4C39.2 258.4 34.8 254.3 35 250C35.2 245.7 39.3 241.8 44 241.6C49.3 241.4 53.1 245.7 53 250Z"/><text class="t-num blue" x="44" y="254.2" text-anchor="middle" font-size="12">3</text></g></g><g class="step" data-step="4"><g class="arrow"><path class="ink" d="M330.1 382.3C287.3 387.8 244.4 394.8 202 402" stroke-dasharray="6 5"/><path class="ink head" d="M209.2 397.1C206.7 398.4 204.2 400 202 402C205 402.4 207.8 403.4 210.6 404.7"/></g><text class="t-hand" x="322" y="358" text-anchor="end" font-size="13">changes since</text><text class="t-hand" x="322" y="373" text-anchor="end" font-size="13">my position?</text><g class="arrow"><path class="ink" d="M199.8 413.7C242.8 420.4 285.1 427.5 328 434" stroke-dasharray="6 5"/><path class="ink head" d="M319.1 436.9C322.4 436 325 435 328 434C325.4 432.4 323 430.6 320.3 428.6"/></g><text class="t-mono" x="212" y="444" text-anchor="start" font-size="13">story 42</text><circle class="dot" cx="330" cy="436" r="3.2"/><text class="t-hand" x="338" y="440" text-anchor="start" font-size="13">applied</text><path class="red thin" d="M262.1 150.1C302.8 149.4 343.6 149.7 384 150" stroke-dasharray="2 4"/><path class="red" d="M383.9 149.8C387 150 389.9 149.9 393 150C393.3 245.4 393.3 340.7 393 436C389.9 436.1 387 436.1 384 436"/><text class="t-hand red" x="407" y="293" text-anchor="middle" font-size="12.5" transform="rotate(90 407 293)">replication lag</text><g class="num"><path class="ink fillpaper" d="M53 382C52.8 387 49.4 390.5 44 390.4C39.4 390.4 34.6 386.8 35 382C35.2 377.1 39 373.6 44 373.6C48.8 373.3 53.3 377.2 53 382Z"/><text class="t-num ink" x="44" y="386.2" text-anchor="middle" font-size="12">4</text></g></g><g class="step" data-step="5"><g class="arrow"><path class="blue" d="M70.2 490C155.8 500.6 242 510.2 328 520"/><path class="blue head" d="M320 523.2C322.7 522.3 325.6 521 328 520C325.3 518.4 322.8 516.5 320.2 514.6"/></g><text class="t-mono blue" x="78" y="482" text-anchor="start" font-size="13">SELECT story 42</text><g class="arrow"><path class="green" d="M329.8 536.1C243.9 545.1 158.1 555.7 72 566"/><path class="green head" d="M79 561C76.7 562.5 74.3 564.3 72 566C74.9 566.8 77.7 568.1 80.8 569.4"/></g><text class="t-hand green" x="322" y="570" text-anchor="end" font-size="13">1 row: story 42</text><g class="num"><path class="blue fillpaper" d="M53 490C52.7 494.5 48.8 498.1 44 498.4C38.8 498.7 34.6 494.8 35 490C35.2 485.6 39 481.6 44 481.6C48.7 481.5 53.3 485.7 53 490Z"/><text class="t-num blue" x="44" y="494.2" text-anchor="middle" font-size="12">5</text></g></g></svg>
+      </div>
+      <div class="steps-panel">
+        <div class="steps-head step-controls">
+          <button class="btn" type="button" id="prev" aria-label="Previous step">← Prev</button>
+          <button class="btn" type="button" id="next" aria-label="Next step">Next →</button>
+          <span class="counter hand" id="counter" aria-hidden="true">1 / 5</span>
+        </div>
+        <ol class="steps" id="steps">
+          <li data-step="1"><span class="n" aria-hidden="true">1</span><span>The writer presses Publish. The API server sends the <code>INSERT</code> over its master connection, because every write goes to the master.</span></li>
+          <li data-step="2"><span class="n" aria-hidden="true">2</span><span>The master commits and replies. The writer sees <span class="term green">published</span>. The replica does not have the row yet.</span></li>
+          <li data-step="3"><span class="n" aria-hidden="true">3</span><span>A reader opens the story. Story reads use the replica connection, and the replica returns <span class="term red">nothing</span>. Nothing crashed; the reader got a <strong>stale read</strong>.</span></li>
+          <li data-step="4"><span class="n" aria-hidden="true">4</span><span>The replica asks the master for everything after its last position and applies the new row. The time between commit and apply is the <span class="term red">replication lag</span>.</span></li>
+          <li data-step="5"><span class="n" aria-hidden="true">5</span><span>The same read now <span class="term green">finds the story</span>. Nothing in the read path changed; the reader arrived after the lag closed.</span></li>
+        </ol>
+        <p class="kbd-hint hand">Keys: ← → to step · link to a step with <code>#fig-lag/step-3</code></p>
+        <p class="sr" id="lag-live" aria-live="polite"></p>
+      </div>
+    </div>
+    <figcaption id="fig-lag-cap"><span class="fig-no hand">Fig 2.4·b</span>Time runs down. Lanes are the API server, the master and the replica; the red bracket is the window in which a replica read is stale.</figcaption>
+  </figure>
+
+  <p>Replicas cost the master something too. Each one fetching changes uses some of the master’s CPU, memory and network, which is why one master typically feeds around five replicas and not fifty. (Some databases let a replica read the binlog file directly, which is cheaper for the master; others serve changes over SQL or their own protocol.) If you need fifteen, replicas can feed replicas: five at the top, each serving two or three of its own.</p>
+  <p>Keep adding replicas as the API fleet grows. Each database can serve only so many requests and hold only so many connections, and when the data is too big to cache whole, a redundant copy to read from is the only way to keep a read-heavy API fast.</p>
+
+  <details class="aside">
+    <summary>If the master dies <span class="why hand">skip unless you run your own database</span></summary>
+    <div class="body">
+      <p>A replica can be promoted to master through leader election. Building that yourself is painful, and most product teams don’t: on a managed database such as AWS’s, the provider promotes a standby for you. Fault tolerance gets its own week (week 5).</p>
+    </div>
+  </details>
+
+  <h3 id="sharding">Sharding <a class="anchor" href="#sharding" aria-label="Link to this heading">#</a></h3>
+  <p>Replicas multiply reads. Every write still lands on one master. When that master can’t keep up even after a vertical bump and a set of replicas, or when the replicas’ fetching starts to hurt it, split the data.</p>
+  <p><strong>Sharding</strong> divides the rows into mutually exclusive subsets and puts each subset on its own node. Each shard is a master that takes the writes for its subset, and each can have replicas of its own. Three shards are not three copies of one database: each holds roughly a third of the rows.</p>
+  <p>Something has to know which shard holds what. In the plain version that is the API server again. Medium can shard by user ID: hash the ID and the hash picks the shard. That mapping has to stay fixed, or a user’s stories will be looked for on the wrong node.</p>
+<pre><code><span class="k">const</span> shards = [pool0, pool1, pool2];   <span class="c">// one pool per shard</span>
+<span class="k">const</span> shardFor = (userId) =&gt; shards[hash(userId) % shards.length];
+
+<span class="k">await</span> shardFor(userId).query(
+  <span class="w">'SELECT * FROM stories WHERE author_id = $1'</span>, [userId]
+);</code></pre>
+  <p>The API server holds a <strong>connection pool</strong> to every shard: three shards, three pools. They can’t be shared, because a TCP connection to a database is stateful and belongs to that one database. A proxy can hold the pools instead, and some paid databases shard for you behind what looks like one database. Many open-source ones don’t, so build the plain version once, locally, before adding a proxy.</p>
+  <p>There is no formula for the shard key or the shard count. Look at the data and how it is read, then decide. Splitting by table instead of by row, say users on one server and stories on another, is <strong>vertical sharding</strong>, and it needs the same pool per database.</p>
+
+  <details class="aside">
+    <summary>Why not let replicas take writes too? <span class="why hand">a common follow-up</span></summary>
+    <div class="body">
+      <p>A replica that accepts writes makes it a multi-master setup. Two masters can accept conflicting writes to the same row, and how to resolve that depends entirely on the use case. That is why sharding is the usual way to scale writes. The order is read replicas, then sharding, and multi-master only if you want to make things overtly complicated.</p>
+    </div>
+  </details>
+
+  <h3 id="compare">The three side by side <a class="anchor" href="#compare" aria-label="Link to this heading">#</a></h3>
+  <table class="trade wide">
+    <caption class="sr">Trade-offs of vertical scaling, read replicas and sharding</caption>
+    <thead>
+      <tr><td></td><th scope="col"><svg viewBox="0 0 64 34" aria-hidden="true" class="th-svg"><g class="cyl"><path class="ink shape" d="M6 14C6.3 17.9 6.1 21.8 6 26C6 27.4 9.6 28.6 14 28.6C18.4 28.6 22 27.4 22 26C21.7 21.9 21.4 17.8 22 14"/><path class="ink shape" d="M22 14C22 15.8 18.2 16.9 14 16.6C9.6 16.5 6.2 15.4 6 14C5.6 12.6 9.7 11.5 14 11.4C18.2 11.8 22.3 13 22 14Z"/></g><g class="cyl"><path class="ink shape" d="M30 6C30.2 13.4 29.9 20.4 30 28C30 30 36.3 31.6 44 31.6C51.7 31.6 58 30 58 28C57.4 20.5 57.7 13.5 58 6"/><path class="ink shape" d="M58 6C57.8 8 51.3 9.4 44 9.6C36.6 9.2 30 8.2 30 6C30.2 4.2 36.2 2.6 44 2.4C52 2.6 58.4 3.7 58 6Z"/></g></svg>Bigger machine</th><th scope="col"><svg viewBox="0 0 64 34" aria-hidden="true" class="th-svg"><g class="cyl"><path class="ink shape" d="M6 8C5.4 14.1 5.5 20.2 6 26C6 27.6 10.5 29 16 29C21.5 29 26 27.6 26 26C25.5 19.9 25.5 13.9 26 8"/><path class="ink shape" d="M26 8C26.1 9.9 21.4 11.1 16 11C10.4 10.8 6.3 9.5 6 8C5.7 6.2 10.7 4.8 16 5C21.7 5 26.1 6.1 26 8Z"/></g><g class="cyl"><path class="ink shape" d="M36 8C36.3 13.9 36.3 19.8 36 26C36 27.6 40.5 29 46 29C51.5 29 56 27.6 56 26C56 19.9 56 14.2 56 8" stroke-dasharray="5 4"/><path class="ink shape" d="M56 8C55.8 10 51.4 11.2 46 11C40.2 11.4 35.9 10 36 8C35.8 6.3 40.6 4.7 46 5C51.3 5.1 56.4 6.2 56 8Z" stroke-dasharray="5 4"/></g></svg>Read replicas</th><th scope="col"><svg viewBox="0 0 64 34" aria-hidden="true" class="th-svg"><g class="cyl"><path class="ink shape" d="M3 10C3.3 15.6 3.1 20.7 3 26C3 27.4 6.6 28.6 11 28.6C15.4 28.6 19 27.4 19 26C18.9 20.5 19 15.5 19 10"/><path class="ink shape" d="M19 10C19.3 11.5 15.4 12.7 11 12.6C6.3 12.9 3.2 11.4 3 10C3.1 8.5 6.5 7.2 11 7.4C15.5 7.5 19 8.2 19 10Z"/></g><g class="cyl"><path class="ink shape" d="M24 10C23.8 15.4 23.9 20.9 24 26C24 27.4 27.6 28.6 32 28.6C36.4 28.6 40 27.4 40 26C39.6 20.9 39.8 15.2 40 10"/><path class="ink shape" d="M40 10C40.2 11.8 36.3 12.9 32 12.6C27.3 13 24 11.2 24 10C24.3 8.7 27.9 7.7 32 7.4C36.7 7.4 40.4 8.2 40 10Z"/></g><g class="cyl"><path class="ink shape" d="M45 10C44.7 15.2 44.8 20.6 45 26C45 27.4 48.6 28.6 53 28.6C57.4 28.6 61 27.4 61 26C61.2 20.5 60.9 15.4 61 10"/><path class="ink shape" d="M61 10C60.7 11.5 57.6 12.6 53 12.6C48.4 12.8 45.3 11.7 45 10C45 8.9 48.8 7.1 53 7.4C57.3 7.1 60.6 8.4 61 10Z"/></g></svg>Sharding</th></tr>
+    </thead>
+    <tbody>
+      <tr><th scope="row">What you do</th>
+        <td data-col="Bigger machine">Pick a larger instance type</td>
+        <td data-col="Read replicas">Add copies that pull the master’s changes; send reads to them</td>
+        <td data-col="Sharding">Split rows into exclusive subsets, one master each</td></tr>
+      <tr><th scope="row">Reads</th>
+        <td data-col="Bigger machine">Scale, up to the ceiling</td>
+        <td data-col="Read replicas">Scale; this is what replicas are for</td>
+        <td data-col="Sharding">Scale; each shard serves its own users</td></tr>
+      <tr><th scope="row">Writes</th>
+        <td data-col="Bigger machine">Scale, up to the ceiling</td>
+        <td data-col="Read replicas" class="bad">Don’t scale: every write still hits one master</td>
+        <td data-col="Sharding">Scale; each shard takes its own</td></tr>
+      <tr><th scope="row">Where it stops</th>
+        <td data-col="Bigger machine">The largest machine the data center has</td>
+        <td data-col="Read replicas">About 5 per master; a tree of replicas beyond that</td>
+        <td data-col="Sharding">No fixed number; depends on the data and how it’s read</td></tr>
+      <tr><th scope="row">Your code</th>
+        <td data-col="Bigger machine">Unchanged</td>
+        <td data-col="Read replicas">Two connections; critical reads go to the master</td>
+        <td data-col="Sharding">Route every query by key; one pool per shard</td></tr>
+      <tr><th scope="row">New problem</th>
+        <td data-col="Bigger machine">Still one machine: if it goes down, everything does</td>
+        <td data-col="Read replicas">Stale reads during replication lag</td>
+        <td data-col="Sharding">A key mapping that must never change</td></tr>
+      <tr><th scope="row">Reach for it</th>
+        <td data-col="Bigger machine">First</td>
+        <td data-col="Read replicas">When reads dominate, as at 90:10</td>
+        <td data-col="Sharding">When the master can’t take the writes, or replicas start to hurt it</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="recall">Check yourself <a class="anchor" href="#recall" aria-label="Link to this heading">#</a></h3>
+  <p>Answer in your head, or out loud, before opening each one.</p>
+  <ol class="recall">
+    <li>
+      <p class="q">Medium doubles its API fleet for a campaign and nobody touches the database. What fails, and in what order should the scaling have happened?</p>
+      <details><summary>Show answer</summary>
+        <p>The database takes twice the queries and saturates; the API servers waiting on it time out and fail with it, a cascading failure. Scale bottom up: make sure the database and every other dependency can take the load, then widen the API fleet, then let users in.</p></details>
+    </li>
+    <li>
+      <p class="q">The master’s CPU is pinned by writes. Why won’t a sixth read replica help, and what will?</p>
+      <details><summary>Show answer</summary>
+        <p>Replicas only take reads, so every write still lands on the master, and each extra replica’s fetching costs the master a little more CPU, memory and network. Sharding helps: each shard is a master for its own slice of rows and takes its own share of the writes.</p></details>
+    </li>
+    <li>
+      <p class="q">A teammate calls Medium’s three shards “three copies of the database, for safety”. What’s wrong with that?</p>
+      <details><summary>Show answer</summary>
+        <p>Copies are replicas. Shards hold mutually exclusive subsets: each has about a third of the users and each is a master. The API server sends every user to exactly one of them by hashing the user ID.</p></details>
+    </li>
+  </ol>
+
+  <div class="sec-end">
+    <a class="next" href="#"><span><span class="lbl hand">Next chapter</span><br>3 · Concurrency</span><span aria-hidden="true" class="hand">→</span></a>
+    <p class="concepts hand">Concepts in this section: <a href="#">cascading failure</a> · <a href="#">read replica</a> · <a href="#">replication lag</a> · <a href="#">critical read</a> · <a href="#">sharding</a> · <a href="#">connection pool</a></p>
+  </div>
+</article>
+
+<div class="col"><footer class="page hand">Lecture 01, §2.4 · written from the class recording and board, with sources linked where a fact comes from outside the class.</footer></div>
+</main>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var label = document.getElementById('theme-label');
+  function effective(){ return root.dataset.theme || (mq.matches ? 'dark' : 'light'); }
+  function sync(){ label.textContent = effective() === 'dark' ? 'Paper' : 'Blackboard'; }
+  document.getElementById('theme').addEventListener('click', function(){
+    var next = effective() === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try { localStorage.setItem('wb-theme', next); } catch (e) {}
+    sync();
+  });
+  if (mq.addEventListener) mq.addEventListener('change', sync);
+  sync();
+
+  // collapse the contents on small screens
+  if (window.matchMedia('(max-width: 640px)').matches) document.getElementById('toc').removeAttribute('open');
+
+  // section progress
+  var sec = document.getElementById('s2-4'), bar = document.getElementById('prog'), pl = document.getElementById('prog-label');
+  var ticking = false;
+  function progress(){
+    ticking = false;
+    var r = sec.getBoundingClientRect(), h = r.height - window.innerHeight * .6;
+    var p = Math.max(0, Math.min(1, -r.top / (h > 0 ? h : 1)));
+    bar.style.width = (p * 100).toFixed(1) + '%';
+    pl.textContent = '§2.4 · ' + Math.round(p * 100) + '%';
+  }
+  window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(progress); } }, { passive: true });
+  progress();
+
+  // scrollspy for the rail: the last heading above 30% of the viewport is current
+  var links = Array.prototype.slice.call(document.querySelectorAll('.rail a'));
+  var heads = links.map(function(a){ return document.getElementById(a.getAttribute('href').slice(1)); });
+  function spy(){
+    var line = window.innerHeight * .3, idx = -1;
+    heads.forEach(function(h, i){ if (h && h.getBoundingClientRect().top < line) idx = i; });
+    links.forEach(function(a, i){ if (i === idx) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+  }
+  window.addEventListener('scroll', function(){ requestAnimationFrame(spy); }, { passive: true });
+  spy();
+
+  // step-through figure
+  var TOTAL = 5, cur = 1;
+  var groups = document.querySelectorAll('#fig-lag .step');
+  var items = document.querySelectorAll('#steps li');
+  var prev = document.getElementById('prev'), next = document.getElementById('next');
+  var counter = document.getElementById('counter'), live = document.getElementById('lag-live');
+  function show(n, announce){
+    cur = Math.max(1, Math.min(TOTAL, n));
+    Array.prototype.forEach.call(groups, function(g){
+      var s = +g.getAttribute('data-step');
+      g.classList.toggle('now', s === cur); g.classList.toggle('past', s < cur); g.classList.toggle('future', s > cur);
+    });
+    Array.prototype.forEach.call(items, function(li){
+      var s = +li.getAttribute('data-step');
+      li.classList.toggle('now', s === cur); li.classList.toggle('future', s > cur);
+      if (s === cur) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+    });
+    prev.disabled = cur === 1; next.disabled = cur === TOTAL;
+    counter.textContent = cur + ' / ' + TOTAL;
+    if (announce) live.textContent = 'Step ' + cur + ' of ' + TOTAL + '. ' + items[cur - 1].textContent.trim();
+  }
+  prev.addEventListener('click', function(){ show(cur - 1, true); });
+  next.addEventListener('click', function(){ show(cur + 1, true); });
+  document.getElementById('lag-focus').addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { show(cur + 1, true); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { show(cur - 1, true); e.preventDefault(); }
+    else if (e.key === 'Home') { show(1, true); e.preventDefault(); }
+    else if (e.key === 'End') { show(TOTAL, true); e.preventDefault(); }
+  });
+  function fromHash(){
+    var m = /^#fig-lag\/step-(\d)$/.exec(location.hash);
+    if (m) { show(+m[1], false); document.getElementById('fig-lag').scrollIntoView(); }
+  }
+  window.addEventListener('hashchange', fromHash);
+  show(1, false); fromHash();
+
+  // pause and think: commit, then reveal
+  var answer = document.getElementById('think-answer'), verdict = document.getElementById('think-verdict');
+  answer.hidden = true;
+  var picks = document.querySelectorAll('[data-pick]');
+  Array.prototype.forEach.call(picks, function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call(picks, function(o){ o.setAttribute('aria-pressed', String(o === b)); });
+      verdict.textContent = b.getAttribute('data-pick') === 'master'
+        ? 'Yes. Here is why it matters:'
+        : 'That is the usual first answer, and it is the one that bites. Here is why:';
+      answer.hidden = false;
+    });
+  });
+
+  // clip placeholder
+  var status = document.getElementById('clip-status');
+  document.getElementById('play').addEventListener('click', function(){
+    status.textContent = 'Placeholder: the Remotion player mounts here on click (24 s, captions burned in, 0.5× available).';
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.chips button'), function(b){
+    b.addEventListener('click', function(){ status.textContent = 'Placeholder: would seek the clip to ' + b.getAttribute('data-t') + '.'; });
+  });
+})();
+</script>
+</body>
+</html>

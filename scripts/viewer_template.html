@@ -1,0 +1,298 @@
+<title>__TITLE__ Transcript</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: classroom reader. Sticky toolbar, topic rail on the left, one readable column of speaker turns. */
+:root {
+  --bg: #f5f6f2; --surface: #ffffff; --ink: #1c231f; --muted: #5d6a62; --line: #dce2db;
+  --accent: #2c6a4c; --accent-bg: #e6f0ea;
+  --student: #35558a; --student-bg: #edf1f8;
+  --warn: #8a5e00; --warn-bg: #fbefcf; --term: #6a4aa3; --term-bg: #f1ebfa; --check: #9a4a28; --check-bg: #fbe9e1;
+  --mark: #ffe58a;
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Literata", Georgia, "Times New Roman", serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131714; --surface: #1a1f1b; --ink: #e3e8e3; --muted: #97a39b; --line: #2b322d;
+  --accent: #7cc39e; --accent-bg: #1d2b23; --student: #9db8e8; --student-bg: #1b2230;
+  --warn: #e7b84e; --warn-bg: #2e2715; --term: #c6aaf2; --term-bg: #261f33; --check: #eba082; --check-bg: #33221a;
+  --mark: #6b5a12; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #131714; --surface: #1a1f1b; --ink: #e3e8e3; --muted: #97a39b; --line: #2b322d;
+  --accent: #7cc39e; --accent-bg: #1d2b23; --student: #9db8e8; --student-bg: #1b2230;
+  --warn: #e7b84e; --warn-bg: #2e2715; --term: #c6aaf2; --term-bg: #261f33; --check: #eba082; --check-bg: #33221a;
+  --mark: #6b5a12; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.65; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; }
+header.top { padding-block: 28px 18px; display: grid; gap: 14px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 4vw, 40px); line-height: 1.12; margin: 0; text-wrap: balance; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 22px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.stats b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stats .ok b { color: var(--accent); }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding-block: 10px; }
+.tabs { display: flex; gap: 4px; }
+.tab { font-family: var(--f-display); font-weight: 500; font-size: 15px; border: 1px solid transparent; background: none; color: var(--muted); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--ink); background: var(--surface); border-color: var(--line); }
+.tab .n { font-family: var(--f-mono); font-size: 12px; margin-left: 4px; color: var(--muted); }
+.search { flex: 1 1 220px; min-width: 0; display: flex; }
+.search input { width: 100%; font: 15px var(--f-body); padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--f-mono); font-size: 12px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 40px; padding-block: 24px 80px; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+aside.toc { position: sticky; top: 70px; align-self: start; max-height: calc(100vh - 90px); overflow: auto; font-family: var(--f-display); font-size: 14px; }
+@media (max-width: 900px) { aside.toc { position: static; max-height: none; } }
+.toc details > summary { font-family: var(--f-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); cursor: pointer; margin-bottom: 8px; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a { display: grid; grid-template-columns: 62px 1fr; gap: 6px; color: var(--ink); text-decoration: none; padding: 4px 6px; border-radius: 6px; line-height: 1.3; }
+.toc a:hover { background: var(--surface); }
+.toc a .tt { font-family: var(--f-mono); font-size: 11px; color: var(--muted); padding-top: 2px; }
+.toc a.sub { padding-left: 14px; color: var(--muted); font-size: 13px; }
+.toc a.adm { color: var(--muted); font-style: italic; }
+.toc a.on { background: var(--accent-bg); color: var(--accent); }
+main { min-width: 0; }
+.doc { max-width: 74ch; display: grid; gap: 14px; }
+.doc h2, .doc h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; scroll-margin-top: 80px; }
+.doc h2 { font-size: 26px; font-weight: 700; padding-top: 26px; border-top: 1px solid var(--line); margin-top: 18px; }
+.doc h3 { font-size: 19px; font-weight: 500; color: var(--accent); padding-top: 10px; }
+.doc h2 .tt, .doc h3 .tt { font-family: var(--f-mono); font-size: 13px; font-weight: 400; color: var(--muted); margin-right: 10px; }
+.doc h2.adm { color: var(--muted); font-weight: 500; font-size: 20px; }
+.blk { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 4px 14px; scroll-margin-top: 80px; border-radius: 10px; }
+.blk .tm { font-family: var(--f-mono); font-size: 12px; color: var(--muted); padding-top: 5px; font-variant-numeric: tabular-nums; }
+.blk .sp { font-family: var(--f-display); font-weight: 700; font-size: 14px; letter-spacing: .02em; display: block; margin-bottom: 2px; }
+.blk.teacher .sp, .blk.teacher-unsure .sp { color: var(--accent); }
+.blk.student .sp, .blk.student-unsure .sp { color: var(--student); }
+.blk.student .tx, .blk.student-unsure .tx { background: var(--student-bg); padding: 8px 12px; border-radius: 10px; }
+.blk.cont .sp { display: none; }
+.blk .tag { font-family: var(--f-mono); font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.blk.q .tx { background: var(--student-bg); border: 1px solid var(--student); padding: 10px 14px; border-radius: 10px; }
+.blk.q .qlabel { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--student); display: block; }
+.blk.flash .tx, .blk.flash .tm { animation: flash 1.6s ease-out; }
+@keyframes flash { 0% { background: var(--mark) } 100% { background: transparent } }
+@media (prefers-reduced-motion: reduce) { .blk.flash .tx { animation: none; outline: 2px solid var(--mark) } }
+.m { font-family: var(--f-mono); font-size: 13px; border-radius: 5px; padding: 1px 5px; white-space: normal; }
+.m.unclear { background: var(--warn-bg); color: var(--warn); }
+.m.term { background: var(--term-bg); color: var(--term); }
+.m.term i { font-style: normal; opacity: .75; }
+.m.check { background: var(--check-bg); color: var(--check); }
+.m.gap { background: var(--line); color: var(--ink); }
+.m.adm { background: none; color: var(--muted); padding: 0; font-style: italic; }
+mark { background: var(--mark); color: inherit; border-radius: 3px; }
+.empty { color: var(--muted); font-style: italic; padding: 30px 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; color: var(--muted); font-family: var(--f-display); }
+/* Flags + corrections */
+.list { display: grid; gap: 10px; max-width: 900px; }
+.flag { display: grid; grid-template-columns: auto 76px minmax(0, 1fr); gap: 10px 14px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.flag.done { opacity: .5; }
+.flag input { margin-top: 6px; width: 18px; height: 18px; accent-color: var(--accent); }
+.flag .ctx { font-size: 15px; line-height: 1.55; }
+.flag .who { font-family: var(--f-display); font-size: 13px; font-weight: 700; color: var(--muted); }
+.jump { font-family: var(--f-mono); font-size: 12px; background: none; border: 1px solid var(--line); color: var(--accent); border-radius: 6px; padding: 3px 6px; cursor: pointer; white-space: nowrap; }
+.jump:hover { background: var(--accent-bg); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.45; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); position: sticky; top: 0; background: var(--surface); }
+td.o { color: var(--check); text-decoration: line-through; text-decoration-thickness: 1px; min-width: 160px; }
+td.c { color: var(--accent); font-weight: 600; min-width: 160px; }
+td.why { color: var(--muted); min-width: 260px; }
+.ty { font-family: var(--f-mono); font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--accent-bg); color: var(--accent); }
+.cf { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.note { color: var(--muted); font-size: 15px; max-width: 74ch; margin: 0 0 16px; }
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  .blk { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .flag { grid-template-columns: auto minmax(0, 1fr); }
+  .flag .ctx { grid-column: 1 / -1; }
+}
+</style>
+
+<header class="top wrap">
+  <div class="eyebrow" id="src"></div>
+  <h1 id="title"></h1>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-read" aria-selected="true" data-tab="read">Transcript</button>
+      <button class="tab" role="tab" id="tab-flags" aria-selected="false" data-tab="flags">To review <span class="n" id="n-flags"></span></button>
+      <button class="tab" role="tab" id="tab-log" aria-selected="false" data-tab="log">Corrections <span class="n" id="n-log"></span></button>
+    </div>
+    <label class="search"><input id="q" type="search" placeholder="Search the lecture (e.g. Kafka, sharding)" aria-label="Search"></label>
+    <div class="chips" id="views">
+      <button class="chip" aria-pressed="true" data-view="all">All</button>
+      <button class="chip" aria-pressed="false" data-view="qa">Questions</button>
+      <button class="chip" aria-pressed="false" data-view="student">Students</button>
+      <button class="chip" aria-pressed="false" data-view="flag">Flagged</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="p-read" class="layout">
+    <aside class="toc"><details id="tocd" open><summary>Topics</summary><ol id="toc"></ol></details></aside>
+    <main>
+      <div class="legend" style="margin-bottom:14px">
+        <span><span class="m term">term <i>· heard: "…"</i></span> probable term, original kept</span>
+        <span><span class="m unclear">unclear</span> could not be understood</span>
+        <span><span class="m check">check</span> verify by listening</span>
+      </div>
+      <div class="doc" id="doc"></div>
+    </main>
+  </section>
+  <section id="p-flags" hidden style="padding-block:24px 80px">
+    <p class="note">Every spot the correction pass was unsure about. Tick one off once you've listened to it; ticks are saved in this browser only.</p>
+    <div class="filters" id="flagf"></div>
+    <div class="list" id="flags"></div>
+  </section>
+  <section id="p-log" hidden style="padding-block:24px 80px">
+    <p class="note">Every change made to the raw speech-to-text output. Struck-through text is what the model heard; green is the correction.</p>
+    <div class="filters" id="logf"></div>
+    <div class="tablewrap"><table><thead><tr><th>Time</th><th>Type</th><th>Heard</th><th>Corrected</th><th>Why</th><th>Conf.</th></tr></thead><tbody id="log"></tbody></table></div>
+  </section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const B = DATA.blocks, M = DATA.meta;
+const MARK_RE = /\[unclear: "(.*?)"\]|\[\?([^|\]]+?) \| asr: "(.*?)"\]|\[check: ([^\]]*)\]|\[(missing|break)( [^\]]*)?\]/g;
+
+function fmt(x, hl) {
+  let s = esc(x)
+    .replace(/\[unclear: "(.*?)"\]/g, '<span class="m unclear" title="Could not be understood">unclear: "$1"</span>')
+    .replace(/\[\?([^|\]]+?) \| asr: "(.*?)"\]/g, '<span class="m term" title="Probable term. The speech-to-text heard: $2">$1 <i>· heard: "$2"</i></span>')
+    .replace(/\[check: ([^\]]*)\]/g, '<span class="m check">check: $1</span>')
+    .replace(/\[(missing|break)( [^\]]*)?\]/g, '<span class="m gap">$1$2</span>')
+    .replace(/\*\(admin\)\*/g, '<span class="m adm">(admin)</span>')
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  if (hl) {
+    const re = new RegExp("(" + hl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+    s = s.replace(/(^|>)([^<]+)/g, (a, p, t) => p + t.replace(re, "<mark>$1</mark>"));
+  }
+  return s;
+}
+const hasFlag = b => /\[(unclear|\?|check|missing)/.test(b.x);
+
+// header
+$("#title").textContent = M.title;
+$("#src").textContent = "System design course · " + M.source;
+const flagsAll = [];
+B.forEach((b, i) => { if (b.k === "h2" || b.k === "h3") return; let m; MARK_RE.lastIndex = 0;
+  while ((m = MARK_RE.exec(b.x))) { if (m[5] === "break") continue;
+    flagsAll.push({ i, b, kind: m[1] !== undefined ? "unclear" : m[2] !== undefined ? "term" : m[4] !== undefined ? "check" : "missing", raw: m[0], n: flagsAll.length }); } });
+const qCount = B.filter(b => b.k === "q").length;
+$("#stats").innerHTML = [
+  ["Duration", M.duration], ["Words", M.words.toLocaleString()], ["Questions", qCount],
+  ["Corrections", DATA.log.length], ["To review", flagsAll.length],
+].map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join("") +
+  (M.retention ? `<span class="ok">Content check <b>${M.pass ? "PASS" : "see report"} · ${M.retention}% of words kept</b></span>` : "");
+$("#n-flags").textContent = flagsAll.length; $("#n-log").textContent = DATA.log.length;
+
+// toc
+$("#toc").innerHTML = B.map((b, i) => b.k === "h2" || b.k === "h3" ?
+  `<li><a href="#b${i}" data-i="${i}" class="${b.k === "h3" ? "sub" : ""} ${b.admin ? "adm" : ""}"><span class="tt">${b.t.replace("~", "")}</span><span>${esc(b.x)}</span></a></li>` : "").join("");
+if (matchMedia("(max-width: 900px)").matches) $("#tocd").open = false;
+
+let view = "all", query = "";
+function render() {
+  const out = []; let prevSp = null, shown = 0;
+  B.forEach((b, i) => {
+    if (b.k === "h2" || b.k === "h3") {
+      if (view === "all" && !query) out.push(`<${b.k} id="b${i}" class="${b.admin ? "adm" : ""}"><span class="tt">${b.t.replace("~", "")}</span>${esc(b.x)}</${b.k}>`);
+      else out.push(`<${b.k} id="b${i}" class="${b.admin ? "adm" : ""}" style="font-size:15px;padding-top:8px;border:0;margin:0"><span class="tt">${b.t.replace("~", "")}</span>${esc(b.x)}</${b.k}>`);
+      prevSp = null; return;
+    }
+    if (view === "qa" && !(b.k === "q" || b.ans)) return;
+    if (view === "student" && !b.r.startsWith("student")) return;
+    if (view === "flag" && !hasFlag(b)) return;
+    if (query && !b.x.toLowerCase().includes(query.toLowerCase()) && !b.sp.toLowerCase().includes(query.toLowerCase())) return;
+    shown++;
+    const cont = b.k === "p" && prevSp === b.sp && view === "all" && !query;
+    const label = b.k === "q" ? `<span class="qlabel">${b.qk === "chat" ? "Chat question, read aloud" : "Student question"}</span>` : "";
+    const tag = b.ans ? '<span class="tag">answering</span>' : b.r.endsWith("unsure") ? '<span class="tag">speaker uncertain</span>' : "";
+    out.push(`<div class="blk ${b.r} ${b.k === "q" ? "q" : ""} ${cont ? "cont" : ""}" id="b${i}"><div class="tm">${b.t || ""}</div><div class="tx">${label}<span class="sp">${esc(b.sp)}${tag}</span>${fmt(b.x, query)}</div></div>`);
+    prevSp = b.sp;
+  });
+  // drop headings with nothing under them when filtering
+  let html = out.join("");
+  if (view !== "all" || query) {
+    const parts = out.filter((h, k) => !(h.startsWith("<h") && (k === out.length - 1 || out[k + 1].startsWith("<h"))));
+    html = parts.join("");
+  }
+  $("#doc").innerHTML = shown ? html : `<p class="empty">Nothing matches${query ? ` "${esc(query)}"` : ""} in this view.</p>`;
+}
+render();
+
+// toc highlight
+const tocLinks = [...document.querySelectorAll("#toc a")];
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) {
+  tocLinks.forEach(a => a.classList.toggle("on", a.dataset.i === e.target.id.slice(1))); } }), { rootMargin: "-80px 0px -70% 0px" });
+const observeHeads = () => { io.disconnect(); document.querySelectorAll(".doc h2, .doc h3").forEach(h => io.observe(h)); };
+observeHeads();
+
+function setView(v) { view = v; document.querySelectorAll("#views .chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.view === v)); render(); observeHeads(); }
+$("#views").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) { showTab("read"); setView(c.dataset.view); } });
+let qt; $("#q").addEventListener("input", e => { clearTimeout(qt); qt = setTimeout(() => { query = e.target.value.trim(); showTab("read"); render(); observeHeads(); }, 150); });
+
+function showTab(t) {
+  ["read", "flags", "log"].forEach(n => { $("#p-" + n).hidden = n !== t; $("#tab-" + n).setAttribute("aria-selected", n === t); });
+  $("#views").style.visibility = t === "read" ? "visible" : "hidden";
+}
+document.querySelector(".tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) { showTab(t.dataset.tab); window.scrollTo(0, 0); } });
+
+function jumpTo(i) {
+  showTab("read");
+  if (view !== "all" || query) { query = ""; $("#q").value = ""; setView("all"); }
+  const el = document.getElementById("b" + i); if (!el) return;
+  el.scrollIntoView({ block: "center" }); el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+function jumpToSec(s) { let best = 0; B.forEach((b, i) => { if (b.k !== "h2" && b.k !== "h3" && b.s <= s) best = i; }); jumpTo(best); }
+$("#toc").addEventListener("click", e => { const a = e.target.closest("a"); if (a) { e.preventDefault(); jumpTo(+a.dataset.i); } });
+
+// flags tab
+let done = {}; try { done = JSON.parse(localStorage.getItem("lec-flags-" + M.source) || "{}"); } catch (e) {}
+const saveDone = () => { try { localStorage.setItem("lec-flags-" + M.source, JSON.stringify(done)); } catch (e) {} };
+const KIND = { term: "Probable term", unclear: "Unclear", check: "Check", missing: "Missing" };
+let flagKind = "all";
+function renderFlags() {
+  const counts = { all: flagsAll.length }; flagsAll.forEach(f => counts[f.kind] = (counts[f.kind] || 0) + 1);
+  $("#flagf").innerHTML = ["all", "term", "unclear", "check", "missing"].filter(k => counts[k]).map(k =>
+    `<button class="chip" aria-pressed="${flagKind === k}" data-k="${k}">${k === "all" ? "All" : KIND[k]} ${counts[k]}</button>`).join("");
+  $("#flags").innerHTML = flagsAll.filter(f => flagKind === "all" || f.kind === flagKind).map(f => {
+    const key = f.i + ":" + f.raw;
+    const pos = f.b.x.indexOf(f.raw), a = Math.max(0, pos - 140), z = Math.min(f.b.x.length, pos + f.raw.length + 140);
+    const ctx = (a > 0 ? "…" : "") + f.b.x.slice(a, z) + (z < f.b.x.length ? "…" : "");
+    return `<div class="flag ${done[key] ? "done" : ""}"><input type="checkbox" id="f${f.n}" data-key="${esc(key)}" ${done[key] ? "checked" : ""} aria-label="Reviewed">
+      <button class="jump" data-i="${f.i}">${f.b.t || "jump"}</button>
+      <div class="ctx"><div class="who">${KIND[f.kind]} · ${esc(f.b.sp)}</div>${fmt(ctx)}</div></div>`;
+  }).join("");
+}
+renderFlags();
+$("#flagf").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) { flagKind = c.dataset.k; renderFlags(); } });
+$("#flags").addEventListener("change", e => { const k = e.target.dataset.key; if (!k) return; done[k] = e.target.checked; if (!done[k]) delete done[k]; saveDone(); e.target.closest(".flag").classList.toggle("done", e.target.checked); });
+$("#flags").addEventListener("click", e => { const j = e.target.closest(".jump"); if (j) jumpTo(+j.dataset.i); });
+
+// corrections tab
+let logType = "all";
+function renderLog() {
+  const counts = { all: DATA.log.length }; DATA.log.forEach(r => counts[r.ty] = (counts[r.ty] || 0) + 1);
+  $("#logf").innerHTML = Object.keys(counts).map(k => `<button class="chip" aria-pressed="${logType === k}" data-k="${esc(k)}">${k === "all" ? "All" : esc(k)} ${counts[k]}</button>`).join("");
+  $("#log").innerHTML = DATA.log.filter(r => logType === "all" || r.ty === logType).map(r =>
+    `<tr><td><button class="jump" data-s="${r.s}">${esc(r.t)}</button></td><td><span class="ty">${esc(r.ty)}</span></td><td class="o">${esc(r.o)}</td><td class="c">${esc(r.c)}</td><td class="why">${esc(r.why)}</td><td class="cf">${esc(r.cf)}</td></tr>`).join("");
+}
+renderLog();
+$("#logf").addEventListener("click", e => { const c = e.target.closest(".chip"); if (c) { logType = c.dataset.k; renderLog(); } });
+$("#log").addEventListener("click", e => { const j = e.target.closest(".jump"); if (j) jumpToSec(+j.dataset.s); });
+</script>

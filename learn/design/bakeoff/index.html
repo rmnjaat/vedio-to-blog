@@ -1,0 +1,135 @@
+<title>Design Bake-off</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a comparison sheet. Three equal columns, same rows in the same order, so the eye can scan across. */
+:root {
+  --bg: #f3f3f0; --paper: #ffffff; --ink: #1b1f24; --muted: #5d656e; --line: #dadde0;
+  --accent: #1f5f8b; --accent-bg: #e4edf4; --pick: #a8461f; --pick-bg: #f8e6dc; --good: #2f6b45; --bad: #9a3b2b;
+  --f-head: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Source Serif 4", Georgia, serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121417; --paper: #1a1d21; --ink: #e6e8ea; --muted: #9aa3ad; --line: #2c3137;
+  --accent: #8cc0e6; --accent-bg: #1b2833; --pick: #f0a37f; --pick-bg: #33231b; --good: #8fd0a6; --bad: #ef9a8a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121417; --paper: #1a1d21; --ink: #e6e8ea; --muted: #9aa3ad; --line: #2c3137;
+  --accent: #8cc0e6; --accent-bg: #1b2833; --pick: #f0a37f; --pick-bg: #33231b; --good: #8fd0a6; --bad: #ef9a8a; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.55; }
+.page { max-width: 1320px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 90px; }
+h1, h2, h3 { font-family: var(--f-head); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(30px, 4.4vw, 48px); font-weight: 800; line-height: 1.08; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+.lede { max-width: 70ch; font-size: 19px; margin: 14px 0 0; }
+.same { max-width: 70ch; color: var(--muted); font-size: 16px; margin: 12px 0 0; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 36px; }
+@media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.col { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: grid; grid-template-rows: auto auto auto 1fr auto; min-width: 0; }
+.col.pick { border-color: var(--pick); box-shadow: 0 0 0 1px var(--pick); }
+.head { padding: 18px 18px 6px; display: grid; gap: 6px; }
+.head .tag { font-family: var(--f-mono); font-size: 12px; color: var(--accent); }
+.col.pick .head .tag { color: var(--pick); }
+.head h2 { font-size: 24px; font-weight: 800; }
+.head p { margin: 0; font-size: 15.5px; color: var(--muted); }
+.shots { display: grid; gap: 8px; padding: 12px 18px; }
+.shots img { width: 100%; display: block; border: 1px solid var(--line); border-radius: 6px; }
+.specs { padding: 4px 18px 0; font-size: 14.5px; display: grid; gap: 2px; }
+.specs div { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; padding-block: 5px; border-top: 1px solid var(--line); }
+.specs span:first-child { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+.pc { padding: 12px 18px 4px; display: grid; gap: 10px; align-content: start; }
+.pc h3 { font-size: 13px; font-family: var(--f-mono); font-weight: 500; letter-spacing: .06em; text-transform: uppercase; }
+.pc .plus h3 { color: var(--good); } .pc .minus h3 { color: var(--bad); }
+.pc ul { margin: 4px 0 0; padding-left: 18px; font-size: 15px; line-height: 1.45; }
+.pc li + li { margin-top: 4px; }
+.open { display: block; margin: 14px 18px 18px; text-align: center; font-family: var(--f-head); font-weight: 700; font-size: 15px; text-decoration: none; color: var(--ink); border: 1px solid var(--ink); border-radius: 8px; padding: 10px 12px; }
+.open:hover { background: var(--ink); color: var(--paper); }
+.open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.verdict { margin-top: 40px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 40px; background: var(--pick-bg); border-radius: 12px; padding: 24px 26px; }
+@media (max-width: 860px) { .verdict { grid-template-columns: minmax(0, 1fr); } }
+.verdict h2 { font-size: 24px; font-weight: 800; color: var(--pick); margin-bottom: 8px; }
+.verdict p { margin: 0 0 10px; }
+.verdict ul { margin: 0; padding-left: 18px; }
+.verdict li + li { margin-top: 6px; }
+.round { font-size: 26px; font-weight: 800; margin-top: 48px; padding-top: 18px; border-top: 2px solid var(--ink); }
+.note { margin-top: 28px; font-size: 15px; color: var(--muted); max-width: 80ch; }
+</style>
+
+<div class="page">
+  <div class="eyebrow">Checkpoint 3 · Choose the look · Round 2</div>
+  <h1>Three looks for the same section, second round</h1>
+  <p class="lede">Each sample is a real, working build of one section, "Scaling the database", written from the lecture's knowledge ledger. Only the design differs. Open each one, scroll it, click through its diagram, try dark mode and a narrow window.</p>
+  <p class="same">Every sample has the same parts: lecture header and contents, the Medium framing, the "scale bottom up" rule, a system diagram redrawn from the 00:56 board, a step-through replication figure, a pause-and-think prompt, a sourced fact from the PostgreSQL docs, a clip placeholder, a trade-off comparison and recall questions.</p>
+
+  <h2 class="round">Round 2</h2>
+  <p class="same">What changed for all three: a design critic listed what made round 1 look generated (the same skeleton and stock labels in every sample, label-heavy headers, decorative numbers, a replication arrow drawn backwards), and a learning-science review picked the patterns that keep engineers reading and remembering. Each page now opens on a Medium incident with numbers, uses the growing Medium diagram as its navigation, asks you to predict before it explains, corrects a real wrong turn from the class, works a back-of-envelope example, weaves fact-check corrections in with sources, and ends with recall and an honest "minutes left".</p>
+  <div class="grid">
+    <section class="col">
+      <div class="head"><span class="tag">A2</span><h2>Spec Sheet, warmer</h2><p>Same datasheet precision, now with a serif body, one label style, and the lecture map in a side rail with real minutes per part.</p></div>
+      <div class="shots"><img src="img/A2-spec-sheet_0.jpg" alt="A2: opening with the lecture map rail and the bottom-up rule"><img src="img/A2-spec-sheet_1.jpg" alt="A2: body section"></div>
+      <div class="pc"><div class="plus"><h3>Better</h3><ul><li>Opens on the class's own numbers (5 servers, 100 requests a second each)</li><li>The rule from the board gets a strong, quiet moment of its own</li><li>Ends on a worked resharding cost: 75% of users move with mod-N, about 25% with consistent hashing</li></ul></div>
+        <div class="minus"><h3>Still weak</h3><ul><li>Still dense in places</li><li>Map parts don't link anywhere yet</li></ul></div></div>
+      <a class="open" href="A2-spec-sheet.html">Open A2</a>
+    </section>
+    <section class="col">
+      <div class="head"><span class="tag">B2</span><h2>Fountain-pen notebook</h2><p>The Excalidraw look is gone. Strokes thicken and taper like ink; pencil marks earlier context, ink the current focus, red pencil what breaks.</p></div>
+      <div class="shots"><img src="img/B2-whiteboard-notebook_0.jpg" alt="B2: opening with ink-drawn lecture map and incident"><img src="img/B2-whiteboard-notebook_1.jpg" alt="B2: replication direction explained, swim-lane figure"></div>
+      <div class="pc"><div class="plus"><h3>Better</h3><ul><li>The most distinctive of the six; looks like one person drew it</li><li>Margin notes carry the side facts so the main text stays readable</li><li>Swim-lane figure shows a read reaching a replica before it has caught up</li></ul></div>
+        <div class="minus"><h3>Still weak</h3><ul><li>Opening incident (8 to 40 servers) is a made-up scenario, not the class's numbers</li><li>Figures are drawn by script; one label near-overlaps and a circle clips on phones</li></ul></div></div>
+      <a class="open" href="B2-whiteboard-notebook.html">Open B2</a>
+    </section>
+    <section class="col">
+      <div class="head"><span class="tag">C2</span><h2>Essay, tightened</h2><p>Renamed "System Design Notes", decorative numbers removed, the scroll figure tightened so screens no longer sit empty. Section titles are now questions.</p></div>
+      <div class="shots"><img src="img/C2-explorable-essay_0.jpg" alt="C2: opening with lecture map and question-led navigation"><img src="img/C2-explorable-essay_1.jpg" alt="C2: body section"></div>
+      <div class="pc"><div class="plus"><h3>Better</h3><ul><li>Navigation reads as the questions the lecture answers ("Why did the count jump to 76?")</li><li>Coloured terms in the text match the parts in the figure</li><li>A 99:1 / 90:10 toggle reruns the replica-count example</li></ul></div>
+        <div class="minus"><h3>Still weak</h3><ul><li>On phones the pinned figure takes about 40% of the screen</li><li>Map placement is hand-tuned per section</li></ul></div></div>
+      <a class="open" href="C2-explorable-essay.html">Open C2</a>
+    </section>
+  </div>
+  <p class="note">One rule for the real build, whichever you pick: any opening scenario must use the lecture's own numbers or be labelled as an example. B2 and C2 both invent slightly different server counts.</p>
+  <h2 class="round">Round 1, kept for reference</h2>
+
+  <div class="grid">
+    <section class="col">
+      <div class="head"><span class="tag">A</span><h2>Spec Sheet</h2><p>A precise engineering datasheet. Grey on paper, one orange for focus, red only for failure, margin notes beside the text.</p></div>
+      <div class="shots"><img src="img/A-spec-sheet_0.jpg" alt="Spec Sheet: lecture header and contents"><img src="img/A-spec-sheet_1.jpg" alt="Spec Sheet: body text with margin notes"></div>
+      <div class="specs"><div><span>Type</span><span>IBM Plex Sans, Plex Mono</span></div><div><span>Figures</span><span>Hairline, on a dot grid, mono labels</span></div><div><span>Feels like</span><span>Stripe docs, a hardware datasheet</span></div></div>
+      <div class="pc"><div class="plus"><h3>Strong</h3><ul><li>Reads as rigorous and senior</li><li>Margin notes hold the worked numbers and caveats without breaking the flow</li><li>Easiest to keep consistent over six lectures</li></ul></div>
+        <div class="minus"><h3>Weak</h3><ul><li>Cold; feels like a manual late at night</li><li>Margin notes fall inline below 1240px, so most laptops get the busier version</li><li>Small mono labels on phones</li></ul></div></div>
+      <a class="open" href="A-spec-sheet.html">Open sample A</a>
+    </section>
+
+    <section class="col pick">
+      <div class="head"><span class="tag">B · my pick</span><h2>Whiteboard Notebook</h2><p>The best engineer's notebook. Serif text, precise hand-feel diagrams on graph paper, three markers with fixed meanings: blue for the request path, red for failure, green for success.</p></div>
+      <div class="shots"><img src="img/B-whiteboard-notebook_0.jpg" alt="Whiteboard Notebook: lecture header and contents"><img src="img/B-whiteboard-notebook_1.jpg" alt="Whiteboard Notebook: the bottom-up rule and the three-panel scaling diagram"></div>
+      <div class="specs"><div><span>Type</span><span>Literata, Recursive (casual labels)</span></div><div><span>Figures</span><span>Hand-feel SVG, graph paper, 3 marker colours</span></div><div><span>Feels like</span><span>Julia Evans, Maggie Appleton</span></div></div>
+      <div class="pc"><div class="plus"><h3>Strong</h3><ul><li>Clearly comes from a whiteboard class, so it has an identity no template has</li><li>Diagrams are the clearest of the three and closest to what was drawn</li><li>Warm enough to read for an hour</li></ul></div>
+        <div class="minus"><h3>Weak</h3><ul><li>One sloppy figure makes the whole site look childish; needs a strict figure kit</li><li>Large figures need a separate phone layout</li><li>Only three colours, so shards and requests need numbering instead</li></ul></div></div>
+      <a class="open" href="B-whiteboard-notebook.html">Open sample B</a>
+    </section>
+
+    <section class="col">
+      <div class="head"><span class="tag">C</span><h2>Explorable Essay</h2><p>A long-form essay with a figure that stays on screen and changes as you scroll. Each system part owns one colour in both text and figures.</p></div>
+      <div class="shots"><img src="img/C-explorable-essay_0.jpg" alt="Explorable Essay: lecture header and contents"><img src="img/C-explorable-essay_1.jpg" alt="Explorable Essay: read replicas section with large ratio figure"></div>
+      <div class="specs"><div><span>Type</span><span>Newsreader, Instrument Sans, JetBrains Mono</span></div><div><span>Figures</span><span>Sticky, scroll-driven, colour per component</span></div><div><span>Feels like</span><span>Bartosz Ciechanowski, samwho.dev</span></div></div>
+      <div class="pc"><div class="plus"><h3>Strong</h3><ul><li>Most elegant typography</li><li>Text and figure linked by colour: "master" in the text is the master's colour in the figure</li><li>The scroll-driven figure is memorable</li></ul></div>
+        <div class="minus"><h3>Weak</h3><ul><li>Most expensive to build, per figure, per lecture</li><li>Adds about 3,000px of scroll per mechanism; skimmers see states they didn't read</li><li>Under 1100px the signature effect becomes a plain stepper</li></ul></div></div>
+      <a class="open" href="C-explorable-essay.html">Open sample C</a>
+    </section>
+  </div>
+
+  <div class="verdict">
+    <div><h2>Round 1 note: why I leaned to B</h2>
+      <p>Your goal is a page that teaches a whiteboard class and doesn't look generated. B is the only direction whose look comes from the subject itself, and its diagrams are the clearest of the three.</p>
+      <p>Its risks are real but fixable with rules, not luck.</p></div>
+    <div><h2>What B would borrow</h2>
+      <ul><li>From A: margin notes for worked numbers and caveats, and one strict signal colour for "look here now"</li>
+        <li>From C: numbered labels that tie a word in the text to a part in the figure</li>
+        <li>A fixed figure kit (one stroke weight, one wobble setting, shared shapes) so twelve figures look like one hand drew them</li>
+        <li>A separate phone layout for every large figure</li></ul></div>
+  </div>
+
+  <p class="note">These are samples, not the final page. Whichever you pick becomes the design system, gets the borrowings you approve, and is then reviewed by the design critic and the learner tester before the full lecture is built.</p>
+</div>

@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaling the database</title>
+<meta name="description" content="Lecture 1, Scaling: what Medium does when ten API servers share one database. Bigger machine, read replicas, shards.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..800;1,400..800&family=Schibsted+Grotesk:wght@400..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    try { var t = localStorage.getItem('c2-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+    document.documentElement.classList.add('js');
+  })();
+</script>
+<style>
+/* ============ Tokens ============ */
+:root {
+  color-scheme: light;
+  --paper: #F7F5F0;
+  --paper-2: #EEEBE3;
+  --ink: #1F1D1A;
+  --ink-2: #57534B;
+  --ink-3: #6E695F;
+  --rule: rgba(31, 29, 26, .13);
+  --rule-2: rgba(31, 29, 26, .3);
+
+  /* The cast. One hue per part, used as stroke in figures and as the colour of the term in prose. */
+  --api: #3D5A96;
+  --master: #17594F;
+  --replica: #855607;
+  --data: #8A3F78;
+  --alert: #B4321F;
+  --tint: .13;            /* tint strength for the one part in focus */
+
+  --serif: "Alegreya", "Iowan Old Style", Georgia, serif;
+  --sans: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --fs-small: .8125rem;  /* 13 */
+  --fs-ui: .875rem;      /* 14 */
+  --fs-note: 1.0625rem;  /* 17 */
+  --fs-body: 1.3125rem;  /* 21 */
+  --fs-h3: 1.75rem;      /* 28 */
+  --fs-h2: 3.25rem;      /* 52 */
+  --fs-ask: 1.75rem;     /* 28, the one reader question */
+
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px; --s9: 112px;
+
+  --col: 640px;    /* body measure, about 66 characters of Alegreya at 21px */
+  --gap: 40px;     /* text to margin note */
+  --gut: 220px;    /* margin notes */
+  --wide: calc(var(--col) + var(--gap) + var(--gut));  /* 900 */
+  --rail: 220px;
+  --bar: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #141416; --paper-2: #1C1C20;
+    --ink: #EAE6DD; --ink-2: #B3AEA3; --ink-3: #959086;
+    --rule: rgba(234, 230, 221, .13); --rule-2: rgba(234, 230, 221, .32);
+    --api: #AFC0E4; --master: #4FA595; --replica: #D9A54A; --data: #D58CC4; --alert: #F07A62;
+    --tint: .2;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #141416; --paper-2: #1C1C20;
+  --ink: #EAE6DD; --ink-2: #B3AEA3; --ink-3: #959086;
+  --rule: rgba(234, 230, 221, .13); --rule-2: rgba(234, 230, 221, .32);
+  --api: #AFC0E4; --master: #4FA595; --replica: #D9A54A; --data: #D58CC4; --alert: #F07A62;
+  --tint: .2;
+}
+
+/* ============ Base ============ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(var(--bar) + 24px); }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--fs-body); line-height: 1.58;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  font-kerning: normal; text-rendering: optimizeLegibility;
+  hanging-punctuation: first allow-end;
+}
+p { margin: 0 0 1em; text-wrap: pretty; }
+a { color: inherit; text-decoration-line: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; text-decoration-color: var(--rule-2); }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+code, .mono { font-family: var(--mono); font-size: .78em; font-variant-numeric: tabular-nums lining-nums; }
+p code, li code { padding: .06em .32em; background: var(--paper-2); border-radius: 3px; white-space: nowrap; }
+.num { font-variant-numeric: lining-nums tabular-nums; }
+.vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+em { font-style: italic; }
+sup.src { line-height: 0; }
+sup.src + sup.src::before { content: ","; font-family: var(--sans); font-size: .62em; color: var(--ink-2); }
+sup.src a { font-family: var(--sans); font-size: .62em; text-decoration: none; color: var(--ink-2); padding: 0 .1em; }
+sup.src a:hover { color: var(--ink); text-decoration: underline; }
+
+/* Cast terms: the coloured word is the legend for the figure. */
+.t { font-weight: 700; color: var(--c); text-decoration: none; border-radius: 2px; cursor: default; }
+.t--api { --c: var(--api); } .t--master { --c: var(--master); } .t--replica { --c: var(--replica); } .t--data { --c: var(--data); }
+.t:hover, .t:focus-visible { background: color-mix(in srgb, var(--c) 14%, transparent); }
+
+/* ============ Top bar ============ */
+.bar {
+  position: sticky; top: 0; z-index: 30; height: var(--bar);
+  display: flex; align-items: center; gap: var(--s5); padding: 0 var(--s6);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--sans); font-size: var(--fs-ui);
+}
+.bar__name { font-weight: 650; text-decoration: none; white-space: nowrap; letter-spacing: -.005em; }
+.bar__crumb { color: var(--ink-2); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.bar__crumb b { color: var(--ink); font-weight: 600; }
+.bar__right { margin-left: auto; display: flex; align-items: center; gap: var(--s4); }
+.bar__left { color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.btn {
+  font: inherit; font-family: var(--sans); font-size: var(--fs-ui); font-weight: 550; color: var(--ink);
+  background: transparent; border: 1px solid var(--rule-2); border-radius: 6px;
+  padding: 6px 12px; min-height: 36px; cursor: pointer;
+}
+.btn:hover { background: var(--paper-2); }
+.btn[disabled] { opacity: .4; cursor: default; }
+
+.resume {
+  display: none; position: sticky; top: var(--bar); z-index: 25;
+  font-family: var(--sans); font-size: var(--fs-ui); color: var(--ink-2);
+  background: var(--paper); border-bottom: 1px solid var(--rule);
+  padding: 10px var(--s6); gap: var(--s4); align-items: center;
+}
+.resume.on { display: flex; }
+.resume a { color: var(--ink); font-weight: 600; }
+.resume button { margin-left: auto; font: inherit; background: none; border: 0; color: var(--ink-2); text-decoration: underline; cursor: pointer; padding: 6px; }
+
+/* ============ Shell: rail + main ============ */
+.clip { overflow-x: clip; }
+.shell { max-width: calc(var(--rail) + 56px + var(--wide) + 64px); margin: 0 auto; padding: 0 var(--s6); display: grid; grid-template-columns: var(--rail) var(--wide); column-gap: 56px; }
+.rail { position: sticky; top: calc(var(--bar) + 28px); align-self: start; padding-top: var(--s2); font-family: var(--sans); z-index: 2; max-height: calc(100vh - var(--bar) - 40px); overflow: auto; }
+main { min-width: 0; padding-bottom: var(--s9); }
+
+/* ============ Lecture map ============ */
+.map svg { display: block; width: 100%; height: auto; overflow: visible; }
+.map text { font-family: var(--sans); font-size: 12px; fill: var(--ink); text-decoration: none; }
+.map a { text-decoration: none; }
+.map .node rect, .map .node path { fill: var(--paper); stroke: var(--ink); stroke-width: 1.1; }
+.map .node--later rect, .map .node--later path { stroke: var(--ink-3); stroke-dasharray: 3 3; fill: transparent; }
+.map .node--later text { fill: var(--ink-3); }
+.map .edge { fill: none; stroke: var(--ink); stroke-width: 1; }
+.map .edge--later { stroke: var(--ink-3); stroke-dasharray: 3 3; }
+.map .node--now .cyl-m { stroke: var(--master); stroke-width: 1.8; fill: color-mix(in srgb, var(--master) var(--map-tint, 16%), var(--paper)); }
+.map .node--now .cyl-r { stroke: var(--replica); stroke-width: 1.5; stroke-dasharray: 3 2.5; fill: var(--paper); }
+.map .node--now text { fill: var(--master); font-weight: 650; }
+.map a:hover rect, .map a:focus-visible rect, .map a:hover path { stroke-width: 2; }
+.map a:focus { outline: none; }
+.map a:focus-visible rect { stroke: var(--ink); stroke-width: 2.4; }
+.map__cap { font-size: var(--fs-small); color: var(--ink-2); line-height: 1.45; margin: var(--s3) 0 0; }
+
+.toc { list-style: none; margin: var(--s4) 0 0; padding: 0; font-size: var(--fs-small); line-height: 1.4; }
+.toc > li { padding: 5px 0 5px 12px; border-left: 2px solid var(--rule); }
+.toc > li.now { border-left-color: var(--master); }
+.toc a { text-decoration: none; color: var(--ink-2); display: block; }
+.toc a:hover { color: var(--ink); }
+.toc .tag { display: block; color: var(--ink-3); font-size: 12px; }
+.toc li.now > a { color: var(--ink); font-weight: 600; }
+.toc ol { list-style: none; margin: 6px 0 0; padding: 0; }
+.toc ol li { padding: 2px 0; }
+.toc ol a { font-weight: 400; color: var(--ink-2); }
+.toc ol a.on { color: var(--master); font-weight: 600; }
+.toc .left { display: block; margin-top: 8px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+.map-inline { display: none; margin: var(--s6) 0 var(--s7); padding: var(--s4) 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font-family: var(--sans); }
+.map-inline svg { max-width: 250px; margin: 0 auto; }
+.map-inline .map__cap { max-width: 44ch; margin-left: auto; margin-right: auto; text-align: center; }
+
+/* ============ Prose column ============ */
+.prose > * { max-width: var(--col); }
+.prose > .wide, .prose > .band { max-width: none; }
+.opener { padding-top: var(--s8); }
+h2.title { font-family: var(--serif); font-weight: 750; font-size: var(--fs-h2); line-height: 1.04; letter-spacing: -.012em; margin: 0 0 var(--s5); text-wrap: balance; max-width: 15ch; }
+.lede { font-size: 1.5rem; line-height: 1.45; }
+.lede .clock { font-family: var(--mono); font-size: .72em; letter-spacing: 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+h3 { font-family: var(--serif); font-weight: 700; font-size: var(--fs-h3); line-height: 1.18; letter-spacing: -.005em; margin: var(--s8) 0 var(--s4); text-wrap: balance; }
+h3 a.anchor { text-decoration: none; color: inherit; }
+@media (hover: hover) { h3 a.anchor:hover::after { content: " #"; color: var(--ink-3); font-weight: 400; } }
+
+/* Margin notes: hang in the gutter, next to the paragraph they annotate */
+.note { float: right; clear: right; width: var(--gut); margin: .3em 0 var(--s4) var(--gap); font-size: var(--fs-note); line-height: 1.42; color: var(--ink-2); }
+.note b { display: block; color: var(--ink); font-style: italic; font-weight: 700; margin-bottom: 2px; }
+
+/* Collapsed panels: run-in italic label, no box */
+details.more { margin: var(--s6) 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+details.more summary { cursor: pointer; list-style: none; padding: var(--s3) 0; font-size: var(--fs-note); color: var(--ink-2); display: flex; gap: var(--s3); align-items: baseline; }
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::before { content: "+"; font-family: var(--mono); color: var(--ink); width: 1ch; flex: none; }
+details.more[open] summary::before { content: "−"; }
+details.more summary i { color: var(--ink); font-weight: 700; }
+details.more .in { padding: 0 0 var(--s4) calc(1ch + var(--s3)); font-size: 1.1875rem; }
+details.more .in p:last-child { margin-bottom: 0; }
+
+/* ============ Band: the explorable figure, full-bleed ============ */
+.band { position: relative; margin: var(--s8) 0; padding: var(--s7) 0 var(--s6); }
+.band::before { content: ""; position: absolute; top: 0; bottom: 0; left: -100vw; right: -100vw; background: var(--paper-2); z-index: -1; }
+.band__lead { max-width: var(--col); margin: 0 0 var(--s5); }
+.scrolly { display: grid; grid-template-columns: 330px 1fr; column-gap: 44px; }
+.steps { padding: 2vh 0 34vh; }
+.step { padding: 0 0 13vh; opacity: .38; transition: opacity .25s; }
+.step.on { opacity: 1; }
+.step h4 { font-family: var(--serif); font-size: 1.3125rem; font-weight: 700; margin: 0 0 .3em; line-height: 1.25; }
+.step h4 button { all: unset; cursor: pointer; }
+.step h4 button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.step .n { font-family: var(--mono); font-size: .72em; color: var(--ink-2); margin-right: .45em; font-weight: 400; }
+.step p { font-size: 1.1875rem; line-height: 1.52; margin-bottom: .6em; }
+.step pre { font-family: var(--mono); font-size: 13.5px; line-height: 1.55; background: var(--paper); border-radius: 4px; padding: 10px 12px; margin: .4em 0 .6em; white-space: pre-wrap; word-break: break-word; }
+.stage { position: sticky; top: calc(var(--bar) + 20px); align-self: start; }
+.stage__fig { margin: 0; }
+.ctrl { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); font-family: var(--sans); font-size: var(--fs-ui); }
+.ctrl .count { font-family: var(--mono); font-size: 14px; color: var(--ink-2); min-width: 4.5ch; text-align: center; }
+figcaption { font-family: var(--sans); font-size: var(--fs-small); line-height: 1.45; color: var(--ink-2); margin-top: var(--s3); max-width: 52ch; }
+figcaption i { font-family: var(--serif); font-size: 1.08em; color: var(--ink); }
+
+/* ============ Figure 1 (replication) ============ */
+.f1 { display: block; width: 100%; height: auto; max-width: 560px; overflow: visible; }
+.f1 text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
+.f1 .lab2 { fill: var(--ink-2); }
+.f1 .mono { font-family: var(--mono); font-size: 12.5px; }
+.f1 .big { font-size: 14px; font-weight: 600; }
+.f1 .box { fill: var(--paper); stroke: var(--ink); stroke-width: 1.3; }
+.f1 .ghost { fill: var(--paper); stroke: var(--api); stroke-width: 1; opacity: .55; }
+.f1 .apibox { fill: var(--paper); stroke: var(--api); stroke-width: 1.6; }
+.f1 .cyl-m { fill: var(--paper); stroke: var(--master); stroke-width: 1.8; }
+.f1 .cyl-r { fill: var(--paper); stroke: var(--replica); stroke-width: 1.8; stroke-dasharray: 5 4; }
+.f1 .rowl { stroke: var(--ink-3); stroke-width: 1.2; opacity: .6; }
+.f1 .wire { fill: none; stroke: var(--ink-3); stroke-width: 1.2; }
+.f1 .wire.hot { stroke: var(--ink); stroke-width: 2.2; }
+.f1 .repl { fill: none; stroke: var(--replica); stroke-width: 1.8; stroke-dasharray: 5 4; }
+.f1 .repl.hot { stroke-width: 2.6; }
+.f1 .ah { fill: var(--ink-3); }
+.f1 .hot-ah { fill: var(--ink); }
+.f1 .data { fill: var(--data); }
+.f1 .data-s { stroke: var(--data); stroke-width: 3; }
+.f1 .bad { fill: var(--alert); }
+.f1 text.bad { fill: var(--alert); font-weight: 600; }
+.f1 .lane { stroke: var(--rule-2); stroke-width: 1; }
+.f1 .lagb { fill: none; stroke: var(--ink-2); stroke-width: 1; }
+.f1 .t-master { fill: var(--master); font-weight: 650; }
+.f1 .t-replica { fill: var(--replica); font-weight: 650; }
+.f1 .t-api { fill: var(--api); }
+.f1 .fade, .f1 [class*="s-"] { transition: opacity .3s; }
+.f1 .tok { transition: transform .9s cubic-bezier(.3,.1,.3,1), opacity .3s; }
+/* Term focus: the matching part gets the only tint on the page */
+.f1[data-hl="master"] .cyl-m { fill: color-mix(in srgb, var(--master) calc(var(--tint) * 100%), var(--paper)); stroke-width: 2.6; }
+.f1[data-hl="replica"] .cyl-r { fill: color-mix(in srgb, var(--replica) calc(var(--tint) * 100%), var(--paper)); stroke-width: 2.6; }
+.f1[data-hl="api"] .apibox { fill: color-mix(in srgb, var(--api) calc(var(--tint) * 100%), var(--paper)); stroke-width: 2.6; }
+.f1[data-hl="data"] .data-s { stroke-width: 5; }
+
+/* Step visibility. Structure is always drawn; events appear with their step. */
+.f1 [class*="s-"] { opacity: 0; }
+.f1[data-step="1"] .s-1, .f1[data-step="1"] .s-1-3,
+.f1[data-step="2"] .s-2, .f1[data-step="2"] .s-2p, .f1[data-step="2"] .s-1-3, .f1[data-step="2"] .s-2-3,
+.f1[data-step="3"] .s-3, .f1[data-step="3"] .s-2p, .f1[data-step="3"] .s-3p, .f1[data-step="3"] .s-1-3, .f1[data-step="3"] .s-2-3,
+.f1[data-step="4"] .s-4, .f1[data-step="4"] .s-2p, .f1[data-step="4"] .s-3p, .f1[data-step="4"] .s-4p,
+.f1[data-step="5"] .s-5, .f1[data-step="5"] .s-2p, .f1[data-step="5"] .s-3p, .f1[data-step="5"] .s-4p { opacity: 1; }
+.f1 .always { opacity: 1; }
+/* past events dim to 45% */
+.f1[data-step="4"] .s-3p, .f1[data-step="5"] .s-3p, .f1[data-step="5"] .s-4p { opacity: .45; }
+/* the travelling record: master -> halfway (2,3) -> replica (4+) */
+.f1 .tok { transform: translate(0px, 0px); }
+.f1[data-step="2"] .tok, .f1[data-step="3"] .tok { transform: translate(0px, 32px); }
+.f1[data-step="4"] .tok, .f1[data-step="5"] .tok { transform: translate(0px, 70px); opacity: 0; }
+.f1[data-step="1"] .tok { opacity: 0; }
+/* hot wires per step */
+.f1[data-step="1"] .w-write, .f1[data-step="5"] .w-write,
+.f1[data-step="3"] .w-read, .f1[data-step="4"] .w-read { stroke: var(--ink); stroke-width: 2.2; }
+.f1[data-step="2"] .repl { stroke-width: 2.8; }
+
+/* ============ The one reader question ============ */
+.ask { margin: var(--s8) 0 var(--s7); max-width: var(--wide) !important; }
+.ask__q { font-style: italic; font-size: var(--fs-ask); line-height: 1.3; margin: 0 0 var(--s5); max-width: 36ch; text-wrap: balance; }
+.ask__q span { display: block; font-style: normal; font-family: var(--sans); font-size: var(--fs-small); color: var(--ink-2); margin-bottom: var(--s3); letter-spacing: .01em; }
+.opts { list-style: none; margin: 0; padding: 0; max-width: var(--col); }
+.opts li + li { margin-top: 2px; }
+.opt { all: unset; box-sizing: border-box; display: flex; gap: 14px; align-items: baseline; width: 100%; cursor: pointer; padding: 10px 12px 10px 0; font-size: var(--fs-body); line-height: 1.4; border-bottom: 1px solid var(--rule); }
+.opt::before { content: ""; flex: none; width: 13px; height: 13px; border: 1.5px solid var(--ink-2); border-radius: 50%; transform: translateY(1px); }
+.opt:hover::before { border-color: var(--ink); }
+.opt:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.opt[aria-pressed="true"]::before { background: var(--ink); border-color: var(--ink); box-shadow: inset 0 0 0 2.5px var(--paper); }
+.opts.done .opt { cursor: default; }
+.opts.done .opt[aria-pressed="false"] { color: var(--ink-2); }
+.skip { all: unset; cursor: pointer; margin-top: var(--s4); font-family: var(--sans); font-size: var(--fs-ui); color: var(--ink-2); text-decoration: underline; text-underline-offset: .2em; }
+.skip:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.reveal { display: none; margin-top: var(--s5); max-width: var(--col); }
+.reveal.on { display: block; }
+.reveal .yours { font-size: var(--fs-note); color: var(--ink-2); font-style: italic; }
+.no-js .reveal { display: block; }
+
+/* ============ Wrong turn (refutation) ============ */
+.wrong { position: relative; margin: var(--s7) 0; padding-left: var(--s5); border-left: 3px solid var(--rule-2); }
+.wrong p { font-size: 1.1875rem; }
+.wrong .lbl { font-style: italic; font-weight: 700; }
+.wrong .belief { color: var(--ink-2); }
+.f2 { display: block; width: 100%; max-width: 470px; height: auto; margin: var(--s4) 0 var(--s2); }
+.f2 text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
+.f2 .lab2 { fill: var(--ink-2); }
+.f2 .mono { font-family: var(--mono); font-size: 12.5px; }
+.f2 .cyl { fill: var(--paper); stroke: var(--master); stroke-width: 1.7; }
+.f2 .cyl-x { fill: none; stroke: var(--ink-3); stroke-width: 1.3; stroke-dasharray: 4 3; }
+.f2 .data { fill: var(--data); }
+.f2 .rowl { stroke: var(--ink-3); stroke-width: 1.2; opacity: .6; }
+.f2 .bad { fill: var(--alert); }
+.f2 .t-master { fill: var(--master); font-weight: 650; }
+
+/* ============ Worked example: a ledger that runs into the gutter ============ */
+.ledger { max-width: var(--wide) !important; margin: var(--s6) 0 var(--s6); }
+.ledger__head { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: baseline; font-family: var(--sans); font-size: var(--fs-ui); color: var(--ink-2); margin-bottom: var(--s3); }
+.seg { display: inline-flex; border: 1px solid var(--rule-2); border-radius: 6px; overflow: hidden; }
+.seg button { all: unset; cursor: pointer; padding: 6px 12px; font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+.ledger table { border-collapse: collapse; width: 100%; max-width: 780px; }
+.ledger td { padding: 9px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; font-size: 1.125rem; line-height: 1.4; }
+.ledger td.v { text-align: right; font-family: var(--mono); font-size: 1rem; white-space: nowrap; padding-left: var(--s5); font-variant-numeric: tabular-nums lining-nums; }
+.ledger td.w { font-family: var(--mono); font-size: .875rem; color: var(--ink-2); padding-left: var(--s5); white-space: nowrap; width: 1%; }
+.ledger tr.sum td { border-bottom: 2px solid var(--ink); font-weight: 700; }
+.ledger tr.sum td.v { font-weight: 500; }
+.ledger tr.flag td { color: var(--alert); }
+.ledger .assume { font-style: italic; color: var(--ink-2); }
+
+/* ============ Recall ============ */
+.recall { margin: var(--s9) 0 var(--s6); max-width: var(--wide) !important; padding-top: var(--s6); border-top: 2px solid var(--ink); }
+.recall h3 { margin-top: 0; }
+.recall > p { max-width: var(--col); }
+.recall textarea { width: 100%; max-width: var(--col); min-height: 130px; font: inherit; font-size: 1.125rem; line-height: 1.5; color: var(--ink); background: transparent; border: 1px solid var(--rule-2); border-radius: 6px; padding: 12px 14px; resize: vertical; display: block; }
+.recall textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.recall .hint { font-family: var(--sans); font-size: var(--fs-small); color: var(--ink-2); margin: var(--s2) 0 var(--s4); }
+.model { display: none; margin-top: var(--s5); max-width: var(--col); }
+.model.on { display: block; }
+.model ol { padding-left: 1.3em; margin: 0 0 1em; }
+.model li { margin-bottom: .5em; }
+.model li::marker { font-family: var(--mono); font-size: .8em; color: var(--ink-2); }
+.hook { margin-top: var(--s7); font-size: 1.1875rem; }
+.hook b { font-weight: 700; }
+
+.stop { margin: var(--s8) 0 0; font-family: var(--sans); font-size: var(--fs-ui); color: var(--ink-2); display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s4); border-top: 1px solid var(--rule); padding-top: var(--s4); max-width: var(--wide) !important; }
+.stop a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.stop a:hover { text-decoration: underline; }
+.stop .rest { flex-basis: 100%; font-family: var(--serif); font-style: italic; font-size: 1.125rem; color: var(--ink-2); }
+.colophon { margin-top: var(--s7); font-family: var(--sans); font-size: var(--fs-small); color: var(--ink-2); line-height: 1.55; max-width: 70ch !important; }
+.colophon p { margin-bottom: .6em; }
+
+/* ============ Breakpoints ============ */
+@media (max-width: 1259px) {
+  .shell { display: block; max-width: calc(var(--wide) + 64px); }
+  .rail { display: none; }
+  .map-inline { display: block; }
+}
+@media (max-width: 979px) {
+  .note { float: none; width: auto; margin: 0 0 var(--s5); padding-left: var(--s4); border-left: 2px solid var(--rule); }
+  .prose > * { max-width: none; }
+  .ask__q { max-width: none; }
+}
+@media (max-width: 899px) {
+  .scrolly { display: flex; flex-direction: column-reverse; }
+  .stage { align-self: stretch; top: var(--bar); z-index: 5; background: var(--paper-2); padding: 10px 0 8px; margin: 0 calc(-1 * var(--s4)); padding-left: var(--s4); padding-right: var(--s4); box-shadow: 0 1px 0 var(--rule); }
+  .stage figcaption { display: none; }
+  .f1 { max-width: 460px; margin: 0 auto; }
+  .f1 text { font-size: 15px; }
+  .f1 .mono { font-size: 14.5px; }
+  .f1 .big { font-size: 15.5px; }
+  .ctrl { margin-top: 6px; justify-content: center; }
+  .steps { padding: 4vh 0 40vh; }
+  .step { padding-bottom: 8vh; }
+  .fig1-cap-m { display: block !important; }
+}
+@media (max-width: 720px) {
+  :root { --fs-body: 1.1875rem; --fs-h2: 2.375rem; --fs-h3: 1.5rem; --fs-ask: 1.4375rem; }
+  .bar { padding: 0 var(--s4); gap: var(--s3); }
+  .bar__name, .bar__crumb .lec { display: none; }
+  .shell { padding: 0 var(--s4); }
+  .opener { padding-top: var(--s6); }
+  .lede { font-size: 1.25rem; }
+  h3 { margin-top: var(--s7); }
+  .resume { padding: 10px var(--s4); }
+  .ledger td { font-size: 1rem; }
+  .ledger td.w { display: none; }
+  .ledger td.v { font-size: .9375rem; }
+  .f2 text { font-size: 16px; }
+  .f2 .mono { font-size: 15px; }
+}
+@media (max-width: 420px) {
+  .bar__left .long { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .f1 .tok, .f1 [class*="s-"], .f1 .fade, .step { transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+@media print {
+  .bar, .rail, .map-inline, .ctrl, .resume { display: none !important; }
+  .band::before { display: none; }
+  .scrolly { display: block; }
+  .stage { position: static; }
+  .step { opacity: 1; }
+  .reveal, .model { display: block !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <a class="bar__name" href="#top">System Design Notes</a>
+  <span class="bar__crumb"><span class="lec">Lecture 1 › </span>Scaling › <b>The database</b></span>
+  <div class="bar__right">
+    <span class="bar__left" id="left-bar" aria-live="off"></span>
+    <button class="btn" id="theme-btn" type="button" aria-label="Switch to dark theme">Dark</button>
+  </div>
+</header>
+<div class="resume" id="resume" role="status">
+  <span>You stopped at <a href="#" id="resume-link">…</a></span>
+  <button type="button" id="resume-x">Start from the top</button>
+</div>
+
+<div class="clip"><div class="shell" id="top">
+
+  <!-- Lecture map: the Medium diagram as it stands at this point of the lecture. Doubles as navigation. -->
+  <nav class="rail" aria-label="Lecture map">
+    <div class="map" id="map-src">
+      <svg viewBox="0 0 220 292" role="img" aria-labelledby="map-t">
+        <title id="map-t">Medium's architecture at this point in lecture 1. Parts built in earlier sections are solid, the database is being changed now, parts from later sections are dashed. Each part links to its section.</title>
+        <!-- edges -->
+        <path class="edge" d="M56 34V52M56 78V96M56 122V140M56 166V188"/>
+        <path class="edge" d="M102 146H110V109H118"/>
+        <path class="edge edge--later" d="M102 159H118M164 166V196M164 222V250M118 209H104M118 21H102"/>
+        <!-- built earlier -->
+        <a href="#s-caching" aria-label="Readers' browsers: caching section"><g class="node"><rect x="10" y="8" width="92" height="26" rx="3"/><text x="56" y="25" text-anchor="middle">readers</text></g></a>
+        <a href="#s-caching" aria-label="CDN: caching section"><g class="node"><rect x="10" y="52" width="92" height="26" rx="3"/><text x="56" y="69" text-anchor="middle">CDN</text></g></a>
+        <a href="#s-scaling" aria-label="Load balancer: scaling section"><g class="node"><rect x="10" y="96" width="92" height="26" rx="3"/><text x="56" y="113" text-anchor="middle">load balancer</text></g></a>
+        <a href="#s-caching" aria-label="Redis: caching section"><g class="node"><rect x="118" y="96" width="92" height="26" rx="3"/><text x="164" y="113" text-anchor="middle">Redis</text></g></a>
+        <a href="#s-scaling" aria-label="API servers: scaling section"><g class="node"><rect x="10" y="140" width="92" height="26" rx="3"/><text x="56" y="157" text-anchor="middle">api ×N</text></g></a>
+        <!-- changing now -->
+        <a href="#s-db" aria-label="Database: this part"><g class="node node--now">
+          <path class="cyl-m" d="M18 196v32a20 5 0 0 0 40 0v-32a20 5 0 0 0-40 0a20 5 0 0 0 40 0"/>
+          <path class="cyl-r" d="M66 202v26a15 4 0 0 0 30 0v-26a15 4 0 0 0-30 0a15 4 0 0 0 30 0"/>
+          <text x="56" y="254" text-anchor="middle">database</text>
+        </g></a>
+        <!-- later in the lecture -->
+        <a href="#s-communication" aria-label="WebSocket and SSE gateway: communication section"><g class="node node--later"><rect x="118" y="8" width="92" height="26" rx="3"/><text x="164" y="25" text-anchor="middle">WS / SSE</text></g></a>
+        <a href="#s-delegation" aria-label="Kafka: delegation section"><g class="node node--later"><rect x="118" y="140" width="92" height="26" rx="3"/><text x="164" y="157" text-anchor="middle">Kafka</text></g></a>
+        <a href="#s-delegation" aria-label="Workers: delegation section"><g class="node node--later"><rect x="118" y="196" width="92" height="26" rx="3"/><text x="164" y="213" text-anchor="middle">workers</text></g></a>
+        <a href="#s-delegation" aria-label="Search index: delegation section"><g class="node node--later"><rect x="118" y="250" width="92" height="26" rx="3"/><text x="164" y="267" text-anchor="middle">search index</text></g></a>
+        <a href="#s-concurrency" aria-label="Clap counter: concurrency section"><g class="node node--later"><rect x="10" y="266" width="92" height="22" rx="11"/><text x="56" y="281" text-anchor="middle">clap counter</text></g></a>
+      </svg>
+      <p class="map__cap">Medium so far. Solid: built earlier. Dashed: later in the lecture.</p>
+    </div>
+
+    <ol class="toc">
+      <li><a href="#s-caching">Where else can a read be answered?<span class="tag">caching</span></a></li>
+      <li class="now"><a href="#s-scaling" aria-current="true">What breaks when ten servers share one database?<span class="tag">scaling</span></a>
+        <ol id="spy">
+          <li><a href="#s-db" data-spy="s-db">Ten API servers, one database</a></li>
+          <li><a href="#bigger" data-spy="bigger">A bigger machine</a></li>
+          <li><a href="#replicas" data-spy="replicas">Copies for reading</a></li>
+          <li><a href="#count" data-spy="count">Counting replicas</a></li>
+          <li><a href="#shards" data-spy="shards">Splitting the writes</a></li>
+          <li><a href="#recall" data-spy="recall">Say it back</a></li>
+        </ol>
+        <span class="left" id="left-rail"></span>
+      </li>
+      <li><a href="#s-delegation">Why did the count jump to 76?<span class="tag">delegation</span></a></li>
+      <li><a href="#s-concurrency">Two claps at once, one lost<span class="tag">concurrency</span></a></li>
+      <li><a href="#s-communication">How does a clap reach other readers?<span class="tag">communication</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <h1 class="vh">Lecture 1: keeping Medium up</h1>
+    <article class="prose" id="s-db">
+
+      <div class="opener">
+        <h2 class="title" id="s-scaling">Ten API servers, one database</h2>
+        <p class="lede">Say Medium's newsletter goes out at <span class="clock">09:00</span> and links one post. You prepared the way the last part said to: ten <a class="t t--api" href="#fig1" data-part="api">API servers</a> behind the load balancer, 100 requests a second each, <span class="num">1,000</span> in all. Every one of those requests ends in a query to the same database, and somewhere between <span class="num">900</span> and <span class="num">990</span> of them are reads.</p>
+        <p>The API servers took ten minutes to add because they keep nothing between requests. The database keeps everything, so it can't be cloned the same way. This part covers the three moves the lecture makes for it, in the order you'd make them, and what each move costs.</p>
+      </div>
+
+      <div class="map-inline" id="map-inline" aria-label="Lecture map"></div>
+
+      <h3 id="bigger"><a class="anchor" href="#bigger">A bigger machine comes first, and it has a ceiling</a></h3>
+      <p>The cheapest fix is a larger instance. In the console you change the machine type: 16 GB of RAM, then 32, 64, and on up. The class walked that ladder to 4 TB and stopped there, because the next size needs hardware the data centre doesn't have. The part on going up or out covers why.</p>
+      <p>Most teams stop well before the ceiling. The largest instances cost more per unit of capacity than mid-sized ones, and a bigger machine is still one machine. If it goes down for the resize, every API server waits on it.</p>
+
+      <h3 id="replicas"><a class="anchor" href="#replicas">Reads outnumber writes, so give reads their own copies</a></h3>
+      <aside class="note"><b>99:1 is a blog's number.</b> Logging, metrics, IoT and chat are often write-heavy. Measure your own ratio before you build on this one.</aside>
+      <p>On a blogging site the read-to-write ratio sits around 90:10, often nearer 99:1. One person writes a post and thousands read it. A <a class="t t--replica" href="#fig1" data-part="replica">read replica</a> is a second database that holds a full copy of the data and serves only reads. All writes still go to the <a class="t t--master" href="#fig1" data-part="master">master</a>, and the replica follows behind it.</p>
+      <p>Following behind is the cost. The replica gets each change a moment after the master commits it, and a read that lands in that moment sees the old data. The figure below follows one post through that gap.</p>
+
+      <details class="more">
+        <summary><span><i>New to replication?</i> What master, replica and asynchronous mean, in a minute of reading.</span></summary>
+        <div class="in">
+          <p>The master is the one database allowed to accept writes. Every change it makes goes into a log, the binlog in MySQL and the write-ahead log in PostgreSQL.</p>
+          <p>A replica replays that log to keep its own copy current. Asynchronous means the master doesn't wait for any replica before telling the API server the write succeeded. So the write returns fast, and the replica may still be a little behind.</p>
+          <p>Setting one up is a configuration job in MySQL, PostgreSQL and every managed cloud database. Search for your database's replication guide and follow it on a laptop once.</p>
+        </div>
+      </details>
+
+      <!-- ====== The explorable figure ====== -->
+      <section class="band" id="fig1" aria-labelledby="fig1-cap">
+        <p class="band__lead">Follow post <a class="t t--data" href="#fig1" data-part="data">4182</a> from Publish to a reader's screen. The figure changes as each step reaches the middle of the screen; the buttons and the arrow keys do the same.</p>
+        <div class="scrolly">
+          <div class="steps" id="steps">
+            <div class="step on" data-step="1">
+              <h4><button type="button"><span class="n">1</span>The master gets the post</button></h4>
+              <p>The writer presses Publish. An <a class="t t--api" href="#fig1" data-part="api">API server</a> sends the <code>INSERT</code> down its master connection and the <a class="t t--master" href="#fig1" data-part="master">master</a> commits it. At this instant exactly one machine at Medium has post <span class="t t--data" data-part="data" tabindex="0">4182</span>.</p>
+            </div>
+            <div class="step" data-step="2">
+              <h4><button type="button"><span class="n">2</span>The replica asks for it</button></h4>
+              <p>Nobody tells the replica. The <a class="t t--replica" href="#fig1" data-part="replica">replica</a> keeps a connection open to the master and asks for every change after the last position it applied. That is why the arrow points up, at the master.</p>
+              <p>Once asked, the master answers on that same connection and keeps streaming new log records as they're written. MySQL calls the master's side the binlog dump thread, PostgreSQL calls it the walsender.<sup class="src"><a href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html" title="MySQL 8.4 manual: replication threads">1</a></sup><sup class="src"><a href="https://www.postgresql.org/docs/current/warm-standby.html" title="PostgreSQL docs: log-shipping standby servers">2</a></sup></p>
+            </div>
+            <div class="step" data-step="3">
+              <h4><button type="button"><span class="n">3</span>A reader beats the log</button></h4>
+              <p>A reader opens the post 300 ms after the commit. Reads go out on the replica connection. The replica hasn't applied <span class="t t--data" data-part="data" tabindex="0">4182</span> yet, so the reader gets a 404 for a post that exists.</p>
+            </div>
+            <div class="step" data-step="4">
+              <h4><button type="button"><span class="n">4</span>The replica catches up</button></h4>
+              <p>The replica applies the change, and the same request now returns the post. The distance between the two dots on the timeline is replication lag. PostgreSQL's documentation says it is typically under one second when the standby can keep up with the load.<sup class="src"><a href="https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION" title="PostgreSQL docs: streaming replication">2</a></sup> Under a heavy write burst it grows.</p>
+            </div>
+            <div class="step" data-step="5">
+              <h4><button type="button"><span class="n">5</span>Your code picks the connection</button></h4>
+              <p>The database doesn't decide where a query goes. The API server holds two connection objects and the business logic chooses one per query. Strangers reading a feed can live with a second of lag. The writer's own page after Publish can't, so that one read goes to the master.</p>
+<pre>conn = master if user.id == post.author_id
+       else replica
+conn.query("SELECT ... WHERE id = 4182")</pre>
+            </div>
+          </div>
+
+          <div class="stage" id="stage">
+            <figure class="stage__fig">
+              <svg class="f1" id="f1" data-step="1" viewBox="0 0 440 406" role="img" aria-labelledby="f1-title" tabindex="0">
+                <title id="f1-title">Writer and reader on the left, the API server fleet in the middle with a master connection and a replica connection, master and replica databases on the right. The replica asks the master for changes. A timeline below shows commit on the master and the later apply on the replica.</title>
+                <defs>
+                  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="ah"/></marker>
+                  <marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--replica)"/></marker>
+                  <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="5" style="fill:var(--alert)"/></pattern>
+                </defs>
+
+                <!-- clients -->
+                <rect class="box" x="6" y="52" width="74" height="40" rx="4"/>
+                <text class="big" x="43" y="77" text-anchor="middle">writer</text>
+                <rect class="box" x="6" y="192" width="74" height="40" rx="4"/>
+                <text class="big" x="43" y="217" text-anchor="middle">reader</text>
+
+                <!-- api fleet: one tall box, two connections -->
+                <rect class="ghost" x="146" y="42" width="116" height="212" rx="4"/>
+                <rect class="apibox" x="140" y="36" width="116" height="212" rx="4"/>
+                <text class="mono t-api" x="198" y="140" text-anchor="middle" style="font-size:15px">api</text>
+                <text class="mono t-api" x="198" y="158" text-anchor="middle">×N</text>
+                <text class="lab2" x="198" y="96" text-anchor="middle">master conn</text>
+                <text class="lab2" x="198" y="198" text-anchor="middle">replica conn</text>
+
+                <!-- wires: one row for writes, one for reads -->
+                <path class="wire w-write" d="M80 72H138" marker-end="url(#ah)"/>
+                <path class="wire w-write" d="M256 72H333" marker-end="url(#ah)"/>
+                <path class="wire w-read" d="M80 212H138" marker-end="url(#ah)"/>
+                <path class="wire w-read" d="M256 212H333" marker-end="url(#ah)"/>
+
+                <!-- master -->
+                <text class="t-master big" x="376" y="30" text-anchor="middle">master</text>
+                <path class="cyl-m" d="M336 52v56a40 8 0 0 0 80 0v-56a40 8 0 0 0-80 0a40 8 0 0 0 80 0"/>
+                <path class="rowl" d="M352 76H400M352 85H400M352 94H400"/>
+                <path class="data-s s-1 s-2p" d="M352 103H400"/>
+
+                <!-- replica -->
+                <path class="cyl-r" d="M336 192v56a40 8 0 0 0 80 0v-56a40 8 0 0 0-80 0a40 8 0 0 0 80 0"/>
+                <path class="rowl" d="M352 216H400M352 225H400M352 234H400"/>
+                <path class="data-s s-4p" d="M352 243H400"/>
+                <text class="t-replica big" x="376" y="276" text-anchor="middle">replica</text>
+
+                <!-- replication: the replica asks, so the arrowhead is at the master -->
+                <path class="repl" d="M376 182V122" marker-end="url(#ahr)"/>
+                <text class="lab2" x="364" y="146" text-anchor="end">asks for</text>
+                <text class="lab2" x="364" y="162" text-anchor="end">changes</text>
+                <g class="tok"><rect class="data" x="371" y="117" width="10" height="10" rx="1.5"/></g>
+
+                <!-- step labels on the wires -->
+                <text class="mono s-1" x="300" y="62" text-anchor="middle">① INSERT</text>
+                <text class="mono s-5" x="300" y="62" text-anchor="middle">⑤ SELECT</text>
+                <text class="s-5" x="108" y="64" text-anchor="middle">200</text>
+                <text class="lab2 s-2" x="306" y="184" text-anchor="middle">②</text>
+                <text class="mono s-3 s-4" x="295" y="204" text-anchor="middle">SELECT</text>
+                                <g class="s-3"><rect x="92" y="190" width="32" height="15" fill="url(#hatch)" opacity=".25"/><text class="bad" x="108" y="203" text-anchor="middle">404</text></g>
+                <text class="s-3" x="306" y="184" text-anchor="middle" style="fill:var(--alert)">③ no 4182 yet</text>
+                <text class="s-4" x="108" y="203" text-anchor="middle">200</text>
+                <text class="s-4" x="306" y="184" text-anchor="middle">④ applied</text>
+
+                <!-- timeline -->
+                <text class="t-master" x="6" y="326">master</text>
+                <text class="t-replica" x="6" y="366">replica</text>
+                <path class="lane" d="M70 322H432M70 362H432"/>
+                <text class="lab2" x="432" y="404" text-anchor="end">time →</text>
+                <circle class="data" cx="130" cy="322" r="5.5"/>
+                <text x="130" y="311" text-anchor="middle">commit</text>
+                <path class="repl s-2p" d="M134 323L296 360" style="stroke-width:1.4"/>
+                <circle class="s-2-3" cx="300" cy="362" r="5" style="fill:var(--paper);stroke:var(--data);stroke-width:1.6"/>
+                <circle class="data s-4p" cx="300" cy="362" r="5.5"/>
+                <g class="s-3p"><path d="M175 357l10 10M185 357l-10 10" style="stroke:var(--alert);stroke-width:2.2"/><text class="bad" x="180" y="351" text-anchor="middle">read: 404</text></g>
+                <g class="s-4p"><circle cx="360" cy="362" r="4" style="fill:var(--ink)"/><text x="364" y="351" text-anchor="middle">read: 200</text></g>
+                <g class="s-4p"><path class="lagb" d="M130 374v6H300v-6"/><text class="lab2" x="215" y="396" text-anchor="middle">lag, under 1 s when it keeps up</text></g>
+                <g class="s-5"><circle cx="196" cy="322" r="4" style="fill:var(--ink)"/><text x="200" y="311" text-anchor="start">writer's read: 200</text></g>
+              </svg>
+              <figcaption id="fig1-cap"><i>Fig. 1.</i> One post, two connections, and the moment the two databases disagree. Top: who talks to whom. Bottom: the same events on a timeline.</figcaption>
+            </figure>
+            <div class="ctrl">
+              <button class="btn" id="prev" type="button" aria-controls="f1">Back</button>
+              <span class="count" id="count" aria-live="polite">1 / 5</span>
+              <button class="btn" id="next" type="button" aria-controls="f1">Next</button>
+            </div>
+          </div>
+        </div>
+        <p class="fig1-cap-m" style="display:none;font-family:var(--sans);font-size:var(--fs-small);color:var(--ink-2);max-width:none"><i style="font-family:var(--serif);color:var(--ink)">Fig. 1.</i> One post, two connections, and the moment the two databases disagree.</p>
+      </section>
+
+      <aside class="note"><b>The class board draws this arrow the other way.</b> On the board it runs master to replica, the way data flows. Fig. 1 points it the way the request goes, because the replica starts the conversation.</aside>
+      <p>That code is the naive version, and the lecture's point is to write it once yourself. Other layers can do the routing for you. PostgreSQL's client library can prefer a standby through <code>target_session_attrs</code>,<sup class="src"><a href="https://www.postgresql.org/docs/current/libpq-connect.html" title="PostgreSQL docs: libpq connection parameters">3</a></sup> and Aurora gives you a reader endpoint that spreads connections across its replicas.<sup class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html" title="AWS docs: Aurora endpoints">4</a></sup> Those layers choose a machine for each connection. They can't know which of your reads has to be fresh, so step 5 stays in your code.</p>
+
+      <h3 id="count"><a class="anchor" href="#count">Counting replicas for the 09:00 spike</a></h3>
+      <p>How many replicas the newsletter needs depends on one number you can only get from a load test: how many queries a second one replica serves before its latency climbs. The lecture is firm that no formula gives you that. Below, 300 a second stands in for your measured value.</p>
+
+      <div class="ledger" id="ledger">
+        <div class="ledger__head">
+          <span id="ledger-l">Read share</span>
+          <span class="seg" role="group" aria-labelledby="ledger-l">
+            <button type="button" data-ratio="0.99" aria-pressed="true">99:1</button>
+            <button type="button" data-ratio="0.9" aria-pressed="false">90:10</button>
+          </span>
+        </div>
+        <table>
+          <tbody>
+            <tr><td>Queries at 09:00, from ten API servers</td><td class="w"></td><td class="v">1,000 /s</td></tr>
+            <tr><td>Reads among them</td><td class="w" data-out="rw1">1,000 × 0.99</td><td class="v" data-out="r1">990 /s</td></tr>
+            <tr><td class="assume">One replica serves, from your load test</td><td class="w"></td><td class="v">300 /s</td></tr>
+            <tr><td>Replicas for the reads</td><td class="w" data-out="nw1">990 ÷ 300 = 3.3</td><td class="v" data-out="n1">4</td></tr>
+            <tr class="sum"><td>Plus one, so losing a replica doesn't overload the rest</td><td class="w"></td><td class="v" data-out="t1">5 replicas</td></tr>
+            <tr><td>Writes, all on the master, and replayed by every replica</td><td class="w"></td><td class="v" data-out="wr1">10 /s</td></tr>
+            <tr><td>The post goes viral: five times the plan</td><td class="w"></td><td class="v">5,000 /s</td></tr>
+            <tr><td>Replicas for the reads</td><td class="w" data-out="nw2">4,950 ÷ 300 = 16.5</td><td class="v" data-out="n2">17</td></tr>
+            <tr class="sum flag"><td>Plus one</td><td class="w"></td><td class="v" data-out="t2">18 replicas</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="note"><b>The class said about five.</b> That was a feel for one self-run master, not a product limit. The managed limit is 15 per source on RDS for MySQL.<sup class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html" title="AWS docs: RDS for MySQL read replicas">5</a></sup></aside>
+      <p id="ledger-say">Eighteen is past what one master will feed on most managed services. RDS for MySQL allows 15 read replicas per source and Aurora 15 readers per cluster.<sup class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html" title="AWS docs: Aurora high availability">6</a></sup> In PostgreSQL the cap is whatever you set <code>max_wal_senders</code> to, and in practice it is the master's spare CPU and network, since every replica streaming from it costs a little of both.</p>
+      <p>The class answer for this case is a tree. Five replicas pull from the master and each of them feeds three more, which gives 15 without asking more of the master. PostgreSQL calls this cascading replication.<sup class="src"><a href="https://www.postgresql.org/docs/current/warm-standby.html#CASCADING-REPLICATION" title="PostgreSQL docs: cascading replication">2</a></sup> Each extra hop adds its own lag, so the bottom row is the most stale. And if the replicas are hurting the master, the lecture reads that as the signal for the next move.</p>
+
+      <h3 id="shards"><a class="anchor" href="#shards">When writes outgrow one master, split the data</a></h3>
+      <p>Replicas multiply read capacity and do nothing for writes. Every replica replays every write, so ten <span class="num">/s</span> of writes is ten per second on each of them too. When the master can't keep up with writes at the largest size you're willing to pay for, the lecture's next move is to shard the users table across three databases.</p>
+
+      <div class="ask" id="ask">
+        <p class="ask__q" id="ask-q"><span>Before reading on, make a call.</span>Medium's users table now lives on three shards. User 4182 edits her bio. How many of the three databases does that write change?</p>
+        <ul class="opts" id="opts" aria-labelledby="ask-q">
+          <li><button class="opt" type="button" aria-pressed="false" data-k="a">All three, so any shard can answer for her</button></li>
+          <li><button class="opt" type="button" aria-pressed="false" data-k="b">One, the shard her user ID maps to</button></li>
+          <li><button class="opt" type="button" aria-pressed="false" data-k="c">Two, her shard and a neighbour that keeps a spare copy</button></li>
+        </ul>
+        <button class="skip" type="button" id="skip">Skip, I'd rather read it</button>
+        <div class="reveal" id="reveal" aria-live="polite">
+          <p class="yours" id="yours"></p>
+          <p><b>One.</b> Each shard holds a different slice of the users, about a third each, and no row lives on two shards. Her row is on exactly one of them, so the edit is one write on one master. If that shard has replicas of its own, they ask for the change afterwards, the same way as in Fig. 1.</p>
+          <p>This exact question came up in the live class, phrased as "so sharding means keeping three copies?"</p>
+        </div>
+      </div>
+
+      <div class="wrong" aria-labelledby="wrong-l">
+        <p><span class="lbl" id="wrong-l">The wrong turn: shards as copies.</span> <span class="belief">The belief is that sharding means running three identical databases.</span> It's an easy one to hold, because replicas are copies and both moves add database machines.</p>
+        <p>Run it on a users table of 30 million rows. Three copies store 90 million rows, and every bio edit has to land on all three, so the write load per machine doesn't move. Three shards store about 10 million rows each, and each takes about a third of the writes. Copies add read capacity. Shards add write capacity, because each shard owns its third of the rows and nobody else writes them.</p>
+        <svg class="f2" viewBox="0 0 420 196" role="img" aria-labelledby="f2-t">
+          <title id="f2-t">Three shards, each holding a third of the users. User 4182 lives only on shard 0, because 4182 mod 3 is 0.</title>
+          <g>
+            <path class="cyl" d="M22 22v66a44 9 0 0 0 88 0v-66a44 9 0 0 0-88 0a44 9 0 0 0 88 0"/>
+            <path class="rowl" d="M40 50H92M40 60H92"/>
+            <rect class="data" x="60" y="68" width="12" height="12" rx="2"/>
+            <text class="t-master" x="66" y="124" text-anchor="middle">shard 0</text>
+            <text class="lab2" x="66" y="142" text-anchor="middle">~10M users</text>
+          </g>
+          <g>
+            <path class="cyl" d="M166 22v66a44 9 0 0 0 88 0v-66a44 9 0 0 0-88 0a44 9 0 0 0 88 0"/>
+            <path class="rowl" d="M184 50H236M184 60H236M184 70H236"/>
+            <text class="t-master" x="210" y="124" text-anchor="middle">shard 1</text>
+            <text class="lab2" x="210" y="142" text-anchor="middle">~10M users</text>
+          </g>
+          <g>
+            <path class="cyl" d="M310 22v66a44 9 0 0 0 88 0v-66a44 9 0 0 0-88 0a44 9 0 0 0 88 0"/>
+            <path class="rowl" d="M328 50H380M328 60H380M328 70H380"/>
+            <text class="t-master" x="354" y="124" text-anchor="middle">shard 2</text>
+            <text class="lab2" x="354" y="142" text-anchor="middle">~10M users</text>
+          </g>
+          <text class="mono" x="22" y="180">4182 mod 3 = 0</text>
+          <text class="lab2" x="178" y="180">one row, on one shard</text>
+        </svg>
+      </div>
+
+      <aside class="note"><b>Tables can be split too.</b> Moving whole tables to another database, say 30 of 100, came up in Q&amp;A as vertical sharding. It needs a connection pool per database, the same as row sharding.</aside>
+      <p>The routing lives in the API server again. It keeps a separate connection pool to each shard, since a database connection belongs to one server, works out which shard owns the user, and sends the query there. The lecture's version is <code>hash(user_id) mod 3</code>, and the mapping has to stay fixed.</p>
+      <p>It stays fixed until you add a fourth shard. With <code>mod 4</code>, a user keeps her shard only when both formulas agree, which is true for 3 IDs out of every 12. The other three quarters of users now belong on a different shard, and their rows have to move. Production systems avoid that with consistent hashing,<sup class="src"><a href="https://en.wikipedia.org/wiki/Consistent_hashing" title="Wikipedia: consistent hashing">7</a></sup> or by hashing users into a fixed set of key ranges and moving whole ranges between shards, which is how Vitess does it.<sup class="src"><a href="https://vitess.io/docs/reference/features/sharding/" title="Vitess docs: sharding">8</a></sup> Either way only a fraction of the data moves.</p>
+      <p>Which key to shard on has no formula either. You look at how the data is queried and pick the key that keeps most queries on one shard. For Medium's users table, that's the user ID.</p>
+      <p>The last option is letting replicas take writes too. That is multi-master, and two masters can accept conflicting writes to the same row. How you resolve the conflict depends entirely on the data, which is why the lecture's order is replicas, then shards, and multi-master only when nothing else will do.</p>
+
+      <details class="more">
+        <summary><span><i>Going deeper.</i> What happens when the master dies, and why some clusters look like one database.</span></summary>
+        <div class="in">
+          <p>In class the answer to "what if the master goes down?" was leader election: a replica is promoted to master, and on a managed cloud the provider does it for you. That holds for Aurora, which promotes a reader on its own.<sup class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html" title="AWS docs: Aurora high availability">6</a></sup> Plain RDS is different. With Multi-AZ, it fails over to a synchronous standby that never served reads,<sup class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html" title="AWS docs: RDS Multi-AZ">9</a></sup> and an RDS read replica becomes a master only when you promote it yourself.<sup class="src"><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.Promote.html" title="AWS docs: promoting a read replica">10</a></sup> Check which one you're running before you rely on it.</p>
+          <p>Some vendor clusters hide sharding behind one connection string, MongoDB sharded clusters and Vitess for MySQL among them. Not every cluster shards, though. Oracle RAC runs several instances over one shared copy of the data on shared storage.<sup class="src"><a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/adrac/rac_db.html" title="Oracle docs: RAC">11</a></sup> Plain MySQL and PostgreSQL are the main cases where you shard in your own code or add a layer such as Vitess or Citus.</p>
+          <p>Fault tolerance for databases gets its own lecture in week 5.</p>
+        </div>
+      </details>
+
+      <section class="recall" id="recall" aria-labelledby="recall-h">
+        <h3 id="recall-h">Say it back: the three moves, in order, and what each one costs</h3>
+        <p>Medium's writes have outgrown one master. Without scrolling up, write the three moves in the order you'd make them, with one cost for each.</p>
+        <label class="vh" for="recall-box">Your answer</label>
+        <textarea id="recall-box" placeholder="1. …"></textarea>
+        <p class="hint">Stays in this tab. Nothing is saved or sent.</p>
+        <button class="btn" type="button" id="recall-btn" aria-controls="model" aria-expanded="false">Compare with the lecture</button>
+        <div class="model" id="model">
+          <ol>
+            <li><b>Bigger machine.</b> Costs money faster than it adds capacity near the top, a restart to resize, and it stops at the largest hardware there is.</li>
+            <li><b>Read replicas.</b> Cost staleness: a read can land inside the lag. Your code has to route each read, and every replica takes a little of the master's CPU and network.</li>
+            <li><b>Shards.</b> Cost routing in the API server, a connection pool per shard, and data that moves when the shard count changes. Use consistent hashing or fixed ranges so only part of it moves.</li>
+          </ol>
+          <p>If you wrote multi-master as a step, the lecture keeps it outside the ladder: conflicting writes need rules that depend on the data.</p>
+        </div>
+        <p class="hook">Keep <code>hash(user_id)</code> in mind. In <a href="#s-delegation">Delegation</a>, Kafka picks a partition for each <code>on_publish</code> message with the same move, so all of one writer's posts stay in order. Adding partitions later raises the same mod-N question you just answered.</p>
+      </section>
+
+      <div class="stop">
+        <a href="#s-bottom-up" rel="prev">← Scale bottom-up</a>
+        <a href="#s-delegation" rel="next">Delegation: why did the count jump to 76? →</a>
+        <p class="rest">A good place to stop. The class took questions here before the break; the next part opens with a talk by Hotstar's head of engineering.</p>
+      </div>
+
+      <footer class="colophon">
+        <p>From lecture 1 of the system design course: 00:48:35 to 00:57:38, with the Q&amp;A at 00:57:38 to 01:05:42 and 02:37 to 03:10. The lecture's claims were fact-checked on 11 Oct 2026. Where the precise version differs, it is in the text with its source.</p>
+        <p>Sources: 1 MySQL replication threads · 2 PostgreSQL log-shipping standby servers · 3 libpq connection parameters · 4 Aurora endpoints · 5 RDS for MySQL read replicas · 6 Aurora high availability · 7 Consistent hashing · 8 Vitess sharding · 9 RDS Multi-AZ · 10 Promoting a read replica · 11 Oracle RAC.</p>
+      </footer>
+    </article>
+  </main>
+</div></div>
+
+<script>
+(function () {
+  'use strict';
+  var root = document.documentElement;
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* ---------- theme ---------- */
+  var mqDark = window.matchMedia('(prefers-color-scheme: dark)');
+  var themeBtn = $('theme-btn');
+  function isDark() { var t = root.dataset.theme; return t ? t === 'dark' : mqDark.matches; }
+  function paintTheme() {
+    themeBtn.textContent = isDark() ? 'Light' : 'Dark';
+    themeBtn.setAttribute('aria-label', isDark() ? 'Switch to light theme' : 'Switch to dark theme');
+  }
+  themeBtn.addEventListener('click', function () {
+    var n = isDark() ? 'light' : 'dark'; root.dataset.theme = n; store.set('c2-theme', n); paintTheme();
+  });
+  if (mqDark.addEventListener) mqDark.addEventListener('change', paintTheme);
+  paintTheme();
+
+  /* ---------- lecture map: inline copy for narrow screens ---------- */
+  var inline = $('map-inline');
+  var src = $('map-src');
+  if (inline && src) {
+    var c = src.cloneNode(true);
+    c.removeAttribute('id');
+    c.querySelectorAll('[id]').forEach(function (el) { el.id = el.id + '-m'; });
+    var svg = c.querySelector('svg'); if (svg) svg.setAttribute('aria-labelledby', 'map-t-m');
+    var cap = c.querySelector('.map__cap'); if (cap) cap.textContent = 'Medium so far. Solid parts came earlier in the lecture, dashed ones come later. The database, in green, changes in this part. Tap a part to go to its section.';
+    inline.appendChild(c);
+  }
+
+  /* ---------- figure 1: scroll-linked steps ---------- */
+  var fig = $('f1');
+  var steps = Array.prototype.slice.call(document.querySelectorAll('#steps .step'));
+  var N = steps.length, cur = 1, lock = 0;
+  var prev = $('prev'), next = $('next'), count = $('count'), stage = $('stage');
+
+  function set(n) {
+    n = Math.max(1, Math.min(N, n));
+    if (n === cur && fig.dataset.step === String(n)) return;
+    cur = n;
+    fig.dataset.step = String(n);
+    steps.forEach(function (s, i) { s.classList.toggle('on', i === n - 1); });
+    count.textContent = n + ' / ' + N;
+    prev.disabled = n === 1; next.disabled = n === N;
+  }
+  function narrow() { return window.innerWidth < 900; }
+  function line() {
+    if (narrow()) { var b = stage.getBoundingClientRect().bottom; return b + (window.innerHeight - b) * 0.28; }
+    return window.innerHeight * 0.5;
+  }
+  function fromScroll() {
+    if (Date.now() < lock) return;
+    var L = line(), n = 1;
+    steps.forEach(function (s, i) { if (s.getBoundingClientRect().top < L) n = i + 1; });
+    set(n);
+  }
+  function go(n, focusFig) {
+    n = Math.max(1, Math.min(N, n));
+    set(n);
+    var s = steps[n - 1];
+    var y = window.scrollY + s.getBoundingClientRect().top - line() + 24;
+    lock = Date.now() + 700;
+    window.scrollTo({ top: Math.max(0, y), behavior: reduce.matches ? 'auto' : 'smooth' });
+    try { history.replaceState(null, '', '#fig1/step-' + n); } catch (e) {}
+    if (focusFig) fig.focus({ preventScroll: true });
+  }
+  prev.addEventListener('click', function () { go(cur - 1); });
+  next.addEventListener('click', function () { go(cur + 1); });
+  steps.forEach(function (s, i) { var b = s.querySelector('h4 button'); b.addEventListener('click', function () { go(i + 1); }); });
+  fig.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); go(cur + 1, true); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(cur - 1, true); }
+    else if (e.key === 'Home') { e.preventDefault(); go(1, true); }
+    else if (e.key === 'End') { e.preventDefault(); go(N, true); }
+  });
+  set(1); fig.dataset.step = '1'; prev.disabled = true;
+
+  /* prose term -> highlights its part in Fig. 1 */
+  document.querySelectorAll('.t[data-part]').forEach(function (el) {
+    var on = function () { fig.dataset.hl = el.dataset.part; };
+    var off = function () { delete fig.dataset.hl; };
+    el.addEventListener('mouseenter', on); el.addEventListener('focus', on);
+    el.addEventListener('mouseleave', off); el.addEventListener('blur', off);
+  });
+
+  /* ---------- prediction ---------- */
+  var opts = $('opts'), reveal = $('reveal'), yours = $('yours');
+  var said = {
+    a: 'You picked all three. That is the most common reading of the word, and the class asked it too. The box below takes it apart.',
+    b: 'You picked one. Here is why that holds.',
+    c: 'You picked two. Some systems do keep extra copies of a shard, but those are replicas of that shard, not other shards.'
+  };
+  var answered = false;
+  function show(k) {
+    answered = true;
+    opts.classList.add('done');
+    opts.querySelectorAll('.opt').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.k === k)); });
+    yours.textContent = k ? said[k] : 'Skipped. No harm done; the answer follows.';
+    reveal.classList.add('on');
+    $('skip').style.display = 'none';
+    tick();
+  }
+  opts.querySelectorAll('.opt').forEach(function (b) { b.addEventListener('click', function () { if (!answered) show(b.dataset.k); }); });
+  $('skip').addEventListener('click', function () { show(null); });
+
+  /* ---------- worked example toggle ---------- */
+  function fmt(x) { return x.toLocaleString('en-US', { maximumFractionDigits: 1 }); }
+  document.querySelectorAll('#ledger .seg button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#ledger .seg button').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+      var r = parseFloat(b.dataset.ratio), cap = 300;
+      var r1 = 1000 * r, r2 = 5000 * r;
+      var n1 = Math.ceil(r1 / cap - 1e-9), n2 = Math.ceil(r2 / cap - 1e-9);
+      var o = function (k, v) { var el = document.querySelector('[data-out="' + k + '"]'); if (el) el.textContent = v; };
+      o('rw1', '1,000 × ' + r); o('r1', fmt(r1) + ' /s');
+      o('nw1', fmt(r1) + ' ÷ 300 = ' + fmt(r1 / cap)); o('n1', String(n1)); o('t1', (n1 + 1) + ' replicas');
+      o('wr1', fmt(1000 - r1) + ' /s');
+      o('nw2', fmt(r2) + ' ÷ 300 = ' + fmt(r2 / cap)); o('n2', String(n2)); o('t2', (n2 + 1) + ' replicas');
+      var say = $('ledger-say');
+      say.firstChild.nodeValue = (n2 + 1) > 15
+        ? (n2 + 1 === 18 ? 'Eighteen' : String(n2 + 1)) + ' is past what one master will feed on most managed services. RDS for MySQL allows 15 read replicas per source and Aurora 15 readers per cluster.'
+        : 'Sixteen is just past what one master will feed on most managed services, and at 90:10 the master also takes ten times the writes. RDS for MySQL allows 15 read replicas per source and Aurora 15 readers per cluster.';
+    });
+  });
+
+  /* ---------- recall ---------- */
+  $('recall-btn').addEventListener('click', function () {
+    var m = $('model'), on = !m.classList.contains('on');
+    m.classList.toggle('on', on);
+    this.setAttribute('aria-expanded', String(on));
+    this.textContent = on ? 'Hide the lecture’s answer' : 'Compare with the lecture';
+  });
+
+  /* ---------- honest time left + scrollspy + resume ---------- */
+  var blocks = Array.prototype.slice.call(document.querySelectorAll('#s-db p, #s-db li, #s-db td:first-child, #s-db h3, #s-db h4'));
+  var words = blocks.map(function (b) { return (b.textContent.match(/\S+/g) || []).length; });
+  var leftBar = $('left-bar'), leftRail = $('left-rail');
+  var spy = Array.prototype.slice.call(document.querySelectorAll('[data-spy]'));
+  var spyT = spy.map(function (a) { return $(a.dataset.spy); });
+  var lastSpy = null;
+  function tick() {
+    var cut = window.innerHeight * 0.3, w = 0;
+    blocks.forEach(function (b, i) { if (b.offsetParent !== null && b.getBoundingClientRect().top > cut) w += words[i]; });
+    var mins = Math.ceil(w / 220) + (answered ? 0 : 1) + ($('recall').getBoundingClientRect().top > cut ? 1 : 0);
+    var txt = w < 40 ? 'End of this part' : 'About ' + mins + ' min left';
+    leftBar.innerHTML = w < 40 ? txt : txt + '<span class="long"> in this part</span>';
+    leftRail.textContent = w < 40 ? 'End of this part' : 'About ' + mins + ' min left in this part';
+    var idx = 0;
+    spyT.forEach(function (t, i) { if (t && t.getBoundingClientRect().top < window.innerHeight * 0.35) idx = i; });
+    spy.forEach(function (a, i) { a.classList.toggle('on', i === idx); });
+    if (idx > 0 && spyT[idx] !== lastSpy) { lastSpy = spyT[idx]; store.set('c2-resume', spyT[idx].id); }
+  }
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () { ticking = false; fromScroll(); tick(); });
+  }, { passive: true });
+  window.addEventListener('resize', function () { fromScroll(); tick(); });
+  tick();
+
+  var saved = store.get('c2-resume');
+  var target = saved && $(saved);
+  if (target && window.scrollY < 200 && !location.hash) {
+    var r = $('resume'), l = $('resume-link');
+    var lab = spy.filter(function (a) { return a.dataset.spy === saved; })[0];
+    l.textContent = lab ? lab.textContent : target.textContent;
+    l.href = '#' + saved;
+    r.classList.add('on');
+    l.addEventListener('click', function () { r.classList.remove('on'); });
+    $('resume-x').addEventListener('click', function () { r.classList.remove('on'); store.del('c2-resume'); });
+  }
+
+  /* deep link: #fig1/step-3 */
+  var m = /^#fig1\/step-(\d)$/.exec(location.hash);
+  if (m) setTimeout(function () { go(parseInt(m[1], 10)); }, 60);
+  else fromScroll();
+  window.addEventListener('hashchange', function () {
+    var h = /^#fig1\/step-(\d)$/.exec(location.hash); if (h) go(parseInt(h[1], 10));
+  });
+})();
+</script>
+</body>
+</html>

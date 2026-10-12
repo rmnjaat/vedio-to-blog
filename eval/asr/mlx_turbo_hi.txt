@@ -1,0 +1,160 @@
+[00:00:00] Okay. So what is the disadvantage of this?
+[00:00:03] So the issue is like it's limited in how big this cache can grow because like as the cache grows, like you're constrained on the memory for the application itself.
+[00:00:14] Right. And then another thing is that if the application goes down, the cache is gone.
+[00:00:20] Then like if the application itself crashes, if you're distributing this application at some level, all the different instances will have different caches.
+[00:00:30] there will be some inconsistency at some point.
+[00:00:32] So you might want a centralized cache in some sense
+[00:00:35] if that makes sense for your application.
+[00:00:38] Okay, wait, wait, wait.
+[00:00:40] Let's talk about inconsistency.
+[00:00:41] Why would there be inconsistency?
+[00:00:44] So updating the cache, keeping it fresh is a challenge.
+[00:00:47] For example, the data in the database changes
+[00:00:51] depending on like if you have like,
+[00:00:54] if let's say you have instance one and instance two,
+[00:00:57] like you are on, now that the instance one is getting used for some particular entry more of,
+[00:01:01] more often, it's possible that the cache entry gets refreshed by the db, depending on the,
+[00:01:08] whatever refresh policy you have, and the second instance starts lagging behind,
+[00:01:13] or does not get enough updates, it's because you access the first instance more often,
+[00:01:21] so some users might see that a consistent way.
+[00:01:24] How about you solve this?
+[00:01:27] one option is to have just a simple centralized cache,
+[00:01:31] like we have another, like Redis,
+[00:01:35] have another Redis instance,
+[00:01:36] which is being contacted by both the application.
+[00:01:40] So that would definitely stay consistent,
+[00:01:42] like to an extent.
+[00:01:45] Because it is a single source of tool.
+[00:01:46] Yeah.
+[00:01:47] So then you cannot have this.
+[00:01:48] Yeah.
+[00:01:50] So, yeah, like, I think that's what I have right now.
+[00:01:54] Okay, fine.
+[00:01:55] Let me elaborate on a couple of points over here.
+[00:01:58] So what Jotindra suggested is we use the memory.
+[00:02:02] So we always think of cache as centralized reverse cache.
+[00:02:05] So this is something that comes to us most naturally.
+[00:02:09] But apart from this, there are other places where you can use as a cache.
+[00:02:13] One of them that Jotindra started suggesting is to use the main memory of the API server.
+[00:02:18] Now, you will not have just one API server.
+[00:02:20] You would have multiple of them.
+[00:02:22] and if you are using the main memory of api server, it is local to this particular server,
+[00:02:27] this memory is not accessible from anywhere else, so now when you cache something over here,
+[00:02:33] this is local to the server, which means that other servers will not see the same changes,
+[00:02:39] now here is where the inconsistency part comes in, so when you might catch something on this server
+[00:02:45] and if that request goes to another server the next time, here it would not have the
+[00:02:50] business, it would have to make the db call,
+[00:02:52] 
+[00:02:52] 
+[00:02:52] 
+[00:02:52] 
+[00:02:52] 
+[00:02:52] and then populate this cache and return back.
+[00:02:55] But that's not why we would use this cache.
+[00:02:59] This is an extremely interesting hack
+[00:03:03] that would give you a massive performance boost.
+[00:03:05] Why?
+[00:03:06] Because you may not need consistency always.
+[00:03:10] What you are saving is an expensive network call to the cache
+[00:03:14] by caching the same data over here.
+[00:03:16] In case you don't need strong consistency
+[00:03:19] that hey, my request can go to any server.
+[00:03:22] in case you don't have in case you when a request comes from a user it can go to any server right
+[00:03:28] so in case you don't have this in case you have sticky sessions let's say request of a particular
+[00:03:33] user will always go to a particular server always right in case you have sticky sessions now what
+[00:03:39] you can do is you can have a centralized remote cache no problem but given that you know the
+[00:03:44] request of a particular user will always go to a particular server because that's how you are
+[00:03:48] .
+[00:03:50] You can cache a bunch of stuff of this user in the main memory of the server.
+[00:03:54] Because the request of the specific user will never go to another server.
+[00:03:59] That is not possible.
+[00:04:00] This way, you can leverage the memory of the API server itself
+[00:04:06] to cache the response, to cache anything that you would want.
+[00:04:10] But here, you are giving up on strong consistency between cache
+[00:04:13] and it should be okay.
+[00:04:14] It is use case specific.
+[00:04:15] it's just that being creative in getting the performance boost is really important.
+[00:04:20] This is really underappreciated, but a lot of startups use it as a hack.
+[00:04:26] Big companies typically don't, but startups use it as a hack to get benefits, right?
+[00:04:30] For example, and this also works where your data is nearly static.
+[00:04:35] For example, logs of LinkedIn, logs of Medium, nearly static data,
+[00:04:40] how likely are you to change block?
+[00:04:42] and in case the data changes, you don't want immediate update.
+[00:04:48] It's okay if it updates in some time.
+[00:04:50] It's okay if you serve stale data to some user.
+[00:04:52] That's perfectly fine because block once published,
+[00:04:55] very unlikely that it would be changed again.
+[00:04:57] So given that, even if two different copies of it
+[00:05:01] get cached on different machines, it's perfect fine
+[00:05:03] because they're still okay.
+[00:05:05] Like the frequency, the updates are very infrequent
+[00:05:09] on the database for a published item.
+[00:05:12] फापर पर पेढ़ पापाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पाप पा�
+[00:05:42] पेड़ पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण पाण �
+[00:06:15] धुफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ नप्राफ �
+[00:06:46] So, you can avoid all that. If you create a view, I think the database server is, you know, have the prepared query. And whenever there is an update, it is update.
+[00:07:02] I don't know the exact way the database keeps it up-to-date, but, you know, views are kept up-to-date for all updates, right? So, it is consistent.
+[00:07:11] and you can avoid the having to load the server with a query every time.
+[00:07:19] Great, thanks for adding that.
+[00:07:21] Let me elaborate on this part.
+[00:07:22] So, what Mohan added is something called as materialized use on databases.
+[00:07:28] This is typically a property of relational databases,
+[00:07:31] but there are some non-divisual databases that also leverages this to be performant.
+[00:07:36] So, with relational databases, one of the biggest concern comes out to be joints.
+[00:07:41] So now let's say you are joining six different tables,
+[00:07:43] almost for 80% of queries or 80% of load
+[00:07:46] comes from those joining of six different tables.
+[00:07:49] And now if the data is not changing very frequently,
+[00:07:51] what if you pre-join the tables and store it as a separate table?
+[00:07:55] That's what this materialized views are.
+[00:07:58] So you can create a view of a table
+[00:08:01] with the necessary computation that you are doing and not just join,
+[00:08:04] but let's say you want to add another column,
+[00:08:07] a computed column, a derived column, all of that.
+[00:08:13] in a separate column, and I want to have a total, another column, right.
+[00:08:20] So now this total is a derived column.
+[00:08:22] So what you do is you store the raw data in the table,
+[00:08:25] if you have individual marks for each subject,
+[00:08:27] you create a new table with total as a new column
+[00:08:31] and this, and join with other details of people and what not.
+[00:08:35] Now you create, you use this view,
+[00:08:37] and so whatever query you fire,
+[00:08:39] you fire on this view, right,
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] 
+[00:08:41] other than this table, this view is already pre-joined, pre-computed,
+[00:08:44] and it makes your things very fast, right,
+[00:08:47] because it does not have to do join again and again
+[00:08:49] because the data is already pre-joined and kept over here, right,
+[00:08:52] the challenges that come with this is you need to update explicitly,
+[00:08:56] which is where database triggers come to the rescue, right,
+[00:08:59] so you define triggers that would refresh,
+[00:09:01] and that's what the official term is,
+[00:09:04] that would refresh this materialized views,
+[00:09:06] but this would give you significant performance gain on the database
+[00:09:12] that you don't have to do join again and again,
+[00:09:14] but this works when your data changes confr 기�any,
+[00:09:18] if your data change is very frequently,
+[00:09:19] then a frequent refresh of this materialize this happens
+[00:09:22] and that would slow things down, right.
+[00:09:24] So, in case you have never heard of materialize views,
+[00:09:27] you have just a Google search or be,
+[00:09:28] but this is the gist topic, right,
+[00:09:30] and revisit the recording in case you don't understand it, right,
+[00:09:34] what materialize views are, how it is leveled.
+[00:09:36] So, materialize views is one of the most interesting optimizations
+[00:09:40] that come from the database,
+[00:09:42] फुप नब पर नब नब धुप Richer, I don't classify people as back-end and data engineer,
+[00:09:46] but back-end engineer, people who typically write crud api, they don't understand this particular optimization,
+[00:09:53] data engineer's use a day-in and day-out, materialized use are data engineer's bread and butter,
+[00:09:57] so they have to use it to make their..

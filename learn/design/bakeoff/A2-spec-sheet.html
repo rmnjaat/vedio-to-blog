@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaling the Database</title>
+<meta name="description" content="Lecture 1, part 3 of 6: what to do to Medium's database when the API tier scales out. A bigger machine, read replicas, then shards.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+/* ===== Tokens ===================================================== */
+:root{
+  --paper:#F5F2EC; --paper-2:#ECE7DE; --ink:#1D1B18; --ink-2:#4E4A43; --ink-3:#7F796F;
+  --rule:rgba(29,27,24,.14); --rule-2:rgba(29,27,24,.42);
+  --signal:#E8590C; --signal-ink:#A94004; --signal-tint:rgba(232,89,12,.09);
+  --alert:#B3261E; --alert-tint:rgba(179,38,30,.10);
+  --code-bg:rgba(29,27,24,.04);
+  --f-serif:"IBM Plex Serif",Georgia,serif;
+  --f-sans:"IBM Plex Sans",system-ui,sans-serif;
+  --f-cond:"IBM Plex Sans Condensed","IBM Plex Sans",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --t-body:18px; --t-lede:21px; --t-small:15px; --t-ui:14px; --t-h3:23px; --t-h2:44px;
+  --rail:232px; --g1:48px; --body:640px; --g2:40px; --gut:248px; --pad:32px; --max:1272px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171614; --paper-2:#1F1E1B; --ink:#ECE7DE; --ink-2:#BDB6AA; --ink-3:#8C857A;
+    --rule:rgba(236,231,222,.14); --rule-2:rgba(236,231,222,.42);
+    --signal:#E8590C; --signal-ink:#F28A4A; --signal-tint:rgba(232,89,12,.16);
+    --alert:#E5534B; --alert-tint:rgba(229,83,75,.16); --code-bg:rgba(236,231,222,.05);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171614; --paper-2:#1F1E1B; --ink:#ECE7DE; --ink-2:#BDB6AA; --ink-3:#8C857A;
+  --rule:rgba(236,231,222,.14); --rule-2:rgba(236,231,222,.42);
+  --signal:#E8590C; --signal-ink:#F28A4A; --signal-tint:rgba(232,89,12,.16);
+  --alert:#E5534B; --alert-tint:rgba(229,83,75,.16); --code-bg:rgba(236,231,222,.05);
+  color-scheme:dark;
+}
+
+/* ===== Base ======================================================= */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:72px;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 var(--t-body)/1.66 var(--f-serif);
+  font-feature-settings:"kern","liga";text-rendering:optimizeLegibility;hanging-punctuation:first allow-end;overflow-x:clip}
+p{margin:0 0 22px;text-wrap:pretty}
+a{color:inherit;text-decoration:underline;text-decoration-color:var(--rule-2);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{text-decoration-color:var(--ink)}
+:focus-visible{outline:2px solid var(--signal);outline-offset:3px;border-radius:2px}
+strong{font-weight:600}
+code,.mono{font-family:var(--f-mono);font-size:.84em;font-variant-numeric:tabular-nums}
+.n{font-family:var(--f-mono);font-size:.86em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sans{font-family:var(--f-sans)}
+button{font:inherit;color:inherit}
+/* the page's one uppercase-tracked label: figure numbers */
+.fno{font:500 12px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink);margin-right:10px}
+
+/* ===== Top bar ==================================================== */
+.bar{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--rule)}
+.bar-in{max-width:var(--max);margin:0 auto;padding:0 var(--pad);height:50px;display:flex;align-items:center;gap:16px;font:400 var(--t-ui)/1.2 var(--f-sans);color:var(--ink-2)}
+.bar .lec{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bar .lec b{font-weight:600}
+.bar .sp{flex:1}
+.bar .left{white-space:nowrap;font-variant-numeric:tabular-nums}
+.partsbtn{display:none;align-items:center;gap:8px;background:none;border:1px solid var(--rule-2);border-radius:3px;padding:6px 10px;cursor:pointer;font:500 var(--t-ui)/1.1 var(--f-sans);min-height:36px;white-space:nowrap}
+.partsbtn .seg{display:inline-flex;gap:2px}
+.partsbtn .seg i{width:7px;height:7px;border:1px solid var(--ink-3);border-radius:1px;display:block}
+.partsbtn .seg i.now{background:var(--signal);border-color:var(--signal)}
+.theme{display:inline-flex;align-items:center;gap:7px;background:none;border:1px solid var(--rule-2);border-radius:3px;padding:6px 10px;cursor:pointer;font:400 var(--t-ui)/1.1 var(--f-sans);min-height:36px}
+.theme svg{width:14px;height:14px}
+.theme:hover,.partsbtn:hover{border-color:var(--ink)}
+
+/* resume line */
+.resume{max-width:var(--max);margin:0 auto;padding:10px var(--pad);font:400 var(--t-ui)/1.4 var(--f-sans);color:var(--ink-2);display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;border-bottom:1px solid var(--rule)}
+.resume[hidden]{display:none}
+.resume em{color:var(--ink)}
+.resume a{font-weight:500;color:var(--ink)}
+.resume button{background:none;border:0;padding:0;cursor:pointer;color:var(--ink-3);text-decoration:underline;text-underline-offset:3px}
+
+/* ===== Page grid ================================================== */
+.page{max-width:var(--max);margin:0 auto;padding:0 var(--pad);display:grid;
+  grid-template-columns:var(--rail) var(--g1) minmax(0,var(--body)) var(--g2) var(--gut)}
+.rail{grid-column:1;grid-row:1}
+article{grid-column:3;grid-row:1;min-width:0;padding-bottom:40px}
+
+/* ===== Rail: lecture map + parts ================================== */
+.rail nav{position:sticky;top:66px;padding-top:30px;max-height:calc(100vh - 70px);overflow:auto;font:400 13px/1.4 var(--f-sans);color:var(--ink-2)}
+.rail .maphead{font:500 13px/1.3 var(--f-sans);color:var(--ink);margin:0 0 10px}
+.map svg{display:block;width:100%;height:auto}
+.map-cap{font:400 12.5px/1.45 var(--f-sans);color:var(--ink-3);margin:6px 0 14px}
+.parts{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.parts>li{border-bottom:1px solid var(--rule);padding:6px 0}
+.parts>li>a{display:flex;justify-content:space-between;gap:8px;text-decoration:none;color:var(--ink-2)}
+.parts>li>a:hover{color:var(--ink)}
+.parts .t{font-variant-numeric:tabular-nums;color:var(--ink-3);white-space:nowrap;font-size:12.5px}
+.parts>li.now{border-left:2px solid var(--signal);padding-left:10px;margin-left:-12px}
+.parts>li.now>a{color:var(--ink);font-weight:600}
+.parts>li.now .t{color:var(--signal-ink);font-weight:500}
+.parts>li.brk{font-size:12.5px;color:var(--ink-3);font-style:italic;border-bottom-style:dashed}
+.parts ol{list-style:none;margin:6px 0 2px;padding:0}
+.parts ol a{display:block;padding:3px 0 3px 10px;border-left:1px solid var(--rule);text-decoration:none;color:var(--ink-3);font-size:12.5px;line-height:1.35}
+.parts ol a[aria-current="true"]{color:var(--ink);border-left-color:var(--ink)}
+/* svg map styling */
+.map .part{cursor:pointer}
+.map .part:hover .shp,.map .part:focus-visible .shp{stroke-width:1.8}
+.map .past .shp,.map .past .ln{stroke:var(--ink-2)}
+.map .past text{fill:var(--ink-2)}
+.map .future .shp,.map .future .ln{stroke:var(--ink-3);stroke-dasharray:3 3}
+.map .future text{fill:var(--ink-3)}
+.map .now .shp{stroke:var(--signal);fill:var(--signal-tint)}
+.map .now .ln{stroke:var(--signal)}
+.map .now .arr{marker-end:url(#ah-sig)}
+.map .now text{fill:var(--signal-ink);font-weight:500}
+.map text{font-family:var(--f-sans);font-size:12.5px}
+.map-inline{display:none;margin:4px 0 34px;padding:14px 0 12px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.map-inline svg{max-width:460px}
+.map-inline .later{font:400 13px/1.5 var(--f-sans);color:var(--ink-3);margin:10px 0 0}
+.map-inline .later a{color:var(--ink-2)}
+
+/* ===== Section typography ========================================= */
+.opener{padding-top:56px}
+h2{font:600 var(--t-h2)/1.04 var(--f-sans);letter-spacing:-.022em;margin:0 0 22px;color:var(--ink)}
+.lede{font-size:var(--t-lede);line-height:1.55}
+h3{font:600 var(--t-h3)/1.25 var(--f-sans);letter-spacing:-.008em;margin:64px 0 16px;scroll-margin-top:80px;max-width:30ch;text-wrap:balance}
+h3.small{font-size:19px;margin:0 0 10px;max-width:none}
+.lead-in{font-family:var(--f-sans);font-size:16px;color:var(--ink-2)}
+
+/* ===== Margin notes =============================================== */
+.note{float:right;clear:right;width:var(--gut);margin:6px calc(-1 * (var(--gut) + var(--g2))) 18px 0;
+  font:400 14.5px/1.5 var(--f-sans);color:var(--ink-2);padding-top:9px;border-top:1px solid var(--ink)}
+.note b{display:block;font-weight:600;color:var(--ink);margin-bottom:3px;line-height:1.35}
+.note a{color:var(--ink-2)}
+
+/* ===== Rule (the signature) ======================================= */
+.rule{display:grid;grid-template-columns:150px minmax(0,1fr);column-gap:28px;margin:40px calc(-1 * (var(--gut) + var(--g2))) 48px 0;
+  border-top:3px solid var(--ink);padding:16px 0 18px}
+.rule .lab{font:400 14px/1.45 var(--f-sans);color:var(--ink-2)}
+.rule .lab b{display:block;color:var(--ink);font-weight:600}
+.rule .big{font:600 31px/1.18 var(--f-cond);letter-spacing:-.006em;margin:0 0 12px;max-width:24ch;text-wrap:balance}
+.rule .big span{box-shadow:inset 0 -3px 0 var(--signal)}
+.rule .small{font:400 15px/1.5 var(--f-sans);color:var(--ink-2);margin:0;max-width:52ch}
+
+/* ===== Prediction ================================================= */
+.predict{margin:34px 0 0;padding:20px 0 4px;border-top:1px solid var(--ink)}
+.predict fieldset{border:0;margin:0;padding:0;min-width:0}
+.predict legend{font:600 20px/1.4 var(--f-sans);padding:0;margin:0 0 6px;letter-spacing:-.004em}
+.predict .why{font:400 14.5px/1.5 var(--f-sans);color:var(--ink-3);margin:0 0 14px}
+.opt{display:grid;grid-template-columns:30px minmax(0,1fr);gap:4px;align-items:start;padding:11px 12px 11px 8px;border-top:1px solid var(--rule);cursor:pointer;font:400 16px/1.5 var(--f-sans)}
+.opt:last-of-type{border-bottom:1px solid var(--rule)}
+.opt:hover{background:var(--code-bg)}
+.opt .key{font:500 13px/1 var(--f-mono);width:24px;height:24px;border:1px solid var(--ink-3);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-top:0;color:var(--ink-2)}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt:has(input:focus-visible){outline:2px solid var(--signal);outline-offset:-2px}
+.opt:has(input:checked) .key{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.opt:has(input:checked){background:var(--code-bg)}
+.predict .skip{margin:12px 0 0;font:400 14px/1.4 var(--f-sans);color:var(--ink-3)}
+.linkbtn{background:none;border:0;padding:0;cursor:pointer;font:inherit;color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--rule-2);text-underline-offset:3px}
+.reveal{margin:16px 0 0;padding:14px 0 0 18px;border-left:2px solid var(--ink);font:400 16px/1.6 var(--f-sans)}
+.reveal p{margin:0 0 12px}
+.reveal .you{color:var(--ink-2)}
+.js .reveal[hidden]{display:none}
+.no-js .reveal{display:block}
+.no-js .predict .skip{display:none}
+
+/* ===== Wrong turn (refutation) ==================================== */
+.wrong{margin:30px 0 40px;display:grid;grid-template-columns:150px minmax(0,1fr);column-gap:24px;font:400 15.5px/1.55 var(--f-sans)}
+.wrong>h4{grid-column:1 / -1;font:600 15px/1.3 var(--f-sans);margin:0 0 10px;color:var(--ink-2)}
+.wrong dt{color:var(--ink-3);padding:10px 0;border-top:1px solid var(--rule)}
+.wrong dd{margin:0;padding:10px 0;border-top:1px solid var(--rule)}
+.wrong dd.belief{font-style:italic;color:var(--ink-2)}
+.wrong dd.right{color:var(--ink);font-weight:500}
+
+/* ===== Collapsibles (foundations / going deeper) ================== */
+.more{margin:26px 0 34px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);font-family:var(--f-sans)}
+.more summary{cursor:pointer;list-style:none;display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:13px 0}
+.more summary::-webkit-details-marker{display:none}
+.more summary .pm{font:500 15px/1 var(--f-mono);color:var(--ink-3)}
+.more summary .pm::before{content:"+"}
+.more[open] summary .pm::before{content:"\2212"}
+.more summary .ti{font-weight:600;font-size:16px;line-height:1.4}
+.more summary .ti small{display:block;font-weight:400;font-size:14px;color:var(--ink-3);margin-top:2px}
+.more summary .dur{font:400 13px/1 var(--f-mono);color:var(--ink-3);white-space:nowrap}
+.more .body{padding:0 0 16px 30px;font:400 15.5px/1.6 var(--f-sans);color:var(--ink-2)}
+.more .body p{margin:0 0 10px}
+
+/* ===== Code ======================================================= */
+.code{margin:6px 0 30px;border-left:2px solid var(--ink);background:var(--code-bg)}
+.code pre{margin:0;padding:14px 16px;overflow-x:auto;font:400 14px/1.6 var(--f-mono);tab-size:4}
+.code .c{color:var(--ink-3)}
+.code .hl{color:var(--signal-ink)}
+.code .cap{font:400 13px/1.4 var(--f-sans);color:var(--ink-3);padding:0 16px 10px}
+
+/* ===== Figures ==================================================== */
+figure{margin:0}
+.wide{margin-right:calc(-1 * (var(--gut) + var(--g2)))}
+figcaption{font:400 14px/1.5 var(--f-sans);color:var(--ink-2);padding-top:10px}
+svg text{font-family:var(--f-mono);font-size:12.5px;fill:var(--ink)}
+svg .s{font-family:var(--f-sans);font-size:13.5px}
+svg .mid{text-anchor:middle}
+svg .mute{fill:var(--ink-3)}
+svg .halo{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
+.ln{fill:none;stroke:var(--ink);stroke-width:1.25;vector-effect:non-scaling-stroke}
+.ln.thin{stroke-width:1}
+.ln.dash{stroke-dasharray:4 3}
+.ln.life{stroke:var(--rule-2);stroke-width:1;stroke-dasharray:1 3}
+.shp{fill:var(--paper);stroke:var(--ink);stroke-width:1.25;vector-effect:non-scaling-stroke}
+.shp.rep{stroke-dasharray:4 3}
+.arr{marker-end:url(#ah)}
+.mk{fill:var(--ink)} .mk-sig{fill:var(--signal)} .mk-alert{fill:var(--alert)} .mk-mute{fill:var(--ink-3)}
+
+/* Fig 1 stepper */
+.fig1{margin-top:30px;margin-bottom:30px}
+.stepper{display:grid;grid-template-columns:minmax(0,410px) minmax(0,1fr);column-gap:36px;border-top:1px solid var(--ink);padding-top:18px}
+.stage svg{display:block;width:100%;height:auto;max-width:410px}
+.steps{display:flex;flex-direction:column;min-width:0}
+.steps ol{list-style:none;margin:0 0 16px;padding:0}
+.steps li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:0 6px;font:400 15.5px/1.55 var(--f-sans);color:var(--ink-3);padding:10px 0;border-top:1px solid var(--rule)}
+.steps li:first-child{border-top:0;padding-top:0}
+.steps li .cn{font:500 12px/1 var(--f-mono);width:22px;height:22px;border:1px solid currentColor;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-top:2px}
+.steps li.past{color:var(--ink-2)}
+.steps li.cur{color:var(--ink)}
+.steps li.cur .cn{color:var(--signal-ink);border-color:var(--signal);background:var(--signal-tint)}
+.steps li a{color:inherit}
+.ctrl{display:flex;gap:8px;align-items:center;margin-top:auto;padding-top:6px}
+.btn{font:500 14px/1 var(--f-sans);color:var(--ink);background:transparent;border:1px solid var(--rule-2);border-radius:3px;padding:0 14px;height:38px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--ink)}
+.btn[disabled]{opacity:.35;cursor:default}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.ctrl .count{font:400 13px/1 var(--f-mono);color:var(--ink-3);margin-left:6px}
+.js [data-s]{transition:opacity .2s linear}
+.js [data-s].is-hidden{opacity:0;visibility:hidden}
+.js [data-s].is-past{opacity:.4}
+.js .is-cur .ln:not(.keep){stroke:var(--signal)}
+.js .is-cur .arr:not(.keep){marker-end:url(#ah-sig)}
+.js .is-cur text:not(.keep){fill:var(--signal-ink)}
+.js .is-cur .tag{stroke:var(--signal);fill:var(--signal-tint)}
+.js .is-cur .num-c{stroke:var(--signal)}
+.alert-ln{stroke:var(--alert)!important;marker-end:url(#ah-alert)!important}
+svg text.alert{fill:var(--alert)!important}
+.lagbar{fill:var(--alert-tint);stroke:var(--alert);stroke-width:1;vector-effect:non-scaling-stroke}
+
+/* worked sheet */
+.sheet{margin-top:20px;margin-bottom:26px}
+.sheet table{width:100%;border-collapse:collapse;font:400 15px/1.45 var(--f-sans)}
+.sheet thead th{font:500 13px/1.3 var(--f-sans);color:var(--ink-3);text-align:left;padding:0 10px 8px 0;border-bottom:1px solid var(--ink)}
+.sheet td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule);vertical-align:baseline}
+.sheet td.ix{font:400 12px/1 var(--f-mono);color:var(--ink-3);width:30px}
+.sheet td.v{font:500 15px/1.4 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;padding-right:22px}
+.sheet td.w{color:var(--ink-2);font-size:14.5px}
+.sheet .as{font-style:italic;color:var(--ink-3)}
+.sheet tr.sub td{border-bottom:1px solid var(--ink);font-weight:600}
+.sheet tr.sub td.w{font-weight:400}
+.sheet tr.gap td{padding-top:20px;border-bottom:1px solid var(--rule);font:600 14px/1.3 var(--f-sans);color:var(--ink)}
+.sheet tr.bad td.v{color:var(--alert)}
+.sheet tr.key td.v{color:var(--ink)}
+.sheet tr.key td{font-weight:600}
+
+/* hero band: the order */
+.band{margin:56px calc(-1 * (var(--g2) + var(--gut) + max(var(--pad), (100vw - var(--max)) / 2 + var(--pad)))) 0 0;
+  background:var(--paper-2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:30px 0 26px}
+.band-in{width:calc(var(--body) + var(--g2) + var(--gut))}
+.band h3{margin-top:0}
+.ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:14px;counter-reset:none}
+.rung{padding:0 16px 0 0;border-left:1px solid var(--rule-2);padding-left:14px;position:relative}
+.rung:first-child{border-left:0;padding-left:0}
+.rung svg{display:block;width:100%;max-width:220px;height:auto;margin:4px 0 8px}
+.rung h4{font:600 16px/1.3 var(--f-sans);margin:0 0 2px}
+.rung .when{font:400 13.5px/1.4 var(--f-sans);color:var(--ink-3);margin:0 0 8px}
+.rung dl{margin:0;font:400 14px/1.45 var(--f-sans)}
+.rung dl div{display:grid;grid-template-columns:62px minmax(0,1fr);gap:6px;padding:5px 0;border-top:1px solid var(--rule)}
+.rung dt{color:var(--ink-3)}
+.rung dd{margin:0}
+.rung .no{color:var(--alert);font-weight:500}
+.rung.last{opacity:.78}
+.rung.last h4{font-weight:500}
+.band figcaption{max-width:64ch}
+
+/* recall + hook + end */
+.recall{margin:60px 0 0;border-top:3px solid var(--ink);padding-top:16px}
+.recall p.q{font:400 17px/1.55 var(--f-sans);margin:0 0 12px}
+.recall textarea{width:100%;min-height:118px;resize:vertical;font:400 16px/1.55 var(--f-serif);color:var(--ink);background:var(--paper);border:1px solid var(--rule-2);border-radius:3px;padding:10px 12px}
+.recall textarea:focus-visible{outline:2px solid var(--signal);outline-offset:1px}
+.recall .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:10px 0 0;font:400 13px/1.4 var(--f-sans);color:var(--ink-3)}
+.model{margin:16px 0 0;padding:4px 0 0 18px;border-left:2px solid var(--ink);font:400 16px/1.6 var(--f-sans)}
+.model ol{margin:0 0 8px;padding-left:20px}
+.model li{margin:0 0 6px}
+.js .model[hidden]{display:none}
+.hook{margin:40px 0 0;display:grid;grid-template-columns:150px minmax(0,1fr);column-gap:24px;font:400 16px/1.6 var(--f-sans);border-top:1px solid var(--rule);padding-top:14px}
+.hook .lab{color:var(--ink-3);font-size:14px}
+.hook .lab b{display:block;color:var(--ink);font-weight:600}
+.hook p{margin:0}
+.end{margin:44px 0 0;padding:18px 0 0;border-top:1px solid var(--ink);font:400 15.5px/1.55 var(--f-sans);color:var(--ink-2)}
+.end .next{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-top:14px;flex-wrap:wrap}
+.end .next a{text-decoration:none;color:var(--ink)}
+.end .next a b{font:600 22px/1.2 var(--f-sans);display:block;margin-top:2px}
+.end .next a:hover b{text-decoration:underline;text-underline-offset:4px}
+.end .next small{color:var(--ink-3);font-size:13px}
+.colophon{grid-column:1 / -1;border-top:1px solid var(--rule);margin-top:40px;padding:16px 0 64px;
+  font:400 13px/1.6 var(--f-sans);color:var(--ink-3);display:grid;grid-template-columns:var(--rail) var(--g1) minmax(0,1fr);}
+.colophon>div{grid-column:3;max-width:var(--body)}
+.colophon p{margin:0 0 6px}
+.colophon a{color:var(--ink-2)}
+
+/* parts dialog (phone) */
+dialog.sheetdlg{border:0;padding:0;margin:0 auto auto;max-width:520px;width:100%;background:var(--paper);color:var(--ink);border-bottom:1px solid var(--rule-2);max-height:92vh;overflow:auto}
+dialog.sheetdlg::backdrop{background:rgba(0,0,0,.35)}
+.sheetdlg .in{padding:16px 16px 20px}
+.sheetdlg .hd{display:flex;justify-content:space-between;align-items:center;font:600 16px/1.3 var(--f-sans);margin-bottom:12px}
+.sheetdlg .parts{font:400 15px/1.4 var(--f-sans)}
+.sheetdlg .parts>li.now{margin-left:0}
+
+
+.map a,.map a text{text-decoration:none}
+.wide,.fig1,.sheet,.band,.predict,.wrong,.more,.rule{clear:both}
+.sheet td code{white-space:nowrap}
+.sheet tr.key td.w{font-weight:400}
+
+/* ===== Responsive ================================================ */
+@media (max-width:1239px){
+  .page{grid-template-columns:minmax(0,var(--body)) var(--g2) var(--gut);justify-content:center}
+  .rail{display:none}
+  article{grid-column:1}
+  .map-inline{display:block}
+  .colophon{grid-template-columns:minmax(0,1fr)}
+  .colophon>div{grid-column:1}
+  .bar .left{display:none}
+  .partsbtn{display:inline-flex}
+  .band{margin-right:calc(-1 * (var(--g2) + var(--gut) + max(var(--pad), (100vw - (var(--body) + var(--g2) + var(--gut) + 2 * var(--pad))) / 2 + var(--pad))))}
+}
+@media (max-width:999px){
+  :root{--gut:0px;--g2:0px;--pad:20px}
+  .page{grid-template-columns:minmax(0,680px)}
+  .note{float:none;width:auto;margin:0 0 22px;border-top:0;border-left:2px solid var(--ink);padding:2px 0 2px 14px}
+  .wide,.rule{margin-right:0}
+  .band{margin-left:calc(-1 * max(var(--pad), (100vw - 680px) / 2));margin-right:calc(-1 * max(var(--pad), (100vw - 680px) / 2));padding-left:max(var(--pad), (100vw - 680px) / 2);padding-right:max(var(--pad), (100vw - 680px) / 2)}
+  .band-in{width:auto}
+  .ladder{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:24px}
+  .rung:nth-child(3){border-left:0;padding-left:0}
+  .stepper{grid-template-columns:minmax(0,1fr)}
+  .stage{max-width:430px}
+  .js .steps li:not(.cur){display:none}
+  .js .steps li.cur{border-top:0;padding-top:12px}
+}
+@media (max-width:620px){
+  :root{--t-body:17px;--t-lede:19px;--t-h2:34px;--t-h3:21px;--pad:16px}
+  .bar-in{gap:10px}
+  .bar .lec .full{display:none}
+  .theme .tx{display:none}
+  .opener{padding-top:30px}
+  h3{margin-top:52px}
+  .rule{grid-template-columns:1fr;row-gap:6px}
+  .rule .lab b{display:inline}
+  .rule .big{font-size:26px}
+  .wrong,.hook{grid-template-columns:1fr}
+  .wrong dt{padding-bottom:0}
+  .wrong dd{border-top:0;padding-top:2px}
+  .hook .lab{margin-bottom:6px}
+  .ladder{grid-template-columns:minmax(0,1fr)}
+  .rung,.rung:nth-child(3){border-left:0;padding-left:0;border-top:1px solid var(--rule-2);padding-top:14px}
+  .rung:first-child{border-top:0;padding-top:0}
+  .rung svg{max-width:240px}
+  .more .body{padding-left:0}
+  .end .next a[style]{text-align:left!important}
+  .sheet thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .sheet table,.sheet tbody{display:block}
+  .sheet tr{display:grid;grid-template-columns:26px minmax(0,1fr) auto;column-gap:8px;border-bottom:1px solid var(--rule);padding:8px 0}
+  .sheet td{border:0;padding:0}
+  .sheet td.w{grid-column:2 / -1;padding-top:3px;font-size:14px}
+  .sheet td.v{padding-right:0}
+  .sheet tr.sub{border-bottom:1px solid var(--ink)}
+  .sheet tr.sub td,.sheet tr.gap td{border:0}
+  .sheet tr.gap{display:block;padding-top:18px}
+  .code pre{font-size:13px;padding:12px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition:none!important;animation:none!important}
+}
+@media print{
+  .bar,.rail,.ctrl,.predict .skip,.theme,.resume,.recall .row{display:none!important}
+  .js [data-s].is-hidden,.js [data-s].is-past{opacity:1;visibility:visible}
+  .js .steps li{display:grid!important}
+  .js .reveal[hidden],.js .model[hidden]{display:block}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk" d="M0,1.2 L9.5,5 L0,8.8 z"/></marker>
+    <marker id="ah-sig" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk-sig" d="M0,1.2 L9.5,5 L0,8.8 z"/></marker>
+    <marker id="ah-alert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk-alert" d="M0,1.2 L9.5,5 L0,8.8 z"/></marker>
+    <marker id="ah-mute" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path class="mk-mute" d="M0,1.2 L9.5,5 L0,8.8 z"/></marker>
+  </defs>
+</svg>
+
+<header class="bar">
+  <div class="bar-in">
+    <span class="lec"><b>Lecture 1</b><span class="full"> · Medium, from one server up</span></span>
+    <button class="partsbtn" type="button" id="partsbtn" aria-haspopup="dialog" aria-controls="partsdlg">
+      <span class="seg" aria-hidden="true"><i></i><i></i><i class="now"></i><i></i><i></i><i></i></span>
+      <span>Part 3 of 6</span>
+    </button>
+    <span class="sp"></span>
+    <span class="left" id="left-top" aria-live="off">about 10 min left in this part</span>
+    <button class="theme" id="theme" type="button" aria-label="Colour theme: follows system. Activate to change.">
+      <svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7,1 A6,6 0 0 1 7,13 z" fill="currentColor"/></svg>
+      <span class="tx" id="theme-tx">Auto</span>
+    </button>
+  </div>
+</header>
+
+<div class="resume" id="resume" hidden>
+  <span>Last time you stopped at <em id="resume-where"></em>.</span>
+  <a href="#" id="resume-go">Continue from there</a>
+  <button type="button" id="resume-x">Start this part from the top</button>
+</div>
+
+<main class="page" id="main">
+
+  <!-- ===== Rail: the growing Medium diagram is the navigation ===== -->
+  <aside class="rail" aria-label="Lecture map">
+    <nav aria-label="Lecture parts">
+      <p class="maphead">Medium, as the lecture has built it</p>
+      <div class="map">
+        <svg viewBox="0 0 232 296" role="group" aria-label="Medium's architecture so far. Each part of the lecture adds components; select one to go to that part.">
+          <!-- base + caching (part 1) -->
+          <a class="part past" href="#part-caching" aria-label="Part 1, Caching at every layer: the CDN and Redis">
+            <rect class="shp" x="84" y="46" width="64" height="24" rx="2"/><text class="mid" x="116" y="62">CDN</text>
+            <rect class="shp" x="176" y="122" width="52" height="24" rx="2"/><text class="mid" x="202" y="138">redis</text>
+            <line class="ln arr" x1="154" y1="134" x2="174" y2="134"/>
+          </a>
+          <g class="past">
+            <rect class="shp" x="72" y="4" width="88" height="26" rx="13"/><text class="mid" x="116" y="21.5">readers</text>
+            <line class="ln arr" x1="116" y1="30" x2="116" y2="44"/>
+            <line class="ln arr" x1="116" y1="70" x2="116" y2="82"/>
+            <line class="ln arr" x1="116" y1="104" x2="116" y2="118"/>
+          </g>
+          <!-- scaling the API tier (part 2) -->
+          <a class="part past" href="#part-api" aria-label="Part 2, Scaling out the API tier: load balancer and five API servers">
+            <rect class="shp" x="90" y="82" width="52" height="22" rx="2"/><text class="mid" x="116" y="97">LB</text>
+            <rect class="shp" x="80" y="116" width="80" height="28" rx="2"/>
+            <rect class="shp" x="74" y="120" width="80" height="28" rx="2"/><text class="mid" x="114" y="138">api ×5</text>
+          </a>
+          <!-- delegation (part 4, later) -->
+          <a class="part future" href="#part-delegation" aria-label="Part 4, Delegation, later: queue, workers and search">
+            <path class="ln" d="M74,134 H40 V160"/>
+            <rect class="shp" x="14" y="160" width="52" height="18" rx="1"/>
+            <line class="ln" x1="27" y1="160" x2="27" y2="178"/><line class="ln" x1="40" y1="160" x2="40" y2="178"/><line class="ln" x1="53" y1="160" x2="53" y2="178"/>
+            <text class="mid" x="40" y="194">queue</text>
+            <rect class="shp" x="10" y="204" width="60" height="22" rx="2"/><text class="mid" x="40" y="219">workers</text>
+            <line class="ln" x1="40" y1="226" x2="40" y2="236"/>
+            <rect class="shp" x="10" y="236" width="60" height="22" rx="2"/><text class="mid" x="40" y="251">search</text>
+          </a>
+          <!-- communication (part 6, later) -->
+          <a class="part future" href="#part-comm" aria-label="Part 6, Communication, later: live updates back to readers">
+            <path class="ln" d="M202,122 V17 H162"/>
+            <text class="mid halo" x="202" y="76">live</text>
+          </a>
+          <!-- this part: the database -->
+          <a class="part now" href="#s-db" aria-label="Part 3, Scaling the database: the part you are reading">
+            <line class="ln arr" x1="114" y1="148" x2="114" y2="178"/>
+            <path class="shp" d="M94,184 v30 a20,5 0 0 0 40,0 v-30"/><ellipse class="shp" cx="114" cy="184" rx="20" ry="5"/>
+            <path class="shp rep" d="M162,182 v22 a14,4 0 0 0 28,0 v-22"/><ellipse class="shp rep" cx="176" cy="182" rx="14" ry="4"/>
+            <path class="shp rep" d="M158,186 v22 a14,4 0 0 0 28,0 v-22"/><ellipse class="shp rep" cx="172" cy="186" rx="14" ry="4"/>
+            <line class="ln arr dash" x1="156" y1="200" x2="137" y2="200"/>
+            <text class="mid" x="114" y="236">postgres</text>
+            <text class="mid" x="174" y="236">replicas</text>
+          </a>
+          <!-- concurrency (part 5, later) -->
+          <a class="part future" href="#part-concurrency" aria-label="Part 5, Concurrency, later: the clap counter">
+            <rect class="shp" x="76" y="262" width="76" height="22" rx="2"/><text class="mid" x="114" y="277">clap count</text>
+            <line class="ln" x1="114" y1="244" x2="114" y2="262"/>
+          </a>
+        </svg>
+      </div>
+      <p class="map-cap">Solid parts were built earlier in the lecture. Dashed ones arrive later. Select a part to jump to it.</p>
+      <ol class="parts" id="parts-rail">
+        <li><a href="#part-caching"><span>Caching at every layer</span><span class="t">29 min of class</span></a></li>
+        <li><a href="#part-api"><span>Scaling out the API tier</span><span class="t">13 min</span></a></li>
+        <li class="now"><a href="#s-db" aria-current="location"><span>Scaling the database</span><span class="t js-left">10 min left</span></a>
+          <ol id="spy">
+            <li><a href="#h-bigger">A bigger machine first</a></li>
+            <li><a href="#h-reads">Copies for the reads</a></li>
+            <li><a href="#h-pull">Replicas pull, and it takes time</a></li>
+            <li><a href="#h-route">Your code routes reads</a></li>
+            <li><a href="#h-shard">Split the rows</a></li>
+            <li><a href="#h-numbers">Run the numbers</a></li>
+            <li><a href="#h-order">The order</a></li>
+          </ol>
+        </li>
+        <li><a href="#part-delegation"><span>Delegation</span><span class="t">25 min</span></a></li>
+        <li class="brk">The class took its break here</li>
+        <li><a href="#part-concurrency"><span>Concurrency</span><span class="t">6 min</span></a></li>
+        <li><a href="#part-comm"><span>Communication</span><span class="t">20 min</span></a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <article id="s-db" aria-labelledby="h-db">
+    <div class="opener">
+      <h2 id="h-db">Scaling the database</h2>
+      <p class="lede">The last part ended with Medium’s API tier at five servers: one server handles about <span class="n">100</span> requests a second, and the newsletter launch was forecast at <span class="n">500</span>. The five servers are fine. Each of those requests still asks the same Postgres machine for something, so the database is taking five times last week’s load on the hardware it had last week.</p>
+      <p>This part is about what you do to that machine, and in what order. There are three moves: a bigger machine, copies that answer reads, and splitting the rows across several machines. Each one stops working for a different reason, and the reason tells you when to make the next move.</p>
+    </div>
+
+    <!-- inline map for screens without the rail -->
+    <div class="map-inline map" aria-label="Lecture map">
+      <svg viewBox="0 0 360 128" role="group" aria-label="Medium so far: readers, CDN, load balancer, five API servers, Redis, and Postgres with replicas, which is this part. Queue, workers and the clap counter come later.">
+        <g class="past">
+          <rect class="shp" x="2" y="26" width="58" height="24" rx="12"/><text class="mid" x="31" y="42">readers</text>
+          <line class="ln arr" x1="60" y1="38" x2="71" y2="38"/>
+          <rect class="shp" x="72" y="26" width="40" height="24" rx="2"/><text class="mid" x="92" y="42">CDN</text>
+          <line class="ln arr" x1="112" y1="38" x2="123" y2="38"/>
+          <rect class="shp" x="124" y="26" width="30" height="24" rx="2"/><text class="mid" x="139" y="42">LB</text>
+          <line class="ln arr" x1="154" y1="38" x2="165" y2="38"/>
+          <rect class="shp" x="170" y="22" width="58" height="24" rx="2"/>
+          <rect class="shp" x="166" y="26" width="58" height="24" rx="2"/><text class="mid" x="195" y="42">api ×5</text>
+          <line class="ln arr" x1="195" y1="50" x2="195" y2="80"/>
+          <rect class="shp" x="170" y="82" width="50" height="22" rx="2"/><text class="mid" x="195" y="97">redis</text>
+        </g>
+        <g class="future">
+          <path class="ln" d="M190,22 V8 H31 V26"/>
+          <text class="mid halo" x="110" y="12">live claps</text>
+          <path class="ln" d="M166,46 H158 V93 H140"/>
+          <rect class="shp" x="88" y="82" width="52" height="22" rx="1"/><line class="ln" x1="101" y1="82" x2="101" y2="104"/><line class="ln" x1="114" y1="82" x2="114" y2="104"/><line class="ln" x1="127" y1="82" x2="127" y2="104"/>
+          <text class="mid" x="114" y="120">queue</text>
+          <rect class="shp" x="236" y="94" width="76" height="22" rx="2"/><text class="mid" x="274" y="109">clap count</text>
+        </g>
+        <g class="now">
+          <line class="ln arr" x1="224" y1="38" x2="240" y2="38"/>
+          <path class="shp" d="M244,28 v22 a14,4 0 0 0 28,0 v-22"/><ellipse class="shp" cx="258" cy="28" rx="14" ry="4"/>
+          <path class="shp rep" d="M314,24 v22 a14,4 0 0 0 28,0 v-22"/><ellipse class="shp rep" cx="328" cy="24" rx="14" ry="4"/>
+          <path class="shp rep" d="M310,28 v22 a14,4 0 0 0 28,0 v-22"/><ellipse class="shp rep" cx="324" cy="28" rx="14" ry="4"/>
+          <line class="ln arr dash" x1="308" y1="40" x2="275" y2="40"/>
+          <text class="mid" x="258" y="72">postgres</text>
+          <text class="mid" x="324" y="72">replicas</text>
+        </g>
+      </svg>
+      <p class="later">Orange is this part, part 3 of 6. Dashed parts come later: the queue in <a href="#part-delegation">Delegation</a>, the clap counter in <a href="#part-concurrency">Concurrency</a>, live claps in <a href="#part-comm">Communication</a>.</p>
+    </div>
+
+    <div class="rule" role="note" aria-label="The rule for this part">
+      <div class="lab"><b>The rule for this part</b>as written on the class board</div>
+      <div>
+        <p class="big">Scale from the <span>bottom up</span>: the database and every other dependency first, then the API servers, then let the users in.</p>
+        <p class="small">For a big campaign this is planning across teams. Every team you depend on should be able to tell you, before launch day, how its service scales.</p>
+      </div>
+    </div>
+
+    <!-- ===== 1. Bigger machine ===== -->
+    <h3 id="h-bigger">A bigger machine comes first, and it runs out at the hardware</h3>
+    <p>The first move needs no code. In the cloud console you change the machine type: <span class="n">16</span>&nbsp;GB of RAM becomes <span class="n">32</span>, then <span class="n">64</span>, <span class="n">128</span>, <span class="n">256</span>, <span class="n">512</span>&nbsp;GB, <span class="n">1</span>&nbsp;TB, <span class="n">2</span>&nbsp;TB, <span class="n">4</span>&nbsp;TB. Reads and writes both get room, and the application never notices. For a young product this is the right default. Horizontal setups make every deploy more complex, and the lecture’s advice was to start simple and not pay for <a href="https://blogs.mathworks.com/steve/2009/08/27/knuth-on-go-to-1974/">premature optimisation</a>.</p>
+
+    <section class="predict" id="predict" aria-labelledby="pq">
+      <fieldset>
+        <legend id="pq">Medium’s database already runs on the largest size the console lists, 4&nbsp;TB of RAM. What stops you going one size up?</legend>
+        <p class="why">Pick one before reading on. Nothing is scored or stored.</p>
+        <label class="opt"><input type="radio" name="p1" value="a"><span class="key" aria-hidden="true">a</span><span>The provider doesn’t sell anything bigger. The size list ends there.</span></label>
+        <label class="opt"><input type="radio" name="p1" value="b"><span class="key" aria-hidden="true">b</span><span>The hardware. A bigger part needs a board and bus that can take it, which makes it a different machine.</span></label>
+        <label class="opt"><input type="radio" name="p1" value="c"><span class="key" aria-hidden="true">c</span><span>Nothing technical. The next size exists, but it costs far more for each unit of capacity.</span></label>
+      </fieldset>
+      <p class="skip"><button type="button" class="linkbtn" id="p1-skip">Read the answer without picking</button></p>
+      <div class="reveal" id="p1-reveal" hidden tabindex="-1">
+        <p class="you" id="p1-you"></p>
+        <p>The lecture’s answer is (b). RAM, disks and network cards sit in slots and move bytes over buses, and both sides of a bus have to speak the same hardware protocol. Past what a board supports, the next size up is physically different hardware, and you get it only if the data centre has it. The analogy from class: a phone whose card slot takes <span class="n">256</span>&nbsp;GB won’t read a <span class="n">512</span>&nbsp;GB card, however you format it.</p>
+        <p>The fact-check adds one thing. Well before that ceiling, the largest sizes cost far more per unit of capacity, and one machine is still a single machine to lose. In practice (c) usually pushes you off this move first.</p>
+      </div>
+    </section>
+
+    <div class="wrong" role="note" aria-labelledby="wt">
+      <h4 id="wt">A common wrong turn</h4>
+      <dl style="display:contents">
+        <dt>The belief</dt><dd class="belief">“The provider just doesn’t offer a bigger box.” The lecturer heard this from a senior engineer, so it is not a beginner’s mistake.</dd>
+        <dt>Why it’s tempting</dt><dd>The console is where you met the limit, and the list of sizes really does stop.</dd>
+        <dt>What’s true</dt><dd>The list stops because the hardware does. Very large machines exist; supercomputers are real. A machine grows only as far as its boards, slots and buses allow.</dd>
+        <dt>Say instead</dt><dd class="right">Vertical scaling ends at physical hardware limits, and cost and single-machine risk usually end it sooner.</dd>
+      </dl>
+    </div>
+
+    <p>So from here, more capacity means more machines. Which kind depends on what the traffic is made of.</p>
+
+    <!-- ===== 2. Read replicas ===== -->
+    <h3 id="h-reads">Most of Medium’s traffic is reads, so answer reads from copies</h3>
+    <p>Read-to-write ratios of <span class="n">90:10</span> or <span class="n">99:1</span> are common, and blogging sits at the read-heavy end: far more people read a story than write one. A metrics pipeline or a chat app can run the other way, so measure your own ratio before you plan around it.</p>
+
+    <aside class="note"><b>Five is a habit, not a limit</b>The lecture’s rule of thumb is about five replicas per master. <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html">RDS for MySQL allows 15</a> per source, and in Postgres the cap is a setting, <code>max_wal_senders</code>. What actually limits you is the write rate each replica has to keep up with.</aside>
+    <p>A read replica setup is one <strong>master</strong> and one or more <strong>replicas</strong>, with asynchronous replication between them. Every write goes to the master. Each replica keeps a copy of the data and answers reads. MySQL and Postgres both ship this; you configure it rather than build it.</p>
+
+    <details class="more">
+      <summary><span class="pm" aria-hidden="true"></span><span class="ti">What the @100 marks in Fig. 1 mean<small>Log positions, for anyone who hasn’t looked inside replication</small></span><span class="dur">1 min</span></summary>
+      <div class="body">
+        <p>Every committed change is appended to a log before anything else happens. Postgres calls it the write-ahead log (WAL), MySQL the binary log. A node’s position in that log says how much history it has applied. Real positions are byte offsets; the figure counts changes, so “@100” means “has everything up to change 100”.</p>
+        <p>A replica at @100 asks for everything after 100 and gets 101 onward. The distance between the master’s position and the replica’s is the lag. On RDS for MySQL you can watch it as the <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.Monitor.html">ReplicaLag metric</a>, reported in seconds.</p>
+      </div>
+    </details>
+
+    <!-- ===== 3. Pull + lag (the one interactive figure) ===== -->
+    <h3 id="h-pull">A replica pulls changes from the master, and the pull takes time</h3>
+
+    <p class="lead-in">Fig. 1 follows one story from Publish to its first reader. Watch the position marks on the two databases:</p>
+
+    <figure class="fig1 wide" id="fig-lag" aria-labelledby="fig-lag-c">
+      <div class="stepper" id="stepper" tabindex="0" aria-label="Figure 1, five steps. Use Back and Next, or the arrow keys when focused.">
+        <div class="stage">
+          <svg viewBox="0 0 360 452" role="img" aria-label="Sequence diagram with four lanes: author, master, replica, reader. Time runs downward. The numbered steps beside it describe each event.">
+            <g data-s="0">
+              <rect class="shp" x="6" y="8" width="68" height="26" rx="2"/><text class="s mid" x="40" y="25.5">author</text>
+              <path class="shp" d="M122,12 v18 a18,5 0 0 0 36,0 v-18"/><ellipse class="shp" cx="140" cy="12" rx="18" ry="5"/>
+              <path class="shp rep" d="M214,12 v18 a18,5 0 0 0 36,0 v-18"/><ellipse class="shp rep" cx="232" cy="12" rx="18" ry="5"/>
+              <rect class="shp" x="288" y="8" width="68" height="26" rx="2"/><text class="s mid" x="322" y="25.5">reader</text>
+              <text class="mid mute" x="40" y="52">via API</text>
+              <text class="s mid" x="140" y="54">master</text>
+              <text class="s mid" x="232" y="54">replica</text>
+              <text class="mid mute" x="322" y="52">via API</text>
+              <line class="ln life" x1="40" y1="62" x2="40" y2="446"/>
+              <line class="ln life" x1="140" y1="62" x2="140" y2="446"/>
+              <line class="ln life" x1="232" y1="62" x2="232" y2="446"/>
+              <line class="ln life" x1="322" y1="62" x2="322" y2="446"/>
+              <rect class="shp" x="118" y="66" width="44" height="18" rx="2"/><text class="mid" x="140" y="79">@100</text>
+              <rect class="shp" x="210" y="66" width="44" height="18" rx="2"/><text class="mid" x="232" y="79">@100</text>
+            </g>
+            <g data-s="1">
+              <circle class="ln thin num-c" cx="14" cy="102" r="9"/><text class="mid" x="14" y="106">1</text>
+              <line class="ln arr" x1="40" y1="100" x2="138" y2="120"/>
+              <text class="halo mid" transform="translate(89 110) rotate(11.5)" dy="-6">INSERT 4812</text>
+              <rect class="shp tag" x="118" y="126" width="44" height="18" rx="2"/><text class="mid" x="140" y="139">@101</text>
+            </g>
+            <g data-s="2">
+              <circle class="ln thin num-c" cx="14" cy="170" r="9"/><text class="mid" x="14" y="174">2</text>
+              <line class="ln thin arr" x1="140" y1="152" x2="42" y2="172"/>
+              <text class="halo mid" transform="translate(91 162) rotate(-11.5)" dy="-6">ok</text>
+              <text class="s mid halo" x="44" y="194">“Published”</text>
+            </g>
+            <g data-s="3">
+              <circle class="ln thin num-c" cx="349" cy="214" r="9"/><text class="mid" x="349" y="218">3</text>
+              <line class="ln arr" x1="322" y1="212" x2="234" y2="230"/>
+              <text class="halo mid" transform="translate(278 221) rotate(-11.5)" dy="-6">read 4812</text>
+              <line class="ln alert-ln keep arr" x1="232" y1="240" x2="320" y2="258"/>
+              <text class="alert keep halo mid" transform="translate(276 249) rotate(11.5)" dy="-6">0 rows</text>
+              <g style="stroke:var(--alert);stroke-width:1.6"><line x1="315" y1="266" x2="329" y2="280"/><line x1="329" y1="266" x2="315" y2="280"/></g>
+              <text class="s alert keep mid halo" x="322" y="300">stale read</text>
+            </g>
+            <g data-s="4">
+              <rect class="lagbar keep" x="229" y="135" width="6" height="228"/>
+              <text class="alert keep mid" transform="translate(218 206) rotate(-90)">replication lag</text>
+              <circle class="ln thin num-c" cx="256" cy="318" r="9"/><text class="mid" x="256" y="322">4</text>
+              <line class="ln dash arr" x1="232" y1="314" x2="142" y2="332"/>
+              <text class="halo mid" transform="translate(187 323) rotate(-11.3)" dy="-6">after @100?</text>
+              <line class="ln thin dash arr" x1="140" y1="340" x2="230" y2="358"/>
+              <text class="halo mid" transform="translate(185 349) rotate(11.3)" dy="-6">change 101</text>
+              <rect class="shp tag" x="210" y="364" width="44" height="18" rx="2"/><text class="mid" x="232" y="377">@101</text>
+            </g>
+            <g data-s="5">
+              <circle class="ln thin num-c" cx="349" cy="398" r="9"/><text class="mid" x="349" y="402">5</text>
+              <line class="ln arr" x1="322" y1="396" x2="234" y2="412"/>
+              <text class="halo mid" transform="translate(278 404) rotate(-10.3)" dy="-6">read 4812</text>
+              <line class="ln arr" x1="232" y1="420" x2="320" y2="436"/>
+              <text class="halo mid" transform="translate(276 428) rotate(10.3)" dy="-6">story 4812</text>
+            </g>
+          </svg>
+        </div>
+        <div class="steps">
+          <ol id="step-list">
+            <li data-step="1"><span class="cn">1</span><span>The author presses Publish. The API server sends the <code>INSERT</code> for story 4812 over its master connection, and the master commits it at position 101. The replica is still at 100.</span></li>
+            <li data-step="2"><span class="cn">2</span><span>The master acknowledges and the author sees “Published”. Nothing has reached the replica yet.</span></li>
+            <li data-step="3"><span class="cn">3</span><span>A reader opens the link. The API server sends this read to the replica, which is still at 100, so the query returns no rows: a <strong>stale read</strong>.</span></li>
+            <li data-step="4"><span class="cn">4</span><span>The replica asks the master for everything after 100, receives change 101 and applies it. The red bar is the <strong>replication lag</strong>, from commit on the master to apply on the replica. With Postgres streaming it is <a href="https://www.postgresql.org/docs/current/warm-standby.html">usually under a second</a> when the replica keeps up.</span></li>
+            <li data-step="5"><span class="cn">5</span><span>The reader tries again and gets story 4812. No component failed anywhere in this sequence.</span></li>
+          </ol>
+          <div class="ctrl">
+            <button class="btn" type="button" id="st-prev">Back</button>
+            <button class="btn primary" type="button" id="st-next">Next</button>
+            <span class="count" id="st-count" aria-hidden="true">1 / 5</span>
+          </div>
+          <p class="sr" aria-live="polite" id="st-live"></p>
+        </div>
+      </div>
+      <figcaption id="fig-lag-c"><span class="fno">Fig. 1</span>One story, from Publish to its first reader. Time runs down. Arrowheads point at the side being asked.</figcaption>
+    </figure>
+
+    <p>Step 3 is the one to remember. The story exists, the author has seen “Published”, and a reader still gets nothing, because that read went to a node that hadn’t caught up. Asynchronous replication let the master answer the author without waiting for any replica, and step 3 is what that costs.</p>
+    <aside class="note"><b>The board draws this arrow the other way</b>On the class whiteboard the replication arrow runs master → replica. Here the replica’s request points at the master, because the replica starts the conversation.</aside>
+    <p>About the direction: the lecture’s point is that the replica pulls and the master doesn’t push. More precisely, the replica opens the connection and names its position, and from then on the master streams new log records down that connection as they are written. That is MySQL’s <a href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">binlog dump thread</a> and Postgres’s <a href="https://www.postgresql.org/docs/current/warm-standby.html">WAL sender</a>. The replica starts it and chooses where it starts. If a gap like step 3 is unacceptable for some data, MySQL’s <a href="https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html">semi-synchronous mode</a> makes each commit wait until one replica has received it, at the cost of a round trip per commit.</p>
+
+    <!-- ===== 4. Routing ===== -->
+    <h3 id="h-route">Your code decides which reads are allowed to be stale</h3>
+    <p>Neither MySQL nor Postgres splits reads from writes by itself. In the basic setup the API server holds two connections and each handler picks one:</p>
+
+    <aside class="note"><b>One connection string means something else is routing</b>A proxy, or the driver. Postgres’s libpq can choose a primary or a standby from a host list with <a href="https://www.postgresql.org/docs/current/libpq-connect.html"><code>target_session_attrs</code></a>, and Aurora gives you a <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html">reader endpoint</a> that spreads connections over replicas. Which reads may be stale is still your call.</aside>
+    <div class="code">
+<pre><code>master  = connect(MASTER_URL)
+replica = connect(REPLICA_URL)
+
+<span class="c"># a write</span>
+def publish(story):
+    return <span class="hl">master</span>.run(INSERT, story)
+
+<span class="c"># a second out of date is fine</span>
+def profile(user_id):
+    return <span class="hl">replica</span>.run(PROFILE, user_id)
+
+<span class="c"># the author, right after Publish</span>
+def my_story(story_id):
+    return <span class="hl">master</span>.run(STORY, story_id)</code></pre>
+      <p class="cap">Pseudocode for the API server. Works the same with MySQL, Postgres or MongoDB.</p>
+    </div>
+
+    <p>A profile page can be a second old. The author’s own story right after Publish can’t, because that is step 3 of Fig. 1 happening to the one person who knows the story exists. The class example was a bank: a friend says the money has gone, you open the app, and a replica shows the old balance. Reads like that go to the master.</p>
+
+    <p>Replicas cost the master something. Each one holds a replication connection served by its own sender process on the master, so each adds a little CPU, memory and network load. Past roughly five, the lecture suggests a tree: five replicas pull from the master and each feeds two or three more, <span class="n">15</span> in all, while the master serves only <span class="n">5</span> pulls. Postgres calls this <a href="https://www.postgresql.org/docs/current/warm-standby.html">cascading replication</a>, and every extra hop adds its own lag.</p>
+    <p>Two things replicas never fix. Every write still lands on one master. And once the replicas’ pulls start to hurt that master, this move is used up. A student in class proposed that as the signal to shard, and the lecturer agreed.</p>
+
+    <details class="more">
+      <summary><span class="pm" aria-hidden="true"></span><span class="ti">When the master dies, a read replica doesn’t take over by itself<small>Failover and read scaling are separate features on AWS</small></span><span class="dur">1 min</span></summary>
+      <div class="body">
+        <p>Asked in class: what happens when the master goes down? The answer given was that a replica gets promoted through leader election, that a cloud provider does this for you, and that writing leader election yourself is rarely worth it for a product company. The last part holds.</p>
+        <p>The AWS details are narrower. RDS Multi-AZ fails over automatically to a <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html">synchronous standby</a>, and that standby can’t serve reads. RDS read replicas are <a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.Promote.html">promoted by hand</a>. Aurora does <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">promote a reader automatically</a>, usually in under a minute. Check which of the two you are paying for before the night you need it.</p>
+      </div>
+    </details>
+
+    <!-- ===== 5. Sharding ===== -->
+    <h3 id="h-shard">When writes outgrow one master, split the rows across several</h3>
+    <p><strong>Sharding</strong> splits the data into mutually exclusive subsets and gives each subset its own machine. Every shard is the master for its rows and can have replicas of its own. Someone in class asked whether three shards meant three copies of the database. They don’t: each holds about a third of the rows, and no row lives on two shards.</p>
+    <p>For Medium the natural key is the user. The API server hashes the user ID to pick a shard, keeps one connection pool per shard (a pool’s connections belong to one database), and forwards the query there. The mapping from user to shard has to stay fixed, because a user’s rows must be found where they were written.</p>
+    <p>That last requirement is where the simplest routing, <code>hash(user_id) % 3</code>, gets expensive. Change the 3 and most users map to a different shard, so their rows have to move. <a href="https://en.wikipedia.org/wiki/Consistent_hashing">Consistent hashing</a>, or a fixed set of virtual buckets assigned to shards the way <a href="https://vitess.io/docs/reference/features/sharding/">Vitess</a> does it, keeps a reshard down to a fraction of the rows. Lines 12 and 13 of the worked numbers below put a figure on the difference.</p>
+
+    <aside class="note"><b>A cluster isn’t always shards</b>Oracle RAC came up in class. RAC is <a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/adrac/rac_db.html">shared-disk</a>: several instances over one copy of the data. Shared-nothing systems such as Vitess are the ones that split rows.</aside>
+    <p>Whether you write this routing yourself depends on the database. Plain MySQL and Postgres leave it to you or to an add-on such as Vitess or Citus; databases built to be distributed, open source or paid, do it internally. The lecture’s advice holds either way: build the naive version once, so you know what a proxy is doing for you. There is no formula for the shard key. Pick one with many distinct, evenly used values, like a user ID; a key with few values, or a date, <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-uniform-load.html">piles load onto one shard</a>.</p>
+
+    <!-- ===== 6. Worked example ===== -->
+    <h3 id="h-numbers">Run the numbers before you pick a move</h3>
+    <p>Here is the newsletter launch from the top of this part, worked through. Lines marked <span class="sheet"><span class="as">assumed</span></span> are numbers you would take from your own query logs and a load test. The lecture was firm that no formula replaces load-testing one machine.</p>
+
+    <div class="sheet wide" id="sheet">
+      <table>
+        <caption class="sr">Back-of-envelope sizing for Medium's database after the newsletter launch</caption>
+        <thead><tr><th scope="col"><span class="sr">Line</span></th><th scope="col">Quantity</th><th scope="col" style="text-align:right;padding-right:22px">Value</th><th scope="col">Where it comes from</th></tr></thead>
+        <tbody>
+          <tr><td class="ix">1</td><td>Requests at the API tier</td><td class="v">500/s</td><td class="w">5 servers × 100/s, from the last part</td></tr>
+          <tr><td class="ix">2</td><td>Queries per request</td><td class="v">2</td><td class="w"><span class="as">assumed</span></td></tr>
+          <tr class="sub"><td class="ix">3</td><td>Queries at the database</td><td class="v">1,000/s</td><td class="w">line 1 × line 2</td></tr>
+          <tr><td class="ix">4</td><td>Writes, at 90:10</td><td class="v">100/s</td><td class="w">must go to the master</td></tr>
+          <tr><td class="ix">5</td><td>Reads that must be fresh</td><td class="v">50/s</td><td class="w"><span class="as">assumed</span>; authors reading their own drafts and stories, so master</td></tr>
+          <tr class="sub"><td class="ix">6</td><td>Load on the master</td><td class="v">150/s</td><td class="w">line 4 + line 5</td></tr>
+          <tr><td class="ix">7</td><td>One machine can take</td><td class="v">400/s</td><td class="w"><span class="as">assumed</span>; only a load test gives you this</td></tr>
+          <tr><td class="ix">8</td><td>Reads left for replicas</td><td class="v">850/s</td><td class="w">1,000 − 150</td></tr>
+          <tr class="key"><td class="ix">9</td><td>Replicas</td><td class="v">3 + 1</td><td class="w">850 ÷ 400 = 2.1, round up to 3, plus one spare for when a replica dies</td></tr>
+          <tr class="gap"><td colspan="4">Next quarter writes double</td></tr>
+          <tr><td class="ix">10</td><td>Load on the master</td><td class="v">250/s</td><td class="w">200 writes + 50 fresh reads: 62% of one machine, and replicas can take none of it</td></tr>
+          <tr class="key"><td class="ix">11</td><td>Writes per shard, 3 shards</td><td class="v">≈ 67/s</td><td class="w">200 ÷ 3, routed by <code>hash(user_id)</code></td></tr>
+          <tr class="gap"><td colspan="4">Later, a fourth shard</td></tr>
+          <tr class="bad"><td class="ix">12</td><td>Users who move, with <code>% N</code></td><td class="v">75%</td><td class="w">a key stays only when h % 3 = h % 4, which holds for 3 of every 12 values of h</td></tr>
+          <tr><td class="ix">13</td><td>Users who move, consistent hashing</td><td class="v">≈ 25%</td><td class="w">about 1/N of the keys, here 1/4, all landing on the new shard</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Line 9 is the read problem and lines 10 and 11 are the write problem, and they need different moves. Line 12 is the reason the routing function deserves more thought than the one line of code it takes.</p>
+
+    <!-- ===== 7. Hero band: the order ===== -->
+    <figure class="band" id="h-order-fig" aria-labelledby="h-order">
+      <div class="band-in">
+        <h3 id="h-order">The order: a bigger machine, then replicas, then shards</h3>
+        <div class="ladder">
+          <div class="rung">
+            <svg viewBox="0 0 200 116" aria-hidden="true">
+              <line class="ln" x1="104" y1="16" x2="196" y2="16"/>
+              <g style="stroke:var(--ink-2);stroke-width:1"><line x1="110" y1="16" x2="116" y2="9"/><line x1="122" y1="16" x2="128" y2="9"/><line x1="134" y1="16" x2="140" y2="9"/><line x1="146" y1="16" x2="152" y2="9"/><line x1="158" y1="16" x2="164" y2="9"/><line x1="170" y1="16" x2="176" y2="9"/><line x1="182" y1="16" x2="188" y2="9"/><line x1="194" y1="16" x2="200" y2="9"/></g>
+              <path class="shp" d="M26,52 v28 a14,4 0 0 0 28,0 v-28"/><ellipse class="shp" cx="40" cy="52" rx="14" ry="4"/>
+              <line class="ln arr" x1="62" y1="68" x2="100" y2="68"/>
+              <path class="shp" d="M114,30 v54 a32,8 0 0 0 64,0 v-54"/><ellipse class="shp" cx="146" cy="30" rx="32" ry="8"/>
+              <text class="mid" x="40" y="106">16 GB</text><text class="mid" x="146" y="106">4 TB</text>
+            </svg>
+            <h4>A bigger machine</h4>
+            <p class="when">first, while it’s cheap</p>
+            <dl>
+              <div><dt>Reads</dt><dd>scale</dd></div>
+              <div><dt>Writes</dt><dd>scale</dd></div>
+              <div><dt>Code</dt><dd>unchanged</dd></div>
+              <div><dt>Ends at</dt><dd>hardware; cost and one-box risk sooner</dd></div>
+            </dl>
+          </div>
+          <div class="rung">
+            <svg viewBox="0 0 200 116" aria-hidden="true">
+              <path class="shp" d="M30,40 v40 a20,5 0 0 0 40,0 v-40"/><ellipse class="shp" cx="50" cy="40" rx="20" ry="5"/>
+              <path class="shp rep" d="M136,36 v40 a18,5 0 0 0 36,0 v-40"/><ellipse class="shp rep" cx="154" cy="36" rx="18" ry="5"/>
+              <path class="shp rep" d="M130,42 v40 a18,5 0 0 0 36,0 v-40"/><ellipse class="shp rep" cx="148" cy="42" rx="18" ry="5"/>
+              <line class="ln dash arr" x1="128" y1="62" x2="74" y2="62"/>
+              <text class="mid" x="100" y="54">pull</text>
+              <text class="mid" x="50" y="106">master</text><text class="mid" x="150" y="106">replicas</text>
+            </svg>
+            <h4>Read replicas</h4>
+            <p class="when">when reads dominate</p>
+            <dl>
+              <div><dt>Reads</dt><dd>scale</dd></div>
+              <div><dt>Writes</dt><dd class="no">don’t: every write hits one master</dd></div>
+              <div><dt>Code</dt><dd>two connections, chosen per query</dd></div>
+              <div><dt>Ends at</dt><dd>pulls loading the master; stale reads</dd></div>
+            </dl>
+          </div>
+          <div class="rung">
+            <svg viewBox="0 0 200 116" aria-hidden="true">
+              <text class="mid" x="100" y="14">hash(user_id)</text>
+              <path class="ln" d="M100,20 V28 M36,28 H164"/>
+              <line class="ln arr" x1="36" y1="28" x2="36" y2="42"/><line class="ln arr" x1="100" y1="28" x2="100" y2="42"/><line class="ln arr" x1="164" y1="28" x2="164" y2="42"/>
+              <path class="shp" d="M20,48 v32 a16,4 0 0 0 32,0 v-32"/><ellipse class="shp" cx="36" cy="48" rx="16" ry="4"/>
+              <path class="shp" d="M84,48 v32 a16,4 0 0 0 32,0 v-32"/><ellipse class="shp" cx="100" cy="48" rx="16" ry="4"/>
+              <path class="shp" d="M148,48 v32 a16,4 0 0 0 32,0 v-32"/><ellipse class="shp" cx="164" cy="48" rx="16" ry="4"/>
+              <text class="mid" x="36" y="106">⅓ rows</text><text class="mid" x="100" y="106">⅓ rows</text><text class="mid" x="164" y="106">⅓ rows</text>
+            </svg>
+            <h4>Shards</h4>
+            <p class="when">when writes outgrow one master</p>
+            <dl>
+              <div><dt>Reads</dt><dd>scale</dd></div>
+              <div><dt>Writes</dt><dd>scale, split by key</dd></div>
+              <div><dt>Code</dt><dd>route by key, one pool per shard</dd></div>
+              <div><dt>Ends at</dt><dd>a hot key; resharding moves rows</dd></div>
+            </dl>
+          </div>
+          <div class="rung last">
+            <svg viewBox="0 0 200 116" aria-hidden="true">
+              <path class="shp" d="M36,40 v40 a20,5 0 0 0 40,0 v-40"/><ellipse class="shp" cx="56" cy="40" rx="20" ry="5"/>
+              <path class="shp" d="M124,40 v40 a20,5 0 0 0 40,0 v-40"/><ellipse class="shp" cx="144" cy="40" rx="20" ry="5"/>
+              <line class="ln arr" x1="80" y1="54" x2="120" y2="54"/><line class="ln arr" x1="120" y1="70" x2="80" y2="70"/>
+              <g style="stroke:var(--alert);stroke-width:1.6"><line x1="94" y1="82" x2="106" y2="94"/><line x1="106" y1="82" x2="94" y2="94"/></g>
+              <text class="mid" x="56" y="106">writes</text><text class="mid" x="144" y="106">writes</text>
+            </svg>
+            <h4>Multi-master</h4>
+            <p class="when">only if nothing else fits</p>
+            <dl>
+              <div><dt>Writes</dt><dd>accepted on several nodes</dd></div>
+              <div><dt>Cost</dt><dd class="no">you resolve write conflicts, differently for every use case</dd></div>
+            </dl>
+          </div>
+        </div>
+        <figcaption><span class="fno">Fig. 2</span>Each move is drawn with what it scales and what ends it. Multi-master, where replicas take writes too, is last because the conflict rules are yours to write; sharding scales writes without them.</figcaption>
+      </div>
+    </figure>
+
+    <!-- ===== Recall ===== -->
+    <section class="recall" id="recall" aria-labelledby="h-recall">
+      <h3 class="small" id="h-recall">Say it back: what each move scales, and what ends it</h3>
+      <p class="q">Without scrolling up, in two or three sentences: what does each of the three moves scale, and what tells you it is time for the next one?</p>
+      <label class="sr" for="recall-tx">Your answer</label>
+      <textarea id="recall-tx" placeholder="A bigger machine scales…"></textarea>
+      <div class="row">
+        <button class="btn" type="button" id="recall-go" aria-expanded="false" aria-controls="model">Compare with the model answer</button>
+        <span>Kept on this device only, as a draft.</span>
+      </div>
+      <div class="model" id="model" hidden tabindex="-1">
+        <ol>
+          <li>A bigger machine scales reads and writes with no code change. You leave it when the next size costs too much, is one machine you can’t afford to lose, or doesn’t exist because the hardware stops.</li>
+          <li>Read replicas scale reads. Writes still go to one master, replicas pull (the replica starts the connection), and some reads come back stale, so your code chooses master or replica per query. You leave this move when writes outgrow the master or the replicas’ pulls start to hurt it.</li>
+          <li>Shards scale writes by giving each machine an exclusive slice of rows, routed by a key such as the user ID. Pick routing that survives a change in shard count.</li>
+        </ol>
+        <p>If you wrote “replicas copy the data so they scale writes too”, read the second rung of Fig. 2 again.</p>
+      </div>
+    </section>
+
+    <div class="hook" role="note" aria-label="This comes back later">
+      <div class="lab"><b>Comes back in Concurrency</b>part 5</div>
+      <p>Sharding spreads Medium’s writes over several masters. It does nothing for two claps on the same post at the same instant: that post’s row lives on one shard, and both increments race on that one machine. <a href="#part-concurrency">Concurrency</a> starts from that race.</p>
+    </div>
+
+    <div class="end">
+      <p><strong style="color:var(--ink)">A good place to stop.</strong> The class took questions after this part and then moved on to a new problem. When you come back, this page will offer to pick up where you left off.</p>
+      <div class="next">
+        <a href="#part-api"><small>Previous part</small><b>Scaling out the API tier</b></a>
+        <a href="#part-delegation" style="text-align:right"><small>Next, part 4 of 6 · 25 min of class</small><b>Delegation: publishing starts doing two things</b></a>
+      </div>
+    </div>
+  </article>
+
+  <footer class="colophon">
+    <div>
+      <p>Lecture 1, week 1, day 2. This part covers 00:48:35 to 01:05:42 of the class recording, plus follow-up questions at 02:37 and 03:09.</p>
+      <p>Fact-checked on 11 Oct 2026. Where the lecture simplified, the precise version sits next to it with a link to its source. To report a mistake, open an issue on the course repository.</p>
+    </div>
+  </footer>
+</main>
+
+<!-- Parts sheet for narrow screens -->
+<dialog class="sheetdlg" id="partsdlg" aria-labelledby="dlg-h">
+  <div class="in">
+    <div class="hd"><span id="dlg-h">Lecture 1 · six parts</span><button class="btn" type="button" id="dlg-x">Close</button></div>
+    <ol class="parts">
+      <li><a href="#part-caching"><span>Caching at every layer</span><span class="t">29 min of class</span></a></li>
+      <li><a href="#part-api"><span>Scaling out the API tier</span><span class="t">13 min</span></a></li>
+      <li class="now"><a href="#s-db" aria-current="location"><span>Scaling the database</span><span class="t js-left">10 min left</span></a></li>
+      <li><a href="#part-delegation"><span>Delegation</span><span class="t">25 min</span></a></li>
+      <li class="brk">The class took its break here</li>
+      <li><a href="#part-concurrency"><span>Concurrency</span><span class="t">6 min</span></a></li>
+      <li><a href="#part-comm"><span>Communication</span><span class="t">20 min</span></a></li>
+    </ol>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  root.classList.remove("no-js"); root.classList.add("js");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function $(id){ return document.getElementById(id); }
+  function all(sel, el){ return Array.prototype.slice.call((el||document).querySelectorAll(sel)); }
+  function store(k,v){ try{ if(v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
+  function read(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+  /* ---------- theme: auto -> light -> dark ---------- */
+  var modes = ["auto","light","dark"], tbtn = $("theme"), ttx = $("theme-tx");
+  function applyTheme(m){
+    if(m==="auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", m);
+    ttx.textContent = m.charAt(0).toUpperCase() + m.slice(1);
+    tbtn.setAttribute("aria-label","Colour theme: " + (m==="auto" ? "follows system" : m) + ". Activate to change.");
+  }
+  var mode = read("a2-theme"); if(modes.indexOf(mode) < 0) mode = "auto";
+  applyTheme(mode);
+  tbtn.addEventListener("click", function(){
+    mode = modes[(modes.indexOf(mode)+1) % modes.length];
+    applyTheme(mode); store("a2-theme", mode==="auto" ? null : mode);
+  });
+
+  /* ---------- honest time left: words below the fold at 220 wpm ---------- */
+  var art = $("s-db");
+  var blocks = all("p, li, td, dd, dt, figcaption, legend, .opt, h3, h4", art).map(function(el){
+    return { el: el, w: (el.textContent.trim().match(/\S+/g) || []).length };
+  });
+  var pending = { predict: true, recall: true };
+  function minutesLeft(){
+    var y = window.innerHeight * 0.15, words = 0;
+    blocks.forEach(function(b){ if(b.el.getBoundingClientRect().top > y) words += b.w; });
+    var m = words / 220 + (pending.predict ? 1 : 0) + (pending.recall ? 1 : 0);
+    var r = art.getBoundingClientRect();
+    if(r.bottom < window.innerHeight * 0.6) return 0;
+    return Math.max(1, Math.ceil(m));
+  }
+  var leftTop = $("left-top"), leftEls = all(".js-left");
+  function updateLeft(){
+    var m = minutesLeft();
+    var txt = m === 0 ? "end of this part" : "about " + m + " min left in this part";
+    leftTop.textContent = txt;
+    leftEls.forEach(function(el){ el.textContent = m === 0 ? "done" : m + " min left"; });
+  }
+
+  /* ---------- scrollspy for the claim headings ---------- */
+  var spy = all("#spy a"), heads = spy.map(function(a){ return document.querySelector(a.getAttribute("href")); });
+  var curHead = null;
+  function updateSpy(){
+    var best = null;
+    heads.forEach(function(h){ if(h && h.getBoundingClientRect().top < window.innerHeight * 0.35) best = h; });
+    curHead = best;
+    spy.forEach(function(a){
+      if(best && a.getAttribute("href") === "#" + best.id) a.setAttribute("aria-current","true"); else a.removeAttribute("aria-current");
+    });
+  }
+
+  /* ---------- resume (Ovsiankina): remember the last heading read ---------- */
+  var KEY = "a2-resume", resume = $("resume");
+  try{
+    var saved = JSON.parse(read(KEY) || "null");
+    if(saved && saved.id && !location.hash){
+      var h = $(saved.id);
+      if(h && saved.id !== "h-db"){
+        $("resume-where").textContent = "“" + h.textContent.trim() + "”";
+        $("resume-go").setAttribute("href", "#" + saved.id);
+        resume.hidden = false;
+      }
+    }
+  }catch(e){}
+  $("resume-go").addEventListener("click", function(){ resume.hidden = true; });
+  $("resume-x").addEventListener("click", function(){ resume.hidden = true; store(KEY, null); });
+
+  var ticking = false, saveT = null;
+  function onScroll(){
+    ticking = false; updateLeft(); updateSpy();
+    clearTimeout(saveT);
+    saveT = setTimeout(function(){ if(curHead) store(KEY, JSON.stringify({ id: curHead.id, t: Date.now() })); }, 800);
+  }
+  window.addEventListener("scroll", function(){ if(!ticking){ ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+  window.addEventListener("resize", function(){ requestAnimationFrame(onScroll); });
+  updateLeft(); updateSpy();
+
+  /* ---------- parts sheet (narrow screens) ---------- */
+  var dlg = $("partsdlg");
+  $("partsbtn").addEventListener("click", function(){ if(dlg.showModal) dlg.showModal(); else dlg.setAttribute("open",""); });
+  $("dlg-x").addEventListener("click", function(){ dlg.close ? dlg.close() : dlg.removeAttribute("open"); });
+  all("a", dlg).forEach(function(a){ a.addEventListener("click", function(){ if(dlg.close) dlg.close(); }); });
+
+  /* ---------- Fig. 1 stepper: opens on step 1 ---------- */
+  var MAX = 5, step = 1;
+  var stage = $("stepper");
+  var parts = all("[data-s]", stage);
+  var items = all("#step-list li");
+  var prev = $("st-prev"), next = $("st-next"), count = $("st-count"), live = $("st-live");
+  var fsvg = stage.querySelector("svg"), HEIGHTS = [0, 160, 208, 312, 392, 452];
+  function render(n, announce, fromBtn){
+    var before = fromBtn ? fromBtn.getBoundingClientRect().top : null;
+    step = Math.max(1, Math.min(MAX, n));
+    fsvg.setAttribute("viewBox", "0 0 360 " + HEIGHTS[step]);
+    parts.forEach(function(el){
+      var s = +el.getAttribute("data-s");
+      el.classList.toggle("is-hidden", s > step);
+      el.classList.toggle("is-cur", s === step);
+      el.classList.toggle("is-past", s < step && s > 0);
+    });
+    items.forEach(function(li){
+      var s = +li.getAttribute("data-step");
+      li.classList.toggle("cur", s === step);
+      li.classList.toggle("past", s < step);
+      if(s === step) li.setAttribute("aria-current","step"); else li.removeAttribute("aria-current");
+    });
+    prev.disabled = step === 1; next.disabled = step === MAX;
+    count.textContent = step + " / " + MAX;
+    if(before !== null){
+      var after = fromBtn.getBoundingClientRect().top;
+      if(Math.abs(after - before) > 1) window.scrollBy({ top: after - before, left: 0, behavior: "instant" });
+    }
+    if(announce){
+      live.textContent = "Step " + step + " of " + MAX + ". " + items[step-1].textContent.replace(/^\s*\d\s*/, "");
+      if(history.replaceState){ try{ history.replaceState(null, "", "#fig-lag/step-" + step); }catch(e){} }
+    }
+  }
+  prev.addEventListener("click", function(){ render(step-1, true, prev); });
+  next.addEventListener("click", function(){ render(step+1, true, next); });
+  stage.addEventListener("keydown", function(e){
+    if(e.target.tagName === "BUTTON" && (e.key === "Enter" || e.key === " ")) return;
+    if(e.key === "ArrowRight"){ render(step+1, true); e.preventDefault(); }
+    else if(e.key === "ArrowLeft"){ render(step-1, true); e.preventDefault(); }
+    else if(e.key === "Home"){ render(1, true); e.preventDefault(); }
+    else if(e.key === "End"){ render(MAX, true); e.preventDefault(); }
+  });
+  var m = /^#fig-lag\/step-(\d)$/.exec(location.hash);
+  render(m ? +m[1] : 1, false);
+  if(m){ $("fig-lag").scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" }); }
+
+  /* ---------- prediction: one tap commits, the answer follows ---------- */
+  var radios = all('input[name="p1"]'), reveal = $("p1-reveal"), you = $("p1-you");
+  var LINES = {
+    a: "You picked (a). The lecturer opened with this answer, heard from a senior engineer, so you are in experienced company. The block after this takes it apart.",
+    b: "You picked (b), the lecture’s answer.",
+    c: "You picked (c). It isn’t the lecture’s answer, but the fact-check sides with you on what usually happens first. See the second paragraph below.",
+    none: ""
+  };
+  function show(choice){
+    you.textContent = LINES[choice || "none"]; you.hidden = !you.textContent;
+    var first = reveal.hidden;
+    reveal.hidden = false; pending.predict = false; updateLeft();
+    if(first) reveal.focus({ preventScroll: true });
+  }
+  radios.forEach(function(r){ r.addEventListener("change", function(){ show(r.value); }); });
+  $("p1-skip").addEventListener("click", function(){ show(null); });
+
+  /* ---------- recall: draft stays local; model answer on request ---------- */
+  var tx = $("recall-tx"), go = $("recall-go"), model = $("model");
+  var draft = read("a2-recall"); if(draft) tx.value = draft;
+  var dT = null;
+  tx.addEventListener("input", function(){ clearTimeout(dT); dT = setTimeout(function(){ store("a2-recall", tx.value || null); }, 400); });
+  go.addEventListener("click", function(){
+    var open = model.hidden;
+    model.hidden = !open; go.setAttribute("aria-expanded", String(open));
+    go.textContent = open ? "Hide the model answer" : "Compare with the model answer";
+    if(open){ pending.recall = false; updateLeft(); model.focus({ preventScroll: true }); }
+  });
+})();
+</script>
+</body>
+</html>

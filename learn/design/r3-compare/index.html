@@ -1,0 +1,180 @@
+<title>Round 3 Prototypes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: five working prototypes, one band each; screenshots left, how to try it and the honest verdict right. Each one is a horizontal band: wireframe of the experience on the left, real reference screenshots on the right, three short facts underneath. */
+:root {
+  --bg: #f2f1ec; --paper: #ffffff; --ink: #191b1f; --muted: #5c616a; --line: #d9d8d2;
+  --wire: #191b1f; --wire-soft: #b9bcc2; --hl: #ff5a36; --hl-bg: #ffe3da; --ok: #237a4b; --risk: #a43a26;
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Figtree", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121315; --paper: #1b1c1f; --ink: #ecebe6; --muted: #9da1a8; --line: #2e3034;
+  --wire: #ecebe6; --wire-soft: #555a62; --hl: #ff7a5c; --hl-bg: #3a211a; --ok: #7fd3a2; --risk: #f29a85; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121315; --paper: #1b1c1f; --ink: #ecebe6; --muted: #9da1a8; --line: #2e3034;
+  --wire: #ecebe6; --wire-soft: #555a62; --hl: #ff7a5c; --hl-bg: #3a211a; --ok: #7fd3a2; --risk: #f29a85; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 17px; line-height: 1.5; }
+.page { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 44px 100px; }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(34px, 5.4vw, 64px); font-weight: 800; line-height: 1.02; letter-spacing: -.02em; max-width: 16ch; }
+.intro { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px 48px; align-items: end; }
+@media (max-width: 900px) { .intro { grid-template-columns: minmax(0, 1fr); } }
+.intro p { margin: 0; font-size: 18px; max-width: 54ch; }
+.intro p + p { margin-top: 12px; color: var(--muted); }
+.kicker { font-family: var(--f-mono); font-size: 12px; color: var(--hl); margin-bottom: 14px; }
+
+.away { margin-top: 44px; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px 32px; align-items: center; padding: 20px; background: var(--paper); border-radius: 14px; }
+@media (max-width: 760px) { .away { grid-template-columns: minmax(0, 1fr); } }
+.away img { width: 100%; border-radius: 8px; border: 1px solid var(--line); display: block; }
+.away h3 { font-size: 20px; }
+.away p { margin: 6px 0 0; color: var(--muted); font-size: 16px; }
+.away .pct { font-family: var(--f-display); font-weight: 800; font-size: 44px; color: var(--risk); line-height: 1; }
+
+.found { margin-top: 56px; }
+.found h2 { font-size: 28px; font-weight: 800; }
+.lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0; margin-top: 16px; border-top: 2px solid var(--ink); }
+.lessons div { padding: 14px 16px 16px 0; border-bottom: 1px solid var(--line); }
+.lessons b { display: block; font-family: var(--f-display); font-size: 17px; }
+.lessons span { font-size: 15px; color: var(--muted); }
+
+.models { margin-top: 64px; display: grid; gap: 28px; }
+.models > h2 { font-size: 28px; font-weight: 800; }
+.model { background: var(--paper); border-radius: 18px; padding: 26px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 36px; }
+@media (max-width: 960px) { .model { grid-template-columns: minmax(0, 1fr); padding: 18px; } }
+.model header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+.model header .n { font-family: var(--f-mono); font-size: 14px; color: var(--hl); }
+.model header h3 { font-size: clamp(26px, 3.4vw, 38px); font-weight: 800; letter-spacing: -.01em; }
+.model header p { flex-basis: 100%; margin: 4px 0 0; font-size: 18px; max-width: 70ch; }
+.model.rec { box-shadow: 0 0 0 2px var(--hl); }
+.badge { font-family: var(--f-mono); font-size: 12px; background: var(--hl-bg); color: var(--hl); padding: 3px 8px; border-radius: 999px; }
+.wire { min-width: 0; }
+.wire svg { width: 100%; height: auto; display: block; background: var(--bg); border-radius: 12px; }
+.wire svg text { font-family: var(--f-body); fill: var(--ink); }
+.wire figcaption, .refs figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+.refs { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; }
+.refs figure { margin: 0; }
+.refs figure.wide { grid-column: 1 / -1; }
+.refs img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); }
+.facts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); }
+@media (max-width: 860px) { .facts { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 480px) { .facts { grid-template-columns: minmax(0, 1fr); } }
+.facts div { padding: 14px 16px 4px 0; min-width: 0; }
+.facts dt { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.facts dd { margin: 0; font-size: 15.5px; }
+.facts .good dd::before { content: "+ "; color: var(--ok); font-weight: 600; }
+.facts .bad dd::before { content: "– "; color: var(--risk); font-weight: 600; }
+
+.pick { margin-top: 60px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px 48px; padding: 28px; border-radius: 18px; background: var(--ink); color: var(--bg); }
+@media (max-width: 860px) { .pick { grid-template-columns: minmax(0, 1fr); } }
+.pick h2 { font-size: 28px; font-weight: 800; color: var(--bg); }
+.pick p { margin: 10px 0 0; }
+.pick ol { margin: 10px 0 0; padding-left: 20px; }
+.pick li + li { margin-top: 8px; }
+.pick b { color: var(--hl); }
+.src { margin-top: 28px; font-size: 14px; color: var(--muted); }
+
+.refs { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.refs figure.wide { grid-column: 1 / -1; }
+.refs figure.phone img { max-width: 220px; margin-inline: auto; }
+.side { min-width: 0; display: grid; gap: 12px; align-content: start; }
+.side h4 { margin: 0; font-family: var(--f-display); font-size: 18px; }
+.side ol { margin: 0; padding-left: 20px; font-size: 16px; }
+.side li + li { margin-top: 6px; }
+.open { display: inline-block; justify-self: start; font-family: var(--f-display); font-weight: 700; font-size: 17px; color: var(--paper); background: var(--ink); text-decoration: none; padding: 12px 18px; border-radius: 10px; }
+.open:hover { background: var(--hl); }
+.open:focus-visible { outline: 2px solid var(--hl); outline-offset: 3px; }
+.tx { margin: 0; font-size: 15px; color: var(--muted); }
+.facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.facts dd + dd { margin-top: 4px; }
+</style>
+<div class="page">
+  <div class="intro">
+    <div><div class="kicker">Lecture 1 · design round 3 · working prototypes</div>
+      <h1>Five ways to learn "Scaling the database"</h1></div>
+    <div><p>Each one is a working build of the same slice of the lecture, made from the 54-site research, not from earlier rounds. Open each one and use it: click, step, flip, turn the dial. All five carry every scaling item from the lecture (72 items), with fact-check corrections and sources.</p>
+      <p>Tell me which one to take forward, or which parts of several to combine.</p></div>
+  </div>
+  <section class="models">
+    <article class="model">
+  <header><span class="n">01</span><h3>Living Map</h3><p>Medium's architecture fills the screen. A 22-step tour changes it from one box to sharded databases, one sentence per step. Click any part for its card.</p></header>
+  <div class="refs">
+    <figure class="wide"><img src="img/01-living-map-d1.jpg" alt="Living Map: desktop, first screen"></figure>
+    <figure><img src="img/01-living-map-d2.jpg" alt="Living Map: desktop, interacted state"></figure>
+    <figure class="phone"><img src="img/01-living-map-m.jpg" alt="Living Map: phone"></figure>
+  </div>
+  <div class="side">
+    <h4>How to try it</h4><ol><li>Use ← → or the round buttons; drag the bar at the bottom to jump between chapters</li><li>Click a part on the map (the small +) to open its card</li><li>Try the sliders inside the cards: replicas needed, replica lag, users moved when a shard is added</li></ol>
+    <a class="open" href="01-living-map.html">Open Living Map</a>
+    <p class="tx"><b>Text on screen:</b> About 5% of the screen is text on the map, 17% with a card open</p>
+  </div>
+  <dl class="facts"><div class="good"><dt>Works</dt><dd>Builds the picture of the whole system the lecture is really teaching</dd><dd>Calm; easy to come back to as revision</dd></div><div class="bad"><dt>Weak</dt><dd>Some lines cross on the replica and shard steps; a dot sits on the CDN label</dd><dd>Cards are still dense</dd></div></dl>
+</article><article class="model">
+  <header><span class="n">02</span><h3>On-Call at Medium</h3><p>You are the engineer on call. Five incidents, from the 09:00 newsletter spike to sharding. Pick a move, watch the system react, then read the debrief.</p></header>
+  <div class="refs">
+    <figure class="wide"><img src="img/02-on-call-d1.jpg" alt="On-Call at Medium: desktop, first screen"></figure>
+    <figure><img src="img/02-on-call-d2.jpg" alt="On-Call at Medium: desktop, interacted state"></figure>
+    <figure class="phone"><img src="img/02-on-call-m.jpg" alt="On-Call at Medium: phone"></figure>
+  </div>
+  <div class="side">
+    <h4>How to try it</h4><ol><li>Pick a, b or c; wrong moves play out too, then you can retry</li><li>Open the debrief cards after each outcome</li><li>Tabs at the top jump between incidents; 'Shift log' shows what each one taught</li></ol>
+    <a class="open" href="02-on-call.html">Open On-Call at Medium</a>
+    <p class="tx"><b>Text on screen:</b> 6–10% on desktop, 13% on phone</p>
+  </div>
+  <dl class="facts"><div class="good"><dt>Works</dt><dd>Guessing before the answer is built in; the class's real wrong turns become moves with consequences</dd><dd>Most gripping of the five</dd></div><div class="bad"><dt>Weak</dt><dd>Incident details are invented (labelled as examples); the simulation is scripted</dd><dd>Debrief cards are dense; the 15-replica drawing is busy on phones</dd></div></dl>
+</article><article class="model">
+  <header><span class="n">03</span><h3>Episodes</h3><p>An illustrated episode, 'Too Many Readers'. Postgres, the API servers, the load balancer, replicas and shards are characters. Every panel flips to an engineer view.</p></header>
+  <div class="refs">
+    <figure class="wide"><img src="img/03-episodes-d1.jpg" alt="Episodes: desktop, first screen"></figure>
+    <figure><img src="img/03-episodes-d2.jpg" alt="Episodes: desktop, interacted state"></figure>
+    <figure class="phone"><img src="img/03-episodes-m.jpg" alt="Episodes: phone"></figure>
+  </div>
+  <div class="side">
+    <h4>How to try it</h4><ol><li>Click or press Enter on a panel to flip it to the engineer view</li><li>'Engineer view on every panel' flips them all</li><li>Ends with the real numbers and three recall questions</li></ol>
+    <a class="open" href="03-episodes.html">Open Episodes</a>
+    <p class="tx"><b>Text on screen:</b> 3–6% with panels unflipped, about 19% with two flipped</p>
+  </div>
+  <dl class="facts"><div class="good"><dt>Works</dt><dd>The most memorable and the most distinctive; nothing in system design teaching looks like it</dd><dd>Lowest text of the five</dd></div><div class="bad"><dt>Weak</dt><dd>On desktop a flipped panel stretches its row and leaves gaps</dd><dd>Characters are stiff next to real illustration; could feel junior to some readers</dd></div></dl>
+</article><article class="model">
+  <header><span class="n">04</span><h3>Plates</h3><p>22 full-screen plates, one idea each, in six colour themes. Each has one statement and one figure; detail opens behind '+' buttons. Five plates ask you to guess first.</p></header>
+  <div class="refs">
+    <figure class="wide"><img src="img/04-plates-d1.jpg" alt="Plates: desktop, first screen"></figure>
+    <figure><img src="img/04-plates-d2.jpg" alt="Plates: desktop, interacted state"></figure>
+    <figure class="phone"><img src="img/04-plates-m.jpg" alt="Plates: phone"></figure>
+  </div>
+  <div class="side">
+    <h4>How to try it</h4><ol><li>Scroll or swipe plate by plate, or use the arrows bottom right</li><li>Press the '+' buttons to open detail</li><li>'Next step' walks through each figure</li></ol>
+    <a class="open" href="04-plates.html">Open Plates</a>
+    <p class="tx"><b>Text on screen:</b> 0–8% running text; statements 5–11%</p>
+  </div>
+  <dl class="facts"><div class="good"><dt>Works</dt><dd>Calmest and the easiest to read on a phone</dd><dd>Big statements make the main idea of each plate unmissable</dd></div><div class="bad"><dt>Weak</dt><dd>On desktop the detail panel covers its figure</dd><dd>Can still feel like a slide deck</dd></div></dl>
+</article><article class="model">
+  <header><span class="n">05</span><h3>Scale Dial</h3><p>One dial from 10 to 1 million requests a second. As you turn it, Medium's architecture redraws and four gauges move: database CPU, connections, replica lag, cost.</p></header>
+  <div class="refs">
+    <figure class="wide"><img src="img/05-scale-dial-d1.jpg" alt="Scale Dial: desktop, first screen"></figure>
+    <figure><img src="img/05-scale-dial-d2.jpg" alt="Scale Dial: desktop, interacted state"></figure>
+    <figure class="phone"><img src="img/05-scale-dial-m.jpg" alt="Scale Dial: phone"></figure>
+  </div>
+  <div class="side">
+    <h4>How to try it</h4><ol><li>Drag the dial at the bottom, or use arrow keys and Page Up/Down</li><li>Switch reads:writes between 50:50, 90:10 and 99:1 and watch the stops move</li><li>'Open stop' shows broke / change / cost in a short card deck</li></ol>
+    <a class="open" href="05-scale-dial.html">Open Scale Dial</a>
+    <p class="tx"><b>Text on screen:</b> 6–12% on desktop, 9% on phone</p>
+  </div>
+  <dl class="facts"><div class="good"><dt>Works</dt><dd>One unforgettable control; shows why each change happens when it does</dd><dd>The read:write switch makes trade-offs tangible</dd></div><div class="bad"><dt>Weak</dt><dd>The toy model's assumed numbers are the most prominent ones (they are labelled)</dd><dd>Fits scaling and caching better than concurrency or protocols</dd></div></dl>
+</article>
+  </section>
+  <section class="pick">
+    <div><h2>What I'd do next</h2>
+      <p>These can combine. A strong full lecture could use <b>the Living Map as home</b> (the whole system, always visible), <b>On-Call incidents</b> as the exercises at the end of each topic, and <b>an Episode</b> to open each topic.</p>
+      <p>If you'd rather keep one model throughout, the Living Map or On-Call scale best to all five topics of the lecture.</p></div>
+    <div><h2>Known fixes before the full build</h2>
+      <ol><li>Clean up crossing lines and overlapping labels on the maps</li>
+        <li>Stop panels covering figures on desktop (Plates, Living Map cards)</li>
+        <li>Tighten dense cards and debriefs</li>
+        <li>Every invented number stays visibly labelled as an example</li></ol></div>
+  </section>
+</div>

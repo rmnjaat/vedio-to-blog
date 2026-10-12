@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On Call at Medium</title>
+<meta name="description" content="Lecture 1, scaling the database, played as five on-call pages at Medium.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..850&family=Martian+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: a fixed on-call desk. Top: pager strip with live metrics. Left: the live system (SVG + request dots). Right: the panel that holds the page, the moves, the outcome and the debrief stack. Phone: everything stacks; the system drawing switches to a portrait layout. */
+:root {
+  --paper: #f2eee4; --sheet: #fbf8f1; --ink: #1d1b16; --ink2: #5d574b; --rule: #d6cebd; --faint: #e7e0d1;
+  --acc: #2a43c4; --acc-soft: #dde2f6; --bad: #c4321c; --bad-soft: #f5d8cf; --load: #cfc5b0;
+  --strip: #1d1b16; --strip-ink: #f2eee4; --strip-ink2: #b4ac9b; --strip-bad: #ff8166; --strip-rule: #3b372e;
+  --f-ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "Martian Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #15140f; --sheet: #1e1c16; --ink: #ece5d5; --ink2: #a39b8a; --rule: #38342a; --faint: #28251d;
+  --acc: #9cabff; --acc-soft: #262c4a; --bad: #ff7d63; --bad-soft: #45231b; --load: #4b4639;
+  --strip: #0b0a07; --strip-ink: #ece5d5; --strip-ink2: #948c7b; --strip-bad: #ff8166; --strip-rule: #2c2920;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --paper: #15140f; --sheet: #1e1c16; --ink: #ece5d5; --ink2: #a39b8a; --rule: #38342a; --faint: #28251d;
+  --acc: #9cabff; --acc-soft: #262c4a; --bad: #ff7d63; --bad-soft: #45231b; --load: #4b4639;
+  --strip: #0b0a07; --strip-ink: #ece5d5; --strip-ink2: #948c7b; --strip-bad: #ff8166; --strip-rule: #2c2920;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-ui); font-size: 16px; line-height: 1.45; font-variation-settings: "wdth" 100; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--acc); outline-offset: 2px; border-radius: 3px; }
+.mono { font-family: var(--f-mono); font-size: .82em; font-variant-numeric: tabular-nums; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- top bar */
+.bar { display: flex; align-items: center; gap: 18px; padding: 0 20px; height: 54px; border-bottom: 1px solid var(--rule); background: var(--paper); }
+.brand { font-weight: 800; font-stretch: 80%; font-variation-settings: "wdth" 80; font-size: 19px; letter-spacing: -.01em; white-space: nowrap; background: none; border: 0; padding: 4px 0; }
+.brand span { color: var(--ink2); font-weight: 500; }
+.rail { display: flex; gap: 2px; margin-left: 12px; flex: 1; min-width: 0; }
+.rail button { border: 0; background: none; padding: 8px 10px 6px; font-size: 14px; color: var(--ink2); border-bottom: 3px solid transparent; white-space: nowrap; }
+.rail button .mono { font-size: 11px; margin-right: 6px; }
+.rail button.seen { color: var(--ink); }
+.rail button[aria-current="step"] { color: var(--ink); border-bottom-color: var(--acc); font-weight: 650; }
+.tools { display: flex; gap: 8px; margin-left: auto; }
+.tools button { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 11px; font-size: 14px; }
+
+/* ---------- desk */
+.desk { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(380px, 1fr); grid-template-rows: auto minmax(0, 1fr); height: calc(100vh - 54px); min-height: 640px; }
+.pager { grid-column: 1 / -1; background: var(--strip); color: var(--strip-ink); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 28px; align-items: center; padding: 12px 20px; }
+.pager .msg { display: flex; gap: 14px; align-items: baseline; min-width: 0; }
+.pager .when { font-family: var(--f-mono); font-size: 13px; color: var(--strip-ink2); white-space: nowrap; }
+.pager .what { font-size: 17px; font-weight: 600; font-variation-settings: "wdth" 88; }
+.pager .eg { font-family: var(--f-mono); font-size: 11px; color: var(--strip-ink2); border: 1px solid var(--strip-rule); border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+.metrics { display: flex; gap: 0; }
+.metric { padding: 0 16px; border-left: 1px solid var(--strip-rule); min-width: 118px; }
+.metric dt { font-size: 12px; color: var(--strip-ink2); }
+.metric dd { margin: 0; display: flex; align-items: center; gap: 8px; }
+.metric .v { font-family: var(--f-mono); font-size: 19px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.metric.bad .v { color: var(--strip-bad); }
+.metric svg { width: 48px; height: 18px; overflow: visible; }
+.metric svg path { fill: none; stroke: var(--strip-ink2); stroke-width: 1.4; }
+.metric.bad svg path { stroke: var(--strip-bad); }
+
+.stage-wrap { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 14px 20px 12px; }
+#stage { flex: 1; min-height: 0; width: 100%; height: 100%; }
+#stage text { font-family: var(--f-ui); fill: var(--ink); }
+#stage .lbl { font-size: 13px; fill: var(--ink2); }
+#stage .cpu { font-family: var(--f-mono); font-size: 12px; font-weight: 500; }
+#stage .wire { stroke: var(--rule); stroke-width: 1.6; fill: none; }
+#stage .wire.hot { stroke: var(--ink2); }
+#stage .repl { stroke: var(--ink2); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+#stage .repl.bad { stroke: var(--bad); }
+#stage .box { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.6; }
+#stage .box.hotbad { stroke: var(--bad); }
+#stage .fill { fill: var(--load); }
+#stage .fill.bad { fill: var(--bad-soft); }
+#stage .fill.badline { stroke: var(--bad); }
+#stage .ring { fill: none; stroke: var(--acc); stroke-width: 2; stroke-dasharray: 3 3; }
+#stage .num circle { fill: var(--acc); }
+#stage .num text { fill: var(--sheet); font-family: var(--f-mono); font-size: 12px; font-weight: 600; }
+#stage .dot-r { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.6; }
+#stage .dot-w { fill: var(--ink); }
+#stage .dot-own { fill: var(--acc); stroke: var(--acc); }
+#stage .x { stroke: var(--bad); stroke-width: 2.4; }
+#stage .note { font-family: var(--f-mono); font-size: 12px; fill: var(--ink2); }
+#stage .note.bad { fill: var(--bad); }
+#stage .ladder rect { fill: var(--load); }
+#stage .ladder rect.q { fill: none; stroke: var(--bad); stroke-dasharray: 3 3; }
+.stage-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 13px; color: var(--ink2); padding-top: 6px; }
+.stage-cap { flex-basis: 100%; min-height: 1.5em; font-size: 16px; color: var(--ink); font-weight: 550; display: flex; gap: 10px; align-items: baseline; }
+.stage-cap .n { flex: none; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--acc); color: var(--sheet); font-family: var(--f-mono); font-size: 12px; font-weight: 600; transform: translateY(-1px); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.legend svg { vertical-align: -3px; }
+.legend .g-r { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.6; }
+.legend .g-w { fill: var(--ink); }
+.legend .g-x { stroke: var(--bad); stroke-width: 2.2; }
+.legend .g-rep { fill: none; stroke: var(--ink); stroke-width: 1.4; stroke-dasharray: 3 2; }
+.motion { margin-left: auto; background: none; border: 1px solid var(--rule); border-radius: 5px; padding: 3px 9px; font-size: 13px; color: var(--ink2); }
+.toy-tag { font-family: var(--f-mono); font-size: 11px; color: var(--ink2); }
+
+/* ---------- panel */
+.panel { grid-column: 2; grid-row: 2; border-left: 1px solid var(--rule); background: var(--sheet); overflow-y: auto; min-height: 0; }
+.panel-in { padding: 22px 26px 30px; }
+.panel h1, .panel h2 { font-weight: 800; font-variation-settings: "wdth" 76; letter-spacing: -.012em; line-height: 1.02; margin: 0; text-wrap: balance; }
+.panel h1 { font-size: 46px; }
+.panel h2 { font-size: 34px; }
+.panel h3 { font-size: 20px; font-weight: 750; font-variation-settings: "wdth" 86; line-height: 1.15; margin: 0; text-wrap: balance; }
+.ask { font-size: 18px; font-weight: 600; margin: 14px 0 16px; max-width: 34ch; }
+.lede { font-size: 17px; margin: 14px 0 0; max-width: 40ch; }
+.lede + .lede { color: var(--ink2); font-size: 15px; margin-top: 8px; }
+.moves { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.move { width: 100%; text-align: left; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 2px 10px; align-items: start; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 8px; padding: 12px 14px; transition: transform .12s, box-shadow .12s; }
+.move:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 var(--ink); }
+.move .key { grid-row: span 2; font-family: var(--f-mono); font-size: 13px; border: 1.5px solid var(--ink); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; margin-top: 1px; }
+.move b { font-size: 17px; font-weight: 700; }
+.move small { font-size: 14px; color: var(--ink2); }
+.move.tried { border-style: dashed; }
+.move.tried small::after { content: " · tried"; font-family: var(--f-mono); font-size: 11px; }
+.primary, .secondary { border-radius: 7px; padding: 10px 16px; font-size: 15px; font-weight: 650; }
+.primary { background: var(--ink); color: var(--paper); border: 1.5px solid var(--ink); }
+.secondary { background: none; border: 1.5px solid var(--ink); }
+.linkish { background: none; border: 0; padding: 6px 0; font-size: 15px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink2); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
+.chose { font-size: 14px; color: var(--ink2); margin: 0 0 10px; }
+.chose b { color: var(--ink); }
+.beats { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.beats li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: 16px; opacity: .28; transition: opacity .3s; }
+.beats li.on { opacity: 1; }
+.beats li.past { opacity: .62; }
+.beats .n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--acc); color: var(--acc); font-family: var(--f-mono); font-size: 12px; font-weight: 600; margin-top: 1px; }
+.beats li.on .n { background: var(--acc); color: var(--sheet); }
+.verdict { margin-top: 20px; padding-top: 14px; border-top: 2px solid var(--ink); }
+.verdict .tag { font-family: var(--f-mono); font-size: 12px; color: var(--ink2); display: block; margin-bottom: 4px; }
+.verdict p { margin: 6px 0 0; font-size: 15px; color: var(--ink2); max-width: 44ch; }
+
+/* debrief card stack */
+.deb-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.deb-head .mono { color: var(--ink2); }
+.stack { position: relative; margin-top: 14px; }
+.stack::before, .stack::after { content: ""; position: absolute; left: 8px; right: -8px; top: 8px; bottom: -8px; border: 1.5px solid var(--rule); border-radius: 10px; background: var(--paper); z-index: 0; }
+.stack::after { left: 4px; right: -4px; top: 4px; bottom: -4px; }
+.stack.last::before { display: none; }
+.stack.last::after { display: none; }
+.card { position: relative; z-index: 1; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 10px; padding: 18px 18px 16px; }
+.card h3 { font-size: 22px; }
+.card p { margin: 10px 0 0; font-size: 15.5px; max-width: 52ch; }
+.card .fig { margin: 12px 0 2px; }
+.card .fig svg { width: 100%; height: auto; display: block; max-height: 190px; }
+.card .fig text { font-family: var(--f-ui); font-size: 13px; fill: var(--ink); }
+.card .fig .s { fill: var(--ink2); }
+.card .fig .m { font-family: var(--f-mono); font-size: 12px; }
+.card .fig .ln { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+.card .fig .ln2 { stroke: var(--ink2); stroke-width: 1.3; fill: none; }
+.card .fig .dash { stroke: var(--ink2); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+.card .fig .acc { stroke: var(--acc); fill: none; stroke-width: 2; }
+.card .fig .accf { fill: var(--acc); }
+.card .fig .badl { stroke: var(--bad); fill: none; stroke-width: 2; }
+.card .fig .badf { fill: var(--bad); }
+.card .fig .badsoft { fill: var(--bad-soft); }
+.card .fig .shape { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.6; }
+.card .fig .shape.dash2 { stroke-dasharray: 4 3; }
+.card .fig .load { fill: var(--load); }
+.card .fig .accsoft { fill: var(--acc-soft); }
+.card pre { margin: 12px 0 0; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+.card pre .c { color: var(--ink2); }
+.card pre .h { color: var(--acc); font-weight: 600; }
+.qa { margin: 12px 0 0; padding: 8px 0 0 12px; border-left: 3px solid var(--ink); font-size: 14.5px; }
+.qa b { font-weight: 650; }
+.qa .mono { color: var(--ink2); }
+.precise { margin: 12px 0 0; padding: 8px 10px; background: var(--acc-soft); border-radius: 6px; font-size: 14px; }
+.precise b { font-weight: 700; color: var(--acc); }
+.precise a { color: var(--ink); }
+.src { margin: 10px 0 0; font-size: 12px; color: var(--ink2); font-family: var(--f-mono); }
+.stack-nav { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.stack-nav .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.stack-nav .tabs button { width: 30px; height: 30px; border-radius: 6px; border: 1.5px solid var(--rule); background: var(--sheet); font-family: var(--f-mono); font-size: 12px; }
+.stack-nav .tabs button[aria-current="true"] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.stack-nav .arrow { width: 38px; height: 34px; border-radius: 6px; border: 1.5px solid var(--ink); background: none; font-size: 17px; }
+.stack-nav .arrow:disabled { opacity: .3; cursor: default; }
+.big { font-family: var(--f-mono); font-weight: 500; font-size: 40px; line-height: 1; letter-spacing: -.03em; }
+
+/* toys */
+.toy { margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--ink2); border-radius: 8px; }
+.toy label { font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toy input[type=range] { flex: 1; min-width: 140px; accent-color: var(--acc); }
+.toy output { font-family: var(--f-mono); font-size: 14px; }
+.toy .boxes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.toy .boxes i { width: 16px; height: 12px; border: 1.5px solid var(--ink); border-radius: 2px; display: block; }
+.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: none; padding: 5px 10px; font-size: 13.5px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.shardcols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.shardcols div { border: 1.5px solid var(--ink); border-radius: 6px; padding: 6px; min-height: 92px; }
+.shardcols div.off { border-style: dashed; border-color: var(--rule); }
+.shardcols h4 { margin: 0 0 4px; font-family: var(--f-mono); font-size: 11px; font-weight: 500; color: var(--ink2); }
+.shardcols span { display: inline-block; font-family: var(--f-mono); font-size: 11px; padding: 1px 3px; margin: 1px; border: 1px solid var(--rule); border-radius: 3px; }
+.shardcols span.mv { border-color: var(--acc); background: var(--acc-soft); color: var(--ink); }
+.toy .out { margin-top: 8px; font-size: 14px; }
+
+/* run log */
+.log { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14.5px; }
+.log th { text-align: left; font-size: 12px; color: var(--ink2); font-weight: 500; padding: 0 8px 6px 0; border-bottom: 2px solid var(--ink); }
+.log td { vertical-align: top; padding: 10px 8px 10px 0; border-bottom: 1px solid var(--rule); }
+.log td:first-child { font-weight: 700; width: 28%; }
+.log .tries { font-family: var(--f-mono); font-size: 12px; color: var(--ink2); display: block; margin-top: 3px; font-weight: 400; }
+.log button { background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 2px; font-size: 14.5px; text-align: left; }
+
+/* notes */
+dialog#notes { width: min(820px, 100vw - 24px); max-height: calc(100vh - 40px); border: 1.5px solid var(--ink); border-radius: 12px; background: var(--sheet); color: var(--ink); padding: 0; }
+dialog#notes::backdrop { background: rgba(20, 18, 14, .5); }
+.notes-in { padding: 22px 26px 36px; }
+.notes-in header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; position: sticky; top: 0; background: var(--sheet); padding: 6px 0 10px; z-index: 2; border-bottom: 1px solid var(--rule); }
+.notes-in h2 { font-size: 30px; font-weight: 800; font-variation-settings: "wdth" 76; margin: 0; }
+.notes-in h3.inc { font-size: 22px; font-weight: 800; font-variation-settings: "wdth" 80; margin: 26px 0 10px; }
+.notes-in .card { margin-bottom: 12px; }
+
+/* ---------- phone */
+@media (max-width: 860px) {
+  .bar { height: auto; flex-wrap: wrap; padding: 8px 16px 0; gap: 4px 10px; }
+  .rail { order: 3; flex-basis: 100%; margin: 0 -16px; padding: 0 10px; overflow-x: auto; scrollbar-width: none; }
+  .rail button { padding: 8px 8px 7px; font-size: 13px; }
+  .desk { display: block; height: auto; min-height: 0; }
+  .pager { grid-template-columns: minmax(0, 1fr); padding: 12px 16px; }
+  .pager .msg { flex-wrap: wrap; gap: 4px 10px; }
+  .pager .what { font-size: 16px; flex-basis: 100%; order: 3; }
+  .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 0; }
+  .metric { min-width: 0; padding: 0 10px; }
+  .metric:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .metric .v { font-size: 17px; }
+  .stage-wrap { padding: 8px 12px 10px; }
+  #stage { height: auto; flex: none; }
+  .stage-cap { font-size: 15px; }
+  .panel { border-left: 0; border-top: 1px solid var(--rule); overflow: visible; }
+  .panel-in { padding: 20px 16px 40px; }
+  .panel h1 { font-size: 40px; }
+  .panel h2 { font-size: 30px; }
+  .card { padding: 16px 14px 14px; }
+  .card h3 { font-size: 20px; }
+  .log td:first-child { width: 34%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .move, .beats li { transition: none; }
+  .move:hover { transform: none; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <button class="brand" id="home" title="Back to the start of the shift">On call <span>· Medium</span></button>
+  <nav class="rail" id="rail" aria-label="Incidents"></nav>
+  <div class="tools">
+    <button id="notesBtn" aria-haspopup="dialog">Notes</button>
+    <button id="themeBtn" aria-label="Switch colour theme">Dark</button>
+  </div>
+</header>
+
+<main class="desk">
+  <section class="pager" aria-label="Pager">
+    <div class="msg"><span class="when" id="when"></span><span class="eg" id="eg">example incident</span><span class="what" id="what"></span></div>
+    <dl class="metrics" id="metrics"></dl>
+  </section>
+
+  <section class="stage-wrap" aria-label="Live system">
+    <svg id="stage" role="img" aria-labelledby="stageDesc"><desc id="stageDesc">The system right now.</desc>
+      <g id="lWires"></g><g id="lNodes"></g><g id="lDots"></g><g id="lMarks"></g>
+    </svg>
+    <div class="stage-foot">
+      <div class="stage-cap" id="cap" aria-live="polite"></div>
+      <div class="legend" aria-hidden="true">
+        <span><svg width="12" height="12"><circle class="g-r" cx="6" cy="6" r="4"/></svg> read</span>
+        <span><svg width="12" height="12"><rect class="g-w" x="2" y="2" width="8" height="8"/></svg> write</span>
+        <span><svg width="12" height="12"><path class="g-x" d="M2 2L10 10M10 2L2 10"/></svg> failed</span>
+        <span><svg width="14" height="16"><ellipse class="g-rep" cx="7" cy="3.5" rx="5.5" ry="2"/><path class="g-rep" d="M1.5 3.5V12.5A5.5 2 0 0 0 12.5 12.5V3.5"/></svg> replica</span>
+        <span class="toy-tag">toy model</span>
+      </div>
+      <button class="motion" id="motionBtn" aria-pressed="false">Pause motion</button>
+    </div>
+  </section>
+
+  <aside class="panel" id="panel" aria-live="polite"><div class="panel-in" id="panelIn"></div></aside>
+</main>
+
+<dialog id="notes" aria-labelledby="notesTitle"><div class="notes-in">
+  <header><h2 id="notesTitle">Every debrief, in order</h2><button class="secondary" id="notesClose">Close</button></header>
+  <div id="notesBody"></div>
+</div></dialog>
+
+<script>
+(() => {
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, attrs = {}, html) => { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (html != null) e.innerHTML = html; return e; };
+const NS = "http://www.w3.org/2000/svg";
+const sv = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+const RM = window.matchMedia("(prefers-reduced-motion: reduce)");
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const NUM = ["①", "②", "③", "④"];
+
+/* ================= system states (toy model) ================= */
+// u = position along the request flow inside the data area (0 near the API tier, 1 far), v = position across (0..1)
+const N = (id, kind, u, v, util, x = {}) => Object.assign({ id, kind, u, v, util }, x);
+const st = (o) => Object.assign({ api: 3, apiU: .3, nodes: [], reads: {}, writes: {}, rate: 1, rf: .9, links: [], marks: [], focus: null }, o);
+const M1 = (util, size, x = {}) => N("m", "master", .12, .2, util, Object.assign({ label: "master", size }, x));
+const reps = (n, util, parent = "m", u = .62, v0 = .44, v1 = .96) => Array.from({ length: n }, (_, i) => N("r" + (i + 1), "replica", u, n === 1 ? (v0 + v1) / 2 : v0 + (v1 - v0) * i / (n - 1), Array.isArray(util) ? util[i] : util, { parent, label: "replica" }));
+const even = (ids) => Object.fromEntries(ids.map((i) => [i, 1]));
+const pulls = (ids, to = "m") => ids.map((i) => ({ from: i, to, kind: "pull" }));
+
+/* ---------- Incident 1 */
+const i1start = st({ api: 3, apiU: .41, rate: 1.7, nodes: [M1(.98, "32 GB")], reads: { m: 1 }, writes: { m: 1 } });
+const i1fixed = st({ api: 3, apiU: .41, rate: 1.7, nodes: [M1(.55, "64 GB")], reads: { m: 1 }, writes: { m: 1 } });
+/* ---------- Incident 2 */
+const i2start = st({ api: 6, apiU: .5, rate: 1.4, nodes: [M1(.91, "4 TB")], reads: { m: 1 }, writes: { m: 1 }, marks: [{ type: "ladder", node: "m" }] });
+const i2rep = (mu, ru, routed) => st({ api: 6, apiU: .5, rate: 1.4, nodes: [M1(mu, "4 TB"), ...reps(2, ru)], reads: routed ? even(["r1", "r2"]) : { m: 1 }, writes: { m: 1 }, links: pulls(["r1", "r2"]) });
+const shards3 = (util, x = {}) => [0, 1, 2].map((i) => N("s" + i, "master", .12, [.12, .5, .88][i], util, Object.assign({ label: "shard " + i, size: "⅓ users" }, x)));
+/* ---------- Incident 3 */
+const i3base = (o = {}) => st(Object.assign({ api: 6, apiU: .45, rate: 1.3, nodes: [M1(.24, "4 TB"), ...reps(2, .42)], reads: even(["r1", "r2"]), writes: { m: 1 }, links: pulls(["r1", "r2"]) }, o));
+/* ---------- Incident 4 */
+const i4base = (mu, ru, o = {}) => st(Object.assign({ api: 12, apiU: .5, rate: 2, nodes: [M1(mu, "4 TB"), ...reps(5, ru)], reads: even(["r1", "r2", "r3", "r4", "r5"]), writes: { m: 1 }, links: pulls(["r1", "r2", "r3", "r4", "r5"]) }, o));
+function i4wide(mu) { const r = reps(15, .3, "m", .62, .4, .98); r.forEach((n, i) => { n.util = i < 5 ? .35 : .28; }); return st({ api: 12, apiU: .5, rate: 2, nodes: [M1(mu, "4 TB"), ...r], reads: even(r.map((n) => n.id)), writes: { m: 1 }, links: pulls(r.map((n) => n.id)), marks: [{ type: "note", node: "r15", text: "15 replicas", side: "after" }] }); }
+function i4tree() {
+  const top = reps(5, .42, "m", .5, .42, .96);
+  const kids = [];
+  top.forEach((p, i) => { [-.045, .045].forEach((d, j) => kids.push(N("c" + i + j, "replica", .93, p.v + d, .4, { parent: p.id, label: "replica" }))); });
+  return st({ api: 12, apiU: .5, rate: 2, nodes: [M1(.62, "4 TB"), ...top, ...kids], reads: even([...top, ...kids].map((n) => n.id)), writes: { m: 1 }, links: [...pulls(top.map((n) => n.id)), ...kids.map((k) => ({ from: k.id, to: k.parent, kind: "pull2" }))] });
+}
+function i4cache(ru, cacheShare) { const s = i4base(.62, ru); s.nodes.push(N("k", "cache", .62, .12, .5, { label: "cache" })); const r = {}; ["r1", "r2", "r3", "r4", "r5"].forEach((i) => r[i] = (1 - cacheShare) / 5); r.k = cacheShare; s.reads = r; return s; }
+/* ---------- Incident 5 */
+const i5start = st({ api: 12, apiU: .55, rate: 1.8, rf: .55, nodes: [M1(.94, "4 TB"), ...reps(3, .4)], reads: even(["r1", "r2", "r3"]), writes: { m: 1 }, links: pulls(["r1", "r2", "r3"]) });
+function i5mm(conflict) { return st({ api: 12, apiU: .55, rate: 1.8, rf: .55, nodes: [N("m", "master", .12, .18, .52, { label: "master A", size: "4 TB" }), N("m2", "master", .12, .62, .5, { label: "master B", size: "4 TB" })], reads: { m: 1, m2: 1 }, writes: { m: 1, m2: 1 }, links: [{ from: "m", to: "m2", kind: conflict ? "conflict" : "sync" }] }); }
+function i5vert() { return st({ api: 12, apiU: .55, rate: 1.8, rf: .55, nodes: [N("m", "master", .12, .2, .71, { label: "30 tables", size: "posts…" }), N("m2", "master", .12, .72, .26, { label: "70 tables", size: "the rest" })], reads: { m: 3, m2: 1 }, writes: { m: 3, m2: 1 } }); }
+function i5shard(withReps) {
+  const s = shards3(.33);
+  const nodes = [...s]; const links = []; const reads = {}; const writes = {};
+  s.forEach((m) => { writes[m.id] = 1; reads[m.id] = 1; if (withReps) { const r = N("r" + m.id, "replica", .62, m.v + .1, .3, { parent: m.id, label: "replica" }); nodes.push(r); links.push({ from: r.id, to: m.id, kind: "pull" }); reads[r.id] = 2; reads[m.id] = 0; } });
+  return st({ api: 12, apiU: .55, rate: 1.8, rf: .55, nodes, reads, writes, links });
+}
+
+/* ================= metrics ================= */
+const fmt = {
+  pct: (v) => Math.round(v) + "%",
+  ms: (v) => v >= 1000 ? (v / 1000).toFixed(1) + " s" : Math.round(v) + " ms",
+  n: (v) => Math.round(v).toLocaleString("en-US"),
+  s: (v) => v.toFixed(1) + " s",
+  txt: (v) => String(v)
+};
+
+/* ================= figures for debrief cards ================= */
+const cyl = (x, y, w, h, cls = "shape", lab = "") => { const ry = Math.max(3, h * .16); return `<path class="${cls}" d="M${x - w / 2} ${y - h / 2 + ry} A${w / 2} ${ry} 0 0 1 ${x + w / 2} ${y - h / 2 + ry} V${y + h / 2 - ry} A${w / 2} ${ry} 0 0 1 ${x - w / 2} ${y + h / 2 - ry} Z"/><path class="${cls}" d="M${x - w / 2} ${y - h / 2 + ry} A${w / 2} ${ry} 0 0 0 ${x + w / 2} ${y - h / 2 + ry}"/>` + (lab ? `<text x="${x}" y="${y + h / 2 + 15}" text-anchor="middle">${lab}</text>` : ""); };
+const arrowDef = (id, cls = "") => `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:${cls || "var(--ink)"}"/></marker></defs>`;
+const FIG = {
+  together: () => `<svg viewBox="0 0 440 120" aria-label="The same 40 requests spread over a day, then arriving within one minute">
+    <text x="0" y="20" class="s">spread over a day</text>${Array.from({ length: 40 }, (_, i) => `<line class="ln2" x1="${14 + i * 10.5}" x2="${14 + i * 10.5}" y1="32" y2="46"/>`).join("")}
+    <text x="0" y="78" class="s">same 40, inside one minute</text>${Array.from({ length: 40 }, (_, i) => `<line class="badl" style="stroke-width:1.4" x1="${300 + i * 2.2}" x2="${300 + i * 2.2}" y1="90" y2="112"/>`).join("")}
+    <line class="ln2" x1="10" x2="430" y1="112" y2="112"/></svg>`,
+  hulk: () => `<svg viewBox="0 0 440 150" aria-label="Hulk: one bigger machine. Minions: more machines">
+    ${cyl(70, 70, 92, 96)}<text x="70" y="140" text-anchor="middle" font-weight="700">Hulk</text><text x="70" y="74" text-anchor="middle" class="s">CPU RAM disk ↑</text>
+    ${cyl(250, 80, 40, 46)}${cyl(310, 80, 40, 46)}${cyl(370, 80, 40, 46)}<text x="310" y="140" text-anchor="middle" font-weight="700">Minions</text><text x="310" y="40" text-anchor="middle" class="s">more machines</text></svg>`,
+  bottomup: () => `<svg viewBox="0 0 440 150" aria-label="User, API, DB. Scale the DB first, then the API servers">
+    <circle class="shape" cx="26" cy="46" r="9"/><path class="ln" d="M26 55V78M14 64H38M26 78L16 94M26 78L36 94"/>
+    <line class="ln" x1="46" x2="150" y1="62" y2="62"/><rect class="shape" x="150" y="44" width="92" height="36" rx="4"/><text x="196" y="67" text-anchor="middle" class="m">API</text>
+    <line class="ln" x1="242" x2="340" y1="62" y2="62"/>${cyl(370, 62, 46, 50)}<text x="370" y="66" text-anchor="middle" class="m">DB</text>
+    <path class="acc" d="M370 96V112"/><text x="370" y="132" text-anchor="middle" font-weight="700" style="fill:var(--acc)">① scale DB first</text>
+    <path class="ln2" d="M196 88V112"/><text x="196" y="132" text-anchor="middle">② then API servers</text></svg>`,
+  autoscale: () => `<svg viewBox="0 0 440 150" aria-label="Traffic jumps at once; capacity added by autoscaling arrives in steps, minutes later. The gap is failed requests">
+    ${arrowDef("a1")}<line class="ln2" x1="30" y1="130" x2="430" y2="130" marker-end="url(#a1)"/><line class="ln2" x1="30" y1="130" x2="30" y2="10" marker-end="url(#a1)"/>
+    <path class="badsoft" d="M120 30H330V60H270V80H200V100H120Z"/>
+    <path class="ln" d="M30 110H120V30H420"/><text x="300" y="22" text-anchor="end">traffic</text>
+    <path class="acc" d="M30 100H200V80H270V60H330V30H420"/><text x="410" y="52" text-anchor="end" style="fill:var(--acc)">capacity</text>
+    <text x="160" y="72" text-anchor="middle" style="fill:var(--bad)">failed</text>
+    <text x="120" y="146" text-anchor="middle" class="s">push sent</text><text x="330" y="146" text-anchor="middle" class="s">minutes later</text></svg>`,
+  curve: () => `<svg viewBox="0 0 440 140" aria-label="A good scaling plan: scale vertically first, then horizontally">
+    <path class="ln2" d="M30 10V120H330"/><path class="acc" style="stroke-width:3" d="M34 118C60 40 80 34 120 32S300 30 320 30"/>
+    <text x="60" y="76">scale vertically</text><text x="200" y="22">then horizontally</text>
+    <rect class="shape" style="stroke:var(--bad)" x="340" y="44" width="96" height="48" rx="4"/><text x="388" y="64" text-anchor="middle">no premature</text><text x="388" y="82" text-anchor="middle">optimization</text></svg>`,
+  ladder: () => { const s = ["16 GB", "32", "64", "128", "256", "512", "1 TB", "2", "4 TB"]; return `<svg viewBox="0 0 440 140" aria-label="Machine sizes from 16 GB to 4 TB; there is no next size">
+    ${s.map((t, i) => `<rect class="load" x="${12 + i * 42}" y="${110 - (14 + i * 10.5)}" width="30" height="${14 + i * 10.5}"/><text x="${27 + i * 42}" y="128" text-anchor="middle" class="m">${t}</text>`).join("")}
+    <rect class="badl" style="stroke-dasharray:4 3" x="390" y="10" width="30" height="100"/><text x="405" y="64" text-anchor="middle" style="fill:var(--bad)" font-weight="700">?</text></svg>`; },
+  sd: () => `<svg viewBox="0 0 440 90" aria-label="A phone slot rated 256 GB does not recognise a 512 GB card">
+    <rect class="shape" x="10" y="10" width="120" height="66" rx="8"/><rect class="load" x="38" y="44" width="64" height="18" rx="2"/><text x="70" y="34" text-anchor="middle" class="m">slot ≤ 256 GB</text>
+    <path class="shape" d="M190 26h56l12 12v30h-68z"/><text x="224" y="58" text-anchor="middle" class="m">512 GB</text>
+    <path class="badl" d="M150 40l22 22M172 40l-22 22"/><text x="270" y="44">not recognised:</text><text x="270" y="62">the interface, not the shop</text></svg>`,
+  split: () => `<svg viewBox="0 0 440 76" aria-label="Reads versus writes"><rect class="load" id="splitR" x="0" y="20" width="396" height="30"/><rect class="accsoft" style="stroke:var(--acc)" id="splitW" x="396" y="20" width="44" height="30"/><text x="10" y="40" id="splitRt">reads 90%</text><text x="436" y="68" text-anchor="end" id="splitWt" style="fill:var(--acc)">writes 10%</text></svg>`,
+  replicas: () => `<svg viewBox="0 0 440 170" aria-label="API sends writes to the master and reads to replicas; replicas pull changes from the master">${arrowDef("a2")}${arrowDef("a3", "var(--ink2)")}
+    <rect class="shape" x="20" y="64" width="80" height="34" rx="4"/><text x="60" y="86" text-anchor="middle" class="m">API</text>
+    <path class="ln" d="M100 74H176" marker-end="url(#a2)"/><text x="138" y="66" text-anchor="middle" class="s">writes</text>
+    <path class="ln" d="M100 90H140V140H296" marker-end="url(#a2)"/><text x="196" y="134" class="s">reads</text>
+    ${cyl(210, 74, 52, 56)}<text x="210" y="78" text-anchor="middle" class="m">master</text>
+    ${cyl(330, 46, 46, 44, "shape dash2")}${cyl(330, 132, 46, 44, "shape dash2")}<path class="ln" d="M296 140H306"/>
+    <path class="dash" d="M354 46H384V132H354M384 46V20H210V44" marker-end="url(#a3)"/><text x="296" y="14" text-anchor="middle" class="s">replicas pull (async)</text></svg>`,
+  pull: () => `<svg viewBox="0 0 440 128" aria-label="The replica asks the master for changes since a position; the master then streams changes over that connection">${arrowDef("a4")}${arrowDef("a5", "var(--ink2)")}
+    ${cyl(60, 62, 56, 60)}<text x="60" y="66" text-anchor="middle" class="m">master</text>${cyl(380, 62, 56, 60, "shape dash2")}<text x="380" y="66" text-anchor="middle" class="m">replica</text>
+    <path class="ln" d="M348 46H94" marker-end="url(#a4)"/><text x="220" y="38" text-anchor="middle">① "changes after position 812?"</text>
+    <path class="dash" d="M94 82H348" marker-end="url(#a5)"/><text x="220" y="104" text-anchor="middle" class="s">② events flow back on that same connection</text></svg>`,
+  lag: () => `<svg viewBox="0 0 440 150" aria-label="Timeline: the write lands on the master at time zero, a read from the replica at 0.5 s returns the old value, the replica catches up at 1.8 s">${arrowDef("a6")}${arrowDef("a7", "var(--ink2)")}
+    <text x="0" y="30" class="s">writer</text><text x="0" y="78" class="s">master</text><text x="0" y="126" class="s">replica</text>
+    <line class="ln2" x1="64" x2="430" y1="74" y2="74"/><line class="ln2" x1="64" x2="430" y1="122" y2="122"/><line class="ln2" x1="64" x2="430" y1="26" y2="26"/>
+    <path class="ln" d="M90 26V70" marker-end="url(#a6)"/><text x="96" y="50">publish → 75</text>
+    <path class="dash" d="M96 78L320 118" marker-end="url(#a7)"/><text x="330" y="112" class="s">replica = 75 at 1.8 s</text>
+    <path class="badl" d="M180 26V118" marker-end="url(#a6)"/><text x="186" y="50" style="fill:var(--bad)">read profile → 74</text>
+    <text x="86" y="146" class="m s">0 s</text><text x="172" y="146" class="m s">0.5 s</text></svg>`,
+  bank: () => `<svg viewBox="0 0 440 120" aria-label="Profile reads can go to a replica; balance reads must go to the master">${arrowDef("a8")}
+    <text x="0" y="34" font-weight="700">profile</text><path class="ln" d="M70 30H250" marker-end="url(#a8)"/>${cyl(286, 30, 44, 40, "shape dash2")}<text x="318" y="34">replica: fine if a second old</text>
+    <text x="0" y="96" font-weight="700">balance</text><path class="acc" d="M70 92H250" marker-end="url(#a8)"/>${cyl(286, 92, 44, 40)}<text x="318" y="96">master: must be current</text></svg>`,
+  proxy: () => `<svg viewBox="0 0 440 120" aria-label="With one connection string, a proxy layer routes to master and replicas">${arrowDef("a9")}
+    <rect class="shape" x="10" y="44" width="70" height="32" rx="4"/><text x="45" y="65" text-anchor="middle" class="m">API</text>
+    <path class="ln" d="M80 60H150" marker-end="url(#a9)"/><text x="115" y="50" text-anchor="middle" class="m s">1 URL</text>
+    <rect class="shape" x="150" y="36" width="90" height="48" rx="4"/><text x="195" y="65" text-anchor="middle">proxy</text>
+    <path class="ln" d="M240 50H300V28H330M240 70H300V96H330"/>${cyl(356, 28, 40, 34)}${cyl(356, 96, 40, 34, "shape dash2")}${cyl(408, 96, 40, 34, "shape dash2")}</svg>`,
+  pools: () => `<svg viewBox="0 0 440 130" aria-label="One API server keeps a separate connection pool for each database">
+    <rect class="shape" x="10" y="20" width="150" height="90" rx="4"/><text x="20" y="40" class="m">API server</text>
+    ${[0, 1, 2].map((i) => `<g>${[0, 1, 2, 3].map((j) => `<rect class="load" x="${24 + j * 14}" y="${54 + i * 18}" width="10" height="12"/>`).join("")}<text x="88" y="${64 + i * 18}" class="m s">pool ${i + 1}</text><path class="ln2" d="M160 ${60 + i * 18}H${300}V${22 + i * 44}H330"/>${cyl(354, 22 + i * 44, 40, 32)}</g>`).join("")}</svg>`,
+  tax: () => { const bar = (y, w, n, lab) => `<text x="0" y="${y + 18}" class="s">${lab}</text><rect class="load" x="110" y="${y}" width="${w}" height="26"/>${Array.from({ length: n }, (_, i) => `<rect class="accsoft" style="stroke:var(--acc)" x="${110 + w + i * 19}" y="${y}" width="19" height="26"/>`).join("")}`; return `<svg viewBox="0 0 440 112" aria-label="Master CPU: writes plus a slice per replica">${bar(10, 120, 5, "5 replicas")}${bar(54, 120, 15, "15 replicas")}<text x="110" y="104" class="s">writes</text><text x="236" y="104" style="fill:var(--acc)">+ one slice per replica pulling changes</text></svg>`; },
+  tree: () => { let s = `<svg viewBox="0 0 440 150" aria-label="One master, five replicas, each feeding two more: fifteen replicas, five of them on the master">${arrowDef("b1", "var(--ink2)")}${cyl(40, 75, 44, 46)}<text x="40" y="136" text-anchor="middle" class="m s">master</text>`; for (let i = 0; i < 5; i++) { const y = 15 + i * 30; s += `<path class="dash" d="M154 ${y}H100V75H64" marker-end="url(#b1)"/>` + cyl(176, y, 34, 24, "shape dash2"); for (let j = 0; j < 2; j++) { const x = 270 + j * 54; s += `<path class="dash" d="M${x - 16} ${y}H${x - 54 + 28}" />` + cyl(x, y, 30, 22, "shape dash2"); } } return s + `<text x="430" y="146" text-anchor="end" class="m s">5 + 10 = 15</text></svg>`; },
+  failover: () => `<svg viewBox="0 0 440 120" aria-label="The master fails and a replica is promoted to master">
+    ${cyl(60, 56, 52, 56)}<path class="badl" d="M38 34l44 44M82 34l-44 44"/><text x="60" y="108" text-anchor="middle" class="s">master down</text>
+    ${cyl(230, 56, 52, 56, "shape dash2")}<text x="230" y="108" text-anchor="middle" class="s">replica</text>
+    <path class="acc" d="M262 56H330" /><path class="accf" d="M330 50l10 6-10 6z"/>${cyl(380, 56, 52, 56)}<text x="380" y="108" text-anchor="middle" style="fill:var(--acc)">promoted</text></svg>`,
+  shards: () => { const rows = Array.from({ length: 9 }, (_, i) => i); return `<svg viewBox="0 0 440 150" aria-label="Rows split into three exclusive subsets, one per shard; not three copies">
+    ${rows.map((i) => `<rect class="${["load", "accsoft", "shape"][i % 3]}" x="10" y="${8 + i * 14}" width="110" height="12"/><text x="16" y="${18 + i * 14}" class="m" style="font-size:10px">user ${101 + i}</text>`).join("")}
+    ${[0, 1, 2].map((k) => `<path class="ln2" d="M126 ${70}H170V${30 + k * 45}H200"/>${cyl(226, 30 + k * 45, 44, 36)}<text x="256" y="${34 + k * 45}" class="m">shard ${k}: ${[0, 1, 2].map((j) => 101 + k + j * 3).join(", ")}</text>`).join("")}
+    </svg>`; },
+  hotkey: () => `<svg viewBox="0 0 440 130" aria-label="Writes per shard: even when sharded by user id, all on the newest shard when sharded by creation date">
+    <text x="0" y="16" font-weight="700">by user_id</text>${[0, 1, 2].map((i) => `<rect class="load" x="${20 + i * 60}" y="${116 - 60}" width="40" height="60"/><text x="${40 + i * 60}" y="128" text-anchor="middle" class="m s">s${i}</text>`).join("")}
+    <text x="240" y="16" font-weight="700">by created_at</text>${[0, 1, 2].map((i) => `<rect class="${i === 2 ? "badsoft" : "load"}" style="${i === 2 ? "stroke:var(--bad)" : ""}" x="${260 + i * 60}" y="${116 - (i === 2 ? 96 : 4)}" width="40" height="${i === 2 ? 96 : 4}"/><text x="${280 + i * 60}" y="128" text-anchor="middle" class="m s">${["2024", "2025", "now"][i]}</text>`).join("")}</svg>`,
+  multimaster: () => `<svg viewBox="0 0 440 120" aria-label="Two masters both accept an edit to the same post; which one wins?">${arrowDef("b2", "var(--ink2)")}
+    ${cyl(70, 56, 56, 60)}<text x="70" y="60" text-anchor="middle" class="m">A</text>${cyl(370, 56, 56, 60)}<text x="370" y="60" text-anchor="middle" class="m">B</text>
+    <path class="dash" d="M104 44H336" marker-end="url(#b2)"/><path class="dash" d="M336 70H104" marker-end="url(#b2)"/>
+    <path class="badl" d="M208 46l24 24M232 46l-24 24"/><text x="70" y="108" text-anchor="middle" class="s">title = "v2"</text><text x="370" y="108" text-anchor="middle" class="s">title = "v3"</text><text x="220" y="30" text-anchor="middle" style="fill:var(--bad)">which wins?</text></svg>`,
+  vsplit: () => `<svg viewBox="0 0 440 110" aria-label="100 tables split by table: 30 to one database, 70 to another">
+    ${Array.from({ length: 100 }, (_, i) => `<rect class="${i < 30 ? "accsoft" : "load"}" style="${i === 0 ? "stroke:var(--bad);stroke-width:1.5" : ""}" x="${10 + (i % 20) * 11}" y="${10 + Math.floor(i / 20) * 11}" width="9" height="9"/>`).join("")}
+    <text x="10" y="80" class="s">100 tables</text><text x="10" y="98" style="fill:var(--bad)">posts: still one table on one box</text>
+    ${cyl(300, 40, 46, 50)}<text x="300" y="82" text-anchor="middle" class="m">30</text>${cyl(380, 40, 46, 50)}<text x="380" y="82" text-anchor="middle" class="m">70</text></svg>`,
+  cluster: () => `<svg viewBox="0 0 440 120" aria-label="A vendor cluster looks like one database to the app, but holds data on several nodes">${arrowDef("b3")}
+    <rect class="shape" x="10" y="42" width="70" height="32" rx="4"/><text x="45" y="63" text-anchor="middle" class="m">API</text><path class="ln" d="M80 58H150" marker-end="url(#b3)"/>
+    <rect class="shape" style="stroke-dasharray:6 4" x="150" y="10" width="280" height="100" rx="10"/><text x="162" y="30" class="s">looks like one database</text>
+    ${cyl(210, 70, 40, 40)}${cyl(290, 70, 40, 40)}${cyl(370, 70, 40, 40)}</svg>`,
+  order: () => { const s = [["vertical", "bigger box"], ["read replicas", "copies answer reads"], ["sharding", "split the writes"], ["multi-master", "only if forced"]]; return `<svg viewBox="0 0 440 130" aria-label="Order: vertical, read replicas, sharding, and multi-master only if forced">${s.map((t, i) => `<rect class="${i === 3 ? "shape" : "load"}" style="${i === 3 ? "stroke-dasharray:4 3" : ""}" x="${i * 110}" y="${88 - i * 26}" width="104" height="${30 + i * 26}"/><text x="${i * 110 + 6}" y="${106 - i * 26}" font-weight="700">${t[0]}</text><text x="${i * 110 + 6}" y="${122 - i * 26}" class="s">${t[1]}</text>`).join("")}</svg>`; }
+};
+
+/* ================= toys inside cards ================= */
+const TOY = {
+  rps: () => `<div class="toy" data-toy="rps"><label>Expected traffic <input type="range" min="100" max="2000" step="100" value="500" aria-label="Expected requests per second"><output>500 req/s</output></label><div class="out">÷ 100 req/s per machine (class example) = <b class="mono" data-o>5 machines</b></div><div class="boxes" aria-hidden="true"></div></div>`,
+  ratio: () => `<div class="toy" data-toy="ratio"><span class="seg" role="group" aria-label="Read to write ratio"><button aria-pressed="true" data-r="90">90 : 10</button><button aria-pressed="false" data-r="99">99 : 1</button></span></div>`,
+  reshard: () => `<div class="toy" data-toy="reshard"><div class="row" style="margin-top:0"><span class="seg" role="group" aria-label="Routing scheme"><button aria-pressed="true" data-m="mod">hash mod N</button><button aria-pressed="false" data-m="bucket">fixed buckets</button></span><button class="secondary" data-add style="padding:5px 12px">Add shard 3</button><button class="linkish" data-reset>reset</button></div><div class="shardcols" aria-live="polite"></div><div class="out" data-o>24 users on 3 shards.</div></div>`
+};
+function initToys(root) {
+  root.querySelectorAll('[data-toy="rps"]').forEach((t) => {
+    const r = t.querySelector("input"), o = t.querySelector("output"), b = t.querySelector("[data-o]"), bx = t.querySelector(".boxes");
+    const up = () => { const v = +r.value, n = Math.ceil(v / 100); o.textContent = v.toLocaleString("en-US") + " req/s"; b.textContent = n + (n === 1 ? " machine" : " machines"); bx.innerHTML = "<i></i>".repeat(n); };
+    r.addEventListener("input", up); up();
+  });
+  root.querySelectorAll('[data-toy="ratio"]').forEach((t) => {
+    const card = t.closest(".card");
+    t.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      t.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", x === b)); const r = +b.dataset.r;
+      const W = 440 * (100 - r) / 100; const R = card.querySelector("#splitR"), Wr = card.querySelector("#splitW");
+      if (R) { R.setAttribute("width", 440 - W); Wr.setAttribute("x", 440 - W); Wr.setAttribute("width", W); card.querySelector("#splitRt").textContent = "reads " + r + "%"; card.querySelector("#splitWt").textContent = "writes " + (100 - r) + "%"; }
+    }));
+  });
+  root.querySelectorAll('[data-toy="reshard"]').forEach((t) => {
+    const users = Array.from({ length: 24 }, (_, i) => 101 + i * 7);
+    const h = (id) => { let x = id * 2654435761 >>> 0; x ^= x >>> 13; x = Math.imul(x, 1274126177) >>> 0; return (x ^ (x >>> 16)) >>> 0; };
+    let mode = "mod", n = 3;
+    const B = 12; const bucket3 = (b) => b % 3; const bucket4 = (b) => (b === 3 || b === 7 || b === 11) ? 3 : b % 3; // move one bucket from each old shard
+    const place = (id, k) => mode === "mod" ? h(id) % k : (k === 3 ? bucket3(h(id) % B) : bucket4(h(id) % B));
+    const cols = t.querySelector(".shardcols"), out = t.querySelector("[data-o]"), add = t.querySelector("[data-add]");
+    const draw = () => {
+      const moved = new Set(); if (n === 4) users.forEach((u) => { if (place(u, 3) !== place(u, 4)) moved.add(u); });
+      cols.innerHTML = [0, 1, 2, 3].map((s) => `<div class="${s >= n ? "off" : ""}"><h4>shard ${s}</h4>${s < n ? users.filter((u) => place(u, n) === s).map((u) => `<span class="${moved.has(u) ? "mv" : ""}">${u}</span>`).join("") : ""}</div>`).join("");
+      out.innerHTML = n === 3 ? "24 users on 3 shards. Add a fourth and see who has to move." : `<b>${moved.size} of 24</b> users moved (${Math.round(moved.size / 24 * 100)}%). ${mode === "mod" ? "Changing N reshuffles almost everyone." : "Only the buckets handed to shard 3 moved."}`;
+      add.disabled = n === 4;
+    };
+    t.querySelectorAll("[data-m]").forEach((b) => b.addEventListener("click", () => { mode = b.dataset.m; t.querySelectorAll("[data-m]").forEach((x) => x.setAttribute("aria-pressed", x === b)); draw(); }));
+    add.addEventListener("click", () => { n = 4; draw(); });
+    t.querySelector("[data-reset]").addEventListener("click", () => { n = 3; draw(); });
+    draw();
+  });
+}
+
+/* ================= incidents ================= */
+const INC = [
+{
+  id: "i1", short: "Newsletter", when: "09:02", what: "Newsletter sent to every reader at 09:00. db-master CPU 98%, p99 2.4 s.",
+  title: "The newsletter went out at 09:00.",
+  ask: "API servers sit at 41%. The database sits at 98%. What do you do first?",
+  k: "L-0102",
+  metrics: [["cpu", "db CPU", "pct", (v) => v > 85], ["p99", "p99", "ms", (v) => v > 800], ["err", "errors/min", "n", (v) => v > 50], ["api", "API CPU", "pct", (v) => v > 85]],
+  m0: { cpu: 98, p99: 2400, err: 340, api: 41 },
+  start: i1start,
+  moves: [
+    { key: "a", label: "Add 7 more API servers", hint: "scale the fleet out", k: "L-0099 L-0101 L-0087", kind: "miss",
+      verdict: "The fleet was never the bottleneck.", note: "More API servers let more requests through, and every one of them lands on the same database. When it stalls, API threads wait on it and the API tier falls over too: a cascading failure.",
+      beats: [
+        ["Fleet grows 3 → 10. Each new server opens its own pool to the database.", st({ api: 10, apiU: .3, rate: 1.9, nodes: [M1(.99, "32 GB")], reads: { m: 1 }, writes: { m: 1 }, focus: "api" }), { cpu: 99, p99: 2900, err: 600, api: 30 }],
+        ["Ten servers forward more queries to one database. DB CPU 100%.", st({ api: 10, apiU: .55, rate: 2.1, nodes: [M1(1, "32 GB")], reads: { m: 1 }, writes: { m: 1 }, focus: "m" }), { cpu: 100, p99: 4800, err: 1100, api: 55 }],
+        ["Queries time out, API threads pile up waiting, the API tier fails too. Errors 340 → 1,900/min.", st({ api: 10, apiU: .98, rate: 2.1, nodes: [M1(1, "32 GB")], reads: { m: 1 }, writes: { m: 1 }, focus: "api" }), { cpu: 100, p99: 9000, err: 1900, api: 98 }]
+      ] },
+    { key: "b", label: "Turn on autoscaling for the API fleet", hint: "add a node when CPU > 60%", k: "L-0090 L-0131 L-0132", kind: "miss",
+      verdict: "The rule watched the wrong tier, and it reacts in minutes.", note: "An autoscaling group only adds instances behind the load balancer, following a rule you wrote. API CPU is 41%, so it never fires; and for a sudden flood it would arrive late anyway.",
+      beats: [
+        ["Rule: average API CPU > 60% → add one node. API CPU is 41%. Nothing happens.", st(Object.assign({}, i1start, { focus: "api" })), { cpu: 98, p99: 2500, err: 380, api: 41 }],
+        ["Minutes later one node joins (example timing). Readers already arrived at 09:00.", st({ api: 4, apiU: .36, rate: 1.7, nodes: [M1(.99, "32 GB")], reads: { m: 1 }, writes: { m: 1 }, focus: "api" }), { cpu: 99, p99: 2700, err: 420, api: 36 }],
+        ["Database still at 98–99%. The page keeps firing.", st({ api: 4, apiU: .36, rate: 1.7, nodes: [M1(.99, "32 GB")], reads: { m: 1 }, writes: { m: 1 }, focus: "m" }), { cpu: 99, p99: 2600, err: 400, api: 36 }]
+      ] },
+    { key: "c", label: "Move the database to a bigger machine", hint: "32 GB → 64 GB", k: "L-0103 L-0079 L-0074", kind: "fix",
+      verdict: "Hulk works. For now.", note: "Changing the machine type is the easy way to scale a database. Note the restart: vertical scaling is easy to manage but carries a risk of downtime.",
+      beats: [
+        ["Change the machine type in the console. The database restarts: about a minute of failed writes (example).", st({ api: 3, apiU: .2, rate: 1.7, nodes: [M1(0, "→ 64 GB", { down: true })], reads: { m: 1 }, writes: { m: 1 }, focus: "m" }), { cpu: 0, p99: 5000, err: 2600, api: 20 }],
+        ["Back on 64 GB with twice the cores. DB CPU 98% → 55%.", st(Object.assign({}, i1fixed, { focus: "m" })), { cpu: 55, p99: 180, err: 20, api: 41 }],
+        ["p99 settles at 120 ms (example). Readers get their newsletter.", st(Object.assign({}, i1fixed, { focus: "cli" })), { cpu: 55, p99: 120, err: 0, api: 41 }]
+      ] }
+  ],
+  cards: [
+    { t: "Scaling means handling many requests at the same time", k: "L-0078 L-0102", fig: "together",
+      b: `<p>Lots of requests in a day is easy. Lots of them <b>concurrently</b> is the hard part. The newsletter didn't add readers; it made them arrive together.</p><p>The database is the most critical and most brittle component: if it goes down, everything is down. So it's the first thing you learn to scale.</p>`,
+      src: "00:35:18 · 00:48:35" },
+    { t: "Hulk or Minions", k: "L-0073 L-0074 L-0075 L-0076 L-0079 L-0087", fig: "hulk",
+      b: `<p><b>Vertical (Hulk):</b> make the machine bulkier with more CPU, RAM, disk. Easy to manage; risk of downtime while it's resized.</p><p><b>Horizontal (Minions):</b> add more machines. Scales linearly and tolerates a machine failing; costs a more complex architecture and exposure to network partitions. It is generally preferred once one machine can't keep up.</p>`,
+      src: "00:35:57 · 00:40:47 · Hulk/Minions and the pros/cons are board notes" },
+    { t: "Scale bottom-up", k: "L-0099 L-0100 L-0101", fig: "bottomup",
+      b: `<p>Horizontal scaling ≈ infinite scale, with a catch: every extra request the API servers accept is forwarded to the database, cache and other services. If they aren't ready, they go down.</p><p>So: scale the dependencies first, then the API servers, then let users in. For a big campaign it's an org-wide effort, and teams you depend on should document how they scale.</p><p>When one component falls and takes its dependents with it, that's a cascading failure; the lecture calls it the root cause of most major outages.</p>`,
+      precise: [`No dataset shows cascading failures cause <i>most</i> outages. Google's SRE book treats them as a major failure class whose most common cause is overload.`, ["https://sre.google/sre-book/addressing-cascading-failures/", "SRE book, ch. 22"]],
+      src: "00:45:45 · 00:46:41 · 00:47:28 · board: “Hence whenever you scale, always do it bottom up!”" },
+    { t: "Autoscaling reacts. A campaign needs warning.", k: "L-0090 L-0091 L-0092 L-0093 L-0131 L-0132", fig: "autoscale",
+      b: `<p>An autoscaling group only spins up instances and adds them behind the load balancer; you write the rules, e.g. “average cluster CPU above 60% → add one node”. That's horizontal scaling.</p><p>It copes with small spikes that leave breathing room. A push or SMS campaign floods in before it reacts. So marketing tells engineering first, engineering scales, and only then does the message go out.</p>`,
+      precise: [`“Doesn't work at scale” is too broad for spikes you know about: EC2 Auto Scaling has scheduled scaling (raise capacity at a set time), predictive scaling for recurring patterns, and warm pools of pre-initialised instances. Reactive scaling alone lags.`, ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-scheduled-scaling.html", "scheduled"], ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-predictive-scaling.html", "predictive"], ["https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-warm-pools.html", "warm pools"]],
+      qa: [["Is autoscaling EC2 horizontal or vertical?", "Horizontal: it adds instances.", "01:03:42"], ["Who decides when it scales?", "You do. The group only launches instances; the scale-up and scale-down rules are yours.", "01:04:06"]],
+      src: "00:42:35 · 00:43:31 · 00:43:50" },
+    { t: "How many machines? Load-test one, then divide.", k: "L-0088 L-0089 L-0094", toy: "rps",
+      b: `<p>If one machine handles 100 requests/s and you need 500, you need 5. That's how Prime Day planning works: forecast the orders, divide by one machine's capacity (its unit economics), check you have enough.</p><p>The per-machine number only comes from a load test. No formula says a 32 GB machine handles 5,000 requests/s.</p>`,
+      precise: [`The lecture calls this “linear amplification”; the standard term is <b>linear scalability</b>. It holds only while shared dependencies (database, cache) aren't the bottleneck, which is this incident.`],
+      src: "00:40:47 · 00:41:37 · 00:44:00" },
+    { t: "Start as Hulk, become Minions", k: "L-0095 L-0096 L-0097 L-0103 L-0120", fig: "curve",
+      b: `<p>Not either/or. A young product scales vertically, because horizontal makes deployment complex, and goes horizontal after a certain stage. Avoid premature optimization. For Medium: bigger API servers first, then a load balancer and more of them.</p><p>API servers are stateless, so scaling them is the easy part (autoscaling groups, Horizontal Pod Autoscaler). The database holds state; its easy first step is a bigger machine type, and because that has a limit, the next page comes.</p>`,
+      src: "00:44:49 · 00:45:15 · 00:45:30 · 00:49:09 · 00:56:54 · board D-03" }
+  ]
+},
+{
+  id: "i2", short: "Biggest box", when: "Month 8 · 14:10", what: "db-master CPU 91% on a 4 TB machine. No larger size in the list.",
+  title: "The database is on the biggest machine there is.",
+  ask: "You've climbed every size from 16 GB to 4 TB. There's no next one. What now?",
+  k: "L-0080",
+  metrics: [["cpu", "master CPU", "pct", (v) => v > 85], ["p99", "p99", "ms", (v) => v > 800], ["mach", "machine", "txt", () => false], ["reads", "reads", "txt", () => false]],
+  m0: { cpu: 91, p99: 1400, mach: "4 TB", reads: "?" },
+  start: i2start,
+  moves: [
+    { key: "a", label: "Ask AWS for a bigger instance", hint: "open a support ticket", k: "L-0081 L-0083 L-0084", kind: "miss",
+      verdict: "It isn't a policy. It's the hardware.", note: "“AWS doesn't offer anything bigger” is the answer a senior engineer once gave the lecturer. Large machines exist; the next size needs different hardware that this data centre doesn't have.",
+      beats: [
+        ["Support replies: there is no larger instance type in this region.", st(Object.assign({}, i2start, { focus: "m" })), { cpu: 91, p99: 1400, mach: "4 TB", reads: "?" }],
+        ["The next size up needs a different board, buses and slots: physically different hardware.", st(Object.assign({}, i2start, { focus: "m" })), { cpu: 92, p99: 1500, mach: "4 TB", reads: "?" }],
+        ["CPU still 91–92%. Nothing changed.", st(Object.assign({}, i2start, { focus: "cli" })), { cpu: 92, p99: 1500, mach: "4 TB", reads: "?" }]
+      ] },
+    { key: "b", label: "Add read replicas", hint: "copies that answer reads", k: "L-0104 L-0106 L-0107 L-0110", kind: "fix",
+      verdict: "Most of the load was reads, so copies can carry it.", note: "Reads are 90% of the queries. Two replicas pull changes from the master and answer the reads; the app sends writes to the master.",
+      beats: [
+        ["Look at the traffic first: 90% of queries are reads (class: 90:10 to 99:1).", st(Object.assign({}, i2start, { marks: [], focus: "cli" })), { cpu: 91, p99: 1400, mach: "4 TB", reads: "90%" }],
+        ["Two replicas join and pull changes from the master. The app still reads from the master.", st(Object.assign(i2rep(.92, .08, false), { focus: "r1" })), { cpu: 92, p99: 1450, mach: "4 TB", reads: "90%" }],
+        ["App code sends reads to the replicas, writes to the master. Master CPU 91% → 24%.", st(Object.assign(i2rep(.24, .42, true), { focus: "api" })), { cpu: 24, p99: 90, mach: "4 TB", reads: "90%" }]
+      ] },
+    { key: "c", label: "Shard the database by user ID", hint: "split users across 3 masters", k: "L-0115 L-0390", kind: "costly",
+      verdict: "It works, at a price you didn't need to pay yet.", note: "Writes weren't the problem; reads were. Sharding brings routing code, connections to every shard and queries that span shards. The lecture's order is replicas first, then sharding.",
+      beats: [
+        ["Three masters, each holding a third of the users.", st({ api: 6, apiU: .5, rate: 1.4, nodes: shards3(.5), reads: even(["s0", "s1", "s2"]), writes: even(["s0", "s1", "s2"]), focus: "s1" }), { cpu: 50, p99: 400, mach: "3 × 4 TB", reads: "?" }],
+        ["Every query now needs routing: which shard holds this user?", st({ api: 6, apiU: .55, rate: 1.4, nodes: shards3(.35), reads: even(["s0", "s1", "s2"]), writes: even(["s0", "s1", "s2"]), focus: "api" }), { cpu: 35, p99: 110, mach: "3 × 4 TB", reads: "?" }],
+        ["CPU 35% per shard. Feeds that list posts across users now ask all three.", st({ api: 6, apiU: .55, rate: 1.4, nodes: shards3(.35), reads: even(["s0", "s1", "s2"]), writes: even(["s0", "s1", "s2"]), focus: "s2" }), { cpu: 35, p99: 140, mach: "3 × 4 TB", reads: "?" }]
+      ] }
+  ],
+  cards: [
+    { t: "The ladder ends at the hardware", k: "L-0080 L-0081 L-0082 L-0083 L-0084 L-0086", fig: "ladder",
+      b: `<p>16 GB → 32 → 64 → … → 4 TB, each step a machine-type change in the console. Then it stops. Not because AWS refuses (the wrong answer a senior engineer once gave), and not because big machines don't exist (supercomputers do).</p><p>Components talk over buses with a fixed hardware protocol: RAM in its slot, a disk on the motherboard, a USB stick's golden lines. Both sides must support the size. A phone slot rated 256 GB won't see a 512 GB card. One level up needs different hardware, and unless the data centre has it, you stop. Software is an abstraction over physical machines.</p>`,
+      fig2: "sd",
+      precise: [`The ceiling is real, but in practice you hit two other walls first: the largest instances cost far more per unit of capacity, and one machine is still a single point of failure.`],
+      src: "00:36:15 · 00:36:50 · 00:37:20 · 00:37:55 · 00:39:10 · the lecturer learned this working in a data centre during college (00:39:35)" },
+    { t: "Most of the traffic is reads", k: "L-0104 L-0105 L-0106", fig: "split", toy: "ratio",
+      b: `<p>In most applications reads to writes run about 90:10 or 99:1. Far more people read a blog than write one; far more watch YouTube than upload. Medium is read-heavy. Handle reads well and most of the scaling problem is gone.</p>`,
+      precise: [`A rule of thumb for content and social apps, not a law: logging, metrics, IoT and chat are often write-heavy. Measure your own ratio before relying on it.`],
+      src: "00:49:26 · 00:49:40 · 00:50:00" },
+    { t: "A read replica is a copy that only answers reads", k: "L-0107 L-0108 L-0121", fig: "replicas",
+      b: `<p>One master and one or more replicas, wired with asynchronous replication. It's close to a native database feature you configure, and SRE teams set it up routinely; search “how to set up MySQL replication”.</p><p>The three common ways to scale a database: vertical scaling, read replicas, sharding. You've now used two.</p>`,
+      src: "00:50:19 · 00:50:30 · 00:57:20 · board D-06" },
+    { t: "The replica asks; the master answers", k: "L-0109", fig: "pull",
+      b: `<p>It's usually said the master pushes its writes to replicas. In the lecture's telling, the replica calls the master and pulls the changes. That's why the arrows here point from replica to master.</p>`,
+      precise: [`Replica-initiated is right, but after the replica connects, the primary streams changes over that connection as they happen (MySQL's binlog dump thread sends events; PostgreSQL streams WAL to the standby). “The master never pushes” is too strong.`, ["https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html", "MySQL"], ["https://www.postgresql.org/docs/current/warm-standby.html", "PostgreSQL"]],
+      src: "00:50:40" }
+  ]
+},
+{
+  id: "i3", short: "Own post", when: "Month 9 · 10:41", what: "Ticket: “I published a post. My profile still says 74 essays.” Replica lag 1.8 s.",
+  title: "A writer can't see the post they just published.",
+  ask: "The post is safely on the master. Why can't they see it, and what do you change?",
+  k: "L-0110",
+  metrics: [["cpu", "master CPU", "pct", (v) => v > 85], ["lag", "replica lag", "s", (v) => v > 1], ["pub", "publish p99", "ms", (v) => v > 200], ["read", "read p99", "ms", (v) => v > 500]],
+  m0: { cpu: 24, lag: 1.8, pub: 12, read: 90 },
+  start: i3base(),
+  moves: [
+    { key: "a", label: "Send every read back to the master", hint: "no replica, no lag", k: "L-0110", kind: "miss",
+      verdict: "Fixed one writer, broke the database again.", note: "Replicas exist because reads are most of the load. Routing all of them to the master puts you back in the previous incident.",
+      beats: [
+        ["All reads go to the master. The writer sees 75 essays.", i3base({ nodes: [M1(.7, "4 TB"), ...reps(2, .1)], reads: { m: 1 }, focus: "m" }), { cpu: 70, lag: 1.8, pub: 20, read: 300 }],
+        ["The master is carrying 90% reads again. CPU 24% → 93%.", i3base({ nodes: [M1(.93, "4 TB"), ...reps(2, .02)], reads: { m: 1 }, focus: "m" }), { cpu: 93, lag: 1.8, pub: 45, read: 1300 }],
+        ["The replicas sit idle. This is the previous page.", i3base({ nodes: [M1(.93, "4 TB"), ...reps(2, .02)], reads: { m: 1 }, focus: "r2" }), { cpu: 93, lag: 1.8, pub: 45, read: 1300 }]
+      ] },
+    { key: "b", label: "Read your own fresh writes from the master", hint: "everything else stays on replicas", k: "L-0111 L-0112 L-0113", kind: "fix",
+      verdict: "Critical reads go to the master; the rest can be a little old.", note: "The handler that shows the writer their own profile right after publishing uses the master connection. Everyone else's views use the replica connection, where a second of staleness hurts no one.",
+      beats: [
+        ["The “my profile after publishing” handler switches to the master connection.", i3base({ nodes: [M1(.29, "4 TB"), ...reps(2, .4)], reads: { m: .06, r1: .47, r2: .47 }, own: true, focus: "api" }), { cpu: 29, lag: 1.8, pub: 12, read: 90 }],
+        ["Other readers keep reading from replicas. A second of lag there harms no one.", i3base({ nodes: [M1(.29, "4 TB"), ...reps(2, .4)], reads: { m: .06, r1: .47, r2: .47 }, own: true, focus: "r1" }), { cpu: 29, lag: 1.8, pub: 12, read: 90 }],
+        ["Master CPU 24% → 29%. The writer sees 75.", i3base({ nodes: [M1(.29, "4 TB"), ...reps(2, .4)], reads: { m: .06, r1: .47, r2: .47 }, own: true, focus: "m" }), { cpu: 29, lag: 1.8, pub: 12, read: 90 }]
+      ] },
+    { key: "c", label: "Make replication synchronous", hint: "commit waits for the replicas", k: "L-0107", kind: "costly",
+      verdict: "No stale reads. Every write now waits.", note: "Each commit waits until a replica confirms. Publishing gets slower, and a slow replica slows every write. (MySQL's semisynchronous mode is the real-world middle ground; see the debrief.)",
+      beats: [
+        ["Each commit now waits for a replica to confirm. Lag 1.8 s → 0.", i3base({ links: [{ from: "r1", to: "m", kind: "sync" }, { from: "r2", to: "m", kind: "sync" }], focus: "m" }), { cpu: 26, lag: 0, pub: 60, read: 90 }],
+        ["One replica stalls for a moment (example). Every publish stalls with it.", i3base({ nodes: [M1(.26, "4 TB"), ...reps(2, [.42, .99])], links: [{ from: "r1", to: "m", kind: "sync" }, { from: "r2", to: "m", kind: "syncbad" }], focus: "r2" }), { cpu: 26, lag: 0, pub: 1500, read: 120 }],
+        ["It recovers. Publishing settles at 60 ms instead of 12.", i3base({ links: [{ from: "r1", to: "m", kind: "sync" }, { from: "r2", to: "m", kind: "sync" }], focus: "api" }), { cpu: 26, lag: 0, pub: 60, read: 90 }]
+      ] }
+  ],
+  cards: [
+    { t: "Asynchronous means the replica is a little behind", k: "L-0110", fig: "lag",
+      b: `<p>All writes land on the master and reach replicas a moment later. A read in that window returns the old value: 74 essays instead of 75. That window is replication lag.</p>`,
+      precise: [`You can measure it: on RDS for MySQL the ReplicaLag metric reports Seconds_Behind_Master; with PostgreSQL streaming replication the delay is usually under a second if the standby keeps up. The 1.8 s here is an example.`, ["https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.Monitor.html", "RDS"], ["https://www.postgresql.org/docs/current/warm-standby.html", "PostgreSQL"]],
+      src: "00:51:15" },
+    { t: "The database won't split reads from writes for you", k: "L-0110 L-0111 L-0387 L-0383",
+      code: `<span class="c"># two connection strings, two connection objects</span>
+master  = connect(MASTER_URL)
+replica = connect(REPLICA_URL)
+
+def get_profile(user_id):
+    return <span class="h">replica</span>.query(...)   <span class="c"># non-critical read</span>
+
+def create_blog(post):
+    return <span class="h">master</span>.query(...)    <span class="c"># write</span>`,
+      b: `<p>The application does the heavy lifting: in each API handler, pick the connection that matches the use case. Same for MySQL, Postgres or MongoDB. As you add API servers, keep adding replicas (one database only takes so many requests, and so many connections), and the “which replica” logic stays in the API server.</p>`,
+      precise: [`The core MySQL and PostgreSQL servers don't route, but drivers and managed services can: libpq's target_session_attrs picks primary or standby; Aurora's reader endpoint balances across replicas.`, ["https://www.postgresql.org/docs/current/libpq-connect.html", "libpq"], ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html", "Aurora endpoints"]],
+      src: "00:51:15 · 00:51:53 · 00:53:36 · 03:07:07 · 03:09:07" },
+    { t: "Which reads may be stale? You decide.", k: "L-0112 L-0113", fig: "bank",
+      b: `<p>Decide per use case: non-critical reads go to replicas, critical reads to the master. In a bank, a profile can be a second old; the balance can't. Otherwise a friend says the money's sent and you don't see it yet.</p><p>On Medium, the writer's own profile right after publishing is the critical read.</p>`,
+      src: "00:52:33 · 00:52:50" },
+    { t: "One connection string means someone else routes", k: "L-0125 L-0112 L-0114", fig: "proxy",
+      b: `<p>If your app only ever passes one connection string, a proxy-like layer is doing the routing. Tools and “magic layers” like that exist, but not everyone has one, so learn the basic version in the API server first. Proxy layers come in weeks 5–6.</p>`,
+      precise: [`Built-in routing exists without a separate proxy: Aurora's reader endpoint, and libpq host lists with target_session_attrs (read-write, standby, prefer-standby).`, ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html", "Aurora"], ["https://www.postgresql.org/docs/current/libpq-connect.html", "libpq"]],
+      src: "00:52:33 · 00:53:36 · 00:59:59" },
+    { t: "One pool per database", k: "L-0126 L-0127", fig: "pools",
+      qa: [["Doesn't keeping connection pools and heartbeats to several databases load the API server?", "You need it anyway: to forward each request to the right database, the API server must hold connections to all of them.", "01:00:36"], ["Why separate pools?", "TCP connections between a server and a database are stateful, so each database needs its own pool, kept by the API server or by a proxy.", "01:01:13"]],
+      src: "01:00:36 · 01:01:13" }
+  ]
+},
+{
+  id: "i4", short: "Replica tax", when: "Month 14 · 20:05", what: "Readership tripled (example). 5 replicas at 95%. Master 62% with writes flat.",
+  title: "Readers tripled. The replicas are drowning.",
+  ask: "Writes haven't grown, yet the master is busier. How do you get more read capacity?",
+  k: "L-0324",
+  metrics: [["cpu", "master CPU", "pct", (v) => v > 85], ["repl", "spent on replicas", "pct", (v) => v > 40], ["read", "read p99", "ms", (v) => v > 500], ["n", "replicas", "n", () => false]],
+  m0: { cpu: 62, repl: 25, read: 900, n: 5 },
+  start: i4base(.62, .96),
+  moves: [
+    { key: "a", label: "Add 10 more replicas to the master", hint: "15 copies of the master", k: "L-0324 L-0325 L-0326", kind: "miss",
+      verdict: "Reads got faster. Writes got worse.", note: "Every replica pulling changes costs the master CPU, memory and network. Fifteen of them crowd out the writes the master exists for.",
+      beats: [
+        ["Fifteen replicas, each pulling changes from the master.", Object.assign(i4wide(.8), { focus: "r8" }), { cpu: 80, repl: 50, read: 150, n: 15 }],
+        ["Each pull costs the master CPU, memory and network. Master 62% → 96%.", Object.assign(i4wide(.96), { focus: "m" }), { cpu: 96, repl: 61, read: 130, n: 15 }],
+        ["Reads are fast now; publishing times out (example).", Object.assign(i4wide(.97), { focus: "m" }), { cpu: 97, repl: 61, read: 130, n: 15 }]
+      ] },
+    { key: "b", label: "Chain them: replicas of replicas", hint: "5 on the master, 10 below", k: "L-0328 L-0329", kind: "fix",
+      verdict: "Fifteen copies; the master still feeds only five.", note: "Each of the 5 top replicas serves 2 more. The second level lags a little more, which is fine for these reads.",
+      beats: [
+        ["The master keeps its 5 replicas.", Object.assign(i4base(.62, .96), { focus: "m" }), { cpu: 62, repl: 25, read: 900, n: 5 }],
+        ["Each replica becomes the source for two more: 15 in total.", Object.assign(i4tree(), { focus: "c21" }), { cpu: 62, repl: 25, read: 110, n: 15 }],
+        ["Master unchanged at 62%. Read p99 900 → 110 ms.", Object.assign(i4tree(), { focus: "m" }), { cpu: 62, repl: 25, read: 110, n: 15 }]
+      ] },
+    { key: "c", label: "Put everything in a cache", hint: "Redis in front of the replicas", k: "L-0382", kind: "costly",
+      verdict: "Better, not fixed: the data doesn't fit.", note: "Popular posts hit the cache. The long tail of older posts doesn't fit in memory, so those reads still land on the replicas.",
+      beats: [
+        ["A cache answers popular posts.", Object.assign(i4cache(.7, .45), { focus: "k" }), { cpu: 62, repl: 25, read: 500, n: 5 }],
+        ["The archive is too big to cache. Long-tail reads still hit the replicas.", Object.assign(i4cache(.82, .4), { focus: "r3" }), { cpu: 62, repl: 25, read: 420, n: 5 }],
+        ["Read p99 900 → 420 ms. The replicas still need help.", Object.assign(i4cache(.82, .4), { focus: "r5" }), { cpu: 62, repl: 25, read: 420, n: 5 }]
+      ] }
+  ],
+  cards: [
+    { t: "Every replica costs the master something", k: "L-0324 L-0325 L-0327", fig: "tax",
+      b: `<p>Adding replicas does affect the master, a little each: every replica fetching changes uses some of its CPU, memory and network. That's why you don't hang a huge number of replicas off one master.</p><p>Databases differ in how changes are fetched. If a replica could read the log file directly, great; otherwise it goes through the database's own protocol, on the master's budget.</p>`,
+      precise: [`Replicas don't read the binlog over SSH or “via SQL”. MySQL replicas use the replication protocol (the receiver thread requests binlog events). PostgreSQL uses streaming replication, or file-based shipping of WAL segments from an archive, the closest thing to “reading the log file”.`, ["https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html", "MySQL"], ["https://www.postgresql.org/docs/current/warm-standby.html", "PostgreSQL"]],
+      qa: [["Replicas pull from the master. In a read-heavy service, does adding more of them hurt it?", "Yes, but not by much per replica.", "02:37:13"]],
+      src: "02:37:13 · 02:37:36 · 02:37:55" },
+    { t: "About five replicas per master", k: "L-0326",
+      b: `<p class="big">~5</p><p>The class's rule of thumb: five is fine, six or seven still OK; beyond that you typically don't go.</p>`,
+      precise: [`There's no general ceiling of five. RDS for MySQL allows up to 15 read replicas per source and Aurora up to 15 readers; in PostgreSQL the limit is max_wal_senders. The practical number depends on write volume and replica size; AWS advises giving each replica the source's compute and storage.`, ["https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html", "RDS MySQL"], ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html", "Aurora"]],
+      src: "02:37:36" },
+    { t: "Replicas of replicas", k: "L-0328 L-0329", fig: "tree",
+      b: `<p>Need 15 replicas but the master can only feed 5? Let a replica be the source for others: a tree. The class example: five at the top, each serving two or three more, about 15 in total.</p>`,
+      src: "02:38:24 · 02:38:38" },
+    { t: "Too big to cache, so replicate", k: "L-0382 L-0383",
+      b: `<p>For a read-heavy API whose data is too big to cache entirely, the way out is read replicas: redundant copies serving reads. And as API servers scale out, keep adding replicas; one database has a limit on requests, and on connections.</p>`,
+      precise: [`You rarely need to cache everything: reads usually concentrate on a small hot subset, so a partial cache plus replicas (and later sharding) is the typical shape.`, ["https://redis.io/docs/latest/develop/reference/client-side-caching/", "Redis"]],
+      qa: [["One master, replicas across data centres, and the data can't all be cached. How do you design read-heavy APIs?", "Read replicas: keep redundant copies and serve reads from them.", "03:06:22"]],
+      src: "03:06:22 · 03:07:07" },
+    { t: "If the master dies", k: "L-0122 L-0123 L-0130", fig: "failover",
+      b: `<p>Leader election promotes a replica to master and recovers automatically. You won't always see it in production. If you're building AWS you implement it; if you use AWS, they do it for you. Building it yourself is painful and most product companies don't need to.</p><p>Clustered no-outage setups and database fault tolerance come in week 5.</p>`,
+      precise: [`On Amazon RDS (non-Aurora), automatic failover goes to a Multi-AZ synchronous standby that can't serve reads. Read replicas are <b>not</b> promoted automatically; you promote them. Aurora does promote a reader automatically, typically in under 60 s.`, ["https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html", "Multi-AZ"], ["https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.Promote.html", "promote"], ["https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html", "Aurora"]],
+      qa: [["What if the master goes down? (asked with a tree of replicas and voting in mind)", "Leader election is one way; the cloud gives you that guarantee.", "00:57:38"], ["Can a clustered server (e.g. Oracle RAC) avoid DB outages?", "There's no one way to build a system; fault tolerance is week 5.", "01:02:52"]],
+      src: "00:57:38 · 00:59:21 · 01:02:52" },
+    { t: "When replicas start to hurt the master, shard", k: "L-0330",
+      b: `<p>Replicas only multiply reads. If the master is the problem, from writes or from feeding replicas, that's the signal to split the data. That's the next page.</p>`,
+      src: "02:38:49" }
+  ]
+},
+{
+  id: "i5", short: "Writes", when: "Year 2 · 11:30", what: "Writers ×10 after a creator programme (example). Master write CPU 94% on 4 TB.",
+  title: "Writes outgrew the master.",
+  ask: "Reads are handled. Every write still goes to one machine that can't grow. What now?",
+  k: "L-0115",
+  metrics: [["cpu", "write CPU", "pct", (v) => v > 85], ["wp99", "write p99", "ms", (v) => v > 300], ["wps", "writes/s", "n", () => false], ["dbs", "masters", "txt", () => false]],
+  m0: { cpu: 94, wp99: 800, wps: 12000, dbs: "1" },
+  start: i5start,
+  moves: [
+    { key: "a", label: "Let the replicas accept writes", hint: "two masters", k: "L-0388 L-0389", kind: "miss",
+      verdict: "Now you own conflict resolution.", note: "A replica that takes writes isn't a read replica any more; that's multi-master. Two masters can accept different edits to the same row, and how to reconcile them is specific to every use case.",
+      beats: [
+        ["A replica becomes master B. Writes split across A and B.", Object.assign(i5mm(false), { focus: "m2" }), { cpu: 52, wp99: 60, wps: 12000, dbs: "2 (both write)" }],
+        ["Post 4182's title is edited on A and on B within the same second (example).", Object.assign(i5mm(true), { focus: "m" }), { cpu: 52, wp99: 60, wps: 12000, dbs: "2 (both write)" }],
+        ["Which edit wins? That's conflict-resolution code you now write for every table.", Object.assign(i5mm(true), { focus: "m2" }), { cpu: 52, wp99: 60, wps: 12000, dbs: "2 (both write)" }]
+      ] },
+    { key: "b", label: "Move 30 of the 100 tables to a second database", hint: "split by table", k: "L-0129", kind: "costly",
+      verdict: "It helps, until one table is the problem.", note: "Splitting by table (vertical sharding) spreads load, but the posts table alone still takes most writes, and it can't be split this way.",
+      beats: [
+        ["30 tables, posts among them, move to a second database.", Object.assign(i5vert(), { focus: "m2" }), { cpu: 80, wp99: 400, wps: 12000, dbs: "2 (by table)" }],
+        ["The posts table alone still takes most writes. CPU 94% → 71%.", Object.assign(i5vert(), { focus: "m" }), { cpu: 71, wp99: 300, wps: 12000, dbs: "2 (by table)" }],
+        ["The API server now keeps a connection pool for each database.", Object.assign(i5vert(), { focus: "api" }), { cpu: 71, wp99: 300, wps: 12000, dbs: "2 (by table)" }]
+      ] },
+    { key: "c", label: "Shard users across 3 masters", hint: "hash(user_id) picks the shard", k: "L-0115 L-0116 L-0117 L-0118", kind: "fix",
+      verdict: "Each master owns a third of the writes.", note: "Each shard holds a mutually exclusive third of the users. The API server hashes the user ID, picks the shard, and keeps a connection to each. Every shard can have its own replicas.",
+      beats: [
+        ["Each shard owns a third of the users, and only that third.", Object.assign(i5shard(false), { focus: "s1" }), { cpu: 33, wp99: 40, wps: 12000, dbs: "3 shards" }],
+        ["The API server computes hash(user_id) and uses that shard's connection.", Object.assign(i5shard(false), { focus: "api" }), { cpu: 33, wp99: 40, wps: 12000, dbs: "3 shards" }],
+        ["Each shard gets its own replica for reads. Write CPU 94% → 33% each.", Object.assign(i5shard(true), { focus: "rs0" }), { cpu: 33, wp99: 40, wps: 12000, dbs: "3 shards" }]
+      ] }
+  ],
+  cards: [
+    { t: "A shard owns its rows; no one else has them", k: "L-0115 L-0116 L-0128", fig: "shards",
+      b: `<p>When the master gets more than it can handle even after replicas and a bigger machine, split the data into mutually exclusive subsets on several nodes. Every shard is a master and can have its own replicas.</p>`,
+      qa: [["Are shards three identical copies of the database?", "No. Each holds an exclusive subset, e.g. a third of the rows.", "01:02:06"]],
+      src: "00:54:20 · 00:54:40 · 01:02:06 · board D-06" },
+    { t: "The API server picks the shard", k: "L-0117 L-0118 L-0119",
+      code: `shards = [connect(S0), connect(S1), connect(S2)]  <span class="c"># 3 shards = 3 connections</span>
+
+def get_user(user_id):
+    db = shards[<span class="h">hash(user_id) % 3</span>]            <span class="c"># mapping must stay fixed</span>
+    return db.query(...)`,
+      b: `<p>Naive sharding: connect to every shard, work out whose request it is, forward it to that shard, return the answer. Do it locally first. Production systems often add proxy layers, but not every database has one, so know the basic way before adding that complexity.</p>`,
+      precise: [`Hash routing is right, but plain hash(user_id) mod N remaps nearly every key when N changes. Use consistent hashing, fixed virtual buckets or key ranges (as Vitess does), or a lookup directory. Try it below.`, ["https://vitess.io/docs/reference/features/sharding/", "Vitess"], ["https://en.wikipedia.org/wiki/Consistent_hashing", "consistent hashing"]],
+      src: "00:55:19 · 00:55:40 · 00:56:04" },
+    { t: "A year later: add a fourth shard", k: "L-0117", toy: "reshard",
+      b: `<p>The cost of sharding shows up when you reshard. With mod N, going from 3 to 4 moves most users. With fixed buckets, only the buckets handed to the new shard move.</p>`,
+      precise: [`With hash mod N, changing N remaps nearly all keys; consistent hashing moves about keys ÷ servers on average.`, ["https://en.wikipedia.org/wiki/Consistent_hashing", "Wikipedia"]],
+      src: "verified addition · not in the lecture" },
+    { t: "No formula for the shard key", k: "L-0373", fig: "hotkey",
+      b: `<p>There's no golden formula or magic number for sharding. Study the data and how it's accessed, then make the call.</p>`,
+      precise: [`A good key has many distinct, evenly used values, like user ID. Few-valued or time-based keys (status, creation date) pile every new write onto one hot shard.`, ["https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-uniform-load.html", "DynamoDB guide"]],
+      qa: [["Is there a formula for how to approach sharding?", "No. It's subjective: analyse the data and access pattern. Databases come in later weeks.", "03:01:58"]],
+      src: "03:01:58" },
+    { t: "Writable replicas are multi-master", k: "L-0388 L-0389", fig: "multimaster",
+      b: `<p>A read replica exists only to serve reads. If replicas take writes too, it's a multi-master setup: you must resolve write conflicts, and how is extremely use-case specific. That's why sharding is preferred for scaling writes.</p>`,
+      qa: [["Is it a hard rule that a replica is read-only?", "A replica that takes writes makes it multi-master, with its own set of problems.", "03:09:07"]],
+      src: "03:09:07 · 03:09:43" },
+    { t: "Splitting by table is vertical sharding", k: "L-0129", fig: "vsplit",
+      b: `<p>Putting 30 of 100 tables on another database is vertical sharding. It also needs a connection pool per database, and it can't split one hot table.</p>`,
+      src: "01:02:24" },
+    { t: "Clusters, and who shards for you", k: "L-0356 L-0357 L-0358", fig: "cluster",
+      b: `<p>A database cluster is horizontal scaling, not vertical: a cluster means several machines. A vendor cluster looks like one database to the app but splits data across storage nodes internally. With paid vendors that's handled for you; with open-source databases that lack native sharding, you build it.</p>`,
+      precise: [`Not every cluster is sharded: Oracle RAC is shared-disk, with many instances on one set of database files. And the line isn't paid vs open source: MongoDB, Cassandra, Vitess (MySQL) and Citus (PostgreSQL) shard natively. Stock MySQL and PostgreSQL are the main do-it-yourself cases.`, ["https://docs.oracle.com/en/database/oracle/oracle-database/23/adrac/rac_db.html", "Oracle RAC"], ["https://vitess.io/docs/reference/features/sharding/", "Vitess"]],
+      qa: [["Is clustering part of vertical scaling?", "No, it's horizontal: a cluster means multiple machines.", "02:52:20"]],
+      src: "02:52:20 · 02:53:01 · 02:53:27" },
+    { t: "The order you met them in is the order to use them", k: "L-0121 L-0390", fig: "order",
+      b: `<p>Three common ways to scale a database: vertical, read replicas, sharding. Replicas first, then shards. Multi-master only if you want to make things overtly complicated.</p>`,
+      src: "00:57:20 · 03:10:01" }
+  ]
+}
+];
+
+/* ================= app state ================= */
+const app = { cur: -1, view: "intro", card: 0, tried: {}, moveIdx: null, beat: -1, timer: null };
+INC.forEach((i) => app.tried[i.id] = []);
+
+/* ================= metrics strip ================= */
+const metricsEl = $("#metrics");
+let mDefs = [], mVals = {}, mHist = {}, mTarget = {};
+function setupMetrics(defs, vals) {
+  mDefs = defs; mVals = Object.assign({}, vals); mTarget = Object.assign({}, vals); mHist = {};
+  metricsEl.innerHTML = defs.map(([key, label]) => `<div class="metric" data-m="${key}"><dt>${label}</dt><dd><span class="v"></span><svg viewBox="0 0 48 18" aria-hidden="true"><path/></svg></dd></div>`).join("");
+  defs.forEach(([k]) => mHist[k] = []);
+  paintMetrics();
+}
+function setMetrics(vals, instant) { Object.assign(mTarget, vals); if (instant || !motionOn) Object.assign(mVals, vals); paintMetrics(); }
+function paintMetrics() {
+  mDefs.forEach(([k, , f, bad]) => {
+    const box = metricsEl.querySelector(`[data-m="${k}"]`); if (!box) return;
+    const v = mVals[k]; box.querySelector(".v").textContent = v == null ? "—" : fmt[f](v);
+    box.classList.toggle("bad", typeof v === "number" && bad(v));
+    const h = mHist[k]; if (h.length > 1 && typeof h[0] === "number") {
+      const mx = Math.max(...h, 1), mn = Math.min(...h, 0);
+      box.querySelector("path").setAttribute("d", h.map((x, i) => `${i ? "L" : "M"}${(i / (h.length - 1) * 48).toFixed(1)} ${(17 - (x - mn) / ((mx - mn) || 1) * 16).toFixed(1)}`).join(""));
+    } else box.querySelector("path").setAttribute("d", "");
+  });
+}
+function tickMetrics(dt) {
+  let changed = false;
+  mDefs.forEach(([k, , f]) => {
+    const t = mTarget[k];
+    if (typeof t === "number") {
+      const v = typeof mVals[k] === "number" ? mVals[k] : t;
+      const nv = Math.abs(t - v) < .01 * Math.max(1, Math.abs(t)) ? t : v + (t - v) * Math.min(1, dt * 4);
+      if (nv !== mVals[k]) { mVals[k] = f === "s" ? nv : nv; changed = true; }
+    } else if (mVals[k] !== t) { mVals[k] = t; changed = true; }
+  });
+  return changed;
+}
+let histClock = 0;
+function sampleHist() { mDefs.forEach(([k]) => { const v = mVals[k]; if (typeof v === "number") { const j = motionOn && v > 0 ? v * (1 + (Math.random() - .5) * .03) : v; mHist[k].push(j); if (mHist[k].length > 32) mHist[k].shift(); } }); }
+
+/* ================= stage ================= */
+const svg = $("#stage"), gW = $("#lWires"), gN = $("#lNodes"), gD = $("#lDots"), gM = $("#lMarks");
+const LAY = {
+  land: { W: 800, H: 500, F: { cli: 46, lb: 140, api: 262, bus: 352, d0: 430, d1: 760 }, C0: 44, C1: 462, cyl: [62, 60], api: [70, 32], apiGap: .16 },
+  port: { W: 380, H: 440, F: { cli: 26, lb: 78, api: 136, bus: 184, d0: 232, d1: 410 }, C0: 26, C1: 354, cyl: [54, 50], api: [62, 28], apiGap: .22 }
+};
+let orient = "land", cur = null, geo = null;
+const mqPhone = window.matchMedia("(max-width: 860px)");
+function L() { return LAY[orient]; }
+function mp(f, c) { return orient === "land" ? [f, c] : [c, f]; }
+
+function layout(s) {
+  const Ly = L(); const g = { nodes: {}, api: [], apiN: Math.min(s.api, 4) };
+  const cMid = (Ly.C0 + Ly.C1) / 2;
+  g.cli = { f: Ly.F.cli, c: cMid }; g.lb = { f: Ly.F.lb, c: cMid };
+  const k = g.apiN;
+  for (let i = 0; i < k; i++) g.api.push({ f: Ly.F.api, c: cMid + (i - (k - 1) / 2) * Ly.apiGap * (Ly.C1 - Ly.C0) });
+  const cols = {}; s.nodes.forEach((n) => { const key = n.u.toFixed(2); (cols[key] = cols[key] || []).push(n); });
+  s.nodes.forEach((n) => {
+    const col = cols[n.u.toFixed(2)].length; const avail = (Ly.C1 - Ly.C0) * (col > 1 ? .62 : 1) / col;
+    const [w0, h0] = n.kind === "cache" ? [66, 34] : Ly.cyl; const cross = orient === "land" ? h0 : w0;
+    const sc = Math.max(.3, Math.min(1, (avail - 6) / cross));
+    g.nodes[n.id] = { col, f: Ly.F.d0 + n.u * (Ly.F.d1 - Ly.F.d0), c: Ly.C0 + n.v * (Ly.C1 - Ly.C0), w: w0 * sc, h: h0 * sc, sc, n };
+  });
+  const cs = [...g.api.map((a) => a.c), ...Object.values(g.nodes).map((x) => x.c)];
+  g.bus = { f: Ly.F.bus, c0: Math.min(...cs), c1: Math.max(...cs) };
+  return g;
+}
+const halfF = (o) => orient === "land" ? o.w / 2 : o.h / 2;
+const halfC = (o) => orient === "land" ? o.h / 2 : o.w / 2;
+function line(a, b, cls, extra = {}) { const [x1, y1] = mp(a[0], a[1]), [x2, y2] = mp(b[0], b[1]); return sv("line", Object.assign({ x1, y1, x2, y2, class: cls }, extra)); }
+function poly(pts, cls, extra = {}) { return sv("path", Object.assign({ d: pts.map((p, i) => { const [x, y] = mp(p[0], p[1]); return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1); }).join(""), class: cls }, extra)); }
+function cylPath(x, y, w, h) { const ry = Math.max(2.5, h * .16); return { body: `M${x - w / 2} ${y - h / 2 + ry} A${w / 2} ${ry} 0 0 1 ${x + w / 2} ${y - h / 2 + ry} V${y + h / 2 - ry} A${w / 2} ${ry} 0 0 1 ${x - w / 2} ${y + h / 2 - ry} Z`, lip: `M${x - w / 2} ${y - h / 2 + ry} A${w / 2} ${ry} 0 0 0 ${x + w / 2} ${y - h / 2 + ry}`, ry }; }
+
+function drawStage(s) {
+  cur = s; geo = layout(s);
+  const Ly = L(); svg.setAttribute("viewBox", `0 0 ${Ly.W} ${Ly.H}`);
+  if (orient === "port") svg.style.aspectRatio = `${Ly.W} / ${Ly.H}`; else svg.style.aspectRatio = "";
+  gW.innerHTML = ""; gN.innerHTML = ""; gM.innerHTML = "";
+  if (!svg.querySelector("defs")) {
+    const d = sv("defs"); d.innerHTML = `<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--ink2)"/></marker><marker id="ahb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--bad)"/></marker>`; svg.prepend(d);
+  }
+  const g = geo;
+  // wires
+  gW.append(line([g.cli.f + 18, g.cli.c], [g.lb.f - 7, g.lb.c], "wire hot"));
+  const AW = orient === "land" ? Ly.api[0] : Ly.api[1];
+  g.api.forEach((a) => { gW.append(poly([[g.lb.f + 7, a.c], [a.f - AW / 2, a.c]], "wire hot")); gW.append(poly([[a.f + AW / 2, a.c], [g.bus.f, a.c]], "wire")); });
+  gW.append(line([g.bus.f, g.bus.c0], [g.bus.f, g.bus.c1], "wire"));
+  Object.values(g.nodes).forEach((o) => { if (o.n.parent && !s.reads[o.n.id] && o.n.kind === "replica" && s.links.some((l) => l.kind === "pull2" && l.from === o.n.id)) return; gW.append(poly([[g.bus.f, o.c], [o.f - halfF(o), o.c]], "wire")); });
+  // replication / sync links
+  const byParent = {};
+  s.links.forEach((l) => { if (l.kind === "pull" || l.kind === "sync" || l.kind === "syncbad") (byParent[l.to] = byParent[l.to] || []).push(l); });
+  Object.entries(byParent).forEach(([pid, ls]) => {
+    const P = g.nodes[pid]; const kids = ls.map((l) => g.nodes[l.from]).filter(Boolean); if (!P || !kids.length) return;
+    const railF = Math.max(...kids.map((k) => k.f + halfF(k))) + 14;
+    const bad = ls.some((l) => l.kind === "syncbad");
+    kids.forEach((k, i) => gW.append(poly([[k.f + halfF(k), k.c], [railF, k.c]], "repl" + (ls[i].kind === "syncbad" ? " bad" : ""))));
+    const cFar = kids.reduce((m, k) => Math.abs(k.c - P.c) > Math.abs(m - P.c) ? k.c : m, P.c);
+    gW.append(poly([[railF, cFar], [railF, P.c - (cFar > P.c ? -halfC(P) * .2 : halfC(P) * .2)], [railF, P.c], [P.f + halfF(P) + 2, P.c]], "repl" + (bad ? " bad" : ""), { "marker-end": bad ? "url(#ahb)" : "url(#ah)" }));
+    const sync = ls[0].kind !== "pull";
+    const [tx, ty] = mp(railF + 6, P.c - halfC(P) * .2 - 6 * (orient === "land" ? 1 : 0));
+    const t = sv("text", { x: orient === "land" ? tx - 4 : tx + 6, y: orient === "land" ? P.c - 8 : ty - 4, class: "note" + (bad ? " bad" : ""), "text-anchor": orient === "land" ? "end" : "start" });
+    if (orient === "land") { t.setAttribute("x", (P.f + halfF(P) + railF) / 2 + 30); t.setAttribute("y", P.c - 8); t.setAttribute("text-anchor", "middle"); } else { const [px, py] = mp(P.f, P.c); t.setAttribute("x", px - P.w / 2 - 6); t.setAttribute("y", py + P.h / 2 + 36); t.setAttribute("text-anchor", "end"); }
+    if (orient === "port" && Object.keys(byParent).length > 1) return;
+    t.textContent = sync ? (bad ? "commit waits…" : "sync: commit waits") : (orient === "port" ? "pull" : kids.length > 1 ? "replicas pull changes" : "pulls changes");
+    gM.append(t);
+  });
+  s.links.filter((l) => l.kind === "pull2").forEach((l) => { const k = g.nodes[l.from], P = g.nodes[l.to]; if (!k || !P) return; const mid = (k.f - halfF(k) + P.f + halfF(P)) / 2; gW.append(poly([[k.f - halfF(k), k.c], [mid, k.c], [mid, P.c], [P.f + halfF(P) + 2, P.c]], "repl", { "marker-end": "url(#ah)" })); });
+  s.links.filter((l) => l.kind === "conflict" || (l.kind === "sync" && g.nodes[l.to] && g.nodes[l.to].n.kind === "master" && g.nodes[l.from].n.kind === "master")).forEach((l) => {
+    const A = g.nodes[l.from], B = g.nodes[l.to]; const off = 10;
+    const lo = orient === "land" ? 22 : 0; gW.append(poly([[A.f - off, A.c + halfC(A) + lo], [B.f - off, B.c - halfC(B) - 2]], "repl" + (l.kind === "conflict" ? " bad" : ""), { "marker-end": l.kind === "conflict" ? "url(#ahb)" : "url(#ah)" }));
+    gW.append(poly([[B.f + off, B.c - halfC(B)], [A.f + off, A.c + halfC(A) + lo + 2]], "repl" + (l.kind === "conflict" ? " bad" : ""), { "marker-end": l.kind === "conflict" ? "url(#ahb)" : "url(#ah)" }));
+    if (l.kind === "conflict") { const mc = (A.c + B.c) / 2; const [x, y] = mp(A.f, mc); const gx = sv("g"); gx.innerHTML = `<path class="x" d="M${x - 7} ${y - 7}L${x + 7} ${y + 7}M${x + 7} ${y - 7}L${x - 7} ${y + 7}"/>`; gM.append(gx); const t = sv("text", { x: x + 18, y: y + 4, class: "note bad" }); t.textContent = "same post, two edits"; gM.append(t); }
+  });
+  // clients
+  const [cx, cy] = mp(g.cli.f, g.cli.c);
+  const cg = sv("g"); cg.innerHTML = [-1, 0, 1].map((i) => { const dx = orient === "land" ? 0 : i * 18, dy = orient === "land" ? i * 22 : 0; return `<rect class="box" x="${cx - 7 + dx}" y="${cy - 10 + dy}" width="14" height="20" rx="3"/><line class="wire hot" x1="${cx - 3 + dx}" x2="${cx + 3 + dx}" y1="${cy + 6 + dy}" y2="${cy + 6 + dy}"/>`; }).join("");
+  const ct = sv("text", { x: orient === "land" ? cx : cx + 34, y: orient === "land" ? cy + 52 : cy + 5, class: "lbl", "text-anchor": orient === "land" ? "middle" : "start" }); ct.textContent = "readers"; cg.append(ct); gN.append(cg);
+  // LB
+  const [lx, ly] = mp(g.lb.f, g.lb.c); const lbw = orient === "land" ? 14 : 120, lbh = orient === "land" ? 120 : 14;
+  gN.append(sv("rect", { x: lx - lbw / 2, y: ly - lbh / 2, width: lbw, height: lbh, rx: 3, class: "box" }));
+  const lt = sv("text", { x: orient === "land" ? lx : lx + lbw / 2 + 8, y: orient === "land" ? ly - lbh / 2 - 8 : ly + 5, class: "lbl", "text-anchor": orient === "land" ? "middle" : "start" }); lt.textContent = "LB"; gN.append(lt);
+  // API boxes
+  const [aw, ah] = Ly.api;
+  g.api.forEach((a, i) => {
+    const [x, y] = mp(a.f, a.c); const hot = s.apiU > .9;
+    gN.append(sv("rect", { x: x - aw / 2, y: y - ah / 2, width: aw, height: ah, rx: 4, class: "box" + (hot ? " hotbad" : "") }));
+    gN.append(sv("rect", { x: x - aw / 2 + 4, y: y + ah / 2 - 6, width: (aw - 8) * Math.min(1, s.apiU), height: 3, class: "fill" + (hot ? " bad" : "") }));
+    const t = sv("text", { x, y: y + 4, "text-anchor": "middle", class: "cpu" }); t.textContent = "api"; gN.append(t);
+  });
+  if (s.api > 4) { const last = g.api[g.api.length - 1]; const [x, y] = mp(last.f, last.c); const t = sv("text", { x: orient === "land" ? x : x + aw / 2, y: orient === "land" ? y + ah / 2 + 34 : y + ah / 2 + 18, "text-anchor": orient === "land" ? "middle" : "end", class: "note" }); t.textContent = "×" + s.api + " servers"; gN.append(t); }
+  // data nodes
+  Object.values(g.nodes).forEach((o) => {
+    const n = o.n; const [x, y] = mp(o.f, o.c); const grp = sv("g");
+    const bad = n.util > .9 || n.down;
+    if (n.kind === "cache") {
+      grp.innerHTML = `<rect class="box" x="${x - o.w / 2}" y="${y - o.h / 2}" width="${o.w}" height="${o.h}" rx="3"/><path class="fill" d="M${x - o.w / 2 + 8} ${y - 8}l8 0-5 8 8 0-12 12 3-9-7 0z"/>`;
+      const t = sv("text", { x: x + 6, y: y + 4, class: "cpu", "text-anchor": "middle" }); t.textContent = "cache"; grp.append(t);
+    } else {
+      const p = cylPath(x, y, o.w, o.h);
+      const inner = o.h - p.ry * 2; const fh = Math.max(0, Math.min(1, n.util)) * inner;
+      grp.innerHTML = `<clipPath id="cp-${n.id}"><path d="${p.body}"/></clipPath><rect class="fill${bad ? " bad" : ""}" clip-path="url(#cp-${n.id})" x="${x - o.w / 2}" y="${y + o.h / 2 - p.ry - fh}" width="${o.w}" height="${fh + p.ry}"/><path class="box${bad ? " hotbad" : ""}" d="${p.body}" style="fill:none${n.kind === "replica" ? ";stroke-dasharray:5 3" : ""}"/><path class="box${bad ? " hotbad" : ""}" d="${p.lip}" style="fill:none${n.kind === "replica" ? ";stroke-dasharray:5 3" : ""}"/>`;
+      if (n.down) grp.innerHTML += `<path class="x" d="M${x - 12} ${y - 12}L${x + 12} ${y + 12}M${x + 12} ${y - 12}L${x - 12} ${y + 12}"/>`;
+      if (o.sc > .62) {
+        const t = sv("text", { x, y: y + 6, class: "cpu", "text-anchor": "middle" }); t.textContent = n.down ? "" : Math.round(n.util * 100) + "%"; if (bad) t.style.fill = "var(--bad)"; grp.append(t);
+        const lab = sv("text", { class: "lbl", "text-anchor": "middle", x, y: y + o.h / 2 + 15 }); lab.textContent = n.label + (n.size && !(orient === "port" && s.nodes.filter((q) => q.kind === "master").length > 2) ? " · " + n.size : "");
+        if (n.kind === "replica" && (orient === "port" ? o.col > 2 : o.col > 6)) lab.textContent = "";
+        grp.append(lab);
+        if (n.down) { lab.textContent = "restarting " + n.size; lab.style.fill = "var(--bad)"; }
+      }
+    }
+    gN.append(grp);
+  });
+  // marks
+  s.marks.forEach((m) => {
+    const o = g.nodes[m.node]; if (!o) return; const [x, y] = mp(o.f, o.c);
+    if (m.type === "ladder") {
+      const gl = sv("g", { class: "ladder" }); const x0 = x + o.w / 2 + 26, base = y + o.h / 2;
+      let h = ""; for (let i = 0; i < 9; i++) h += `<rect x="${x0 + i * 15}" y="${base - (8 + i * 5.2)}" width="11" height="${8 + i * 5.2}"/>`;
+      h += `<rect class="q" x="${x0 + 9 * 15}" y="${base - 62}" width="11" height="62"/><text class="note" x="${x0}" y="${base + 16}">16 GB</text><text class="note" x="${x0 + 8 * 15 + 11}" y="${base + 16}" text-anchor="end">4 TB</text><text class="note bad" x="${x0 + 9 * 15 + 5.5}" y="${base - 68}" text-anchor="middle">?</text>`;
+      gl.innerHTML = h; gM.append(gl);
+    } else if (m.type === "note") {
+      const t = sv("text", { x: orient === "land" ? x : x - o.w / 2, y: orient === "land" ? y + o.h / 2 + 16 : y + o.h / 2 + 16, class: "note", "text-anchor": orient === "land" ? "middle" : "end" }); t.textContent = m.text; gM.append(t);
+    }
+  });
+  // focus marker
+  if (s.focus) {
+    let x, y, r;
+    if (s.focus === "api") { const a = g.api[0], b = g.api[g.api.length - 1]; const [x1, y1] = mp(a.f, a.c), [x2, y2] = mp(b.f, b.c); const pad = 10; gM.append(sv("rect", { class: "ring", x: Math.min(x1, x2) - aw / 2 - pad, y: Math.min(y1, y2) - ah / 2 - pad, width: Math.abs(x2 - x1) + aw + pad * 2, height: Math.abs(y2 - y1) + ah + pad * 2, rx: 8 })); x = Math.max(x1, x2) + aw / 2 + pad; y = Math.min(y1, y2) - ah / 2 - pad; }
+    else if (s.focus === "cli") { x = cx + 18; y = cy - 40; }
+    else if (g.nodes[s.focus]) { const o = g.nodes[s.focus]; [x, y] = mp(o.f, o.c); gM.append(sv("rect", { class: "ring", x: x - o.w / 2 - 7, y: y - o.h / 2 - 7, width: o.w + 14, height: o.h + 14, rx: 8 })); x = x + o.w / 2 + 7; y = y - o.h / 2 - 7; }
+    if (x != null && app.beat >= 0) { const ng = sv("g", { class: "num" }); ng.innerHTML = `<circle cx="${x}" cy="${y}" r="11"/><text x="${x}" y="${y + 4}" text-anchor="middle">${app.beat + 1}</text>`; gM.append(ng); }
+  }
+  // static flow hints when motion is off
+  if (!motionOn) {
+    Object.values(g.nodes).forEach((o) => { if (o.n.util > .97 || o.n.down) { const [x, y] = mp(o.f - halfF(o) - 16, o.c); const gx = sv("g"); gx.innerHTML = `<path class="x" d="M${x - 6} ${y - 6}L${x + 6} ${y + 6}M${x + 6} ${y - 6}L${x - 6} ${y + 6}"/>`; gM.append(gx); } });
+  }
+  if (orient === "port") { let mx = 0; Object.values(g.nodes).forEach((o) => { const [, y] = mp(o.f, o.c); mx = Math.max(mx, y + o.h / 2 + 44); }); const H = Math.max(300, Math.min(Ly.H, mx)); svg.setAttribute("viewBox", `0 0 ${Ly.W} ${H}`); svg.style.aspectRatio = `${Ly.W} / ${H}`; }
+  svg.querySelector("desc").textContent = describe(s);
+}
+function describe(s) {
+  const ms = s.nodes.filter((n) => n.kind === "master"), rs = s.nodes.filter((n) => n.kind === "replica");
+  return `${s.api} API servers. ${ms.map((m) => `${m.label} at ${Math.round(m.util * 100)}% CPU`).join(", ")}${rs.length ? `. ${rs.length} replicas` : ""}${s.nodes.some((n) => n.kind === "cache") ? ". A cache in front" : ""}.`;
+}
+
+/* ---------- request dots */
+let dots = [];
+function pick(weights) { const e = Object.entries(weights).filter(([, w]) => w > 0); const tot = e.reduce((a, [, w]) => a + w, 0); let r = Math.random() * tot; for (const [k, w] of e) { r -= w; if (r <= 0) return k; } return e.length ? e[e.length - 1][0] : null; }
+function spawn() {
+  if (!cur || !geo) return;
+  const isRead = Math.random() < cur.rf; const own = cur.own && isRead && Math.random() < .12;
+  const tid = own ? "m" : pick(isRead ? cur.reads : cur.writes); const o = geo.nodes[tid]; if (!o) return;
+  const a = geo.api[Math.floor(Math.random() * geo.api.length)];
+  const AW = orient === "land" ? L().api[0] : L().api[1];
+  const pts = [[geo.cli.f + 18, geo.cli.c], [geo.lb.f, geo.cli.c], [geo.lb.f, a.c], [a.f - AW / 2, a.c], [a.f + AW / 2, a.c], [geo.bus.f, a.c], [geo.bus.f, o.c], [o.f - halfF(o) - 3, o.c]];
+  let drop = null;
+  if (cur.apiU > .95 && Math.random() < .45) drop = 4;
+  else if (o.n.down) drop = 7;
+  else if (o.n.util >= .97 && Math.random() < .35) drop = 7;
+  const path = drop === 4 ? pts.slice(0, 4) : pts;
+  const lens = []; let tot = 0; for (let i = 1; i < path.length; i++) { const d = Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]); lens.push(d); tot += d; }
+  const node = isRead ? sv("circle", { r: 4.2, class: own ? "dot-r dot-own" : "dot-r" }) : sv("rect", { width: 8, height: 8, x: -4, y: -4, class: "dot-w" });
+  gD.append(node); dots.push({ path, lens, tot, d: 0, node, drop: drop != null, slow: o.n.util > .9 ? .55 : 1 });
+}
+let last = 0, acc = 0, running = true, mClock = 0;
+function frame(t) {
+  const dt = Math.min(.05, (t - (last || t)) / 1000); last = t;
+  if (motionOn && running && cur) {
+    acc += dt * 9 * cur.rate; while (acc > 1) { acc -= 1; if (dots.length < 90) spawn(); }
+    const speed = orient === "land" ? 300 : 210;
+    dots = dots.filter((p) => {
+      if (p.dead != null) { p.dead -= dt; if (p.dead <= 0) { p.node.remove(); return false; } p.node.setAttribute("opacity", Math.max(0, p.dead / .6)); return true; }
+      p.d += dt * speed * (p.d > p.tot * .8 ? p.slow : 1);
+      if (p.d >= p.tot) {
+        if (p.drop) { const e = p.path[p.path.length - 1]; const [x, y] = mp(e[0], e[1]); p.node.remove(); const xg = sv("path", { class: "x", d: `M${x - 5} ${y - 5}L${x + 5} ${y + 5}M${x + 5} ${y - 5}L${x - 5} ${y + 5}` }); gD.append(xg); p.node = xg; p.dead = .6; return true; }
+        p.node.remove(); return false;
+      }
+      let d = p.d, i = 0; while (i < p.lens.length && d > p.lens[i]) { d -= p.lens[i]; i++; }
+      const a = p.path[i], b = p.path[i + 1] || a, r = p.lens[i] ? d / p.lens[i] : 0;
+      const [x, y] = mp(a[0] + (b[0] - a[0]) * r, a[1] + (b[1] - a[1]) * r);
+      p.node.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`); return true;
+    });
+  }
+  const ch = tickMetrics(dt); mClock += dt; histClock += dt;
+  if (histClock > .3) { histClock = 0; sampleHist(); paintMetrics(); } else if (ch) paintMetrics();
+  requestAnimationFrame(frame);
+}
+function clearDots() { dots.forEach((p) => p.node.remove()); dots = []; }
+
+/* ================= panel views ================= */
+const panelIn = $("#panelIn"), cap = $("#cap");
+function setPager(when, what, eg = true) { $("#when").textContent = when; $("#what").textContent = what; $("#eg").hidden = !eg; }
+function setCap(html) { cap.innerHTML = html || ""; }
+function railPaint() {
+  $("#rail").innerHTML = INC.map((inc, i) => `<button data-i="${i}" class="${app.tried[inc.id].length ? "seen" : ""}" ${app.cur === i ? 'aria-current="step"' : ""}><span class="mono">${i + 1}</span>${inc.short}</button>`).join("") + `<button data-i="5" ${app.cur === 5 ? 'aria-current="step"' : ""}><span class="mono">·</span>Shift log</button>`;
+}
+$("#rail").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; const i = +b.dataset.i; i === 5 ? showEnd() : showIncident(i); });
+$("#home").addEventListener("click", () => showIntro());
+function stopBeats() { clearTimeout(app.timer); app.timer = null; }
+function focusPanel() { const h = panelIn.querySelector("h1, h2, h3"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+function scrollPanelTop() { $("#panel").scrollTop = 0; }
+
+function showIntro() {
+  stopBeats(); app.cur = -1; app.view = "intro"; app.beat = -1; railPaint();
+  setPager("Monday · 08:55", "Quiet. 3 API servers, one Postgres master on a 32 GB machine.", true);
+  setupMetrics([["cpu", "db CPU", "pct", (v) => v > 85], ["p99", "p99", "ms", (v) => v > 800], ["err", "errors/min", "n", (v) => v > 50], ["api", "API CPU", "pct", (v) => v > 85]], { cpu: 31, p99: 70, err: 0, api: 22 });
+  drawStage(st({ api: 3, apiU: .22, rate: .7, nodes: [M1(.31, "32 GB")], reads: { m: 1 }, writes: { m: 1 } }));
+  setCap("");
+  panelIn.innerHTML = `<h1>You're on call for Medium.</h1>
+    <p class="lede">Five pages tonight, all about one thing: the database running out of room.</p>
+    <p class="lede">Each page: read the alert, pick a move, watch the system, then open the debrief. Any move can be retried. Times and metrics are examples in a toy model; the debriefs carry the class's numbers and timestamps.</p>
+    <div class="row"><button class="primary" id="go">Take the pager</button><button class="linkish" id="skipNotes">Read the debriefs without playing</button></div>`;
+  $("#go").addEventListener("click", () => showIncident(0)); $("#skipNotes").addEventListener("click", openNotes);
+  scrollPanelTop();
+}
+
+function showIncident(i, opts = {}) {
+  stopBeats(); app.debStage = null; const inc = INC[i]; app.cur = i; app.view = "brief"; app.beat = -1; railPaint();
+  setPager(inc.when, inc.what, true);
+  setupMetrics(inc.metrics, inc.m0);
+  clearDots(); drawStage(inc.start); setCap("");
+  const tried = app.tried[inc.id];
+  panelIn.innerHTML = `<h2 data-k="${inc.k}">${inc.title}</h2><p class="ask">${inc.ask}</p>
+    <ul class="moves">${inc.moves.map((m, j) => `<li><button class="move${tried.includes(m.key) ? " tried" : ""}" data-j="${j}" data-k="${m.k}"><span class="key">${m.key}</span><b>${m.label}</b><small>${m.hint}</small></button></li>`).join("")}</ul>
+    ${tried.length ? `<div class="row"><button class="linkish" id="toDeb">Open the debrief</button></div>` : ""}`;
+  panelIn.querySelectorAll(".move").forEach((b) => b.addEventListener("click", () => runMove(i, +b.dataset.j)));
+  const td = $("#toDeb"); if (td) td.addEventListener("click", () => showDebrief(i, 0));
+  scrollPanelTop(); if (!opts.noFocus) focusPanel();
+}
+
+function runMove(i, j) {
+  stopBeats(); app.debStage = null; const inc = INC[i], mv = inc.moves[j]; app.view = "outcome"; app.moveIdx = j;
+  const tr = app.tried[inc.id]; tr.push(mv.key); railPaint();
+  panelIn.innerHTML = `<p class="chose">Your move: <b>${mv.label}</b></p><h3 class="vh">What happened</h3>
+    <ol class="beats">${mv.beats.map((b, n) => `<li data-n="${n}"><span class="n">${n + 1}</span><span>${b[0]}</span></li>`).join("")}</ol>
+    <div class="verdict" hidden><span class="tag">${{ fix: "this holds", miss: "the page keeps firing", costly: "it holds, at a price" }[mv.kind]}</span><h3 data-k="${mv.k}">${mv.verdict}</h3><p>${mv.note}</p>
+    <div class="row"><button class="primary" id="deb">Open the debrief</button><button class="secondary" id="retry">Try another move</button>${i < 4 ? `<button class="linkish" id="next">Next page →</button>` : `<button class="linkish" id="next">Shift log →</button>`}</div></div>`;
+  $("#deb").addEventListener("click", () => showDebrief(i, 0));
+  $("#retry").addEventListener("click", () => showIncident(i));
+  $("#next").addEventListener("click", () => i < 4 ? showIncident(i + 1) : showEnd());
+  scrollPanelTop();
+  if (mqPhone.matches) { const sw = $(".stage-wrap"); sw.scrollIntoView({ behavior: motionOn ? "smooth" : "auto", block: "start" }); }
+  const step = (n) => {
+    app.beat = n; const b = mv.beats[n];
+    drawStage(b[1]); setMetrics(b[2]);
+    setCap(`<span class="n">${n + 1}</span><span>${b[0]}</span>`);
+    panelIn.querySelectorAll(".beats li").forEach((li, k) => { li.classList.toggle("on", k === n); li.classList.toggle("past", k < n); });
+    if (n < mv.beats.length - 1) app.timer = setTimeout(() => step(n + 1), motionOn ? 2300 : 0);
+    else { const v = panelIn.querySelector(".verdict"); v.hidden = false; panelIn.querySelectorAll(".beats li").forEach((li) => li.classList.add("on")); }
+  };
+  if (!motionOn) { mv.beats.forEach((_, n) => step(n)); stopBeats(); } else step(0);
+}
+
+function cardHTML(c, inc) {
+  const links = (p) => p.slice(1).map(([u, l]) => `<a href="${u}" target="_blank" rel="noopener">${l}</a>`).join(" · ");
+  return `<article class="card" data-k="${c.k}"><h3>${c.t}</h3>
+    ${c.fig ? `<div class="fig">${FIG[c.fig]()}</div>` : ""}
+    ${c.b || ""}
+    ${c.fig2 ? `<div class="fig">${FIG[c.fig2]()}</div>` : ""}
+    ${c.code ? `<pre>${c.code}</pre>` : ""}
+    ${c.toy ? TOY[c.toy]() : ""}
+    ${(c.qa || []).map(([q, a, ts]) => `<div class="qa"><b>From the class Q&amp;A:</b> ${q} <span>${a}</span> <span class="mono">${ts}</span></div>`).join("")}
+    ${c.precise ? `<div class="precise"><b>More precisely:</b> ${c.precise[0]} ${c.precise.length > 1 ? links(c.precise) : ""}</div>` : ""}
+    <p class="src">${c.src}</p></article>`;
+}
+function showDebrief(i, k) {
+  stopBeats(); const inc = INC[i]; app.cur = i; app.view = "debrief"; app.card = k; railPaint();
+  if (!app.tried[inc.id].length) app.tried[inc.id].push("—");
+  const n = inc.cards.length; const c = inc.cards[k];
+  panelIn.innerHTML = `<div class="deb-head"><h2 style="font-size:28px">Debrief: ${inc.short.toLowerCase()}</h2><span class="mono">${k + 1} / ${n}</span></div>
+    <div class="stack${k === n - 1 ? " last" : ""}" id="stack" tabindex="0" aria-label="Debrief cards. Left and right arrow keys move between cards.">${cardHTML(c, inc)}</div>
+    <div class="stack-nav"><button class="arrow" id="prev" aria-label="Previous card" ${k === 0 ? "disabled" : ""}>←</button>
+      <div class="tabs">${inc.cards.map((cc, j) => `<button data-c="${j}" aria-current="${j === k}" title="${cc.t.replace(/"/g, "&quot;")}" aria-label="Card ${j + 1}: ${cc.t.replace(/"/g, "&quot;")}">${j + 1}</button>`).join("")}</div>
+      <button class="arrow" id="nextc" aria-label="Next card" ${k === n - 1 ? "disabled" : ""}>→</button></div>
+    <div class="row"><button class="primary" id="nextp">${i < 4 ? "Next page →" : "Shift log →"}</button><button class="secondary" id="back">Back to the moves</button></div>`;
+  initToys(panelIn);
+  $("#prev").addEventListener("click", () => showDebrief(i, k - 1));
+  $("#nextc").addEventListener("click", () => showDebrief(i, k + 1));
+  panelIn.querySelectorAll("[data-c]").forEach((b) => b.addEventListener("click", () => showDebrief(i, +b.dataset.c)));
+  $("#stack").addEventListener("keydown", (e) => { if (e.key === "ArrowRight" && k < n - 1) { showDebrief(i, k + 1); $("#stack").focus(); } if (e.key === "ArrowLeft" && k > 0) { showDebrief(i, k - 1); $("#stack").focus(); } });
+  $("#nextp").addEventListener("click", () => i < 4 ? showIncident(i + 1) : showEnd());
+  $("#back").addEventListener("click", () => showIncident(i));
+  // keep the stage in the incident's resolved state while reading
+  const fixMove = inc.moves.find((m) => m.kind === "fix"); const fin = fixMove.beats[fixMove.beats.length - 1];
+  if (app.debStage !== i) { app.debStage = i; app.beat = -1; setPager(inc.when, inc.what, true); setupMetrics(inc.metrics, fin[2]); clearDots(); drawStage(Object.assign({}, fin[1], { focus: null })); setCap(`<span>Resolved state after “${fixMove.label.toLowerCase()}”.</span>`); }
+  scrollPanelTop();
+}
+
+function showEnd() {
+  stopBeats(); app.debStage = null; app.cur = 5; app.view = "end"; app.beat = -1; railPaint();
+  setPager("Shift over", "Five pages. The database went from one 32 GB machine to three shards with replicas.", false);
+  setupMetrics([["cpu", "write CPU", "pct", (v) => v > 85], ["wp99", "write p99", "ms", (v) => v > 300], ["n", "replicas", "n", () => false], ["dbs", "masters", "txt", () => false]], { cpu: 33, wp99: 40, n: 3, dbs: "3 shards" });
+  clearDots(); drawStage(i5shard(true)); setCap("<span>Where the night ended: sharded by user ID, a replica per shard.</span>");
+  const kindWord = { fix: "held", miss: "kept firing", costly: "held, at a price" };
+  const rows = INC.map((inc, i) => {
+    const tr = app.tried[inc.id].filter((x) => x !== "—");
+    const trs = tr.length ? tr.map((key) => { const m = inc.moves.find((x) => x.key === key); return `${m.label.toLowerCase()} (${kindWord[m.kind]})`; }).join(" → ") : "not played";
+    return `<tr><td>${inc.short}<span class="tries">${trs}</span></td><td>${inc.cards.map((c, j) => `<button data-i="${i}" data-c="${j}">${c.t}</button>`).join("<br>")}</td></tr>`;
+  }).join("");
+  panelIn.innerHTML = `<h2>Shift log</h2><p class="lede">Each page, what you tried, and what it maps to in the lecture. Open any line to reread that card.</p>
+    <table class="log"><thead><tr><th>Page · your moves</th><th>Concepts</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="row"><button class="primary" id="again">Run the shift again</button><button class="secondary" id="allNotes">All debriefs on one page</button></div>`;
+  panelIn.querySelectorAll(".log button").forEach((b) => b.addEventListener("click", () => showDebrief(+b.dataset.i, +b.dataset.c)));
+  $("#again").addEventListener("click", () => { INC.forEach((x) => app.tried[x.id] = []); showIncident(0); });
+  $("#allNotes").addEventListener("click", openNotes);
+  scrollPanelTop(); focusPanel();
+}
+
+/* ================= notes ================= */
+const notes = $("#notes");
+function openNotes() {
+  const body = $("#notesBody");
+  if (!body.dataset.done) {
+    body.innerHTML = INC.map((inc) => `<h3 class="inc" data-k="${inc.k}">${inc.short}: ${inc.title}</h3><p class="src" style="margin:-4px 0 10px">${inc.when} (example) · ${inc.what}</p>` + inc.moves.map((m) => `<p class="src" data-k="${m.k}" style="font-family:var(--f-ui);font-size:14px;margin:4px 0">Move ${m.key}, ${m.label.toLowerCase()}: ${m.verdict} ${m.note}</p>`).join("") + inc.cards.map((c) => cardHTML(c, inc)).join("")).join("");
+    body.querySelectorAll("[id^=split]").forEach((e) => e.removeAttribute("id"));
+    body.querySelectorAll('[data-toy="ratio"]').forEach((t) => t.remove());
+    initToys(body); body.dataset.done = "1";
+  }
+  if (typeof notes.showModal === "function") notes.showModal(); else notes.setAttribute("open", "");
+}
+$("#notesBtn").addEventListener("click", openNotes);
+$("#notesClose").addEventListener("click", () => notes.close());
+
+/* ================= theme + motion ================= */
+const root = document.documentElement;
+function curTheme() { const t = root.getAttribute("data-theme"); if (t) return t; return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+function paintThemeBtn() { $("#themeBtn").textContent = curTheme() === "dark" ? "Light" : "Dark"; }
+const saved = store.get("oc-theme"); if (saved) root.setAttribute("data-theme", saved);
+paintThemeBtn();
+$("#themeBtn").addEventListener("click", () => { const n = curTheme() === "dark" ? "light" : "dark"; root.setAttribute("data-theme", n); store.set("oc-theme", n); paintThemeBtn(); });
+let motionOn = !RM.matches;
+function paintMotion() { $("#motionBtn").textContent = motionOn ? "Pause motion" : "Play motion"; $("#motionBtn").setAttribute("aria-pressed", String(!motionOn)); }
+$("#motionBtn").addEventListener("click", () => { motionOn = !motionOn; if (!motionOn) clearDots(); paintMotion(); if (cur) drawStage(cur); });
+RM.addEventListener && RM.addEventListener("change", () => { motionOn = !RM.matches; if (!motionOn) clearDots(); paintMotion(); });
+paintMotion();
+document.addEventListener("visibilitychange", () => { running = !document.hidden; });
+function setOrient() { const o = mqPhone.matches ? "port" : "land"; if (o !== orient) { orient = o; clearDots(); if (cur) drawStage(cur); } }
+mqPhone.addEventListener && mqPhone.addEventListener("change", setOrient);
+orient = mqPhone.matches ? "port" : "land";
+
+window.__oc = { showIncident, runMove, showDebrief, showEnd, showIntro, openNotes, INC, app };
+showIntro();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

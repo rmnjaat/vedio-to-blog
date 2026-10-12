@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scaling the database</title>
+<meta name="description" content="Lecture 1, part 3: what to do when the one database every Medium API server talks to cannot get any bigger.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..800;1,400..700&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  document.documentElement.classList.add('js');
+  try { var t = localStorage.getItem('lec01.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<style>
+:root{
+  --paper:#F5F0E6; --paper-2:#EDE6D8; --text:#24262B; --muted:#5D5952;
+  --ink:#1D2A45; --pencil:#8C8880; --pencil-t:#67635C; --red:#A9291C; --rule:rgba(36,38,43,.17);
+  --sel:rgba(29,42,69,.10);
+  --serif:"Alegreya", Georgia, "Times New Roman", serif;
+  --sans:"Alegreya Sans", "Gill Sans", system-ui, sans-serif;
+  --mono:"DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --rail:0px; --g1:0px; --g2:0px; --notes:0px;
+  --body:min(640px, calc(100vw - 32px));
+  --total:calc(var(--rail) + var(--g1) + var(--body) + var(--g2) + var(--notes));
+  --side:max(16px, calc((100vw - var(--total)) / 2));
+  --bar:52px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141619; --paper-2:#1B1E22; --text:#E2DCCF; --muted:#A9A398;
+    --ink:#F0E8D6; --pencil:#7F858C; --pencil-t:#A2A7AD; --red:#FF8E7B; --rule:rgba(226,220,207,.16);
+    --sel:rgba(240,232,214,.10); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141619; --paper-2:#1B1E22; --text:#E2DCCF; --muted:#A9A398;
+  --ink:#F0E8D6; --pencil:#7F858C; --pencil-t:#A2A7AD; --red:#FF8E7B; --rule:rgba(226,220,207,.16);
+  --sel:rgba(240,232,214,.10); color-scheme: dark;
+}
+@media (min-width:1000px){ :root{ --rail:240px; --g1:48px; --body:min(640px, calc(100vw - 32px - 288px)); } }
+@media (min-width:1290px){ :root{ --g2:44px; --notes:224px; --body:640px; } }
+
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; scroll-padding-top:calc(var(--bar) + 20px); }
+@media (prefers-reduced-motion: no-preference){ html{ scroll-behavior:smooth; } }
+body{
+  margin:0; background:var(--paper); color:var(--text);
+  font-family:var(--serif); font-size:20px; line-height:1.58;
+  font-variant-numeric:oldstyle-nums proportional-nums; font-kerning:normal;
+  text-rendering:optimizeLegibility; overflow-x:hidden;
+}
+@media (max-width:640px){ body{ font-size:18.5px; line-height:1.55; } }
+::selection{ background:var(--sel); }
+a{ color:inherit; text-decoration-line:underline; text-decoration-thickness:1px; text-underline-offset:3px; text-decoration-color:var(--pencil); }
+a:hover{ text-decoration-color:var(--ink); text-decoration-thickness:1.5px; }
+:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; border-radius:2px; }
+p{ margin:0 0 1em; text-wrap:pretty; hanging-punctuation:first; }
+em{ font-style:italic; }
+code, .mono{ font-family:var(--mono); font-size:.8em; font-variant-numeric:tabular-nums lining-nums; letter-spacing:-.01em; }
+.vh{ position:absolute!important; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* ---------- top bar ---------- */
+.bar{
+  position:sticky; top:0; z-index:20; height:var(--bar);
+  background:var(--paper); border-bottom:1px solid var(--rule);
+  display:flex; align-items:center; gap:16px; padding:0 var(--side);
+  font-family:var(--sans); font-size:16px; line-height:1.2;
+}
+.bar .where{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--muted); }
+.bar .where a{ text-decoration:none; color:var(--text); }
+.bar .where b{ font-weight:500; color:var(--text); }
+.bar .short{ display:none; }
+.bar .left{ color:var(--muted); white-space:nowrap; font-variant-numeric:lining-nums tabular-nums; }
+.btn{
+  font:500 15px/1 var(--sans); color:var(--text); background:transparent;
+  border:1px solid var(--rule); border-radius:3px; padding:8px 11px; cursor:pointer; min-height:36px;
+}
+.btn:hover{ border-color:var(--pencil); }
+.btn[disabled]{ opacity:.4; cursor:default; }
+.parts-btn{ display:none; }
+@media (max-width:999px){ .parts-btn{ display:inline-block; } }
+@media (max-width:640px){
+  .bar{ gap:10px; font-size:15px; }
+  .bar .long{ display:none; } .bar .short{ display:inline; }
+  .bar .left .lw{ display:none; }
+}
+.sheet{
+  position:fixed; z-index:30; left:0; right:0; top:var(--bar); max-height:calc(100vh - var(--bar));
+  overflow:auto; background:var(--paper); border-bottom:1px solid var(--rule);
+  padding:18px 16px 22px; box-shadow:0 12px 24px -18px rgba(0,0,0,.35);
+}
+.sheet[hidden]{ display:none; }
+
+/* ---------- layout ---------- */
+.shell{ display:grid; grid-template-columns:var(--rail) var(--g1) minmax(0,1fr); padding:0 var(--side); }
+.rail{ grid-column:1; }
+main{ grid-column:3; min-width:0; width:100%; max-width:var(--body); }
+@media (max-width:999px){ .shell{ display:block; } .rail{ display:none; } }
+main > *{ max-width:var(--body); }
+.wide{ width:calc(var(--body) + var(--g2) + var(--notes)); max-width:none; }
+/* bleeds off the right edge; on wide screens it also hangs 28px left of the text, on phones it is full width */
+:root{ --bl:var(--side); }
+@media (min-width:1000px){ :root{ --bl:28px; } }
+.bleed{
+  max-width:none!important;
+  width:calc(100vw - var(--side) - var(--rail) - var(--g1) + var(--bl));
+  margin-left:calc(-1 * var(--bl));
+}
+
+/* rail */
+.rail-in{ position:sticky; top:calc(var(--bar) + 28px); padding-bottom:24px; font-family:var(--sans); font-size:15px; line-height:1.3; }
+.map{ display:block; width:100%; max-width:252px; height:auto; overflow:visible; }
+.map a{ text-decoration:none; }
+.map a:focus-visible{ outline:none; }
+.map a:focus-visible .hit{ stroke:var(--ink); stroke-width:1.5; }
+.map .hit{ fill:transparent; stroke:none; }
+.map a:hover .lab{ text-decoration:underline; }
+.parts{ list-style:none; margin:14px 0 0; padding:0; counter-reset:p; }
+.parts > li{ margin:0; padding:5px 0 5px 26px; position:relative; color:var(--muted); }
+.parts > li::before{ counter-increment:p; content:counter(p); position:absolute; left:2px; top:5px; font-family:var(--mono); font-size:13px; color:var(--pencil-t); }
+.parts a{ text-decoration:none; color:inherit; }
+.parts a:hover{ text-decoration:underline; }
+.parts .now{ color:var(--text); }
+.parts .now > a{ font-weight:700; }
+.parts ol{ list-style:none; margin:6px 0 2px; padding:0; border-left:1px solid var(--rule); }
+.parts ol li{ padding:3px 0 3px 12px; margin-left:-1px; border-left:2px solid transparent; }
+.parts ol li.on{ border-left-color:var(--ink); color:var(--text); }
+.parts .later{ color:var(--pencil-t); }
+.parts .tl{ display:block; font-size:14px; color:var(--muted); margin:4px 0 0; font-variant-numeric:lining-nums; }
+
+/* ---------- section head ---------- */
+.resume{
+  margin:22px 0 0; padding:10px 0; font-family:var(--sans); font-size:16px; color:var(--muted);
+  border-bottom:1px solid var(--rule); display:flex; gap:12px; align-items:baseline; flex-wrap:wrap;
+}
+.resume[hidden]{ display:none; }
+.resume button.link{ font:inherit; color:var(--text); background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.resume .x{ margin-left:auto; font:inherit; background:none; border:0; color:var(--muted); cursor:pointer; padding:2px 6px; }
+.head{ padding-top:44px; }
+@media (max-width:640px){ .head{ padding-top:26px; } }
+.crumb{ font-family:var(--sans); font-size:16px; color:var(--muted); margin:0 0 10px; }
+.crumb a{ text-decoration:none; }
+.crumb a:hover{ text-decoration:underline; }
+h2.sec{
+  font-family:var(--serif); font-weight:800; font-size:clamp(2.3rem, 1.4rem + 3vw, 3.3rem);
+  line-height:1.02; letter-spacing:-.015em; margin:0 0 14px; text-wrap:balance;
+}
+.dek{ font-style:italic; font-size:1.18em; line-height:1.4; color:var(--muted); margin:0 0 30px; max-width:30em; }
+.lede{ font-size:1.12em; line-height:1.55; }
+.lede::first-line{ font-variant-caps:normal; }
+.inline-map{ display:none; margin:6px 0 30px; }
+@media (max-width:999px){ .inline-map{ display:block; } }
+.inline-map figcaption, figcaption{ font-family:var(--sans); font-size:15.5px; line-height:1.4; color:var(--muted); margin-top:8px; }
+figcaption b{ font-weight:500; color:var(--text); }
+
+/* headings by role */
+h3{ margin:2.1em 0 .45em; }
+h3.mech{ font-weight:750; font-size:1.62em; line-height:1.12; letter-spacing:-.008em; text-wrap:balance; }
+h3.run{ font-weight:700; font-style:italic; font-size:1.08em; line-height:1.3; margin-top:2.4em; }
+@media (max-width:640px){ h3.mech{ font-size:1.48em; } }
+
+/* margin notes */
+.note{
+  font-size:15.5px; line-height:1.45; color:var(--muted);
+  margin:4px 0 1.2em; padding-left:14px; border-left:1px solid var(--rule);
+}
+.note .nt{ display:block; font-style:italic; font-weight:700; color:var(--text); margin-bottom:2px; }
+.note p{ margin:0 0 .5em; }
+@media (min-width:1290px){
+  .note{
+    float:right; clear:right; width:var(--notes); margin:6px calc(-1 * (var(--notes) + var(--g2))) 18px 0;
+    padding-left:0; border-left:0;
+  }
+}
+
+/* folds (foundations / going deeper) */
+details.fold{ margin:1.2em 0 1.4em; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); }
+details.fold > summary{
+  list-style:none; cursor:pointer; padding:11px 30px 11px 0; position:relative;
+  font-family:var(--sans); font-size:17px; line-height:1.35;
+}
+details.fold > summary::-webkit-details-marker{ display:none; }
+details.fold > summary .k{ font-style:italic; color:var(--muted); }
+details.fold > summary::after{
+  content:""; position:absolute; right:6px; top:50%; width:9px; height:9px; margin-top:-7px;
+  border-right:1.5px solid var(--pencil-t); border-bottom:1.5px solid var(--pencil-t); transform:rotate(45deg);
+}
+details.fold[open] > summary::after{ transform:rotate(225deg); margin-top:-2px; }
+details.fold .fb{ font-size:.92em; padding:2px 0 8px; }
+
+/* ---------- step figure band ---------- */
+.band{ background:var(--paper-2); margin-top:2.2em; margin-bottom:2.2em; padding:32px 28px 26px; }
+@media (max-width:999px){ .band{ padding:26px var(--side) 22px; } }
+.band-in{ max-width:900px; display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
+.steps{ max-width:640px; }
+.band .lead{ font-size:20px; margin:0 0 10px; max-width:640px; }
+@media (max-width:640px){ .band .lead{ font-size:18.5px; } }
+.figwrap{ position:relative; }
+.figwrap svg{ display:block; width:100%; height:auto; overflow:visible; }
+.figwrap:focus-visible{ outline-offset:6px; }
+.steps{ font-size:18px; line-height:1.5; }
+.ctl{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 14px; font-family:var(--sans); }
+.ctl .count{ font-size:15px; color:var(--muted); margin-left:6px; font-variant-numeric:lining-nums tabular-nums; }
+.dots{ display:flex; gap:4px; margin-left:auto; }
+.dots button{
+  width:32px; height:32px; border-radius:50%; border:1px solid var(--rule); background:transparent;
+  font:500 14px/1 var(--mono); color:var(--muted); cursor:pointer;
+}
+.dots button[aria-current="step"]{ border-color:var(--ink); color:var(--ink); border-width:1.5px; }
+.steplist{ list-style:none; margin:0; padding:0; }
+.steplist li{ margin:0 0 1em; }
+.js .steplist li:not(.on){ display:none; }
+.js .steplist .sn{ display:none; }
+.steplist .sn{ font-family:var(--mono); font-size:14px; color:var(--muted); display:block; margin-bottom:2px; }
+.steplist b{ font-weight:700; }
+.band figcaption{ max-width:640px; }
+
+/* svg drawing classes */
+svg .i{ fill:currentColor; stroke:none; }
+svg .p{ fill:none; stroke:currentColor; stroke-width:1.1; stroke-linecap:round; stroke-linejoin:round; }
+svg .dot{ stroke-dasharray:1.5 4; }
+svg .bg{ fill:var(--paper); stroke:none; }
+.band svg .bg{ fill:var(--paper-2); }
+svg .c-ink{ color:var(--ink); }
+svg .c-pen{ color:var(--pencil); }
+svg .c-red{ color:var(--red); }
+svg text{ fill:currentColor; }
+svg .an{ font-family:var(--serif); font-style:italic; font-size:14.5px; }
+svg .an.s{ font-size:13.5px; }
+svg .id{ font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums lining-nums; }
+svg .lane{ font-family:var(--serif); font-style:italic; font-size:15px; }
+svg .t-pen{ color:var(--pencil-t); }
+svg .st{ transition:opacity .25s ease; }
+svg .st.past{ opacity:.42; }
+svg .st.past .c-red{ color:var(--pencil); }
+.js svg .st.future{ opacity:0; visibility:hidden; }
+@media (prefers-reduced-motion: reduce){ svg .st{ transition:none; } }
+
+/* ---------- prediction ---------- */
+.predict{ position:relative; margin:2em 0 2.2em; padding:4px 0 2px 30px; }
+.predict .br{ position:absolute; left:0; top:0; width:16px; height:100%; overflow:visible; }
+.predict .q{ font-style:italic; font-size:1.2em; line-height:1.42; margin:0 0 16px; color:var(--text); }
+@media (max-width:640px){ .predict{ padding-left:22px; } .predict .q{ font-size:1.12em; } }
+.opts{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; margin:0 0 12px; }
+.opt{
+  position:relative; font:inherit; font-size:.97em; text-align:left; color:var(--text); background:none; border:0;
+  padding:7px 14px 7px 30px; cursor:pointer; border-radius:2px; line-height:1.35;
+}
+.opt .ol{ position:absolute; left:4px; top:7px; font-family:var(--mono); font-size:14px; color:var(--muted); }
+.opt:hover .tx{ text-decoration:underline; text-decoration-color:var(--pencil); text-underline-offset:3px; }
+.opt .ring{ position:absolute; left:-6px; top:-5px; width:calc(100% + 12px); height:calc(100% + 10px); overflow:visible; pointer-events:none; }
+.opt .ring path{ fill:none; stroke:var(--ink); stroke-width:1.6; stroke-linecap:round; }
+@media (prefers-reduced-motion: no-preference){
+  .opt .ring path{ stroke-dasharray:1; stroke-dashoffset:1; animation:draw .55s ease-out forwards; }
+}
+@keyframes draw{ to{ stroke-dashoffset:0; } }
+.skip{ font:inherit; font-family:var(--sans); font-size:16px; color:var(--muted); background:none; border:0; padding:4px 0; cursor:pointer; text-decoration:underline; text-decoration-color:var(--pencil); text-underline-offset:3px; }
+.reveal{ margin-top:14px; padding-top:14px; border-top:1px solid var(--rule); }
+.js .reveal:not(.open){ display:none; }
+.reveal .yours{ font-style:italic; color:var(--muted); }
+
+/* ---------- wrong turn ---------- */
+.wrong{ position:relative; margin:2.2em 0; padding:2px 0 4px 26px; }
+.wrong .rl{ position:absolute; left:0; top:4px; width:8px; height:calc(100% - 8px); overflow:visible; }
+.no-svg .wrong{ border-left:2px solid var(--red); }
+.wrong .wl{ font-style:italic; color:var(--muted); margin:0 0 .6em; }
+.wrong .wl b{ font-style:normal; font-weight:700; color:var(--red); font-family:var(--sans); font-size:.85em; letter-spacing:.01em; margin-right:4px; }
+.pair{ display:flex; flex-wrap:wrap; gap:18px 28px; margin:16px 0 8px; }
+.pair figure{ margin:0; flex:1 1 280px; max-width:340px; }
+.pair svg{ display:block; width:100%; height:auto; overflow:visible; }
+
+/* ---------- worked example ---------- */
+.calc{ margin:1em 0 1.2em; font-size:.95em; }
+.calc .r{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 18px; padding:5px 0; align-items:baseline; }
+.calc .r .w{ grid-column:1 / -1; font-style:italic; color:var(--muted); font-size:.88em; margin-top:-2px; }
+.calc .n{ font-family:var(--mono); font-size:.86em; font-variant-numeric:tabular-nums lining-nums; text-align:right; white-space:nowrap; }
+.calc .tot{ position:relative; padding-top:11px; margin-top:4px; }
+.calc .tot .n{ font-weight:500; color:var(--ink); }
+.penrule{ position:absolute; left:0; top:0; width:100%; height:6px; overflow:visible; }
+.no-svg .calc .tot{ border-top:1px solid var(--text); }
+.calc .blank{ display:inline-block; min-width:4.5em; border-bottom:1px solid var(--pencil); height:1em; vertical-align:baseline; }
+.calc h4{ font:italic 700 1em/1.3 var(--serif); margin:1.2em 0 .2em; }
+
+/* ---------- recall ---------- */
+.recall textarea{
+  display:block; width:100%; min-height:7.5em; resize:vertical; margin:10px 0 6px;
+  font:italic 19px/32px var(--serif); color:var(--ink); background-color:transparent;
+  border:0; border-top:1px solid var(--rule); border-bottom:1px solid var(--rule); padding:0 2px; border-radius:0;
+  background-image:repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--rule) 31px, var(--rule) 32px);
+  background-attachment:local;
+}
+.recall .hint{ font-family:var(--sans); font-size:15px; color:var(--muted); margin:0 0 10px; }
+.hook{ margin:1.8em 0 0; padding:14px 0 0; border-top:1px solid var(--rule); }
+.hook .hl{ font-style:italic; font-weight:700; }
+
+/* ---------- end ---------- */
+.stop{ margin:2.6em 0 1em; font-family:var(--sans); font-size:17px; color:var(--muted); }
+.next{ display:block; margin:0 0 3em; padding:18px 0; border-top:1px solid var(--text); border-bottom:1px solid var(--rule); text-decoration:none; }
+.next .k{ display:block; font-family:var(--sans); font-size:15px; color:var(--muted); }
+.next .t{ display:block; font-weight:700; font-size:1.3em; line-height:1.25; margin-top:2px; }
+.next:hover .t{ text-decoration:underline; text-underline-offset:4px; }
+.colo{ font-family:var(--sans); font-size:15px; line-height:1.45; color:var(--muted); padding:0 0 60px; }
+.colo ol{ padding-left:1.3em; margin:.4em 0 1em; }
+.colo li{ margin:0 0 .25em; overflow-wrap:anywhere; }
+.colo h4{ font:700 15px/1.3 var(--sans); color:var(--text); margin:1.4em 0 .2em; }
+
+@media print{
+  .bar,.rail,.resume,.ctl{ display:none!important; }
+  .js .steplist li:not(.on){ display:block; }
+  .js svg .st.future{ opacity:1; visibility:visible; }
+  .js .reveal:not(.open){ display:block; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar" role="banner">
+  <div class="where">
+    <span class="long"><a href="#top">Medium under load</a> · Lecture 1 · <b>Scaling the database</b></span>
+    <span class="short"><b>Scaling the database</b></span>
+  </div>
+  <span class="left" id="timeLeft" aria-live="off">≈ 9 min <span class="lw">left in this section</span></span>
+  <button class="btn parts-btn" id="partsBtn" aria-expanded="false" aria-controls="sheet">Parts</button>
+  <button class="btn" id="themeBtn" type="button" aria-label="Switch colour theme">Dark</button>
+</header>
+
+<div class="sheet" id="sheet" hidden>
+  <nav aria-label="Lecture parts (sheet)" id="sheetNav"></nav>
+</div>
+
+<div class="shell" id="top">
+  <aside class="rail" aria-label="Lecture map">
+    <div class="rail-in">
+      <div class="mapslot" data-map></div>
+      <nav aria-label="Lecture parts" id="railNav">
+        <ol class="parts" id="partsList">
+          <li class="later"><a href="#part-1" aria-disabled="true" title="Earlier in the lecture">The Medium we start with</a></li>
+          <li class="later"><a href="#part-2" aria-disabled="true" title="Earlier in the lecture">Caching: where a read can stop early</a></li>
+          <li class="now"><a href="#top">Scaling: more readers than one box</a>
+            <ol id="secList">
+              <li><a href="#part-3-fleet" aria-disabled="true" title="Earlier in this part">The API fleet, and its catch</a></li>
+              <li class="cur"><a href="#top">The database</a>
+                <ol>
+                  <li data-for="bigger"><a href="#bigger">A bigger machine</a></li>
+                  <li data-for="replicas"><a href="#replicas">Replicas take the reads</a></li>
+                  <li data-for="lag"><a href="#lag">A read that comes back empty</a></li>
+                  <li data-for="sharding"><a href="#sharding">Sharding splits the rows</a></li>
+                  <li data-for="sizing"><a href="#sizing">Sizing it on paper</a></li>
+                  <li data-for="recall"><a href="#recall">Say it back</a></li>
+                </ol>
+                <span class="tl" data-tl>≈ 9 min left</span>
+              </li>
+            </ol>
+          </li>
+          <li class="later"><a href="#next">Delegation: publishing does too much</a></li>
+          <li class="later"><a href="#part-5" aria-disabled="true" title="Later in the lecture">Concurrency: two claps at once</a></li>
+          <li class="later"><a href="#part-6" aria-disabled="true" title="Later in the lecture">Communication: claps, live</a></li>
+        </ol>
+      </nav>
+    </div>
+  </aside>
+
+  <main id="sec">
+    <h1 class="vh">Medium under load, lecture 1</h1>
+
+    <div class="resume" id="resume" hidden>
+      <span>Last time you got as far as <em id="resumeTitle"></em>.</span>
+      <button class="link" id="resumeGo" type="button">Continue there</button>
+      <button class="x" id="resumeX" type="button" aria-label="Dismiss">✕</button>
+    </div>
+
+    <div class="head">
+      <p class="crumb"><a href="#part-3-fleet" aria-disabled="true" title="Earlier in this part">Scaling</a> → the database</p>
+      <h2 class="sec" id="h-db">Scaling the database</h2>
+      <p class="dek">When the one box every API server talks to can't get any bigger.</p>
+    </div>
+
+    <p class="lede">Suppose it's 9:00 on a Monday and Medium's marketing team sends a push notification to every reader. The night before, engineering widened the API fleet from 8 servers to 40, so the API tier has room to spare. All 40 servers send their queries to one database, and that database already runs on a 4&nbsp;TB machine, the top rung of the ladder from earlier in this lecture.</p>
+
+    <aside class="note">
+      <span class="nt">The board said it first: bottom up</span>
+      <p>Before a campaign, scale the database and every service you call, then the API fleet, and only then let the users in. Teams you depend on should write down how they scale.</p>
+    </aside>
+
+    <p>The 40 servers accept five times the traffic the 8 did, and every request that needs data ends up at that one database. If it falls over, every API server waiting on it starts failing too. The Google SRE book treats this cascade as its own class of outage, and names overload as its most common trigger (<a href="https://sre.google/sre-book/addressing-cascading-failures/">Addressing Cascading Failures</a>).</p>
+
+    <p>So how do you give a single database more room once it can't be made any bigger? The class went through three moves, always in this order: a bigger machine, then copies that take the reads (<em>read replicas</em>), then splits that take the writes (<em>sharding</em>).</p>
+
+    <figure class="inline-map" aria-labelledby="imap-cap">
+      <div data-map></div>
+      <figcaption id="imap-cap">The Medium system so far. <b>Ink</b> is this section, pencil was built earlier, dotted parts come later in the lecture. Tap a part to go there.</figcaption>
+    </figure>
+
+    <h3 class="mech" id="bigger">A bigger machine buys a few doublings</h3>
+
+    <p>The first move is the cheapest: choose a larger instance type. In class the ladder went 16&nbsp;GB, 32, 64, and on up to 4&nbsp;TB of RAM, each rung a few clicks in the AWS console. Then the list ends.</p>
+
+    <p>The class was asked why it ends. One answer the teacher had heard, from a senior engineer, was that AWS doesn't offer a bigger option, which describes the console rather than the cause. RAM, disks and network cards talk to the motherboard over buses, and both sides have to support the size. A phone whose card slot takes 256&nbsp;GB won't read a 512&nbsp;GB card for the same reason. Going higher means different hardware, and the data centre either has it or doesn't.</p>
+
+    <p>In practice most teams step off the ladder before they reach the top. The largest instances cost more per unit of capacity than the middle ones, and a single machine, however large, can still fail.</p>
+
+    <h3 class="mech" id="replicas">Replicas take the reads</h3>
+
+    <p>Most of what Medium's database does is answer reads: for every person writing a story, many more open it. The lecture put the read-to-write ratio for most applications at 90:10, sometimes 99:1. That holds for content and social products. Logging, metrics and chat can run the other way, so measure your own split before you build on it.</p>
+
+    <p>A <strong>read replica</strong> is a second database that keeps a copy of the master's data and answers reads. Writes still go only to the master. MySQL, PostgreSQL and MongoDB all ship replication as something you configure, not something you write.</p>
+
+    <details class="fold">
+      <summary>Foundations <span class="k">— synchronous, asynchronous, and the setting in between</span></summary>
+      <div class="fb">
+        <p>With <em>asynchronous</em> replication, the master commits a write and replies at once; replicas apply it a little later. Writes stay fast, and a replica can be behind. That is the default the lecture describes.</p>
+        <p>With <em>synchronous</em> replication, the commit waits until a replica has the write too. Nothing is lost if the master dies, but every write pays a network round trip.</p>
+        <p>MySQL's <em>semi-synchronous</em> mode sits between them: a commit waits until at least one replica confirms it has <em>received</em> the change, and falls back to asynchronous if replicas stop answering in time (<a href="https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html">MySQL semisynchronous replication</a>).</p>
+      </div>
+    </details>
+
+    <aside class="note">
+      <span class="nt">One pool per database</span>
+      <p>A database connection is a stateful TCP connection, so the API server keeps a separate pool for the master and for each replica. A proxy can hold those pools instead; that is usually what a single connection string is hiding.</p>
+    </aside>
+
+    <p>The direction of replication is the part that usually gets told backwards. The master doesn't seek out its replicas. Each replica opens a connection to the master and asks for every change after the last one it has; the master then streams new changes down that connection as they are written. MySQL calls the sending side the binlog dump thread (<a href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">MySQL replication threads</a>); PostgreSQL says the standby connects and the primary streams WAL records to it (<a href="https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION">PostgreSQL streaming replication</a>). The replica starts the conversation, which is why the request arrow in Fig.&nbsp;1 points from the replica to the master.</p>
+
+    <p>The database won't decide which query goes where. In the plain setup the API server holds two connections, one to the master and one to the replica, and each handler picks: opening a profile uses the replica, publishing a story uses the master. Some layers make the choice for you, such as Aurora's <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html">reader endpoint</a> or PostgreSQL's libpq with <a href="https://www.postgresql.org/docs/current/libpq-connect.html"><code>target_session_attrs</code></a>. Build the two-connection version once and you'll know what they are doing for you.</p>
+    <!-- step figure: runs off the right edge of the page -->
+    <section class="band bleed" id="lag" aria-labelledby="lag-cap">
+  <div class="band-in">
+    <div>
+      <p class="lead">Here is a read going to a replica that hasn't caught up. Story <span class="mono">#4182</span> is published, and the writer is sent straight to its page:</p>
+      <figure style="margin:0" id="fig-lag">
+        <div class="figwrap" id="lagFig" tabindex="0" role="group" aria-roledescription="stepped figure" aria-label="Fig. 1, replication lag, four steps. Use the left and right arrow keys to move between steps." aria-describedby="lagSteps"></div>
+        <figcaption id="lag-cap"><b>Fig. 1.</b> Time runs left to right (down, on a phone). Ink is the current step; pencil is what already happened.</figcaption>
+      </figure>
+    </div>
+    <div class="steps">
+      <div class="ctl">
+        <button class="btn" id="lagPrev" type="button">← Back</button>
+        <button class="btn" id="lagNext" type="button">Next →</button>
+        <span class="count" id="lagCount">1 of 4</span>
+        <span class="dots" id="lagDots" role="group" aria-label="Go to step"></span>
+      </div>
+      <ol class="steplist" id="lagSteps" aria-live="polite">
+        <li data-step="1" class="on"><span class="sn">1 / 4</span><b>Publish.</b> The writer's browser sends the story to an API server, which writes it to the master. The master commits. As far as the master is concerned, <span class="mono">#4182</span> exists.</li>
+        <li data-step="2"><span class="sn">2 / 4</span><b>The redirect reads from a replica.</b> Showing a story is a read, so the handler uses the replica connection. The replica doesn't have <span class="mono">#4182</span> yet and returns no row, so the writer gets a 404 for the story they published a moment ago.</li>
+        <li data-step="3"><span class="sn">3 / 4</span><b>Why the replica was behind.</b> The replica asked the master for new changes long before the publish, and <span class="mono">#4182</span> travels down that same connection. Here it arrives after the read. That gap is replication lag. PostgreSQL's docs put it under a second when the standby keeps up with the master's write rate; when it doesn't, the gap grows.</li>
+        <li data-step="4"><span class="sn">4 / 4</span><b>The fix is a routing rule.</b> Reads where someone must see their own write go to the master: the writer's own story just after publishing, or an account balance after a transfer (the lecture's bank example). A profile or another reader's feed can go to a replica and be a moment old.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+    <p>You can measure the gap instead of guessing it. On RDS for MySQL the <code>ReplicaLag</code> metric reports how many seconds a replica is behind (<a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.Monitor.html">AWS: monitoring read replication</a>).</p>
+
+    <aside class="note">
+      <span class="nt">Fifteen replicas means a tree, or a bigger cap</span>
+      <p>Every replica that streams from the master costs it some CPU, memory and network. The class's figure was about five per master, with a tree beyond that: five replicas each feeding three more gives fifteen.</p>
+      <p>There is no general limit of five. RDS for MySQL allows 15 read replicas per source and Aurora 15 per cluster (<a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html">RDS</a>, <a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Aurora</a>). The real number depends on the write rate and the instance size.</p>
+    </aside>
+
+    <p>A student asked the obvious next question in class: if replicas pull from the master, does adding more of them slow the master down? A little each time, was the answer, and that's why nobody hangs fifty replicas off one machine. The same student then said that once replicas start to hurt the master, it's time to shard, and the teacher agreed.</p>
+
+    <h3 class="mech" id="sharding">Sharding splits the rows</h3>
+
+    <p>Replicas never take writes. Every publish, clap and follow still lands on the one master, and when that machine is at its limit even with the reads moved off, the data itself has to be divided. Before reading how, make a call on this:</p>
+
+    <section class="predict" id="predict" aria-labelledby="pq">
+      <svg class="br" data-bracket aria-hidden="true"></svg>
+      <p class="q" id="pq">Medium splits its users, and their stories, across three database machines by user ID. A writer whose stories live on the second machine publishes a new one. How many of the three machines have to accept that write?</p>
+      <div class="opts" role="group" aria-labelledby="pq">
+        <button class="opt" type="button" data-k="all" aria-pressed="false"><span class="ol">a</span><span class="tx">All three, so every machine has the story</span></button>
+        <button class="opt" type="button" data-k="one" aria-pressed="false"><span class="ol">b</span><span class="tx">One: the machine that holds that writer</span></button>
+        <button class="opt" type="button" data-k="two" aria-pressed="false"><span class="ol">c</span><span class="tx">Two: the owner, plus one more as a backup</span></button>
+      </div>
+      <button class="skip" type="button" id="skip">Skip the guess</button>
+      <div class="reveal" id="reveal" aria-live="polite">
+        <p class="yours" id="yours"></p>
+        <p><strong>One.</strong> Each machine holds a different third of the users, and every row has exactly one home. The API server works out which machine owns the writer and sends the write only there. Each of those machines is a master for its third, and it can have replicas of its own; those are where any backup copies come from.</p>
+      </div>
+    </section>
+
+    <p>That is <strong>sharding</strong>: split the data into mutually exclusive subsets and put each one on its own machine, a <em>shard</em>. In the version from class, the API server holds the routing. It keeps a connection to every shard, works out which user a request belongs to, sends it to that shard and passes the answer back. Medium's natural key is the user ID, so a writer's stories sit on the same shard as the writer.</p>
+
+    <aside class="note">
+      <span class="nt">A key with many values</span>
+      <p>User ID works because there are millions of them with broadly similar traffic. A key with a handful of values, or one that groups rows by date, piles the load onto one shard (<a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-uniform-load.html">DynamoDB's guidance</a> says the same for partitions).</p>
+    </aside>
+
+    <p>The routing rule in class was a hash of the user ID. Written as <code>hash(user_id) % 3</code>, it works until a fourth machine arrives: changing the 3 to a 4 sends nearly every user to a different shard, and their rows have to move with them. Shard routers avoid plain modulo for that reason. They use <a href="https://en.wikipedia.org/wiki/Consistent_hashing">consistent hashing</a>, a fixed set of key ranges that get reassigned as machines are added (<a href="https://vitess.io/docs/reference/features/sharding/">the way Vitess does it</a>), or a lookup table from user to shard.</p>
+
+    <aside class="wrong" aria-labelledby="wt">
+      <svg class="rl" data-redrule aria-hidden="true"></svg>
+      <p class="wl" id="wt"><b>A wrong turn</b> “So three shards means three copies of the database?”</p>
+      <p>This came up in class right after the board drawing, and it's an easy reading of it. The board drew three cylinders for replicas and three for shards, and both moves add machines.</p>
+      <p>Follow one write for user 5. With three copies, all three machines must apply it, so each one carries as many writes as the single master did, and storage triples. With three shards, the write goes to the one machine that owns user 5, and each machine carries about a third of the writes.</p>
+      <div class="pair">
+        <figure><div data-fig="copies"></div><figcaption>Copies: every machine applies every write. Reads spread out; writes don't.</figcaption></figure>
+        <figure><div data-fig="shards"></div><figcaption>Shards: each write has one home, so writes spread out too.</figcaption></figure>
+      </div>
+      <p style="margin-top:10px">Replicas copy everything and divide the reads. Shards divide the rows, and the writes go with them.</p>
+    </aside>
+
+    <p>Why not let replicas accept writes as well? Then two machines can change the same row at once, and something has to decide which change wins. That's a <em>multi-master</em> setup. The class's advice was to try it last: resolving those conflicts depends on what the product needs, and no general rule gets it right. Sharding scales writes without raising the question, because a row only ever has one home.</p>
+
+    <h3 class="run" id="sizing">Sizing it on paper</h3>
+
+    <p>The class's capacity rule: load-test one machine to learn what it can handle, then divide. If one machine serves 100 requests a second and you need 500, you need 5. The usual name for this is linear scalability, and it holds only while nothing shared becomes the bottleneck. Here it is applied to Medium's database. <em>The numbers are invented for the exercise; the method is from class.</em></p>
+
+    <div class="calc" role="group" aria-label="Worked example">
+      <div class="r"><span>Peak queries reaching the database</span><span class="n">24,000 /s</span></div>
+      <div class="r"><span>Reads, at 90%</span><span class="n">21,600 /s</span></div>
+      <div class="r"><span>Writes, at 10%</span><span class="n">2,400 /s</span></div>
+      <div class="r"><span>One replica, load-tested</span><span class="n">5,000 reads/s</span></div>
+      <div class="r tot"><span>Replicas: 21,600 ÷ 5,000 = 4.3, so 5, plus one spare</span><span class="n">6</span><span class="w">the spare lets one replica be down or lagging without overloading the rest</span></div>
+      <div class="r"><span>Master, load-tested ceiling</span><span class="n">6,000 writes/s</span></div>
+      <div class="r tot"><span>Master load: 2,400 of 6,000</span><span class="n">40%</span></div>
+
+      <h4>Now the campaign triples the traffic</h4>
+      <div class="r"><span>Reads: 64,800 /s → replicas needed</span><span class="n"><span class="blank" aria-label="blank"></span></span></div>
+      <div class="r"><span>Writes: 7,200 /s → master load</span><span class="n"><span class="blank" aria-label="blank"></span></span></div>
+      <details class="fold">
+        <summary>Work both out, then compare</summary>
+        <div class="fb">
+          <p>Reads: 64,800 ÷ 5,000 = 12.96, so 13, and 14 with a spare. That's under RDS's cap of 15 per source but close to it, and each replica costs the master a little.</p>
+          <p>Writes: 7,200 against a ceiling of 6,000 is 120%, and no number of replicas changes that. This is the point to shard. Three shards by user ID put about 2,400 writes a second on each, provided activity is spread evenly across users.</p>
+        </div>
+      </details>
+    </div>
+
+    <details class="fold">
+      <summary>Going deeper <span class="k">— if the master dies, what takes over?</span></summary>
+      <div class="fb">
+        <p>A question in class about master failure got this answer: a replica can be elected as the new master, and on AWS the provider does it for you. On Amazon RDS the details matter. Automatic failover goes to a <em>Multi-AZ standby</em>, which is synchronous and can't serve reads (<a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html">RDS Multi-AZ</a>). Read replicas are not promoted automatically; promoting one is a manual action (<a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.Promote.html">promoting a read replica</a>). Aurora is the exception: it promotes one of its readers on its own, usually in under 60 seconds (<a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Aurora high availability</a>).</p>
+        <p>So a standby is for surviving failure and a replica is for spreading reads, and on RDS they are different machines. Writing your own leader election is rare; most product teams use what the provider gives them.</p>
+        <p>A related question was whether a vendor database cluster is just sharding underneath. Some are: MongoDB sharded clusters and Vitess split data across nodes. Oracle RAC, the example raised in class, is shared-disk: several instances work on one copy of the data on shared storage (<a href="https://docs.oracle.com/en/database/oracle/oracle-database/23/adrac/rac_db.html">Oracle RAC</a>).</p>
+      </div>
+    </details>
+
+    <section class="recall" id="recall" aria-labelledby="recall-h">
+      <h3 class="run" id="recall-h">Say it back: the order of moves, and what forces each one</h3>
+      <p>Without scrolling up: in what order would you give Medium's database room, and what pushes you from each move to the next? Thirty seconds is enough.</p>
+      <label class="vh" for="recallBox">Your answer</label>
+      <textarea id="recallBox" rows="4" spellcheck="false"></textarea>
+      <p class="hint">Type here if it helps you think. Nothing is saved or sent.</p>
+      <details class="fold">
+        <summary>Compare with the answer from class</summary>
+        <div class="fb">
+          <p>1. A bigger machine, until the price or the hardware stops you. 2. Read replicas, because most traffic is reads; the application routes each query, and reads that must see a fresh write stay on the master. 3. Shards by user ID, once writes outgrow one master, since replicas never take writes. Multi-master comes last, if at all, because of write conflicts.</p>
+        </div>
+      </details>
+      <div class="hook">
+        <p><span class="hl">Hold on to one fact for later.</span> After sharding, every write for a given user still lands on exactly one machine. In part 5, two readers clap for the same story at the same instant while its count reads 100. That one machine has to finish on 102, not 101.</p>
+      </div>
+    </section>
+
+    <p class="stop">A good place to stop. In class, questions about failover, connection pools and clusters came next; they're folded in above.</p>
+
+    <a class="next" href="#next" id="next">
+      <span class="k">Next in this lecture, part 4</span>
+      <span class="t">Delegation: publishing a story does more work than the request should wait for</span>
+    </a>
+
+    <footer class="colo">
+      <p>Written from the class recording of lecture 1 (week 1, day 2), and checked against the vendor documentation linked in the text on 11 October 2026. Where the class simplified something, the text gives both the point made in class and the precise version. To report a mistake, open an issue on the course repository.</p>
+      <h4>Sources</h4>
+      <ol>
+        <li><a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL: log shipping and streaming replication</a></li>
+        <li><a href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">MySQL 8.4: replication threads</a></li>
+        <li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html">Amazon RDS for MySQL: read replicas</a></li>
+        <li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Amazon Aurora: high availability</a></li>
+        <li><a href="https://vitess.io/docs/reference/features/sharding/">Vitess: sharding</a></li>
+        <li><a href="https://sre.google/sre-book/addressing-cascading-failures/">Google SRE book: addressing cascading failures</a></li>
+      </ol>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+'use strict';
+var root = document.documentElement;
+function store(k, v){ try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ================= pen ================= */
+var P = (function(){
+  var s = 1;
+  function seed(v){ s = v; }
+  function rnd(){ s = (s * 16807) % 2147483647; return s / 2147483647; }
+  function f(n){ return Math.round(n * 10) / 10; }
+  function dist(a, b){ return Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  function plen(p){ var L = 0; for (var i = 1; i < p.length; i++) L += dist(p[i-1], p[i]); return L; }
+  function resample(pts, step){
+    var out = [pts[0]], carry = 0;
+    for (var i = 1; i < pts.length; i++){
+      var a = pts[i-1], b = pts[i], L = dist(a, b); if (!L) continue;
+      var d = step - carry;
+      while (d <= L){ out.push([a[0] + (b[0]-a[0]) * d / L, a[1] + (b[1]-a[1]) * d / L]); d += step; }
+      carry = L - (d - step);
+    }
+    var last = pts[pts.length-1];
+    if (dist(out[out.length-1], last) > 0.4) out.push(last);
+    return out;
+  }
+  function wobble(p, amp){
+    var n = p.length; if (n < 3 || !amp) return p;
+    var ph = rnd() * 6.283, k = 0.6 + rnd() * 1.2, bow = (rnd() - 0.5) * 2 * amp;
+    return p.map(function(q, i){
+      var t = i / (n - 1), a = p[Math.max(0, i-1)], b = p[Math.min(n-1, i+1)];
+      var dx = b[0]-a[0], dy = b[1]-a[1], L = Math.hypot(dx, dy) || 1;
+      var off = (bow + amp * 0.3 * Math.sin(t * k * 6.283 + ph)) * Math.sin(Math.PI * t);
+      return [q[0] - dy / L * off, q[1] + dx / L * off];
+    });
+  }
+  /* ink: a filled outline whose width follows a broad nib held at ~35 degrees */
+  function ink(pts, o){
+    o = o || {};
+    var wMin = o.wMin != null ? o.wMin : 0.75, wMax = o.wMax != null ? o.wMax : 2.3;
+    var nib = -0.62, amp = o.amp != null ? o.amp : 0.7;
+    var p = resample(pts, 1.8);
+    p = wobble(p, amp * Math.min(1, plen(pts) / 70));
+    var n = p.length; if (n < 2) return '';
+    var cum = [0]; for (var i = 1; i < n; i++) cum.push(cum[i-1] + dist(p[i-1], p[i]));
+    var T = cum[n-1], ph = rnd() * 6.283, L = [], R = [];
+    for (i = 0; i < n; i++){
+      var a = p[Math.max(0, i-2)], b = p[Math.min(n-1, i+2)];
+      var th = Math.atan2(b[1]-a[1], b[0]-a[0]);
+      var w = wMin + (wMax - wMin) * Math.abs(Math.sin(th - nib));
+      var sd = cum[i], ed = T - cum[i];
+      w *= (0.55 + 0.45 * Math.min(1, sd / 5)) * (0.4 + 0.6 * Math.min(1, ed / 7)) * (1 + 0.09 * Math.sin(sd / 13 + ph));
+      var nx = -Math.sin(th), ny = Math.cos(th);
+      L.push([p[i][0] + nx * w / 2, p[i][1] + ny * w / 2]);
+      R.push([p[i][0] - nx * w / 2, p[i][1] - ny * w / 2]);
+    }
+    var d = 'M' + f(L[0][0]) + ' ' + f(L[0][1]);
+    for (i = 1; i < n; i++) d += 'L' + f(L[i][0]) + ' ' + f(L[i][1]);
+    for (i = n - 1; i >= 0; i--) d += 'L' + f(R[i][0]) + ' ' + f(R[i][1]);
+    return d + 'Z';
+  }
+  /* pencil: a thin stroke, slightly grainy, that overshoots its ends like a construction line */
+  function pencil(pts, o){
+    o = o || {};
+    var ext = o.ext || 0;
+    if (ext && pts.length >= 2){
+      var a = pts[0], b = pts[1], la = dist(a, b) || 1;
+      var y = pts[pts.length-2], z = pts[pts.length-1], lz = dist(y, z) || 1;
+      pts = pts.slice();
+      pts[0] = [a[0] - (b[0]-a[0]) / la * ext, a[1] - (b[1]-a[1]) / la * ext];
+      pts[pts.length-1] = [z[0] + (z[0]-y[0]) / lz * ext, z[1] + (z[1]-y[1]) / lz * ext];
+    }
+    var p = resample(pts, 3);
+    p = wobble(p, o.amp != null ? o.amp : 0.5);
+    return 'M' + p.map(function(q){ return f(q[0] + (rnd() - 0.5) * 0.3) + ' ' + f(q[1] + (rnd() - 0.5) * 0.3); }).join('L');
+  }
+  function dashes(pts, on, off){
+    var p = resample(pts, 1), out = [], cur = [], acc = 0, drawing = true;
+    for (var i = 0; i < p.length; i++){
+      if (drawing) cur.push(p[i]);
+      acc += i ? dist(p[i-1], p[i]) : 0;
+      if (drawing && acc >= on){ if (cur.length > 1) out.push(cur); cur = []; drawing = false; acc = 0; }
+      else if (!drawing && acc >= off){ drawing = true; acc = 0; cur = [p[i]]; }
+    }
+    if (cur.length > 1) out.push(cur);
+    return out;
+  }
+  return { seed: seed, rnd: rnd, ink: ink, pencil: pencil, dashes: dashes, f: f, dist: dist };
+})();
+
+var D = {
+  ink: function(pts, o){ return '<path class="i" d="' + P.ink(pts, o) + '"/>'; },
+  pen: function(pts, o, cls){ return '<path class="p' + (cls ? ' ' + cls : '') + '" d="' + P.pencil(pts, o) + '"/>'; },
+  inkDash: function(pts, o){ return P.dashes(pts, 6, 4.5).map(function(s){ return D.ink(s, Object.assign({ wMin: .6, wMax: 1.8, amp: 0 }, o || {})); }).join(''); },
+  text: function(x, y, s, cls, anchor){
+    return '<text x="' + P.f(x) + '" y="' + P.f(y) + '" class="' + cls + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + s + '</text>';
+  },
+  rrect: function(x, y, w, h, r){
+    r = r || 3; var pts = [], PI = Math.PI;
+    function arc(cx, cy, a0, a1){ for (var k = 0; k <= 4; k++){ var a = a0 + (a1 - a0) * k / 4; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } }
+    pts.push([x + r + 3, y]); pts.push([x + w - r, y]); arc(x + w - r, y + r, -PI/2, 0);
+    pts.push([x + w, y + h - r]); arc(x + w - r, y + h - r, 0, PI/2);
+    pts.push([x + r, y + h]); arc(x + r, y + h - r, PI/2, PI);
+    pts.push([x, y + r]); arc(x + r, y + r, PI, 1.5 * PI); pts.push([x + r + 8, y + 0.7]);
+    return pts;
+  },
+  inkBox: function(x, y, w, h, o){ return '<rect class="bg" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>' + D.ink(D.rrect(x, y, w, h), o); },
+  penBox: function(x, y, w, h, cls){
+    var e = { ext: 3 };
+    return '<rect class="bg" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"/>' +
+      D.pen([[x, y], [x + w, y]], e, cls) + D.pen([[x + w, y], [x + w, y + h]], e, cls) +
+      D.pen([[x + w, y + h], [x, y + h]], e, cls) + D.pen([[x, y + h], [x, y]], e, cls);
+  },
+  ell: function(cx, cy, rx, ry, a0, a1, n){
+    var p = []; n = n || 30;
+    for (var k = 0; k <= n; k++){ var a = a0 + (a1 - a0) * k / n; p.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]); }
+    return p;
+  },
+  cyl: function(cx, y, w, h, mode){
+    var rx = w / 2, ry = Math.max(3.5, w * 0.16), PI = Math.PI;
+    var parts = [
+      D.ell(cx, y, rx, ry, -0.35, 2 * PI + 0.2),
+      [[cx - rx, y + 1], [cx - rx, y + h]],
+      [[cx + rx, y + 1], [cx + rx, y + h]],
+      D.ell(cx, y + h, rx, ry, PI, 0)
+    ];
+    var bg = '<path class="bg" d="M' + (cx - rx) + ' ' + y + 'A' + rx + ' ' + ry + ' 0 0 1 ' + (cx + rx) + ' ' + y + 'L' + (cx + rx) + ' ' + (y + h) + 'A' + rx + ' ' + ry + ' 0 0 1 ' + (cx - rx) + ' ' + (y + h) + 'Z"/>';
+    var out = bg;
+    parts.forEach(function(pt){
+      if (mode === 'dash') out += D.inkDash(pt);
+      else if (mode === 'pen' || mode === 'dot') out += D.pen(pt, { amp: .3 }, mode === 'dot' ? 'dot' : '');
+      else out += D.ink(pt, { amp: .4 });
+    });
+    return out;
+  },
+  arrow: function(a, b, o){
+    o = o || {};
+    var ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = o.head || 8, sp = 0.42;
+    var h1 = [b[0] - hl * Math.cos(ang - sp), b[1] - hl * Math.sin(ang - sp)];
+    var h2 = [b[0] - hl * Math.cos(ang + sp), b[1] - hl * Math.sin(ang + sp)];
+    var tip = [b[0] - 0.6 * Math.cos(ang), b[1] - 0.6 * Math.sin(ang)];
+    if (o.pen) return D.pen([a, b], { amp: .4 }, o.cls) + D.pen([h1, b, h2], { amp: 0 }, o.cls);
+    var shaft = o.dash ? D.inkDash([a, tip], { wMin: .55, wMax: 1.5 }) : D.ink([a, tip], { wMin: o.thin ? .55 : .8, wMax: o.thin ? 1.5 : 2.1, amp: o.amp != null ? o.amp : .6 });
+    return shaft + D.ink([h1, b], { wMin: .7, wMax: 1.8, amp: 0 }) + D.ink([h2, b], { wMin: .7, wMax: 1.8, amp: 0 });
+  },
+  num: function(x, y, n, cls){
+    return '<g class="' + (cls || 'c-pen') + '">' + D.pen(D.ell(x, y, 8.5, 8.5, -1.2, 2 * Math.PI - 0.9, 24), { amp: 0 }) + '</g>' +
+      '<text x="' + x + '" y="' + (y + 4.3) + '" class="id t-pen" text-anchor="middle" style="font-size:12px">' + n + '</text>';
+  }
+};
+
+/* ================= figures ================= */
+function mapSVG(){
+  P.seed(11);
+  var o = '';
+  /* part 1: readers (pencil, built) */
+  o += '<a href="#part-1" aria-label="Part 1: the Medium we start with" aria-disabled="true"><rect class="hit" x="0" y="0" width="120" height="44"/><g class="c-pen">' +
+       D.penBox(18, 12, 40, 26) + D.pen([[18, 19], [58, 19]], { amp: 0 }) + '</g>' + D.text(66, 33, 'readers', 'an lab t-pen') + '</a>';
+  o += '<g class="c-pen">' + D.arrow([38, 43], [38, 60], { pen: 1, head: 6 }) + '</g>';
+  /* part 2: CDN + redis (pencil) */
+  o += '<a href="#part-2" aria-label="Part 2: caching" aria-disabled="true"><rect class="hit" x="0" y="60" width="98" height="30"/><g class="c-pen">' + D.penBox(12, 63, 52, 24) + '</g>' +
+       D.text(38, 79.5, 'CDN', 'id t-pen', 'middle') + D.num(80, 75, 2) + '</a>';
+  o += '<g class="c-pen">' + D.arrow([38, 90], [38, 106], { pen: 1, head: 6 }) + '</g>';
+  /* part 3 earlier: load balancer + api fleet (pencil) */
+  o += '<a href="#part-3-fleet" aria-label="Part 3: the API fleet" aria-disabled="true"><rect class="hit" x="0" y="106" width="98" height="72"/><g class="c-pen">' + D.penBox(14, 109, 48, 16) + '</g>' +
+       D.text(38, 121.5, 'LB', 'id t-pen', 'middle') +
+       '<g class="c-pen">' + D.arrow([38, 127], [38, 141], { pen: 1, head: 6 }) + D.penBox(18, 141, 56, 26) + D.penBox(12, 146, 56, 26) + '</g>' +
+       D.text(40, 164, 'api ×40', 'id t-pen', 'middle') + '</a>';
+  o += '<a href="#part-2" aria-label="Part 2: caching, the shared cache" aria-disabled="true"><rect class="hit" x="112" y="140" width="80" height="34"/><g class="c-pen">' + D.penBox(128, 146, 56, 24) +
+       D.pen([[70, 158], [126, 158]], { amp: .3 }) + '</g>' + D.text(156, 162.5, 'redis', 'id t-pen', 'middle') + D.num(200, 158, 2) + '</a>';
+  /* part 6: live claps (dotted, later) */
+  o += '<a href="#part-6" aria-label="Part 6: live claps, later" aria-disabled="true"><rect class="hit" x="96" y="18" width="110" height="60"/><g class="c-pen">' +
+       D.pen([[74, 152], [100, 152], [100, 25], [62, 25]], { amp: .2 }, 'dot') + '</g>' + D.text(108, 56, 'live claps', 'an t-pen') + D.num(186, 51, 6) + '</a>';
+  /* part 3 now: database (ink) */
+  o += '<a href="#top" aria-label="Part 3: scaling the database, this section"><rect class="hit" x="0" y="176" width="160" height="118"/><g class="c-ink">' +
+       D.arrow([40, 174], [40, 196], { head: 7 }) + D.cyl(40, 202, 38, 36) + D.cyl(88, 206, 30, 30, 'dash') + D.cyl(126, 206, 30, 30, 'dash') +
+       D.arrow([71, 222], [61, 222], { head: 5, thin: 1 }) + '</g>' +
+       D.text(40, 263, 'master', 'an c-ink') .replace('class="an c-ink"', 'class="an c-ink" text-anchor="middle"') +
+       D.text(107, 263, 'replicas', 'an c-ink', 'middle') +
+       '<g class="c-ink">' + D.ink([[16, 272], [80, 274], [146, 271]], { wMin: .5, wMax: 1.6 }) + '</g>' +
+       D.text(16, 290, 'this section', 'an c-ink') + '</a>';
+  /* part 4: queue + workers (dotted, later) */
+  o += '<a href="#next" aria-label="Part 4: delegation, next"><rect class="hit" x="166" y="190" width="80" height="100"/><g class="c-pen">' +
+       D.pen([[176, 202], [232, 202], [232, 218], [176, 218], [176, 202]], { amp: .2 }, 'dot') +
+       D.pen([[190, 202], [190, 218]], { amp: 0 }, 'dot') + D.pen([[204, 202], [204, 218]], { amp: 0 }, 'dot') + D.pen([[218, 202], [218, 218]], { amp: 0 }, 'dot') +
+       D.pen([[178, 236], [200, 236], [200, 250], [178, 250], [178, 236]], { amp: .2 }, 'dot') +
+       D.pen([[208, 236], [230, 236], [230, 250], [208, 250], [208, 236]], { amp: .2 }, 'dot') + '</g>' +
+       D.text(176, 270, 'queue,', 'an t-pen') + D.text(176, 286, 'workers', 'an t-pen') + D.num(236, 270, 4) + '</a>';
+  return '<svg class="map" viewBox="0 0 252 300" role="img" aria-label="Map of the Medium system so far. Readers, CDN, load balancer and forty API servers were built earlier. The database, with a master and replicas, is this section. A queue with workers and live claps come later.">' + o + '</svg>';
+}
+
+function wrongSVG(kind){
+  P.seed(kind === 'copies' ? 71 : 73);
+  var o = '', copies = kind === 'copies';
+  o += '<g class="c-ink">' + D.inkBox(130, 14, 60, 26) + '</g>' + D.text(160, 32, 'api', 'id', 'middle');
+  var xs = [58, 160, 262];
+  xs.forEach(function(x, i){
+    var hit = copies || i === 1;
+    o += '<g class="' + (hit ? 'c-ink' : 'c-pen') + '">' + D.cyl(x, 112, 54, 44, hit ? '' : 'pen') + '</g>';
+    o += D.text(x, 182, copies ? 'all users' : 'shard ' + i, copies ? 'an' : 'id', 'middle');
+    if (!copies) o += D.text(x, 199, '⅓ of users', 'an s t-pen', 'middle');
+  });
+  if (copies){
+    o += '<g class="c-red">' + D.arrow([148, 42], [70, 102], { pen: 1, head: 7 }) + D.arrow([160, 42], [160, 102], { pen: 1, head: 7 }) + D.arrow([172, 42], [250, 102], { pen: 1, head: 7 }) + '</g>';
+    o += D.text(10, 22, 'user 5’s write', 'an c-red') + D.text(10, 39, 'lands three times', 'an c-red');
+  } else {
+    o += '<g class="c-ink">' + D.arrow([160, 42], [160, 102], { head: 7 }) + '</g>';
+    o += D.text(10, 22, 'user 5 →', 'an') + D.text(10, 39, 'shard 1 only', 'an');
+  }
+  return '<svg viewBox="0 0 320 206" role="img" aria-label="' + (copies ? 'Three copies: one write for user 5 is applied on all three machines.' : 'Three shards: one write for user 5 goes only to shard 1.') + '">' + o + '</svg>';
+}
+
+/* swim-lane: replication lag */
+var LAG = {
+  msgs: [
+    { s: 1, a: 0, t1: 0.3, b: 1, t2: 1.0, l: 'Publish', c: 'ink' },
+    { s: 1, a: 1, t1: 1.1, b: 2, t2: 1.8, l: 'INSERT', c: 'ink', id: 1 },
+    { s: 2, a: 0, t1: 3.6, b: 1, t2: 4.2, l: 'GET /p/4182', ls: 'GET', c: 'ink', id: 1 },
+    { s: 2, a: 1, t1: 4.3, b: 3, t2: 5.2, l: 'SELECT', c: 'ink', id: 1, at: 0.27 },
+    { s: 2, a: 3, t1: 5.4, b: 1, t2: 6.2, l: 'no row', c: 'red', at: 0.25 },
+    { s: 2, a: 1, t1: 6.3, b: 0, t2: 7.0, l: '404', c: 'red', id: 1 },
+    { s: 3, a: 3, t1: 0.0, b: 2, t2: 0.5, l: 'what’s new?', c: 'ink', thin: 1 },
+    { s: 3, a: 2, t1: 1.95, b: 3, t2: 7.4, l: '#4182 streams down', c: 'ink', dash: 1, at: 0.33, flipL: 1 },
+    { s: 4, a: 0, t1: 8.8, b: 1, t2: 9.3, l: 'GET', c: 'ink', id: 1 },
+    { s: 4, a: 1, t1: 9.4, b: 2, t2: 9.95, l: 'SELECT', c: 'ink', id: 1, flipL: 1 },
+    { s: 4, a: 2, t1: 10.1, b: 1, t2: 10.6, l: 'row', c: 'ink', thin: 1 },
+    { s: 4, a: 1, t1: 10.7, b: 0, t2: 11.2, l: '200', c: 'ink', id: 1 }
+  ]
+};
+function lagSVG(land){
+  P.seed(41);
+  var W = land ? 860 : 360, H = land ? 380 : 640;
+  var lanes = land ? ['writer’s browser', 'API server', 'master', 'replica'] : ['writer', 'API', 'master', 'replica'];
+  function lx(i){ return 44 + i * 90; }
+  function ly(i){ return 58 + i * 86; }
+  function tx(t){ return 190 + t * 52; }
+  function ty(t){ return 82 + t * 46; }
+  function pt(l, t){ return land ? [tx(t), ly(l)] : [lx(l), ty(t)]; }
+  var o = '';
+  /* lanes */
+  lanes.forEach(function(name, i){
+    if (land){
+      o += '<g class="c-pen">' + D.pen([[150, ly(i)], [W - 20, ly(i)]], { amp: .4 }) + '</g>';
+      o += D.text(14, ly(i) + 5, name, 'lane');
+    } else {
+      o += '<g class="c-pen">' + D.pen([[lx(i), 50], [lx(i), H - 16]], { amp: .4 }) + '</g>';
+      o += D.text(lx(i), 34, name, 'lane', 'middle');
+    }
+  });
+  o += land ? D.text(W - 20, H - 6, 'time →', 'an s t-pen', 'end') : D.text(2, 62, 'time ↓', 'an s t-pen', 'start');
+  var steps = { 1: '', 2: '', 3: '', 4: '' };
+  LAG.msgs.forEach(function(m){
+    var a = pt(m.a, m.t1), b = pt(m.b, m.t2);
+    var cls = m.c === 'red' ? 'c-red' : 'c-ink';
+    var g = '<g class="' + cls + '">' + D.arrow(a, b, { dash: m.dash, thin: m.thin || m.dash, head: 7 }) + '</g>';
+    var at = m.at || 0.5, mx = a[0] + (b[0] - a[0]) * at, my = a[1] + (b[1] - a[1]) * at, lab;
+    var tcls = (m.id ? 'id ' : 'an ') + cls;
+    var dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1;
+    var nx = -dy / L, ny = dx / L;
+    if (land ? nx < 0 : ny > 0){ nx = -nx; ny = -ny; }
+    if (m.flip || (land && m.flipL)){ nx = -nx; ny = -ny; }
+    var gap = m.gap || 9, lx0 = mx + nx * gap, ly0 = my + ny * gap;
+    var anchor = Math.abs(nx) > 0.6 ? (nx > 0 ? 'start' : 'end') : 'middle';
+    if (anchor !== 'middle') ly0 += 4; else if (ny > 0) ly0 += 11;
+    if (!land && m.dash){
+      lab = D.text(lx0, ly0 - 8, '#4182', tcls, anchor) + D.text(lx0, ly0 + 9, 'streams', 'an s ' + cls, anchor);
+    } else {
+      lab = D.text(lx0, ly0, (!land && m.ls) ? m.ls : m.l, tcls, anchor);
+    }
+    steps[m.s] += g + lab;
+  });
+  /* marks */
+  var c = pt(2, 1.85);
+  steps[1] += '<g class="c-ink"><circle cx="' + c[0] + '" cy="' + c[1] + '" r="3.6" fill="currentColor"/></g>' +
+    (land ? D.text(c[0] - 6, c[1] + 22, 'committed', 'an c-ink', 'start') : D.text(c[0] - 8, c[1] + 4, 'committed', 'an s c-ink', 'end'));
+  steps[2] += land ? D.text(tx(7.1) + 6, ly(0) - 14, 'stale read', 'an c-red', 'start') : D.text(lx(0) + 8, ty(7.1) + 20, 'stale read', 'an c-red', 'start');
+  var r1 = pt(3, 1.95), r2 = pt(3, 7.4);
+  if (land){
+    steps[3] += '<g class="c-red">' + D.pen([[r1[0], r1[1] + 14], [r2[0], r2[1] + 14]], { amp: .3 }) +
+      D.pen([[r1[0], r1[1] + 9], [r1[0], r1[1] + 19]], { amp: 0 }) + D.pen([[r2[0], r2[1] + 9], [r2[0], r2[1] + 19]], { amp: 0 }) + '</g>' +
+      D.text((r1[0] + r2[0]) / 2, r1[1] + 34, 'replication lag', 'an c-red', 'middle');
+  } else {
+    steps[3] += '<g class="c-red">' + D.pen([[r1[0] + 18, r1[1]], [r2[0] + 18, r2[1]]], { amp: .3 }) +
+      D.pen([[r1[0] + 13, r1[1]], [r1[0] + 23, r1[1]]], { amp: 0 }) + D.pen([[r2[0] + 13, r2[1]], [r2[0] + 23, r2[1]]], { amp: 0 }) + '</g>' +
+      '<text class="an c-red" transform="translate(' + (r1[0] + 34) + ' ' + ((r1[1] + r2[1]) / 2) + ') rotate(90)" text-anchor="middle">lag</text>';
+  }
+  var ap = pt(3, 7.45);
+  steps[3] += '<g class="c-ink"><circle cx="' + ap[0] + '" cy="' + ap[1] + '" r="3.6" fill="currentColor"/></g>' +
+    (land ? D.text(ap[0] + 8, ap[1] - 8, 'applied', 'an c-ink', 'start') : D.text(ap[0] - 8, ap[1] + 4, 'applied', 'an s c-ink', 'end'));
+  steps[4] += land ? D.text(tx(9.0), ly(3) + 26, 'own write → read from master', 'an c-ink', 'start')
+                   : D.text(lx(1) + 4, ty(11.9) + 4, 'own write → master', 'an c-ink', 'start');
+  var out = '';
+  [1, 2, 3, 4].forEach(function(n){ out += '<g class="st" data-step="' + n + '">' + steps[n] + '</g>'; });
+  LAG.h = land ? null : function(n){ return Math.round(ty([2.4, 7.9, 8.2, 12.2][n - 1]) + 26); };
+  LAG.W = W;
+  return '<svg id="lagSvg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-labelledby="lagT" style="overflow:hidden;max-width:' + (land ? W : 420) + 'px"><title id="lagT">Swim-lane timeline: the writer publishes story 4182 to the master; the redirect reads from a replica that has not received it and gets a 404; the replica had asked the master for changes and the story arrives later; reading the writer’s own story from the master returns it.</title>' + o + out + '</svg>';
+}
+
+/* ================= render ================= */
+var mapHTML = mapSVG();
+document.querySelectorAll('[data-map]').forEach(function(el){ el.innerHTML = mapHTML; });
+document.querySelectorAll('[data-fig]').forEach(function(el){ el.innerHTML = wrongSVG(el.getAttribute('data-fig')); });
+
+/* bracket beside the question, red pencil rule beside the wrong turn, pen rules in the sums */
+function decorate(){
+  document.querySelectorAll('[data-bracket]').forEach(function(svg){
+    var h = svg.parentNode.querySelector('.q').offsetHeight + 4; P.seed(5);
+    svg.setAttribute('viewBox', '0 0 16 ' + h);
+    svg.innerHTML = '<g class="c-ink">' + D.ink([[12, 2], [5, 4], [4, h * 0.45], [0, h * 0.5], [4, h * 0.55], [5, h - 4], [12, h - 1]], { wMin: .7, wMax: 2.2, amp: .4 }) + '</g>';
+    svg.style.height = h + 'px';
+  });
+  document.querySelectorAll('[data-redrule]').forEach(function(svg){
+    var h = svg.parentNode.offsetHeight - 8; P.seed(9);
+    svg.setAttribute('viewBox', '0 0 8 ' + h);
+    svg.innerHTML = '<g class="c-red">' + D.pen([[3, 0], [3.5, h * 0.5], [3, h]], { amp: 1.2 }) + D.pen([[4.5, 2], [4.8, h * 0.6], [4.2, h - 3]], { amp: 1 }) + '</g>';
+  });
+  document.querySelectorAll('.calc .tot').forEach(function(row, i){
+    var w = row.offsetWidth; P.seed(30 + i);
+    var svg = row.querySelector('.penrule');
+    if (!svg){ svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'penrule'); svg.setAttribute('aria-hidden', 'true'); row.appendChild(svg); }
+    svg.setAttribute('viewBox', '0 0 ' + w + ' 6');
+    svg.innerHTML = '<g class="c-ink">' + D.ink([[w * 0.55, 2], [w, 2.4]], { wMin: .5, wMax: 1.5, amp: .5 }) + '</g>';
+  });
+}
+
+/* ---------- step figure ---------- */
+var lagFig = document.getElementById('lagFig'), cur = 1, N = 4, layout = null;
+var stepsEls = document.querySelectorAll('#lagSteps li');
+var dots = document.getElementById('lagDots');
+for (var k = 1; k <= N; k++){
+  var b = document.createElement('button'); b.type = 'button'; b.textContent = k; b.setAttribute('aria-label', 'Step ' + k);
+  b.addEventListener('click', (function(n){ return function(){ show(n, true); }; })(k));
+  dots.appendChild(b);
+}
+function drawLag(){
+  var land = lagFig.clientWidth >= 700;
+  if (land === layout) return;
+  layout = land; lagFig.innerHTML = lagSVG(land); show(cur, false);
+}
+function show(n, push){
+  cur = Math.max(1, Math.min(N, n));
+  lagFig.querySelectorAll('.st').forEach(function(g){
+    var s = +g.getAttribute('data-step');
+    g.classList.toggle('past', s < cur); g.classList.toggle('future', s > cur);
+  });
+  stepsEls.forEach(function(li){ li.classList.toggle('on', +li.getAttribute('data-step') === cur); });
+  dots.querySelectorAll('button').forEach(function(b, i){ if (i + 1 === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  var svgEl = document.getElementById('lagSvg');
+  if (svgEl && LAG.h){ svgEl.setAttribute('viewBox', '0 0 ' + LAG.W + ' ' + LAG.h(cur)); }
+  document.getElementById('lagCount').textContent = cur + ' of ' + N;
+  document.getElementById('lagPrev').disabled = cur === 1;
+  document.getElementById('lagNext').disabled = cur === N;
+  if (push && history.replaceState) history.replaceState(null, '', '#fig-lag/step-' + cur);
+}
+document.getElementById('lagPrev').addEventListener('click', function(){ show(cur - 1, true); });
+document.getElementById('lagNext').addEventListener('click', function(){ show(cur + 1, true); });
+lagFig.addEventListener('keydown', function(e){
+  if (e.key === 'ArrowRight'){ show(cur + 1, true); e.preventDefault(); }
+  else if (e.key === 'ArrowLeft'){ show(cur - 1, true); e.preventDefault(); }
+  else if (e.key === 'Home'){ show(1, true); e.preventDefault(); }
+  else if (e.key === 'End'){ show(N, true); e.preventDefault(); }
+});
+function fromHash(){
+  var m = /^#fig-lag\/step-(\d)$/.exec(location.hash);
+  if (m){ show(+m[1], false); document.getElementById('lag').scrollIntoView(); }
+}
+
+/* ---------- prediction ---------- */
+var answered = false;
+var replies = {
+  all: 'You picked all three. That is the natural reading of a drawing with three cylinders, and it was asked in class in almost those words. It describes copies, which is what replicas are; the wrong turn below shows why copies can’t take write load off anyone.',
+  one: 'You picked one.',
+  two: 'You picked two. A backup copy is a real thing to want, but it comes from giving each shard its own replica, not from writing to a second shard.'
+};
+function ring(btn){
+  var old = document.querySelector('.opt .ring'); if (old) old.remove();
+  var w = btn.offsetWidth + 12, h = btn.offsetHeight + 10; P.seed(17);
+  var pts = D.ell(w / 2, h / 2, w / 2 - 2, h / 2 - 2, -2.6, 2 * Math.PI - 2.3, 48);
+  var svg = '<svg class="ring" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><path pathLength="1" d="' + P.pencil(pts, { amp: 1.4 }) + '"/></svg>';
+  btn.insertAdjacentHTML('beforeend', svg);
+}
+function reveal(k){
+  answered = true;
+  document.querySelectorAll('.opt').forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-k') === k ? 'true' : 'false'); });
+  document.getElementById('yours').textContent = k ? replies[k] : '';
+  document.getElementById('yours').hidden = !k;
+  document.getElementById('reveal').classList.add('open');
+  document.getElementById('skip').hidden = true;
+  updateTime();
+}
+document.querySelectorAll('.opt').forEach(function(b){
+  b.addEventListener('click', function(){ ring(b); reveal(b.getAttribute('data-k')); });
+});
+document.getElementById('skip').addEventListener('click', function(){ reveal(null); });
+
+/* ---------- theme ---------- */
+var themeBtn = document.getElementById('themeBtn');
+var mq = window.matchMedia('(prefers-color-scheme: dark)');
+function eff(){ return root.dataset.theme || (mq.matches ? 'dark' : 'light'); }
+function syncTheme(){ themeBtn.textContent = eff() === 'dark' ? 'Light' : 'Dark'; }
+themeBtn.addEventListener('click', function(){ var t = eff() === 'dark' ? 'light' : 'dark'; root.dataset.theme = t; store('lec01.theme', t); syncTheme(); });
+if (mq.addEventListener) mq.addEventListener('change', syncTheme);
+syncTheme();
+
+/* ---------- parts sheet (phone) ---------- */
+var sheet = document.getElementById('sheet'), partsBtn = document.getElementById('partsBtn');
+document.getElementById('sheetNav').innerHTML = document.getElementById('partsList').outerHTML.replace('id="partsList"', '').replace('id="secList"', '');
+partsBtn.addEventListener('click', function(){
+  var open = sheet.hidden; sheet.hidden = !open; partsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+});
+sheet.addEventListener('click', function(e){ if (e.target.closest('a')){ sheet.hidden = true; partsBtn.setAttribute('aria-expanded', 'false'); } });
+document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !sheet.hidden){ sheet.hidden = true; partsBtn.setAttribute('aria-expanded', 'false'); partsBtn.focus(); } });
+document.querySelectorAll('a[aria-disabled="true"]').forEach(function(a){ a.addEventListener('click', function(e){ e.preventDefault(); }); });
+
+/* ---------- honest time left + scrollspy + resume ---------- */
+var WPM = 220;
+var blocks = [].slice.call(document.querySelectorAll('main p, main h3, main .calc .r, main figcaption, main .steplist li, main .opt'))
+  .filter(function(el){ return !el.closest('.colo') && !el.closest('details:not([open])'); })
+  .map(function(el){ return { el: el, w: (el.textContent || '').trim().split(/\s+/).length }; });
+var heads = ['bigger', 'replicas', 'lag', 'sharding', 'sizing', 'recall'].map(function(id){ return document.getElementById(id); });
+var tl = document.getElementById('timeLeft'), railTl = document.querySelectorAll('[data-tl]');
+/* minutes = words still below the reading line at 220 wpm, plus one minute for each prompt not yet reached */
+function updateTime(){
+  var line = window.innerHeight * 0.35, words = 0;
+  blocks.forEach(function(b){ if (b.el.getBoundingClientRect().bottom > line) words += b.w; });
+  var extra = 0;
+  if (!answered && document.getElementById('predict').getBoundingClientRect().bottom > line) extra += 1;
+  if (document.getElementById('recallBox').getBoundingClientRect().bottom > line) extra += 1;
+  var mins = words / WPM + extra;
+  var end = document.getElementById('next').getBoundingClientRect().top < window.innerHeight * 0.75;
+  var txt = end ? 'End of this section' : '≈ ' + Math.max(1, Math.round(mins + 0.25)) + ' min';
+  tl.innerHTML = end ? txt : txt + ' <span class="lw">left in this section</span>';
+  railTl.forEach(function(e){ e.textContent = end ? 'Section finished' : txt + ' left'; });
+}
+function spy(){
+  var id = null;
+  heads.forEach(function(h){ if (h && h.getBoundingClientRect().top < window.innerHeight * 0.3) id = h.id; });
+  document.querySelectorAll('[data-for]').forEach(function(li){ li.classList.toggle('on', li.getAttribute('data-for') === id); });
+  return id;
+}
+var saveT = null;
+function save(id){
+  clearTimeout(saveT);
+  saveT = setTimeout(function(){
+    if (!id) return;
+    var h = document.getElementById(id);
+    var title = id === 'lag' ? 'A read that comes back empty' : (h.textContent || '').trim();
+    store('lec01.resume', JSON.stringify({ id: id, title: title, at: Date.now() }));
+  }, 600);
+}
+var ticking = false;
+window.addEventListener('scroll', function(){
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(function(){ ticking = false; updateTime(); save(spy()); });
+}, { passive: true });
+
+(function resume(){
+  var raw = store('lec01.resume'); if (!raw || location.hash) return;
+  try {
+    var r = JSON.parse(raw);
+    if (!r || !r.id || r.id === 'bigger' || !document.getElementById(r.id)) return;
+    document.getElementById('resumeTitle').textContent = '“' + r.title + '”';
+    var box = document.getElementById('resume'); box.hidden = false;
+    document.getElementById('resumeGo').addEventListener('click', function(){ document.getElementById(r.id).scrollIntoView(); box.hidden = true; });
+    document.getElementById('resumeX').addEventListener('click', function(){ box.hidden = true; store('lec01.resume', null); });
+  } catch (e) {}
+})();
+
+/* ---------- boot ---------- */
+drawLag(); decorate(); fromHash(); updateTime(); spy();
+window.addEventListener('hashchange', fromHash);
+var rz = null;
+window.addEventListener('resize', function(){ clearTimeout(rz); rz = setTimeout(function(){ drawLag(); decorate(); updateTime(); }, 150); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ decorate(); updateTime(); });
+})();
+</script>
+<noscript><style>.figwrap::after{content:"The timeline needs JavaScript; its four steps are written out beside it.";font-family:var(--sans);font-size:15px;color:var(--muted)}.inline-map{display:none!important}</style></noscript>
+</body>
+</html>

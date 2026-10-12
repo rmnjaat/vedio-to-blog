@@ -1,0 +1,486 @@
+<title>Lecture 1 Content Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f5f1; --surface:#ffffff; --surface-2:#eeece6; --ink:#1c1e20; --ink-2:#464b51; --ink-3:#6c7279;
+  --line:#dcd8ce; --line-2:#c9c4b8; --accent:#1d5c68; --accent-soft:#e0ecee; --focus:#2a6fdb;
+  --wrong:#a3352b; --wrong-bg:#f7e4e0; --outdated:#875700; --outdated-bg:#f6ecd4;
+  --imprecise:#64478e; --imprecise-bg:#ece6f4; --simplified:#365b7b; --simplified-bg:#e2eaf2;
+  --accurate:#2d6a3c; --accurate-bg:#e1eee4; --unverifiable:#5b6066; --unverifiable-bg:#eceae5;
+  --bar:#9fb7bb; --shadow:0 1px 2px rgba(20,20,20,.05);
+  --serif:"Source Serif 4",Georgia,serif; --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151719; --surface:#1d2023; --surface-2:#25292d; --ink:#e8e6e0; --ink-2:#bab9b3; --ink-3:#8e9297;
+    --line:#33373c; --line-2:#454a50; --accent:#86c0ca; --accent-soft:#1f3236; --focus:#79a8ff;
+    --wrong:#f0958b; --wrong-bg:#3a2321; --outdated:#e4b65e; --outdated-bg:#352b17;
+    --imprecise:#c3abe8; --imprecise-bg:#2d2639; --simplified:#9fc1de; --simplified-bg:#1f2b36;
+    --accurate:#90d0a0; --accurate-bg:#1d2e22; --unverifiable:#b0b3b8; --unverifiable-bg:#2a2c2f;
+    --bar:#4d6f75; --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151719; --surface:#1d2023; --surface-2:#25292d; --ink:#e8e6e0; --ink-2:#bab9b3; --ink-3:#8e9297;
+  --line:#33373c; --line-2:#454a50; --accent:#86c0ca; --accent-soft:#1f3236; --focus:#79a8ff;
+  --wrong:#f0958b; --wrong-bg:#3a2321; --outdated:#e4b65e; --outdated-bg:#352b17;
+  --imprecise:#c3abe8; --imprecise-bg:#2d2639; --simplified:#9fc1de; --simplified-bg:#1f2b36;
+  --accurate:#90d0a0; --accurate-bg:#1d2e22; --unverifiable:#b0b3b8; --unverifiable-bg:#2a2c2f;
+  --bar:#4d6f75; --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans);overflow-x:hidden}
+a{color:var(--accent);text-underline-offset:2px}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:3px}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.25;margin:0}
+h1{font-size:30px;letter-spacing:-.01em}
+h2{font-size:24px}
+h3{font-size:18px}
+p{margin:0 0 .6em}
+code,.mono{font-family:var(--mono);font-size:.86em}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+.topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:16px;height:52px}
+.brand{font-family:var(--serif);font-weight:600;font-size:16px;white-space:nowrap}
+.nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.nav::-webkit-scrollbar{display:none}
+.nav a{color:var(--ink-2);text-decoration:none;padding:6px 10px;border-radius:6px;white-space:nowrap;font-size:14px}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.theme-btn{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);font:500 13px var(--sans);padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap}
+header.intro{padding:40px 0 8px}
+.kicker{font:500 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
+.lede{max-width:760px;color:var(--ink-2);font-size:16px;margin-top:10px}
+section{padding:36px 0 12px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:18px}
+.sec-head p{margin:0;color:var(--ink-3);font-size:14px}
+/* summary */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:22px}
+.stat{background:var(--surface);padding:14px 16px}
+.stat b{display:block;font:600 26px/1.1 var(--serif)}
+.stat span{color:var(--ink-3);font-size:13px}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.panel h3{font-size:15px;font-family:var(--sans);font-weight:600;margin-bottom:10px}
+.bars{display:grid;grid-template-columns:minmax(90px,max-content) 1fr 36px;gap:5px 10px;align-items:center;font-size:13.5px}
+.bars .lab{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bars .track{height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.bars .fill{height:100%;background:var(--bar);border-radius:4px}
+.bars .n{text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--ink-2)}
+.note-line{font-size:13px;color:var(--ink-3);margin-top:10px}
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:4px;font:500 12px/1 var(--sans);padding:4px 7px;border-radius:4px;white-space:nowrap;border:1px solid transparent}
+.v-wrong{color:var(--wrong);background:var(--wrong-bg)}
+.v-outdated{color:var(--outdated);background:var(--outdated-bg)}
+.v-imprecise{color:var(--imprecise);background:var(--imprecise-bg)}
+.v-simplified{color:var(--simplified);background:var(--simplified-bg)}
+.v-accurate{color:var(--accurate);background:var(--accurate-bg)}
+.v-unverifiable{color:var(--unverifiable);background:var(--unverifiable-bg)}
+.s-high{color:var(--wrong);border-color:currentColor}
+.s-medium{color:var(--outdated);border-color:currentColor}
+.s-low{color:var(--ink-3);border-color:var(--line-2)}
+.c-type{color:var(--ink-2);background:var(--surface-2)}
+.c-board{color:var(--accent);background:var(--accent-soft)}
+.c-low{color:var(--outdated);border-color:currentColor}
+.c-plain{color:var(--ink-3);border-color:var(--line-2)}
+/* decisions */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:22px}
+.legend div{border-left:3px solid var(--line-2);padding:4px 0 4px 12px;font-size:14px;color:var(--ink-2)}
+.legend b{display:block;color:var(--ink);font-weight:600}
+.legend .t-note{border-color:var(--wrong)}
+.legend .t-inline{border-color:var(--imprecise)}
+.legend .t-leave{border-color:var(--ink-3)}
+.dec-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;font-size:14px;color:var(--ink-2)}
+.btn{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font:500 13.5px var(--sans);padding:7px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.topic-group{margin:26px 0 8px}
+.topic-group>h3{display:flex;gap:10px;align-items:baseline;margin-bottom:10px;text-transform:capitalize}
+.topic-group>h3 small{font:400 13px var(--sans);color:var(--ink-3);text-transform:none}
+.dcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line-2);border-radius:6px;padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+.dcard.sev-high{border-left-color:var(--wrong)}
+.dcard.sev-medium{border-left-color:var(--outdated)}
+.dcard.sev-low{border-left-color:var(--line-2)}
+.dmeta{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:8px;font-size:13px;color:var(--ink-3)}
+.dmeta .id{font-family:var(--mono);color:var(--ink-2);font-weight:500}
+.quote{font-family:var(--serif);font-size:17px;line-height:1.5;margin:4px 0 12px;color:var(--ink)}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+.field h4{font:600 11.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+.field p{font-size:14.5px;color:var(--ink-2)}
+.field.precise p{color:var(--ink)}
+.srcs{margin:0;padding:0;list-style:none;font-size:13px}
+.srcs li{margin:2px 0;overflow-wrap:anywhere}
+.review{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:5px;padding:8px 10px;margin-top:12px}
+.rec{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;border-top:1px dashed var(--line-2);margin-top:14px;padding-top:12px;font-size:14px}
+.rec .lbl{font:600 11.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.rec .val{font-weight:600}
+.rec .val.t-note{color:var(--wrong)}
+.rec .val.t-inline{color:var(--imprecise)}
+.rec select{font:14px var(--sans);padding:5px 8px;border:1px solid var(--line-2);border-radius:5px;background:var(--surface);color:var(--ink);max-width:100%}
+.rec .changed{font-size:12.5px;color:var(--outdated)}
+/* ledger browser */
+.browser{display:grid;grid-template-columns:250px minmax(0,1fr);gap:24px;align-items:start}
+.side{position:sticky;top:66px;max-height:calc(100vh - 80px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px}
+.side h4{font:600 11.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin:4px 4px 6px}
+.tree{list-style:none;margin:0;padding:0;font-size:13.5px}
+.tree ul{list-style:none;margin:0;padding-left:14px;border-left:1px solid var(--line);margin-left:8px}
+.tree button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;gap:8px;width:100%;padding:3px 6px;border-radius:4px;cursor:pointer;color:var(--ink-2)}
+.tree button:hover{background:var(--surface-2);color:var(--ink)}
+.tree button:focus-visible{outline:2px solid var(--focus)}
+.tree button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.tree button span:last-child{font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+.filters{display:grid;grid-template-columns:2fr repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-3);min-width:0}
+.filters input,.filters select{font:14px var(--sans);padding:7px 9px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface);color:var(--ink);width:100%;min-width:0}
+.resline{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:13.5px;color:var(--ink-3);margin-bottom:10px}
+.resline button{all:unset;cursor:pointer;color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:8px}
+.item:target,.item.flash{outline:2px solid var(--accent);outline-offset:1px}
+.item .top{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:12.5px;color:var(--ink-3);margin-bottom:6px}
+.item .top .id{font-family:var(--mono);color:var(--ink-2);font-weight:500}
+.item .top .topic{flex:1 1 auto;min-width:0}
+.item .st{font-size:15px;color:var(--ink);margin:0}
+.item .dt{font-size:14px;color:var(--ink-2);margin:6px 0 0}
+.item .ts{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:6px;overflow-wrap:anywhere}
+.item details{margin-top:8px;font-size:13.5px}
+summary{cursor:pointer;color:var(--accent);font-size:13px;width:max-content;max-width:100%}
+.item .fc{margin-top:6px;padding:8px 10px;background:var(--surface-2);border-radius:5px;color:var(--ink-2)}
+.item .fc p{margin:4px 0 0}
+.item .add{margin-top:6px;padding:8px 10px;border:1px dashed var(--line-2);border-radius:5px;color:var(--ink-2)}
+.more{display:block;margin:12px auto}
+.side-toggle{display:none}
+/* additions */
+.add-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.seg{border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);font:500 13px var(--sans);padding:6px 11px;border-radius:999px;cursor:pointer}
+.seg[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font:600 11.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+td.idc{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+td .why{color:var(--ink-3);font-size:13px;margin-top:4px}
+td.srcc{width:260px;max-width:260px}
+td .srcs li{overflow-wrap:anywhere}
+td .st2{display:block;color:var(--ink-3);font-size:13px;margin-top:4px}
+.rec .attach{font-family:var(--sans);font-size:13.5px}
+.attach{all:unset;cursor:pointer;font-family:var(--mono);font-size:12.5px;color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+.attach:focus-visible{outline:2px solid var(--focus)}
+/* diagrams */
+.dgrams{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.dg{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
+.dg a.thumb{display:block;aspect-ratio:16/10;background:#111;overflow:hidden}
+.dg img{width:100%;height:100%;object-fit:cover;display:block}
+.dg .body{padding:10px 12px 12px;font-size:13.5px}
+.dg .body h3{font:600 15px/1.35 var(--sans);margin:2px 0 4px}
+.dg .meta{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.dg ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2)}
+.dg li{margin:2px 0}
+footer{padding:40px 0 60px;color:var(--ink-3);font-size:13px}
+.empty{padding:20px;text-align:center;color:var(--ink-3)}
+@media (max-width:900px){
+  .browser{grid-template-columns:1fr}
+  .side{position:static;max-height:none;display:none}
+  .side.open{display:block}
+  .side-toggle{display:inline-block;margin-bottom:10px}
+  .filters{grid-template-columns:1fr 1fr}
+  .filters label:first-child{grid-column:1/-1}
+  .dgrid{grid-template-columns:1fr}
+  .tbl-wrap{border:0;background:none;overflow:visible}
+  .tbl-wrap thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .tbl-wrap table,.tbl-wrap tbody,.tbl-wrap tr,.tbl-wrap td{display:block;width:auto}
+  .tbl-wrap tr{background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-bottom:10px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px}
+  .tbl-wrap td{border:0;padding:0;min-width:0!important}
+  .tbl-wrap td.txt,.tbl-wrap td.srcc{grid-column:1/-1}
+  .tbl-wrap td.idc .why{max-width:none!important}
+  .tbl-wrap td.srcc{max-width:none}
+  .tbl-wrap td .st2{display:inline;margin-left:6px}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  h1{font-size:25px}
+  h2{font-size:21px}
+  .brand{display:none}
+  .topbar .wrap{gap:8px}
+  .nav{gap:0;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+  .nav a{padding:6px 7px;font-size:13.5px}
+  .stat:last-child:nth-child(odd){grid-column:1/-1}
+  .stats{grid-template-columns:1fr 1fr}
+  .panels{grid-template-columns:1fr}
+  .bars{grid-template-columns:minmax(80px,max-content) 1fr 32px}
+  .dcard{padding:14px}
+  .quote{font-size:16px}
+}
+</style>
+
+<div class="topbar"><div class="wrap">
+  <span class="brand">Lecture 1 review</span>
+  <nav class="nav" aria-label="Sections">
+    <a href="#summary">Summary</a><a href="#decisions">Decisions</a><a href="#ledger">Ledger</a><a href="#additions">Additions</a><a href="#diagrams">Diagrams</a>
+  </nav>
+  <button class="theme-btn" id="themeBtn" type="button" aria-label="Colour theme">Auto</button>
+</div></div>
+
+<main class="wrap">
+  <header class="intro">
+    <div class="kicker">Checkpoint 1 &middot; before the learning site is written</div>
+    <h1>Lecture 1: what was taught, and what the fact-check found</h1>
+    <p class="lede" id="lede"></p>
+  </header>
+
+  <section id="summary" aria-labelledby="h-summary">
+    <div class="sec-head"><h2 id="h-summary">Summary</h2><p>Ledger, fact-check and additions at a glance</p></div>
+    <div class="stats" id="stats"></div>
+    <div class="panels" id="panels"></div>
+  </section>
+
+  <section id="decisions" aria-labelledby="h-dec">
+    <div class="sec-head"><h2 id="h-dec">Decisions needed</h2><p id="dec-sub"></p></div>
+    <div class="legend">
+      <div class="t-note"><b>Add a sourced note beside it</b>Wrong or outdated, or imprecise at medium/high severity. The teacher's line stays as taught; a short note with the precise version and a source sits next to it.</div>
+      <div class="t-inline"><b>Light inline clarification</b>Imprecise at low severity, or simplified at medium severity. A few words added inside the explanation, no callout.</div>
+      <div class="t-leave"><b>Leave as taught</b>Low-severity simplifications. Fine for teaching; nothing added. These are not listed here.</div>
+    </div>
+    <div class="dec-tools">
+      <button class="btn primary" id="copyDec" type="button">Copy decisions as JSON</button>
+      <button class="btn" id="resetDec" type="button">Reset to recommended</button>
+      <span id="decStatus" role="status"></span>
+    </div>
+    <div id="decList"></div>
+  </section>
+
+  <section id="ledger" aria-labelledby="h-ledger">
+    <div class="sec-head"><h2 id="h-ledger">Ledger browser</h2><p>Every item the lecture taught, with its sources</p></div>
+    <button class="btn side-toggle" id="sideToggle" type="button" aria-expanded="false" aria-controls="side">Browse by topic</button>
+    <div class="browser">
+      <aside class="side" id="side" aria-label="Topics">
+        <h4>Topic</h4>
+        <ul class="tree" id="tree"></ul>
+      </aside>
+      <div>
+        <div class="filters">
+          <label>Search<input id="q" type="search" placeholder="Words, ID (L-0158) or timestamp" autocomplete="off"></label>
+          <label>Type<select id="fType"></select></label>
+          <label>Origin<select id="fOrigin"></select></label>
+          <label>Confidence<select id="fConf"></select></label>
+          <label>Fact-check<select id="fVerdict"></select></label>
+        </div>
+        <div class="resline"><span id="resCount" role="status"></span><button id="clearF" type="button">Clear filters</button></div>
+        <div id="items"></div>
+        <button class="btn more" id="moreBtn" type="button" hidden>Show more</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="additions" aria-labelledby="h-add">
+    <div class="sec-head"><h2 id="h-add">Additions</h2><p id="add-sub"></p></div>
+    <div class="add-filter" role="group" aria-label="Filter additions">
+      <button class="seg" data-u="all" aria-pressed="true" type="button">All</button>
+      <button class="seg" data-u="keep" aria-pressed="false" type="button">Keep</button>
+      <button class="seg" data-u="optional" aria-pressed="false" type="button">Optional</button>
+      <button class="seg" data-u="needs_rewording" aria-pressed="false" type="button">Reworded by checker</button>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th scope="col">ID</th><th scope="col">Attach to</th><th scope="col">Text to add</th><th scope="col">Status</th><th scope="col">Sources</th></tr></thead>
+      <tbody id="addBody"></tbody>
+    </table></div>
+  </section>
+
+  <section id="diagrams" aria-labelledby="h-dia">
+    <div class="sec-head"><h2 id="h-dia">Board diagrams</h2><p>Final drawn form of each diagram, for the illustrator</p></div>
+    <div class="dgrams" id="dgrams"></div>
+  </section>
+
+  <footer>Built from learn/lec01 ledger, fact-check files and the second-check review (verdict_review.md). Decisions you change are kept in this browser only; use "Copy decisions as JSON" to hand them back.</footer>
+</main>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(function(){
+"use strict";
+var D = JSON.parse(document.getElementById("data").textContent);
+var V = D.verdicts, S = D.summary;
+var byId = {}; D.items.forEach(function(i){ byId[i.id] = i; });
+var addBy = {}; D.additions.forEach(function(a){ (addBy[a.attach_to] = addBy[a.attach_to] || []).push(a); });
+
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]; }); }
+function $(id){ return document.getElementById(id); }
+function nice(s){ return String(s).replace(/_/g, " "); }
+function store(k, v){ try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e){ return null; } }
+var TREAT = {note:"Add a sourced note beside it", inline:"Light inline clarification", leave:"Leave as taught"};
+var SEVRANK = {high:0, medium:1, low:2, none:3};
+
+/* theme */
+var themes = ["auto","light","dark"], ti = Math.max(0, themes.indexOf(store("c1-theme") || "auto"));
+function applyTheme(){ var t = themes[ti]; if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t); $("themeBtn").textContent = t.charAt(0).toUpperCase() + t.slice(1); $("themeBtn").setAttribute("aria-label", "Colour theme: " + t + ". Click to change."); }
+$("themeBtn").addEventListener("click", function(){ ti = (ti + 1) % 3; store("c1-theme", themes[ti]); applyTheme(); });
+applyTheme();
+
+function vchip(v){ if (!v) return ""; return '<span class="chip v-' + esc(v.verdict) + '">' + esc(v.verdict) + '</span>' + (v.severity && v.severity !== "none" ? ' <span class="chip s-' + esc(v.severity) + '">' + esc(v.severity) + ' severity</span>' : ""); }
+function srcList(arr){ if (!arr || !arr.length) return '<p class="note-line" style="margin:0">No source cited (reasoning claim).</p>'; return '<ul class="srcs">' + arr.map(function(u){ var h = u.replace(/^https?:\/\//, "").replace(/\/$/, ""); return '<li><a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(h.length > 70 ? h.slice(0, 67) + "..." : h) + '</a></li>'; }).join("") + '</ul>'; }
+function ts(i){ var a = (i.source && i.source.audio) || [], b = (i.source && i.source.board) || []; var out = []; if (a.length) out.push("audio " + a.join(", ")); if (b.length) out.push("board " + b.join(", ")); return out.join(" · "); }
+function cnt(pairs){ var o = {}; pairs.forEach(function(p){ o[p[0]] = p[1]; }); return o; }
+
+/* ---------- summary ---------- */
+var vc = cnt(S.verdict), oc = cnt(S.origin), cc = cnt(S.confidence), tc = cnt(S.treatment), ac = cnt(S.add_use), avc = cnt(S.add_verdict);
+$("lede").textContent = S.total + " items were extracted from the lecture audio and whiteboard. " + S.checked + " were fact-checked; " + S.decisions + " need a decision from you on how the site should present them. In every case the teacher's point stays on the page.";
+var stats = [[S.total, "ledger items"], [S.checked, "fact-checked"], [S.decisions, "decisions needed"], [(vc.wrong||0) + (vc.outdated||0), "wrong or outdated"], [cc.low || 0, "low-confidence items"], [S.additions, "proposed additions"], [S.diagrams, "board diagrams"]];
+$("stats").innerHTML = stats.map(function(s){ return '<div class="stat"><b>' + s[0] + '</b><span>' + s[1] + '</span></div>'; }).join("");
+function bars(title, pairs, note){ var max = Math.max.apply(null, pairs.map(function(p){ return p[1]; })); return '<div class="panel"><h3>' + esc(title) + '</h3><div class="bars">' + pairs.map(function(p){ return '<span class="lab" title="' + esc(nice(p[0])) + '">' + esc(nice(p[0])) + '</span><span class="track"><span class="fill" style="display:block;width:' + (100 * p[1] / max).toFixed(1) + '%"></span></span><span class="n">' + p[1] + '</span>'; }).join("") + '</div>' + (note ? '<p class="note-line">' + note + '</p>' : "") + '</div>'; }
+var vOrder = ["accurate","simplified","imprecise","outdated","wrong","unverifiable"];
+var vPairs = vOrder.filter(function(k){ return vc[k]; }).map(function(k){ return [k, vc[k]]; });
+$("panels").innerHTML =
+  bars("By topic", S.topic) +
+  bars("By type", S.type) +
+  bars("By origin", [["audio only", oc.audio||0], ["board only", oc.board||0], ["audio and board", oc.both||0]], "Confidence: " + (cc.high||0) + " high, " + (cc.medium||0) + " medium, " + (cc.low||0) + " low.") +
+  bars("Fact-check verdicts", vPairs, "Severity: " + S.severity.filter(function(p){ return p[0] !== "none"; }).map(function(p){ return p[1] + " " + p[0]; }).join(", ") + ". " + (S.total - S.checked) + " items (mostly course admin) were not checked. Second check changed 3 verdicts.") +
+  bars("Recommended treatment", [["sourced note", tc.note||0], ["inline clarification", tc.inline||0]], "Low-severity simplifications (" + D.items.filter(function(i){ var v = V[i.id]; return v && v.treatment === "leave" && v.verdict === "simplified"; }).length + ") are left as taught.") +
+  bars("Additions", [["keep", ac.keep||0], ["optional", ac.optional||0], ["confirmed as written", avc.confirmed||0], ["reworded by checker", avc.needs_rewording||0]]);
+
+/* ---------- decisions ---------- */
+var decs = Object.keys(V).map(function(k){ return V[k]; }).filter(function(v){ return v.decision; });
+var choices = {}; try { choices = JSON.parse(store("c1-decisions") || "{}") || {}; } catch(e){ choices = {}; }
+var groups = {};
+decs.forEach(function(v){ var t = (byId[v.id] ? byId[v.id].topic : "other").split(" > ")[0]; (groups[t] = groups[t] || []).push(v); });
+var gNames = Object.keys(groups).sort(function(a, b){
+  function worst(g){ return Math.min.apply(null, groups[g].map(function(v){ return SEVRANK[v.severity]; })); }
+  return worst(a) - worst(b) || groups[b].length - groups[a].length; });
+$("dec-sub").textContent = decs.length + " items · " + (tc.note||0) + " sourced notes, " + (tc.inline||0) + " inline clarifications recommended";
+function decCard(v){
+  var i = byId[v.id] || {}; var ch = choices[v.id] || v.treatment;
+  var opts = Object.keys(TREAT).map(function(k){ return '<option value="' + k + '"' + (k === ch ? " selected" : "") + '>' + TREAT[k] + (k === v.treatment ? " (recommended)" : "") + '</option>'; }).join("");
+  var orig = v.original ? ' <span class="chip c-plain">first check: ' + esc(v.original.verdict) + ' / ' + esc(v.original.severity) + '</span>' : "";
+  return '<article class="dcard sev-' + esc(v.severity) + '" id="dec-' + esc(v.id) + '">' +
+    '<div class="dmeta"><span class="id">' + esc(v.id) + '</span>' + vchip(v) + orig + '<span>' + esc(i.topic) + '</span><span class="mono">' + esc(ts(i)) + '</span></div>' +
+    '<p class="quote">' + esc(i.statement) + '</p>' +
+    '<div class="dgrid"><div class="field"><h4>Issue</h4><p>' + esc(v.note) + '</p></div>' +
+    '<div class="field precise"><h4>Precise version</h4><p>' + (v.precise_version ? esc(v.precise_version) : '<span style="color:var(--ink-3)">Not supplied; see the issue.</span>') + '</p></div>' +
+    '<div class="field" style="grid-column:1/-1"><h4>Sources</h4>' + srcList(v.sources) + '</div></div>' +
+    (v.review ? '<div class="review">' + esc(v.review) + '</div>' : "") +
+    '<div class="rec"><span class="lbl">Recommended</span><span class="val t-' + v.treatment + '">' + TREAT[v.treatment] + '</span>' +
+    '<label style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="lbl">Your call</span><select data-id="' + esc(v.id) + '">' + opts + '</select></label>' +
+    '<span class="changed" data-ch="' + esc(v.id) + '">' + (ch !== v.treatment ? "Changed from recommendation" : "") + '</span>' +
+    ' <button class="attach" type="button" data-goto="' + esc(v.id) + '">Open in ledger</button></div></article>';
+}
+$("decList").innerHTML = gNames.map(function(g){
+  var list = groups[g].slice().sort(function(a, b){ return SEVRANK[a.severity] - SEVRANK[b.severity] || (a.id < b.id ? -1 : 1); });
+  var h = list.filter(function(v){ return v.severity === "high"; }).length, m = list.filter(function(v){ return v.severity === "medium"; }).length, l = list.length - h - m;
+  return '<div class="topic-group"><h3>' + esc(g) + ' <small>' + list.length + ' items · ' + [h ? h + " high" : "", m ? m + " medium" : "", l ? l + " low" : ""].filter(Boolean).join(", ") + '</small></h3>' + list.map(decCard).join("") + '</div>';
+}).join("");
+$("decList").addEventListener("change", function(e){
+  var s = e.target.closest("select[data-id]"); if (!s) return; var id = s.getAttribute("data-id");
+  if (s.value === V[id].treatment) delete choices[id]; else choices[id] = s.value;
+  store("c1-decisions", JSON.stringify(choices));
+  document.querySelector('[data-ch="' + id + '"]').textContent = choices[id] ? "Changed from recommendation" : "";
+});
+$("copyDec").addEventListener("click", function(){
+  var out = decs.map(function(v){ return {id: v.id, verdict: v.verdict, severity: v.severity, recommended: v.treatment, decision: choices[v.id] || v.treatment}; });
+  var txt = JSON.stringify(out, null, 1), changed = Object.keys(choices).length;
+  function done(){ $("decStatus").textContent = "Copied " + out.length + " decisions (" + changed + " changed from recommendation)."; }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function(){ fallback(txt); done(); }); else { fallback(txt); done(); }
+});
+function fallback(txt){ var t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); } catch(e){} t.remove(); }
+$("resetDec").addEventListener("click", function(){
+  choices = {}; store("c1-decisions", null);
+  document.querySelectorAll("#decList select[data-id]").forEach(function(s){ s.value = V[s.getAttribute("data-id")].treatment; });
+  document.querySelectorAll("[data-ch]").forEach(function(e){ e.textContent = ""; });
+  $("decStatus").textContent = "All decisions reset to the recommendation.";
+});
+
+/* ---------- ledger browser ---------- */
+var tree = {};
+D.items.forEach(function(i){ var parts = i.topic.split(" > "), node = tree, path = []; parts.forEach(function(p){ path.push(p); node[p] = node[p] || {_n:0, _path:path.join(" > "), _k:{}}; node[p]._n++; node = node[p]._k; }); });
+function renderTree(node){ return Object.keys(node).sort(function(a, b){ return node[b]._n - node[a]._n || a.localeCompare(b); }).map(function(k){ var n = node[k], kids = Object.keys(n._k).length; return '<li><button type="button" data-topic="' + esc(n._path) + '"><span>' + esc(k) + '</span><span>' + n._n + '</span></button>' + (kids ? '<ul>' + renderTree(n._k) + '</ul>' : "") + '</li>'; }).join(""); }
+$("tree").innerHTML = '<li><button type="button" data-topic="" class="on"><span>All topics</span><span>' + D.items.length + '</span></button></li>' + renderTree(tree);
+function opts(sel, label, pairs){ sel.innerHTML = '<option value="">' + label + '</option>' + pairs.map(function(p){ return '<option value="' + esc(p[0]) + '">' + esc(nice(p[0])) + ' (' + p[1] + ')</option>'; }).join(""); }
+opts($("fType"), "All types", S.type);
+opts($("fOrigin"), "Any origin", [["audio", oc.audio||0], ["board", oc.board||0], ["both", oc.both||0]]);
+opts($("fConf"), "Any", S.confidence);
+opts($("fVerdict"), "Any", vPairs.concat([["decision", S.decisions], ["unchecked", S.total - S.checked]]));
+$("fVerdict").querySelector('option[value="decision"]').textContent = "Needs decision (" + S.decisions + ")";
+$("fVerdict").querySelector('option[value="unchecked"]').textContent = "Not checked (" + (S.total - S.checked) + ")";
+
+var F = {topic:"", q:"", type:"", origin:"", conf:"", verdict:""}, shown = 40, PAGE = 40;
+function match(i){
+  if (F.topic && i.topic !== F.topic && i.topic.indexOf(F.topic + " > ") !== 0) return false;
+  if (F.type && i.type !== F.type) return false;
+  if (F.origin && i.origin !== F.origin) return false;
+  if (F.conf && i.confidence !== F.conf) return false;
+  var v = V[i.id];
+  if (F.verdict === "decision") { if (!v || !v.decision) return false; }
+  else if (F.verdict === "unchecked") { if (v) return false; }
+  else if (F.verdict && (!v || v.verdict !== F.verdict)) return false;
+  if (F.q) { var hay = (i.id + " " + i.statement + " " + (i.detail||"") + " " + i.topic + " " + ts(i) + " " + (i.verbatim||"") + " " + (i.case_study||"")).toLowerCase(); var ws = F.q.toLowerCase().split(/\s+/).filter(Boolean); for (var k = 0; k < ws.length; k++) if (hay.indexOf(ws[k]) < 0) return false; }
+  return true;
+}
+function itemHTML(i){
+  var v = V[i.id], adds = addBy[i.id] || [];
+  var top = '<span class="id">' + esc(i.id) + '</span><span class="chip c-type">' + esc(nice(i.type)) + '</span>' +
+    (i.origin !== "audio" ? '<span class="chip c-board">' + (i.origin === "board" ? "board only" : "on board") + '</span>' : "") +
+    (i.confidence === "low" ? '<span class="chip c-low">low confidence</span>' : i.confidence === "medium" ? '<span class="chip c-plain">medium confidence</span>' : "") +
+    (i.status && i.status !== "endorsed" ? '<span class="chip c-plain">' + esc(nice(i.status)) + '</span>' : "") +
+    (v ? vchip(v) : "") + '<span class="topic">' + esc(i.topic) + '</span>';
+  var h = '<article class="item" id="item-' + esc(i.id) + '"><div class="top">' + top + '</div><p class="st">' + esc(i.statement) + '</p>' +
+    (i.detail ? '<p class="dt">' + esc(i.detail) + '</p>' : "") +
+    '<div class="ts">' + esc(ts(i)) + '</div>';
+  if (v && v.verdict !== "accurate") h += '<div class="fc"><b>' + esc(v.verdict) + (v.severity !== "none" ? ", " + esc(v.severity) + " severity" : "") + '.</b> ' + esc(v.note) + (v.precise_version ? '<p><b>Precise:</b> ' + esc(v.precise_version) + '</p>' : "") + (v.decision ? '<p><b>Recommended:</b> ' + TREAT[v.treatment] + ' · <button class="attach" type="button" data-dec="' + esc(i.id) + '">see decision</button></p>' : "") + '</div>';
+  adds.forEach(function(a){ h += '<div class="add"><b>' + esc(a.add_id) + '</b> <span class="chip ' + (a.usefulness === "keep" ? "c-board" : "c-plain") + '">' + esc(a.usefulness) + '</span> ' + esc(a.text) + '</div>'; });
+  var extra = [];
+  if (i.verbatim) extra.push('<p><b>Verbatim:</b> <i>' + esc(i.verbatim) + '</i></p>');
+  if (i.case_study) extra.push('<p><b>Medium case study:</b> ' + esc(i.case_study) + '</p>');
+  if (i.flags && i.flags.length) extra.push('<p><b>Flags:</b> ' + i.flags.map(esc).join("; ") + '</p>');
+  if (v && v.verdict === "accurate") extra.push('<p><b>Fact-check:</b> ' + esc(v.note) + '</p>');
+  if (extra.length) h += '<details><summary>Quote, flags and context</summary>' + extra.join("") + '</details>';
+  return h + '</article>';
+}
+function renderItems(){
+  var list = D.items.filter(match);
+  $("resCount").textContent = list.length + " of " + D.items.length + " items" + (F.topic ? " in " + F.topic : "");
+  $("items").innerHTML = list.length ? list.slice(0, shown).map(itemHTML).join("") : '<div class="empty">No items match these filters.</div>';
+  $("moreBtn").hidden = list.length <= shown;
+  $("moreBtn").textContent = "Show " + Math.min(PAGE, list.length - shown) + " more (" + (list.length - shown) + " left)";
+}
+$("tree").addEventListener("click", function(e){ var b = e.target.closest("button[data-topic]"); if (!b) return; document.querySelectorAll("#tree button.on").forEach(function(x){ x.classList.remove("on"); }); b.classList.add("on"); F.topic = b.getAttribute("data-topic"); shown = PAGE; renderItems(); });
+var qt; $("q").addEventListener("input", function(e){ clearTimeout(qt); qt = setTimeout(function(){ F.q = e.target.value.trim(); shown = PAGE; renderItems(); }, 120); });
+[["fType","type"],["fOrigin","origin"],["fConf","conf"],["fVerdict","verdict"]].forEach(function(p){ $(p[0]).addEventListener("change", function(e){ F[p[1]] = e.target.value; shown = PAGE; renderItems(); }); });
+$("moreBtn").addEventListener("click", function(){ shown += PAGE; renderItems(); });
+function clearAll(){ F = {topic:"", q:"", type:"", origin:"", conf:"", verdict:""}; $("q").value = ""; ["fType","fOrigin","fConf","fVerdict"].forEach(function(id){ $(id).value = ""; }); document.querySelectorAll("#tree button.on").forEach(function(x){ x.classList.remove("on"); }); $("tree").querySelector('button[data-topic=""]').classList.add("on"); shown = PAGE; }
+$("clearF").addEventListener("click", function(){ clearAll(); renderItems(); });
+$("sideToggle").addEventListener("click", function(){ var o = $("side").classList.toggle("open"); this.setAttribute("aria-expanded", o); this.textContent = o ? "Hide topics" : "Browse by topic"; });
+function gotoItem(id){ clearAll(); F.q = id; $("q").value = id; renderItems(); var el = $("item-" + id); if (el) { el.scrollIntoView({block:"center"}); el.classList.add("flash"); setTimeout(function(){ el.classList.remove("flash"); }, 1600); } }
+document.addEventListener("click", function(e){
+  var g = e.target.closest("[data-goto]"); if (g) { gotoItem(g.getAttribute("data-goto")); return; }
+  var d = e.target.closest("[data-dec]"); if (d) { var el = $("dec-" + d.getAttribute("data-dec")); if (el) { el.scrollIntoView({block:"start"}); var s = el.querySelector("select"); if (s) s.focus({preventScroll:true}); } }
+});
+renderItems();
+
+/* ---------- additions ---------- */
+$("add-sub").textContent = S.additions + " proposed · " + (ac.keep||0) + " keep, " + (ac.optional||0) + " optional · " + (avc.needs_rewording||0) + " reworded by the second checker";
+var uf = "all";
+function renderAdds(){
+  var list = D.additions.filter(function(a){ return uf === "all" || a.usefulness === uf || a.verdict === uf; });
+  $("addBody").innerHTML = list.map(function(a){
+    var i = byId[a.attach_to];
+    return '<tr><td class="idc">' + esc(a.add_id) + '</td><td class="idc">' + (i ? '<button class="attach" type="button" data-goto="' + esc(a.attach_to) + '" title="' + esc(i.statement) + '">' + esc(a.attach_to) + '</button><div class="why" style="white-space:normal;font-family:var(--sans);max-width:160px">' + esc(i.topic) + '</div>' : esc(a.attach_to || "-")) + '</td>' +
+      '<td class="txt" style="min-width:300px">' + esc(a.text) + (a.why ? '<div class="why">Why: ' + esc(a.why) + '</div>' : "") + (a.verdict === "needs_rewording" && a.note ? '<div class="why">Checker: ' + esc(a.note) + '</div>' : "") + '</td>' +
+      '<td><span class="chip ' + (a.usefulness === "keep" ? "c-board" : "c-plain") + '">' + esc(a.usefulness) + '</span><span class="st2">' + (a.verdict === "confirmed" ? "confirmed" : "reworded") + '</span></td>' +
+      '<td class="srcc">' + srcList(a.sources) + '</td></tr>';
+  }).join("");
+}
+document.querySelector(".add-filter").addEventListener("click", function(e){ var b = e.target.closest(".seg"); if (!b) return; uf = b.getAttribute("data-u"); document.querySelectorAll(".add-filter .seg").forEach(function(x){ x.setAttribute("aria-pressed", x === b); }); renderAdds(); });
+renderAdds();
+
+/* ---------- diagrams ---------- */
+$("dgrams").innerHTML = D.diagrams.map(function(d){
+  return '<article class="dg">' + (d.frame ? '<a class="thumb" href="frames/' + esc(d.frame) + '" target="_blank" rel="noopener" aria-label="Open frame for ' + esc(d.id) + '"><img src="frames/' + esc(d.frame) + '" alt="Whiteboard frame: ' + esc(d.title) + '" loading="lazy"></a>' : "") +
+    '<div class="body"><div class="meta">' + esc(d.id) + ' · ' + esc(d.time) + ' · ' + esc(d.frame || "") + '</div><h3>' + esc(d.title) + '</h3>' +
+    '<details><summary>Drawn elements (' + d.lines.length + ')</summary><ul>' + d.lines.map(function(l){ return '<li>' + esc(l.replace(/^-\s*/, "")) + '</li>'; }).join("") + '</ul>' + (d.frame_line ? '<p class="note-line">Frames: ' + esc(d.frame_line) + '</p>' : "") + '</details></div></article>';
+}).join("");
+})();
+</script>
