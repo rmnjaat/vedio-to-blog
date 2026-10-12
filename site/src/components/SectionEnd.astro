@@ -1,0 +1,12 @@
+---
+interface Props { next?: { label?: string; title: string; href: string }; concepts?: { label: string; href?: string }[] }
+const { next, concepts = [] } = Astro.props;
+---
+<div class="sec-end">
+  {next && <a class="next" href={next.href}><span><span class="lbl hand">{next.label ?? 'Next chapter'}</span><br />{next.title}</span><span aria-hidden="true" class="hand">→</span></a>}
+  {concepts.length > 0 && (
+    <p class="concepts hand">Concepts in this section: {concepts.map((c, i) => <Fragment>{i > 0 && ' · '}<a href={c.href ?? '#'}>{c.label}</a></Fragment>)}</p>
+  )}
+  {/* back to the lecture contents: opens the contents sheet (Layout) when JS runs, else jumps to #toc */}
+  <a class="to-contents hand" href="#toc" data-open-nav>Contents of this lecture ↑</a>
+</div>

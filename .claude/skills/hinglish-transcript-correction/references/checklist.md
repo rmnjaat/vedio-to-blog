@@ -16,7 +16,7 @@
 - [ ] Every guess is a marker (`[unclear: "..."]`, `[?x | asr: "..."]`, `[missing ...]`, `[check: ...]`, `Student?`).
 - [ ] Every non-trivial change has a log row with Original copied exactly from the raw, a concrete reason, conf high/medium.
 - [ ] Removed hallucinations each have a log row.
-- [ ] `verify_content.py ... --from <chunk start> --to <chunk end> --strict` = PASS (or each remaining item is a deliberate, explained choice).
+- [ ] `verify_content.py ... --chunk chunk_NN --strict` = PASS (or each remaining item is a deliberate, explained choice).
 - [ ] New terms / open questions written to the chunk notes or term_decisions.md.
 
 ## Before delivery

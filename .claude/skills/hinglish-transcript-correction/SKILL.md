@@ -118,9 +118,10 @@ on the owned segments, then write the file once:
 Then verify the chunk and fix until it passes:
 ```bash
 python3 "$SK/scripts/verify_content.py" "$WORKDIR/segments.jsonl" "$WORKDIR/chunks/chunk_NN.corrected.md" \
-  --log "$WORKDIR/chunks/chunk_NN.log.md" --from <OWNS start> --to <OWNS end> --strict --out "$WORKDIR/chunks/chunk_NN.verify.md"
+  --log "$WORKDIR/chunks/chunk_NN.log.md" --chunk chunk_NN --strict --out "$WORKDIR/chunks/chunk_NN.verify.md"
 ```
-The `OWNS` times are in the first line of the raw chunk file. Every "Dropped" run = text you lost (restore it) or an
+`--chunk` takes the exact owned segment ids from `chunks/index.json` (never use `--from/--to` with the
+whole-second OWNS times for a chunk: they can pull in the neighbouring chunk's first segment). Every "Dropped" run = text you lost (restore it) or an
 edit you did not log (log it). Every "Added" run = text the ASR never produced (remove it, or log the correction that
 produced it). "Unmatched log rows" = an Original cell not copied exactly from the raw. Single-word romanization
 differences are listed but do not fail; if a pattern repeats, add it to term_decisions "Romanization overrides".

@@ -1,0 +1,15 @@
+---
+// One lecture section (e.g. §2.4). Everything inside sits on the body column; figures/tables marked .wide go wide.
+// crumb = the short label shown in the breadcrumb while this section is in view.
+interface Props { id: string; no: string; title: string; dek?: string; meta?: string; crumb?: string; k?: string }
+const { id, no, title, dek, meta, crumb, k } = Astro.props;
+---
+<article class="col section" id={id} aria-labelledby={'h-' + id} data-no={no} data-crumb={crumb ?? `${no} ${title}`}>
+  <header class="sec-head" data-k={k}>
+    <p class="sec-no hand">§ {no}</p>
+    <h2 id={'h-' + id}>{title}</h2>
+    {dek && <p class="sec-dek">{dek}</p>}
+    {meta && <p class="sec-meta hand">{meta}</p>}
+  </header>
+  <slot />
+</article>

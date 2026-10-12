@@ -1,0 +1,39 @@
+import MarginNote from '../../../components/MarginNote.astro';
+import Figure from '../../../components/Figure.astro';
+import Cite from '../../../components/Cite.astro';
+import { MediumSoFar } from '../../../figures/lec01/fig-1a';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec01.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec01.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 01 · week 1, day 2 · running case: Medium"
+      title: Medium under load
+      dek: "Caching at every level, then the rest of the framework (scaling, delegation, concurrency and communication), each worked through on Medium."
+      contents: 1 Caching at every level (#s1; children 1.1 #s1-1 … 1.8 #s1-8), 2 Scaling, 3 Delegation, 4 Concurrency, 5 Communication, 6 What to keep.
+    §1 children titles: Where can a cache go? · The API server’s own memory · The API server’s disk · Closer to the reader: the browser ·
+      The CDN, and caches closer still · The load balancer and the API gateway · Inside the database: materialized views · One route, every layer */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 2 of week 1. It finishes the course framework that day 1 started, and every part of it is worked through on one running case, Medium, with attention to how things are actually implemented and what they buy you in performance. [[L-0001]]
+
+The class went through caching at different levels, then scaling, delegation, concurrency and communication, in that order, and this page follows it. Delegation before concurrency works well here: the counter that delegation builds is exactly the thing concurrency breaks. [[L-0007]]
+
+Concurrency gets only a short taste here. Week 2, day 1 goes deep on how concurrency in a database falls apart, with practical examples. The whole course runs 8 weeks, 16 sessions, kept focused on engineering. Security is not part of it: it is not high-level architecture, and the course website lists the exact topics the course does cover. [[L-0008 L-0005 L-0351]]
+
+**How to use this page.** There is no reading list after the class, and the order of topics changes from cohort to cohort. When a term catches your eye, look it up and read the primary documentation yourself. The class’s example was MySQL’s documentation on how it stores datetimes. Curated links go stale; you go looking for one thing and land on something far more interesting, and that is how you get better. [[L-0003 L-0004]]
+
+</MarginNote>
+
+### Medium so far
+
+Here is Medium’s picture as this class starts. A reader’s browser sends a request to an API server, the API server reads the story from one database, and the answer goes back the same way. There are two API servers, and next to the database sits one shared cache, a Redis instance that every API server can call. [[L-0013]]
+
+That picture works until a story goes viral. This page grows it, one box at a time. Each section starts from something Medium is struggling with right now and ends with a rule you can take to any other system.
+
+<Figure id="fig-1a-sofar" max={300} k="L-0013" caption="Medium so far: a reader, two API servers, one database and a shared Redis alongside. The dot in each API server’s corner is its own local memory; §1.2 puts it to work. Redrawn from the class board at 00:30.">
+<MediumSoFar />
+</Figure>
+
+</div>

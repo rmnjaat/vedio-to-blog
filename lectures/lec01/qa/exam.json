@@ -1,0 +1,884 @@
+{
+  "lecture": "lec01",
+  "title": "Lecture 01 - Scaling, Concurrency, Delegation, Communication",
+  "sources": [
+    "transcripts/corrected/lec01/transcript.md",
+    "learn/lec01/board/board_log.md",
+    "learn/lec01/board/diagrams.md"
+  ],
+  "count": 109,
+  "questions": [
+    {
+      "id": "Q001",
+      "q": "What five topics were on the agenda for this session, in the order the teacher listed them?",
+      "answer": "Caching at different levels, scaling, delegation, concurrency, communication.",
+      "source": "transcript 00:05:33; board S02 00:05:45",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q002",
+      "q": "Why did the teacher plan to spend only 5-10 minutes on concurrency in this session?",
+      "answer": "Because concurrency gets in-depth coverage the next week (week 2, day 1), with practical examples of how database concurrency falls apart; he called it the heart and soul of building systems at scale.",
+      "source": "transcript 00:05:33",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q003",
+      "q": "The first caching place proposed was the main memory (RAM) of the API server. What does it save, compared with using only a centralized remote cache such as Redis?",
+      "answer": "It saves an expensive network call (network I/O) to the remote cache, and reduces the load on the Redis server, by keeping some data locally in the API server's RAM.",
+      "source": "transcript 00:09:13-00:09:25; board D-01",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q004",
+      "q": "What three drawbacks of caching in the API server's main memory were written on the board?",
+      "answer": "It is limited (memory is constrained), the cache is lost when the API server/data goes down, and there is inconsistency across servers.",
+      "source": "transcript 00:10:03; board S04",
+      "kind": "tradeoff",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q005",
+      "q": "Why does caching in each API server's own RAM cause inconsistency when you have several API servers?",
+      "answer": "Each server's memory is local and not accessible from anywhere else, so other servers do not see the same cached data; a request that lands on another server may miss, go to the DB and cache a different copy.",
+      "source": "transcript 00:11:54-00:12:40",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q006",
+      "q": "Under what load-balancing setup did the teacher say in-memory API-server caching of a user's data works especially well, and why?",
+      "answer": "With sticky sessions, where a particular user's requests always go to the same server; since that user's requests never go to another server, you can cache that user's data in that server's memory.",
+      "source": "transcript 00:12:40-00:14:16",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q007",
+      "q": "What kind of data did the teacher give as a good fit for local (per-server) caching, and what examples did he use?",
+      "answer": "Nearly static data that rarely changes and where stale reads are acceptable - e.g. published blogs on LinkedIn or Medium.",
+      "source": "transcript 00:14:16-00:15:17",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q008",
+      "q": "Since the API server has very limited RAM, what did the teacher say is very important when caching there?",
+      "answer": "Having a TTL (expiry) and deciding how you flush the cache; you cache only some information, with expiry. (He also noted you can run a local Redis on the server itself.)",
+      "source": "transcript 00:15:17",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q009",
+      "q": "What is a materialized view, and which expensive database work does it save?",
+      "answer": "A pre-joined, pre-computed table (view) built from the base tables - including derived/computed columns - that queries are fired on instead of the raw tables; it saves expensive joins and computation done again and again.",
+      "source": "transcript 00:17:19-00:18:23",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q010",
+      "q": "How are materialized views kept up to date, and when do they stop paying off?",
+      "answer": "They must be refreshed explicitly - database triggers are used to refresh them. They work when data changes infrequently; if data changes often, frequent refreshes slow things down.",
+      "source": "transcript 00:18:23",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q011",
+      "q": "What kinds of things did the teacher say can be cached in the browser's local storage?",
+      "answer": "Static images, static assets, even some API responses, and things like the JWT token; he also mentioned web workers that work offline and sync to the backend later.",
+      "source": "transcript 00:20:47; board S06",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q012",
+      "q": "Describe the personalized-recommendations hack shared by a student and how the teacher extended it.",
+      "answer": "Store the recommendations/ranking in the browser's local storage and render from there instead of an expensive backend call, refreshing them periodically (e.g. once a day). The teacher added: compute e.g. 50 items but show 10 at random in the viewport each time, so they feel fresh and fast.",
+      "source": "transcript 00:22:41-00:24:26; board S09",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q013",
+      "q": "What 'big misconception' about CDNs did the teacher correct?",
+      "answer": "That CDNs can only cache static things like images and videos. A CDN is just a proxy between the user and the backend; to it everything is just bytes, so it can cache anything, including API responses.",
+      "source": "transcript 00:25:32",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q014",
+      "q": "Which kind of API response did the teacher suggest caching on a CDN, and which company did he cite?",
+      "answer": "Near-static responses such as popular search terms / search results (e.g. search.abc.com/popular); he cited Giphy caching popular terms.",
+      "source": "transcript 00:26:21-00:27:04",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q015",
+      "q": "In the CDN board diagram (D-02), what path does the request take, and what is the benefit when the CDN already has the answer?",
+      "answer": "User -> CDN (cloud) -> API server -> DB. If the CDN has the response, it serves it directly and the request never reaches your infrastructure (backend, cache or DB).",
+      "source": "transcript 00:27:04; board D-02",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q016",
+      "q": "What broad definition of a cache did the teacher give when introducing caching on the API server's disk?",
+      "answer": "Anything that helps you save an expensive computation or an expensive I/O - not just something that fits in memory.",
+      "source": "transcript 00:29:06; board S12",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q017",
+      "q": "Why is the API server's disk a good place to cache, according to the teacher?",
+      "answer": "API-server RAM is costly and limited (shared with OS, app server and jobs), while the attached disk (e.g. 20 GB) is barely used (2-3 GB for OS and packages). Local disk reads are much faster than network I/O, so using the disk saves the expensive network call to a centralized cache.",
+      "source": "transcript 00:29:31-00:30:38",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q018",
+      "q": "What is the 'statutory warning' / trade-off for caching on API-server disk (and RAM)?",
+      "answer": "You give up strong consistency and a centralized view - different servers may hold different values - so it is use-case specific and only fine where stale data is acceptable.",
+      "source": "transcript 00:30:38-00:32:38",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q019",
+      "q": "List the six caching places written on the board in order.",
+      "answer": "1. Main memory of API server, 2. DB views (materialized), 3. Browser (local storage), 4. CDN (cache response), 5. Disk of API server, 6. Load balancer (API gateway). (Plus the centralized remote cache, which is always there.)",
+      "source": "transcript 00:33:49; board S20",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q020",
+      "q": "How did the teacher define scaling, and which word did he stress?",
+      "answer": "The ability to handle a large number of concurrent requests; 'concurrent' is the key word.",
+      "source": "transcript 00:35:18; board S21",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q021",
+      "q": "On the scaling page, which characters were vertical and horizontal scaling compared to, and what pros and cons were written for each?",
+      "answer": "Vertical = Hulk (make infra bulky / add CPU, RAM, disk): pro 'Easy to manage', con 'Risk of downtime'. Horizontal = Minions (add more machines): cons 'Complex Architecture', 'Network Partitioning'; pros 'Linear amplification', 'Fault Tolerance'.",
+      "source": "board S21 00:35:15",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q022",
+      "q": "What is the real reason vertical scaling has a limit, and what analogy did the teacher use?",
+      "answer": "Physical hardware limitation: components interface through buses that must be compatible and speak the same hardware protocol; going one level up needs different hardware. Analogy: a phone that supports a 256 GB SD card won't recognize a 512 GB card.",
+      "source": "transcript 00:37:05-00:40:26",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q023",
+      "q": "What is linear amplification? Give the teacher's worked example.",
+      "answer": "With horizontal scaling, capacity grows linearly with machines: if one machine handles 100 requests/sec, 500 requests/sec needs 500/100 = 5 machines.",
+      "source": "transcript 00:40:47",
+      "kind": "number",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q024",
+      "q": "Why did the teacher say autoscaling groups fail for sudden large spikes, and what must happen before a big marketing campaign?",
+      "answer": "They take their own sweet time to react, so users flood in before new capacity is up. Marketing must inform engineering beforehand so infra is prepared before the SMS/push is sent; it's a team game. Autoscaling is fine for smaller spikes.",
+      "source": "transcript 00:42:35-00:43:31",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q025",
+      "q": "How do you find out how many requests per second one machine can handle?",
+      "answer": "Only by load testing - there is no magic formula (e.g. you cannot say a 32 GB machine handles 5000 rps).",
+      "source": "transcript 00:43:31",
+      "kind": "heuristic",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q026",
+      "q": "What did the 'Good scaling plan' curve on the board show, and what rule was boxed next to it?",
+      "answer": "A curve rising steeply then flattening: 'Scale Vertically' first (rising part), 'Then horizontally' (plateau). Boxed rule: 'No pre-mature optimizations'.",
+      "source": "transcript 00:44:49; board D-03",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q027",
+      "q": "What is the 'catch' with horizontal scaling of API servers, and what rule follows from it?",
+      "answer": "The dependent components (DB, centralized cache, other services) receive the multiplied load and may go down because they are not prepared. Hence always scale bottom up: scale the DB/dependencies first, then the API servers.",
+      "source": "transcript 00:45:45-00:46:41; board S24/D-05",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q028",
+      "q": "What did the teacher say has caused the most outages in distributed systems?",
+      "answer": "Cascading failures - one component going down brings down the components that depend on it, until users cannot use the platform.",
+      "source": "transcript 00:47:28",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q029",
+      "q": "What typical read-to-write ratios did the teacher quote to motivate read replicas?",
+      "answer": "90:10 or 99:1 - heavily skewed toward reads (more readers than writers, e.g. blogs, YouTube).",
+      "source": "transcript 00:49:26",
+      "kind": "number",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q030",
+      "q": "In asynchronous replication, does the master push changes to the replica?",
+      "answer": "No. We describe it that way, but actually the replica calls the master and pulls (reads) the changes.",
+      "source": "transcript 00:50:55",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q031",
+      "q": "In the naive implementation, how does the application route reads to replicas and writes to the master?",
+      "answer": "The API server creates two DB connections (two connection strings, two connection objects) - one to master, one to replica - and business logic picks which one to use per query. The database doesn't do this automatically.",
+      "source": "transcript 00:51:15-00:52:33",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q032",
+      "q": "In the banking example, which read can go to a replica and which must go to the master?",
+      "answer": "Reading a user's profile can go to a replica; reading the account balance is a critical read and must go to the master.",
+      "source": "transcript 00:52:33",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q033",
+      "q": "When do you move to sharding, and what does sharding mean?",
+      "answer": "When the master still can't handle the load even after adding replicas and vertically scaling it. Sharding splits the data into mutually exclusive subsets distributed across nodes; each shard is a master and may have its own replicas.",
+      "source": "transcript 00:54:20",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q034",
+      "q": "In the naive sharding implementation, where is the routing logic and how does it work?",
+      "answer": "In the API server: it opens a connection to every shard (3 shards = 3 connections), and routes by e.g. hash of user ID (hash-based routing, fixed per user) to the right node.",
+      "source": "transcript 00:55:19",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q035",
+      "q": "The 'Scaling DB' board diagram has three sub-diagrams. What are they and how does each look?",
+      "answer": "(a) Vertical scaling: small cylinder -> arrow -> bigger cylinder. (b) Read replicas: API server on top with lines to two DBs, and an arrow master -> replica. (c) Sharding: API server with lines to three DB cylinders separated by partition strokes.",
+      "source": "board D-06 00:46:15",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q036",
+      "q": "A student asked about a master failing and leader election. What did the teacher answer?",
+      "answer": "Leader election is a way to automatically recover from failures, but you may not see it in practice: on a cloud like AWS, the provider does it for you (promotes a replica/standby). Implementing it yourself is painful; it's covered later.",
+      "source": "transcript 00:58:48-00:59:21",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q037",
+      "q": "Do you need a separate connection pool per database (master, replica, shard)? Why?",
+      "answer": "Yes - TCP connections are stateful between a server and a specific DB, so you need a separate pool for every database (maintained by the API server or by a proxy).",
+      "source": "transcript 01:01:31",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q038",
+      "q": "Does sharding mean you have three identical copies of the database?",
+      "answer": "No - shards hold mutually exclusive subsets; e.g. a third of the rows on each of three nodes.",
+      "source": "transcript 01:02:06-01:02:16",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q039",
+      "q": "Is EC2 auto scaling horizontal or vertical, and what is the autoscaler's vs your responsibility?",
+      "answer": "Horizontal (adds instances). The autoscaling group only spins up machines and adds them behind the load balancer; you define the rules, e.g. add a node when average cluster CPU exceeds 60%.",
+      "source": "transcript 01:03:42-01:05:32",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q040",
+      "q": "What principle did the teacher take from the Hotstar VP engineering talk (2020)?",
+      "answer": "Whatever does not need to be done in real time (in the request context) should not be done in real time - delegate it to workers. Board: 'the mantra for performance'.",
+      "source": "transcript 01:05:42-01:06:28; board S30",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q041",
+      "q": "What Medium example was used to motivate delegation?",
+      "answer": "Showing the number of essays a user wrote: store a precomputed 'total_blogs' column in the users table (to avoid joins/runtime computation) and increment it asynchronously when a blog is published.",
+      "source": "transcript 01:07:37; board S32",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q042",
+      "q": "Describe the numbered arrows in the 'Delegate & respond' diagram.",
+      "answer": "(1) Client -> API; (2) API -> Broker with a 'Task'; (3) API -> Client (response). Workers fan out from the broker and 'update DB'.",
+      "source": "transcript 01:08:24; board D-08",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q043",
+      "q": "In the SQS diagram for the blog count, what event is published and what do workers do?",
+      "answer": "API publishes ON_PUBLISH into SQS; workers consume it and run total_blogs++ via an update query on the database. Similarly an ON-DELETE event leads to total_blogs--.",
+      "source": "transcript 01:09:07; board D-09",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q044",
+      "q": "What are the defining properties of a message queue (e.g. SQS, RabbitMQ)?",
+      "answer": "Consumers are homogeneous (same logic, same queue); consumers pull messages; each message is read exclusively by one consumer; after processing, the consumer deletes it.",
+      "source": "transcript 01:11:25-01:13:29",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q045",
+      "q": "With one worker doing both count++ and Elasticsearch indexing, explain the 74/75/76 failure sequence.",
+      "answer": "Worker does count++ (74->75) then crashes before indexing: count 75, search 74. On retry it does count++ again (76) and indexes: search 75, count 76 - inconsistent either way.",
+      "source": "transcript 01:14:07-01:16:40",
+      "kind": "example",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q046",
+      "q": "Besides crash consistency, what non-technical problem does one worker shared by two teams cause?",
+      "answer": "No separation of concern - two teams (backend/analytics and search) on one codebase: fights, blocked deployments, messy branches.",
+      "source": "transcript 01:15:32; board S39",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q047",
+      "q": "What is the key difference between a message queue and a message stream?",
+      "answer": "Queues have homogeneous consumers that delete messages; streams (Kafka, Kinesis) have heterogeneous consumers that iterate over retained messages at their own pace.",
+      "source": "transcript 01:17:41; board S39/D-12",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q048",
+      "q": "What does the Kafka diagram (D-12) show and what advantage does it bring?",
+      "answer": "API publishes ON_PUBLISH to Kafka; Search Service workers index into ElasticSearch; Counter Service workers update the Database. If Elasticsearch is down, analytics continues, and each team owns its own codebase.",
+      "source": "transcript 01:20:01-01:20:47; board D-12",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q049",
+      "q": "Under the board heading 'Tasks that are delegated', which four kinds of tasks were listed?",
+      "answer": "Long running tasks (spin up EC2 / video encoding), heavy computation query, batch & write, anything that could be eventual.",
+      "source": "board S40 01:17:41",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q050",
+      "q": "Describe Kafka's topic/partition structure and how a message lands in a partition.",
+      "answer": "Messages are sent to a topic (e.g. on_publish); each topic has n partitions; the partition is chosen by hashing the partition key (e.g. user ID), so a user's blogs always go to the same partition.",
+      "source": "transcript 01:21:28-01:23:00; board D-13",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q051",
+      "q": "What ordering guarantee does Kafka give?",
+      "answer": "Ordering only within a partition; no ordering guarantee across partitions (no global ordering).",
+      "source": "transcript 01:25:35; board S44",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q052",
+      "q": "What did the teacher call Kafka's biggest limitation?",
+      "answer": "Consumption parallelism is bounded by the number of partitions: #consumers in a group = #partitions. With 3 partitions, a 4th and 5th consumer get no messages.",
+      "source": "transcript 01:25:35-01:27:00; board D-14",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q053",
+      "q": "What is committing in Kafka?",
+      "answer": "The consumer tells Kafka it has read up to a certain message; Kafka records that point for the consumer group and resumes from there.",
+      "source": "transcript 01:27:45",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q054",
+      "q": "What delivery semantics does Kafka provide out of the box, and why?",
+      "answer": "At-least-once, not exactly-once: if a consumer crashes after processing but before committing, it resumes from the last commit and reprocesses messages.",
+      "source": "transcript 01:28:46",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q055",
+      "q": "What warning did the teacher give about Kafka and consistent hashing?",
+      "answer": "They aren't magical solutions to sprinkle everywhere; they can be very stupid choices in some cases - know their strengths and weaknesses.",
+      "source": "transcript 01:30:32",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q056",
+      "q": "A student asked how a consumer subscribed to partition 1 learns about messages in partitions 2 and 3. What did the teacher say?",
+      "answer": "Consumers don't pick a single partition; Kafka assigns them. If fewer consumers exist than partitions (e.g. only one), that consumer reads from all partitions in round-robin. Ideally have N consumers for N partitions - and there is no global ordering in any case.",
+      "source": "transcript 01:31:52",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q057",
+      "q": "Why not always use streams, since they seem more powerful? What billing difference did the teacher cite?",
+      "answer": "Cost. AWS SQS bills per message, while Kinesis bills for the duration it is running (the infrastructure is constantly running). For a smaller workload you pick SQS; a design that is not cost efficient will not see the light of day.",
+      "source": "transcript 01:33:14",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q058",
+      "q": "If a consumer fails midway while processing an SQS message, how does the message get processed again, and what signals the failure?",
+      "answer": "Via SQS's visibility timeout: the consumer must delete the message after processing; if it isn't deleted (that is the failure indication), after the visibility timeout (e.g. 10 minutes) the message reappears at the front of the queue. You don't re-trigger manually; it's a guarantee of the queue.",
+      "source": "transcript 01:35:35-01:36:07",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q059",
+      "q": "Contrast how a consumer acknowledges work in a queue versus a stream.",
+      "answer": "Queue: you delete the message. Stream: you commit; if you don't commit, you restart from the last checkpoint. Commit is never magical - it's explicit per message, auto-commit, or periodic commit.",
+      "source": "transcript 01:36:25-01:36:40",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q060",
+      "q": "A student asked whether the waiting connections in a connection pool (when the max is reached) are 'also a kind of queue'. How did the teacher distinguish them from a message queue?",
+      "answer": "The connection-pool wait is an in-memory queue (a queue data structure inside the process); a message queue is an infrastructure component - a separate process you spin up. Two very different things.",
+      "source": "transcript 01:37:16",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q061",
+      "q": "Two threads each run count++ 1000 times on a shared global count starting at 0. What should the result be, what did the teacher say you actually get, and why?",
+      "answer": "It should be 2000 but you get something like 1997, because count++ is not atomic / not thread-safe.",
+      "source": "transcript 01:45:38-01:46:37",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q062",
+      "q": "What two things must a concurrent system guarantee, and what is a common way to ensure the first?",
+      "answer": "Data correctness and high throughput. Correctness is ensured with locks (optimistic/pessimistic) protecting the critical section - e.g. wrap count++ with a semaphore so only one thread enters at a time.",
+      "source": "transcript 01:46:37",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q063",
+      "q": "What real-world analogy did the teacher use for pessimistic locking?",
+      "answer": "Traffic signals at a road crossing: the middle of the square is the critical section/shared resource; only one signal is green at a time, letting one road use it while the others wait.",
+      "source": "transcript 01:47:47",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q064",
+      "q": "Which ways of handling concurrency were written on the board?",
+      "answer": "Locks (optimistic & pessimistic); mutexes and semaphores (a way to implement pessimistic locking); go lock-free (CRDTs - lock-free data structures, mentioned but not covered).",
+      "source": "transcript 01:49:02; board S50",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q065",
+      "q": "In the Medium example, two people clap on an article at the same time when the count is 100. What must the count become, and how do you guarantee it?",
+      "answer": "102, not 101. Use transactions (ACID) or atomic instructions/operations on the database.",
+      "source": "transcript 01:49:39; board S52",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q066",
+      "q": "What misconception about REST did the teacher correct?",
+      "answer": "That exposing HTTP endpoints means REST. REST is a specification for how to expose endpoints; HTTP is a medium/way to implement it. (He pointed to his YouTube video 'So you know REST?')",
+      "source": "transcript 01:50:38-01:51:25",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q067",
+      "q": "Describe the 'usual communication' diagram and the analogy used for it.",
+      "answer": "client -> server arrow 'REQ' and server -> client arrow 'RES', with notes 'Kept open with Timeout' and 'Heavy lifting' (on the server). Analogy: ordering a burger in a restaurant - you just ask; the kitchen (server) does the heavy lifting and brings it back.",
+      "source": "transcript 01:52:25; board D-15",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q068",
+      "q": "What is short polling? Give the two examples the teacher used.",
+      "answer": "The client repeatedly sends requests periodically (every few seconds) to get the current status. Examples: the AWS console showing an EC2 instance going from 'in progress' to 'ready' without refreshing; live cricket score auto-refresh on Cricbuzz/ESPNcricinfo.",
+      "source": "transcript 01:53:13-01:54:18; board D-16",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q069",
+      "q": "With a 10-second short-polling period and a million concurrent users, how many requests per minute hit the server?",
+      "answer": "Six requests per user per minute, so 6 million requests per minute - each paying HTTP overhead (handshake/teardown, one request one response).",
+      "source": "transcript 01:55:09",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q070",
+      "q": "How does long polling work, and what is its trade-off versus short polling?",
+      "answer": "The client sends a request and the server does not respond until the state changes / data is available (e.g. instance ready, next ball bowled). Far fewer HTTP requests, but the server must do the waiting loop (more heavy lifting), and you have to implement it yourself - nothing does it out of the box.",
+      "source": "transcript 01:56:22-01:58:16; board D-17",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q071",
+      "q": "On the board's EC2-provisioning comparison, what did short polling and long polling each do?",
+      "answer": "Short polling - gets status every few seconds (response right away); long polling - gets response when the server is ready (connection kept open for the entire duration).",
+      "source": "board S56 01:59:15",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q072",
+      "q": "What are WebSockets, and do they run on top of HTTP?",
+      "answer": "A persistent, bidirectional channel between client (browser/mobile) and server - a persistent TCP connection speaking the WebSocket (WS; secure = WSS) protocol. It is not on top of HTTP; it's a parallel specification. The server can proactively send data to the client.",
+      "source": "transcript 01:59:25-02:00:17; board D-18",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q073",
+      "q": "What are the advantages and the main cost of WebSockets?",
+      "answer": "Advantages: realtime data transfer and low communication overhead, since the connection is already open. Cost: persistent connections are very expensive to manage (scaling them is covered next week).",
+      "source": "transcript 02:01:30-02:02:32; board S57",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q074",
+      "q": "Give the application examples of WebSockets mentioned.",
+      "answer": "Realtime communication/chat (incl. Zoom chat), stock market tickers (Groww, Robinhood), live experiences, multiplayer games.",
+      "source": "transcript 02:02:32; board S57",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q075",
+      "q": "What did the teacher say about MQTT, and what transport must a persistent connection use?",
+      "answer": "MQTT is a kind of WebSocket equivalent; MQTT, WebSocket, HTTP are specifications. Underneath it's TCP or UDP, but a persistent connection has to be TCP.",
+      "source": "transcript 02:02:32",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q076",
+      "q": "What are SSE, and what naming mistake did the teacher correct?",
+      "answer": "A persistent unidirectional channel where, after the client establishes the connection, only the server proactively sends data to the client. They are 'server-sent events', not 'server-side events'.",
+      "source": "transcript 02:04:33; board D-19",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q077",
+      "q": "Where are server-sent events used, and how do they compare with WebSockets?",
+      "answer": "Stock tickers, deployment-log streaming (Vercel, Netlify), remote terminals. SSE is much lighter/dead simple, but lacks bidirectional communication. Both are typically browser/device-facing, not server-to-server.",
+      "source": "transcript 02:05:48-02:07:10; board D-19",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q078",
+      "q": "In 'Communication in our blog', what protocol labels each link?",
+      "answer": "User <-> API Server: HTTP; API Server <-> database: persistent TCP (not WebSocket); User <-> 'Realtime likes': WS (WebSocket).",
+      "source": "transcript 02:08:49; board D-20",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q079",
+      "q": "A student argued long polling isn't scalable because it holds the connection. How did the teacher respond?",
+      "answer": "Holding the connection is a disadvantage, but it is scalable - it's like a near-persistent connection, like WebSockets. You can't replace short polling with long polling everywhere; pick per use case (WebSockets are expensive, short polling can surge).",
+      "source": "transcript 02:11:46-02:12:15",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q080",
+      "q": "In long polling, what happens if the server goes down while the client waits?",
+      "answer": "The TCP connection breaks; the client must resend the request. Whether retry is safe depends on the use case (cricket score vs payments).",
+      "source": "transcript 02:14:10-02:14:17",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q081",
+      "q": "Should a stock-ticker server filter per user's watchlist? Give the estimate.",
+      "answer": "No: ~10,000 listed companies x 4 bytes = 40,000 bytes ~ 40 KB per second. Send all; let the client filter. Avoid over-complication.",
+      "source": "transcript 02:15:44-02:16:01",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q082",
+      "q": "Can push notifications be implemented with SSE?",
+      "answer": "Only mimicked. Real push (GCM, APNs) uses different protocols and guarantees; keeping a persistent connection open always would be inefficient. Apps can mimic by polling or generating local notifications (e.g. a calendar app).",
+      "source": "transcript 02:16:48-02:18:22",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q083",
+      "q": "What protocol is used between app server and a database over its persistent TCP connection?",
+      "answer": "Not WebSockets - each DB has its own wire specification/dialect (MySQL, Postgres, MongoDB); Redis uses RESP.",
+      "source": "transcript 02:21:06-02:23:06",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q084",
+      "q": "When does the course cover UDP and video streaming?",
+      "answer": "UDP in week four; video streaming in week six (it's 'all CDN').",
+      "source": "transcript 02:25:58-02:26:36",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q085",
+      "q": "Is SNS a queue or stream? Can SNS plus SQS mimic Kafka?",
+      "answer": "Neither - it broadcasts to subscribers. SNS+SQS can mimic Kafka but you lose historical messages that Kafka retains.",
+      "source": "transcript 02:27:11-02:27:42",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q086",
+      "q": "How do you invalidate responses cached at a load balancer or API gateway?",
+      "answer": "Only time-based (TTL); load balancers don't expose invalidation endpoints.",
+      "source": "transcript 02:28:21",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q087",
+      "q": "Why did a student's team move from SQS to Kinesis?",
+      "answer": "SQS had no ordering/sharding; multiple consumers processed messages for the same object concurrently. With Kinesis shards, all messages for an ID go to one consumer, enabling ordering and performance (caching, batching).",
+      "source": "transcript 02:28:48-02:30:26",
+      "kind": "example",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q088",
+      "q": "A student described a config platform where adding more than 3 ms of latency is a no-go. Which cache layers did it use, and why did the teacher say so many layers were possible?",
+      "answer": "Config snapshots are pushed to S3 (to a CDN for mobile clients); at boot the app loads them into an in-memory cache and also persists them to local disk; lookups go memory -> disk -> CDN/S3. The teacher said it works because very little cache invalidation is needed (and inconsistency isn't a problem for them) - don't rely only on one centralized remote cache.",
+      "source": "transcript 02:30:34-02:32:07",
+      "kind": "example",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q089",
+      "q": "A student's frontend called an intermediate service that stored data and fanned one query out to several backends. Is that caching? What else is it like?",
+      "answer": "Yes - if you keep a copy of data and save an expensive computation or I/O, it is caching. As a single point of contact for the frontend that fans out internally to multiple services, it is basically like an API gateway.",
+      "source": "transcript 02:36:00-02:36:54",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q090",
+      "q": "Does adding more read replicas affect the master's performance? How many replicas is typical, and how do you get to 15?",
+      "answer": "Yes, though not much: each replica absorbs some of the master's CPU, memory and network while fetching changes (e.g. reading the binlog). So you typically keep about five, rarely more. For 15, build a hierarchy - replicas of replicas (e.g. five at the top, each with two or three below).",
+      "source": "transcript 02:37:30-02:38:38",
+      "kind": "number",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q091",
+      "q": "If replicas are noticeably affecting the master, what does that indicate?",
+      "answer": "That it may be time to move to sharding (teacher: 'Correct').",
+      "source": "transcript 02:38:49-02:38:55",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q092",
+      "q": "Do CDNs store cached content in RAM or on disk, according to the teacher?",
+      "answer": "On disk. Cached content is mostly images, videos and gigantic responses; disk (SSDs) is fast enough and CDNs are already close to the user. They might keep some configuration in RAM, but not user data. (He noted he hasn't worked at a CDN.)",
+      "source": "transcript 02:40:58-02:41:54",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q093",
+      "q": "A Kafka topic has 3 partitions but you need about 100 workers. How do you scale without repartitioning, and where is this pattern common?",
+      "answer": "Run 3 Kafka consumers whose only job is to read messages and push them into a message queue like SQS; 100 workers consume from SQS and do the heavy lifting. This gets higher throughput without rebalancing/repartitioning Kafka. It is extremely common in notification architectures (high fan-out; sending takes longer than consuming).",
+      "source": "transcript 02:42:22-02:44:16",
+      "kind": "heuristic",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q094",
+      "q": "What is required of a load balancer in front of WebSocket servers, and what happens if the LB goes down?",
+      "answer": "It must support the WebSocket (WSS) specification and be sticky, forwarding the connection to the same server. If the LB goes down, the client re-establishes the connection.",
+      "source": "transcript 02:46:30-02:46:47",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q095",
+      "q": "How does Netflix cache popular shows beyond the CDN, and why is this possible?",
+      "answer": "It caches popular shows at local ISPs (e.g. in ACT's data centers), so users fetch from the ISP and don't even go to the CDN - ultra-low latency. Possible because the data doesn't change once a show is live, so there is no inconsistency worry. (Cloudflare's engineering blog discusses similar work with ISPs.)",
+      "source": "transcript 02:47:35-02:49:50",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q096",
+      "q": "What did the teacher say about covering compression and security in the course?",
+      "answer": "Compression is basic - three or four algorithms, pick the one that suits you. Security is not covered: it doesn't fall under high-level architecture; topics like rate limiting for DDoS, SQL injection and CVE patching are standard and a Google search away.",
+      "source": "transcript 02:50:21-02:51:38",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q097",
+      "q": "Is creating a database 'cluster' vertical or horizontal scaling, and who handles the sharding?",
+      "answer": "Horizontal - a cluster is multiple machines, internally sharded though it appears as one database. Paid vendors handle sharding for you; with open-source databases without native sharding, you implement it yourself.",
+      "source": "transcript 02:52:34-02:53:32",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q098",
+      "q": "Do Kinesis consumers face the same limit as Kafka's? Why can't two consumers in a group share one partition?",
+      "answer": "Yes - 'copy paste same': with 3 partitions/shards and 5 consumers, 2 do nothing; the system assigns shards (you don't specify which shard to read). Tracking which consumer read which message from a shared partition while keeping ordering cannot be done efficiently - a fundamental limitation.",
+      "source": "transcript 02:55:16-02:56:24",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q099",
+      "q": "Can a message stream replace distributed transactions when writing to two stores (e.g. DB and Elasticsearch)?",
+      "answer": "No. In the blog example two independent consumers do two independent things on the same message at their own pace. If you need strong consistency across two writes, there is no option but distributed transactions.",
+      "source": "transcript 02:57:36-02:58:15",
+      "kind": "misconception",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q100",
+      "q": "How is browser-level caching implemented, and how can you see what a site caches?",
+      "answer": "The browser has limited local storage (HTML5 localStorage with setItem/getItem) and it caches assets like images, so the next load needs no network call. Check the browser's network tab (it shows content served from cache) and Storage -> Local Storage in Chrome/Firefox.",
+      "source": "transcript 02:59:54-03:01:07",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q101",
+      "q": "Is there a formula for deciding how to shard?",
+      "answer": "No golden formula or magic number - it's subjective: analyze the data and the access pattern, then take a call.",
+      "source": "transcript 03:02:18",
+      "kind": "heuristic",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q102",
+      "q": "If a server holding many WebSocket/SSE connections crashes, what happens, and is the reconnect storm a big load?",
+      "answer": "Clients re-establish the connection to whichever server is available. It does add load, but establishing a thousand connections takes little time - it's nothing much for the server.",
+      "source": "transcript 03:03:16-03:03:40",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q103",
+      "q": "In SSE, when is the TCP connection closed?",
+      "answer": "When the client chooses to terminate it ('I'm done consuming') or the server goes down - it's on the client's side.",
+      "source": "transcript 03:04:56-03:05:02",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q104",
+      "q": "How do you design a read-heavy API when you can't cache the entire dataset?",
+      "answer": "Use replicas - redundant copies of the data and serve reads from them; as you add API servers you keep adding replicas, since one database has a limit on requests it can handle.",
+      "source": "transcript 03:06:55-03:07:15",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q105",
+      "q": "Is the SSE connection bidirectional underneath, just unused by the client?",
+      "answer": "The protocol specification does not allow the client to send anything; the underlying TCP connection could carry both directions, but the protocol on top of it gives the client no way to send.",
+      "source": "transcript 03:08:00-03:08:35",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q106",
+      "q": "If a read replica also accepted writes, what setup is that, and why is sharding preferred?",
+      "answer": "That would be multi-master, which requires handling write conflicts in a very use-case-specific way. So the order is read replicas, then sharding; multi-master only if you want things overtly complicated.",
+      "source": "transcript 03:09:34-03:10:20",
+      "kind": "tradeoff",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q107",
+      "q": "Does it matter if the load balancer in front of WebSocket/SSE servers is layer 4 or layer 7?",
+      "answer": "Not if it only routes/relays messages back and forth - the data goes through it either way. (A student noted L7 can make more intelligent decisions.)",
+      "source": "transcript 03:10:42-03:11:21",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q108",
+      "q": "What did the teacher say about SSE in production?",
+      "answer": "Very few companies use it; most just pick WebSockets in case they need bidirectional communication later.",
+      "source": "transcript 03:12:50",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q109",
+      "q": "On whether RabbitMQ's persistent queues can act as a stream, what general advice did the teacher give?",
+      "answer": "Avoid generic statements - tools evolve and converge (MongoDB now supports ACID; MySQL/Postgres support JSON). RabbitMQ is mostly a message queue, but its persistent queues can serve stream-like use cases.",
+      "source": "transcript 03:13:31-03:14:27",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    }
+  ]
+}

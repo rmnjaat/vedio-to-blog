@@ -1,0 +1,24 @@
+---
+// Demo: a Remotion clip embedded with <AnimationClip> (plumbing check for dev and build).
+import Layout from '../../layouts/Layout.astro';
+import Section from '../../components/Section.astro';
+import AnimationClip from '../../components/AnimationClip.astro';
+---
+<Layout title="Clip demo" crumbs={[{ label: 'System design', href: '/' }, { label: 'Demo', href: '/demo' }]} here="Clip" sections>
+  <div class="col lecture">
+    <p class="kicker hand">Plumbing demo · not lecture content</p>
+    <h1>A replica pulls a write</h1>
+    <p class="dek">One Remotion composition hosted by the AnimationClip component: poster, play, pause, scrub, half speed, chapters, and a text version.</p>
+  </div>
+  <Section id="s-demo" no="0.1" title="The clip" crumb="Clip demo">
+    <p>The master doesn’t push changes to the replica. The replica connects to the master and pulls them, a moment after the write commits.</p>
+    <AnimationClip clip="demo-replica-pull" no="Clip 0.1·1"
+      lead="Before you play it: the write commits on the master. Which side starts the copy to the replica?"
+      caption="A write lands on the master; the replica asks for changes and pulls it a moment later. The poster is the clip’s last frame." />
+    <p>The finished reference clip from the animation lab, registered the same way:</p>
+    <AnimationClip clip="l01-replica-lag" no="Clip 2.4·2"
+      lead="Before you play it: a reader asks the replica for a story a moment after it was published. What comes back?"
+      caption="A write commits on the master; a read sent to the replica before it pulls the change finds nothing. The red span on the time line is the replication lag." />
+    <p>Use the controls under each clip, the chapter chips, or switch to Blackboard: the clip follows the page theme.</p>
+  </Section>
+</Layout>

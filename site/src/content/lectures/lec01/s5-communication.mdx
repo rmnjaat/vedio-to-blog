@@ -1,0 +1,432 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import Nb from '../../../components/Nb.astro';
+import { UsualComm } from '../../../figures/lec01/fig-5a';
+import { ShortPolling } from '../../../figures/lec01/fig-5b';
+import { LongPolling } from '../../../figures/lec01/fig-5c';
+import { WebSockets } from '../../../figures/lec01/fig-5d';
+import { ServerSentEvents } from '../../../figures/lec01/fig-5e';
+import { WsBehindLb } from '../../../figures/lec01/fig-5f';
+import { PushPath } from '../../../figures/lec01/fig-5g';
+import { MediumHops } from '../../../figures/lec01/fig-5h';
+import { WirePacket } from '../../../figures/lec01/fig-5i';
+import { PickByUseCase } from '../../../figures/lec01/rule-5';
+
+<Section id="s5" no="5" title="Communication" crumb="5 Communication"
+  dek="Show claps live to every co-reader. Request-response, polling, long polling, WebSockets and server-sent events, and which hop in Medium uses which."
+  meta="About 25 min · class 01:50–02:23, Q&A 02:10–02:23, 02:46, 03:02–03:13">
+
+Two people are reading the same Medium story. One of them claps. Can the other one see the count tick up, little animation and all, without refreshing the page? Everything in this lecture so far has been about what Medium does once a request arrives. This section is about the wire: how a reader’s browser and Medium’s servers talk to each other, and which way of talking each hop needs. [[L-0274]]
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="The usual way, and what REST isn’t" crumb="5.1 Request-response"
+  dek="Request-response, RPC, and why an HTTP endpoint isn’t automatically REST."
+  meta="About 2 min · class 01:50–01:53">
+
+In the class’s view, communication is the most neglected part of system design. The usual habit is to expose a REST endpoint and stop thinking. That is one way for two machines to talk. It is not the only one, and for some features it is the wrong one. [[L-0232]]
+
+Start with the words. Exposing an HTTP endpoint does not make it REST. REST is a set of rules for how you expose endpoints, and HTTP is the medium you usually implement those rules over. (Strictly, Roy Fielding, who named it, defines REST as an architectural style, a set of constraints, rather than a specification. <Cite href="https://www.ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm">ics.uci.edu</Cite>) An endpoint that answers `GET /stories/42` with JSON is an HTTP endpoint. Whether it is RESTful depends on the rules it follows. [[L-0233]]
+
+The more general name is **remote procedure call (RPC)**: a client invokes a procedure on a server through an agreed specification. An everyday HTTP web server is one way of doing RPC. It reads the format of each request (the method and the path) and maps it to the function to call. [[L-0235]]
+
+<MarginNote title="So you know REST?" why="skip if you’ve read Fielding’s chapter">
+
+The instructor has a video titled “So you know REST?” on his YouTube channel. It walks through what REST actually asks of an API, compared with an HTTP endpoint that simply returns JSON. Worth watching if “REST” and “HTTP endpoint” have always meant the same thing to you. [[L-0234]]
+
+</MarginNote>
+
+Almost every Medium page load uses the plainest pattern of all, **request-response**. The client sends a request. The server does the heavy lifting: it reads the database, computes, encrypts or decrypts, and checks who you are and what you may do. Then it sends back the response. It is the most common way two machines talk. [[L-0236]]
+
+<Figure id="fig-5a" no="Fig 5·a" k="L-0236"
+  caption="The usual communication. The client asks once; the server does the work and answers. Redrawn from the class board at 01:50.">
+  <Desk><UsualComm /></Desk>
+  <Phone><UsualComm layout="phone" /></Phone>
+</Figure>
+
+It is like ordering a burger in a restaurant. You say what you want. The kitchen does the heavy lifting and brings it out to you. You don’t walk into the kitchen, and you don’t ask again every few seconds whether it is ready. [[L-0237]]
+
+The board adds one detail: while the server works, the connection is kept open, with a timeout. If the answer takes too long, the client gives up. That detail matters for everything below, because every other pattern in this section is a different answer to one question: what if the thing the client wants to know isn’t ready yet? [[L-0236]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Short polling" crumb="5.2 Short polling"
+  dek="Ask again and again on a timer: the simplest option, and what it costs at scale."
+  meta="About 3 min · class 01:53–01:56">
+
+Medium lets a writer import an old blog. The import runs in the background for a while, and the page shows *importing…* until it is done, then switches to the imported stories. How does the page know when to switch?
+
+The simplest answer is to ask. The client sends the same status request to the server again and again, on a timer, and updates the page with whatever comes back. That is **short polling**. It is a way to build a user experience, not a protocol of its own. [[L-0238]]
+
+You have seen it. Launch an EC2 instance in the AWS console and it shows *in progress*. A little later it reads *ready*, and you never touched refresh. The page was polling. [[L-0239]]
+
+Short polling is typically used for long-running jobs, and there is nothing clever about it. A user hitting refresh again and again and your JavaScript doing it on a timer are exactly the same thing. [[L-0240]] Live cricket scores on Cricbuzz or ESPNcricinfo refresh themselves the same way while a match is on. [[L-0241]]
+
+Its great virtue is that it is the simplest option. It is extremely simple to build: a timer on the client, an endpoint that returns the current status, and nothing else. [[L-0242]]
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0238 L-0245"
+  caption="Short polling. The client asks every few seconds and always gets an answer at once, usually the same one. Redrawn from the class board at 01:53.">
+  <Desk><ShortPolling /></Desk>
+  <Phone><ShortPolling layout="phone" /></Phone>
+</Figure>
+
+Simple has a price, and it shows at scale.
+
+<PauseAndThink k="L-0243 L-0245"
+  q="A status page polls every 10 seconds, and a million readers have it open. Roughly how many requests per minute reach the server, and how many of them carry news?"
+  choices={[{ label: 'About 100,000 a minute, most of them useful' }, { label: 'About 6 million a minute, almost none useful', correct: true }]}
+  right="Right: millions a minute, nearly all saying “in progress”."
+  wrong="100,000 is the per-second rate, and few of them carry news:">
+
+Six requests a minute per reader × 1,000,000 readers = <Nb>6 million</Nb> requests a minute, about <Nb>100,000</Nb> a second. While the job runs, nearly every one of them returns the same “in progress”. The cost is the sheer number of requests, each with its full HTTP overhead, and that number is exactly what long polling goes after next.
+
+</PauseAndThink>
+
+Each of those polls is a full HTTP request. As the class described it, the client connects (the three-way handshake), sends one request, gets one response and tears the connection down (a two-way teardown), so every poll pays the whole HTTP overhead again. [[L-0244]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc9293" site="rfc-editor.org (RFC 9293)" k="L-0244">
+
+TCP closes each direction on its own, with a FIN from one side that the other ACKs and then the same the other way round: four segments, after which the side that closed first waits in TIME-WAIT. So it isn’t a two-way teardown. And since HTTP/1.1, connections are persistent by default: repeated polls usually reuse one open TCP/TLS connection until a `Connection: close` or an idle timeout ends it. A new connection per request was HTTP/1.0’s default. <Cite href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x">developer.mozilla.org</Cite> <Cite href="https://www.rfc-editor.org/rfc/rfc9112#section-9.3">RFC 9112 §9.3</Cite> What every poll still costs is a full request and response, headers included, plus the server’s work, multiplied by every client. That is the lecture’s point, and it stands. HTTP/2 lowers it further by multiplexing many requests over one connection. <Cite href="https://www.rfc-editor.org/rfc/rfc9113">RFC 9113</Cite>
+
+</SourceNote>
+
+The worst part is that the answer rarely changes. An EC2 instance that takes an hour to come up means an hour of requests that all return the same *in progress*. Those responses are redundant, and the server still has to handle every one of them. [[L-0245]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Long polling" crumb="5.3 Long polling"
+  dek="Ask once and let the server hold the answer until something changes."
+  meta="About 3 min · class 01:56–01:59, Q&A 02:11–02:14">
+
+Same import, different idea: the browser asks once, and the server doesn’t answer until it has something to say.
+
+In **long polling** the client sends a request and the server holds it, replying only when the state changes. For the import, the status request goes out and the reply comes back the moment the import finishes. For an EC2 launch, once the launch is acknowledged, the status request isn’t answered until the instance is ready. Keep the hold modest: proxies between the client and the server cut off requests that wait too long (with a 408 or a 504), and RFC 6202 suggests about 30 seconds as a safe value. When the timeout hits, the client simply asks again. <Cite href="https://www.rfc-editor.org/rfc/rfc6202">RFC 6202</Cite> [[L-0246]]
+
+For cricket, a request for the latest score is answered only when the next ball is bowled. That is the whole difference between the two: short polling gets an immediate response with the current status, even when the status is still *in progress*, and long polling makes the server wait until something changes before it responds. [[L-0249 L-0250]]
+
+<Figure id="fig-5c" no="Fig 5·c" k="L-0246 L-0249 L-0250"
+  caption="Long polling, time running down. One request; the server holds it until something changes, then answers. On a timeout the client reconnects and asks again. Redrawn from the class board at 01:56–01:59.">
+  <Desk><LongPolling /></Desk>
+  <Phone><LongPolling layout="phone" /></Phone>
+</Figure>
+
+Nobody hands you long polling, or short polling, out of the box. There is no magical library that implements them for your case: you write the EC2 status, the cricket score or the messaging app yourself, and there is no one global way to do it. Ready-made versions of the *mechanism* do exist. Socket.IO falls back to HTTP long polling when it can’t open a WebSocket <Cite href="https://docs.w3cub.com/socketio~4/">socket.io docs</Cite>, and Amazon SQS exposes long polling as a parameter: `ReceiveMessage` with `WaitTimeSeconds` above 0 (up to 20 s) returns as soon as a message is available. <Cite href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-short-and-long-polling.html">docs.aws.amazon.com</Cite> [[L-0247]]
+
+The trade is easy to state. Long polling cuts the number of HTTP requests drastically, but someone still has to notice the change, and that someone is the server. The client makes fewer requests; the server does more of the heavy lifting than with short polling. In class this was pictured as a loop in the backend, checking for the next ball. A well-built server doesn’t loop for each request, though: it parks the waiting request and wakes it when the event fires, or when the timeout runs out. <Cite href="https://www.rfc-editor.org/rfc/rfc6202">RFC 6202</Cite> [[L-0248]]
+
+Holding a connection open until the answer comes is a real disadvantage. It doesn’t stop long polling from scaling, though: it behaves like a near-persistent connection, much like a WebSocket, and that is still scalable. It needs an async, event-driven server; each waiting client still holds a connection and a request, and after each event every answered client sends its next request straight away. <Cite href="https://www.rfc-editor.org/rfc/rfc6202">RFC 6202</Cite> Nor does that make long polling a drop-in replacement for short polling: understand the use case and see if it fits (the rule at the end of this section). [[L-0277]]
+
+Long polling has that in common with server-sent events (5.5): in both, the TCP connection is kept open while the client waits. [[L-0378]]
+
+If the server goes down while it holds a request, the TCP connection breaks and the client has to send the request again. Whether that is harmless depends on the request. Asking again for a cricket score is fine. Resending a payment or an e-commerce order needs care, so that it doesn’t happen twice. The board’s note on long polling says it in one line: the connection is re-established after a timeout, and the request retried. [[L-0280]]
+
+Now put the three approaches side by side on one clock.
+
+<AnimationClip clip="l01-polling" no="Clip 5·1"
+  k="L-0238 L-0243 L-0245 L-0246 L-0248 L-0250 L-0256 L-0265"
+  lead="Before you play it: the import takes 60 seconds. How many requests does each approach make?"
+  caption="One import, ready at 60 s, heard three ways: a short poll every 10 s, one held long-poll request, and a WebSocket or SSE connection the server pushes on. An hour-long job is cut to 60 s here to fit." />
+
+Long polling trades requests for held connections. WebSockets and server-sent events go one step further and keep a single connection open for as long as the page is (5.4, 5.5).
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="WebSockets" crumb="5.4 WebSockets"
+  dek="One persistent two-way channel, what it costs, and how it sits behind a load balancer."
+  meta="About 6 min · class 01:59–02:04, Q&A 02:10–02:16, 02:46 and 03:02–03:11">
+
+Claps should reach co-readers the instant they happen, and co-readers clap too. That is traffic in both directions, at any moment, from either end.
+
+For that, the usual tool is the **WebSocket**, the most common way to build messaging apps and real-time communication. [[L-0251]]
+
+Short and long polling are, kind of, stateless: each exchange is a request that ends with its response. A WebSocket keeps a connection. [[L-0252]] The idea is the one behind the connection pool from the previous class: an established connection saves you the overhead of setting up and tearing down TCP connections again and again. [[L-0253]]
+
+A WebSocket is a **bidirectional channel** between a client (a browser or a mobile app) and a backend server: one persistent TCP connection over which both ends speak the WebSocket (WS) protocol. [[L-0254]]
+
+<Figure id="fig-5d" no="Fig 5·d" k="L-0254 L-0256"
+  caption="A WebSocket: one channel, kept open, and either end may send first. Redrawn from the class board at 01:59–02:05.">
+  <Desk><WebSockets /></Desk>
+  <Phone><WebSockets layout="phone" /></Phone>
+</Figure>
+
+Because the connection stays open, either side can send at any time. The server isn’t limited to answering requests; it can push a message to the client proactively. (The protocol also defines Ping and Pong control frames, which are used as keepalives and to check that the other end is still responsive. <Cite href="https://www.rfc-editor.org/rfc/rfc6455">RFC 6455</Cite>) [[L-0256]]
+
+Chat is the textbook case. Every client holds a connection to the server. When one user sends a message, it reaches the server, and the server immediately pushes it to the recipient, who never had to ask “any new messages for me?” [[L-0257]]
+
+It is also fast. The connection is already open, so every to-and-fro happens at lightning speed with nothing re-established, which is why WebSockets are used for real-time data with low communication overhead. [[L-0260]]
+
+Stock tickers are a brilliant example: in Groww, Robinhood or any trading app, prices tick every second without a refresh because the server sends them. [[L-0261]] The board’s other uses: live experiences, multiplayer games, and chat inside a Zoom call, where a message reaches everyone connected right away and anyone not connected misses it. [[L-0262]]
+
+Like HTTPS is HTTP with SSL, **WSS** is the secure WebSocket. In the class’s words, WebSocket doesn’t run on top of HTTP; it runs in parallel to HTTP, as a different specification. [[L-0255]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc6455" site="rfc-editor.org (RFC 6455)" k="L-0255">
+
+WebSocket is indeed “an independent TCP-based protocol”, but it starts life as HTTP. Its opening handshake is an HTTP/1.1 `GET` with `Upgrade: websocket` and `Connection: Upgrade`, answered with `101 Switching Protocols`. From then on the same TCP connection carries WebSocket frames, normally on ports 80 and 443. (Over HTTP/2 the opening is an extended `CONNECT` request instead. <Cite href="https://www.rfc-editor.org/rfc/rfc8441">RFC 8441</Cite>) That is why every proxy and load balancer in the path has to handle the upgrade. WSS as WebSocket over TLS is right.
+
+</SourceNote>
+
+Multiplayer games may use a WebSocket variant, and you may have heard MQTT described as a kind of WebSocket equivalent. More exactly, MQTT is a lightweight publish/subscribe protocol, common on devices, and it can itself run over a WebSocket. <Cite href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html">MQTT 5.0 spec</Cite> [[L-0263]]
+
+MQTT, WebSocket and HTTP are all specifications. Underneath, each has to run on either TCP or UDP, and even a persistent connection has to be TCP. How lightweight the result is depends on the spec you put on top. [[L-0264]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc9000" site="rfc-editor.org (RFC 9000)" k="L-0264">
+
+The first half is right. But a persistent connection doesn’t have to be TCP. QUIC is a connection-oriented, stateful transport carried in UDP datagrams, and HTTP/3 runs on it. <Cite href="https://www.rfc-editor.org/rfc/rfc9114">RFC 9114</Cite> WebSocket and MQTT as specified do need an ordered, reliable byte stream such as TCP. <Cite href="https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html">MQTT 5.0 spec</Cite>
+
+</SourceNote>
+
+The price of all this is that persistent connections are very expensive to manage. Every open connection is something the server holds and looks after for as long as the reader stays. [[L-0258]]
+
+Before you reach for clever fixes to that cost, do the arithmetic.
+
+<PauseAndThink k="L-0281 L-0282"
+  q="A stock ticker pushes prices every second over a WebSocket. Should the server filter each reader’s stream down to their watchlist?"
+  choices={[{ label: 'Yes: sending all prices wastes bandwidth' }, { label: 'Do the math first', correct: true }]}
+  right="Right: measure before you complicate."
+  wrong="Filtering costs complexity, and per reader the waste is tiny:">
+
+Do the math. About <Nb>10,000</Nb> listed companies × <Nb>4 bytes</Nb> is roughly <Nb>40 KB</Nb> a second per reader, which is nothing for one client. Send everything and filter on the client. Stay away from complication you haven’t measured a need for: build simple systems. (At a million connected readers that is about <Nb>40 GB/s</Nb> leaving your servers, and then filtering or sending only changes starts to pay. The math tells you when.)
+
+</PauseAndThink>
+
+<MarginNote title="Behind a load balancer" why="skip unless you deploy WebSockets" k="L-0341 L-0342 L-0374 L-0375 L-0386 L-0391 L-0392">
+
+A client only knows the load balancer’s public address, and behind it sit many servers. Which one holds the WebSocket? The class’s answer: the load balancer has to be *sticky*. Load balancers that support WSS forward a client’s connection to the exact same server. [[L-0341]]
+
+<SourceNote href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html" site="docs.aws.amazon.com" k="L-0341">
+
+A single WebSocket is one long-lived TCP connection, and a load balancer keeps it on one backend for its whole life without any stickiness setting; AWS’s Application Load Balancer does exactly that. Sticky sessions matter when one session spans several HTTP requests, as in Socket.IO’s long-polling handshake, or when you want a reconnect to land on the same node. <Cite href="https://docs.w3cub.com/socketio~4/using-multiple-nodes">socket.io docs</Cite> The load balancer must also pass the upgrade through: nginx needs the `Upgrade` and `Connection` headers set explicitly. <Cite href="https://nginx.org/en/docs/http/websocket.html">nginx.org</Cite>
+
+</SourceNote>
+
+With a proxy or load balancer in front, the client’s TCP connection is with the proxy, and the proxy is responsible for carrying it on to the server. [[L-0386]]
+
+Does it matter whether that proxy works at layer 4 or layer 7? For a long-lived connection where it only relays messages back and forth, hardly: the data passes through it either way, and pure relaying is what most setups do. One practical difference is idle timeouts, which vary by layer and product: AWS ALB defaults to 60 s, NLB TCP listeners to 350 s, nginx’s `proxy_read_timeout` to 60 s. Long-lived connections therefore send heartbeats, such as WebSocket pings, or have their timeouts tuned. <Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/network/update-idle-timeout.html">docs.aws.amazon.com</Cite> [[L-0391]] A point raised in class adds that a layer 7 balancer can still make intelligent routing decisions, which a pure layer 4 tunnel can’t. [[L-0392]]
+
+<Figure id="fig-5f" no="Fig 5·e" k="L-0341 L-0342 L-0374 L-0375 L-0386"
+  caption="(a) Each WebSocket runs through the load balancer to one server for its whole life. (b) When a server dies, its clients reconnect, through the load balancer, to any healthy server.">
+  <Desk><WsBehindLb /></Desk>
+  <Phone><WsBehindLb layout="phone" /></Phone>
+</Figure>
+
+If the load balancer itself goes down, the client re-establishes the connection. [[L-0342]] When a server holding many connections crashes, each of its clients reconnects to whichever server is available, not to one particular server. [[L-0374]]
+
+A thousand clients reconnecting at once does add load. In the class’s view it doesn’t take much time, because setting up connections is cheap for a server that isn’t doing other work at that moment. [[L-0375]]
+
+<SourceNote href="https://builder.aws.com/content/3EumjoZascWd1oZiEgL8ORlv3qE/timeouts-retries-and-backoff-with-jitter" site="builder.aws.com" k="L-0375">
+
+Reconnect storms are a known way to overload what is left of a fleet. Each reconnect costs a TCP and TLS handshake, authentication and often a resubscribe, and they all land at once. The fix is exponential backoff with jitter on the client, so the reconnects spread out over time, plus connection-rate limits on the server. (Socket.IO’s client already reconnects with exponential backoff. <Cite href="https://docs.w3cub.com/socketio~4/">socket.io docs</Cite>)
+
+</SourceNote>
+
+</MarginNote>
+
+<MarginNote title="How many connections can one server hold?" why="skip unless you size servers" k="L-0276">
+
+Is there a limit on WebSocket connections? The class’s answer: the limit is always physical, the same as for any TCP connection. They connect on ports, so the same limits apply as for server-to-server TCP connections. [[L-0276]]
+
+<SourceNote href="https://blog.cloudflare.com/how-to-stop-running-out-of-ephemeral-ports-and-start-to-love-long-lived-connections/" site="blog.cloudflare.com" k="L-0276">
+
+A TCP connection is identified by its 4-tuple (source IP and port, destination IP and port), so one listening port such as 443 can hold millions of connections. <Cite href="https://www.rfc-editor.org/rfc/rfc9293">RFC 9293</Cite> WhatsApp reported over 2 million per server in 2012. <Cite href="https://blog.whatsapp.com/1-million-is-so-2011">blog.whatsapp.com</Cite> The ephemeral-port limit (about 28k to 64k) bites the side that opens connections to one destination: clients, proxies, load balancers. A server’s real limits are file descriptors, memory per connection, and CPU for keepalives and TLS.
+
+</SourceNote>
+
+</MarginNote>
+
+How to scale WebSockets properly, and how Slack builds its real-time messaging on them, get a session of their own. <ForwardChip when="week 2, Sunday" /> [[L-0259]]
+
+</Section>
+
+<Section id="s5-5" no="5.5" title="Server-sent events" crumb="5.5 SSE"
+  dek="When only the server speaks: one subscription, then a one-way stream."
+  meta="About 4 min · class 02:04–02:08, Q&A 02:16 and 03:04–03:12">
+
+A stock ticker, and Medium’s clap count for someone who only reads: in both, the client has nothing to say. It only listens.
+
+<PauseAndThink k="L-0265 L-0270 L-0394"
+  q="A reader watching a live price never sends anything back; the server only pushes. Do you need a WebSocket?"
+  choices={[{ label: 'Yes: it’s real time' }, { label: 'No: one-way is enough', correct: true }]}
+  right="Right: one-way traffic needs only a one-way channel."
+  wrong="Real time doesn’t mean two-way:">
+
+No. A WebSocket’s point is two-way traffic. If only the server speaks, server-sent events do the job: the client opens one connection and the server streams over it. That is simpler and lighter, and the browser reconnects automatically. Many teams still pick WebSockets “in case” they need two-way later. That is a choice, not a requirement.
+
+</PauseAndThink>
+
+If the client never needs to send, you don’t need a bidirectional channel. You need a persistent *unidirectional* one, where the server sends data to the client: **server-sent events (SSE)**. The client only establishes the connection. After that the server sends data proactively, and the client sends nothing over it. The browser side comes built in: its `EventSource` reconnects automatically, and on reconnect it sends a `Last-Event-ID` header with the last event id it saw, so the server can resume the stream where it stopped (the server can also set the retry delay). <Cite href="https://html.spec.whatwg.org/multipage/server-sent-events.html">html.spec.whatwg.org</Cite> [[L-0265]]
+
+It is server-*sent* events. People often say server-side events; that isn’t the name. [[L-0266]]
+
+<Figure id="fig-5e" no="Fig 5·f" k="L-0265 L-0267 L-0385"
+  caption="Server-sent events. The client subscribes once; after that only the server sends. Redrawn from the class board at 02:02–02:06.">
+  <Desk><ServerSentEvents /></Desk>
+  <Phone><ServerSentEvents layout="phone" /></Phone>
+</Figure>
+
+Typical uses: stock market tickers; deployment logs in CI/CD tools, streaming into the browser while a build runs; and remote terminals, where a process’s output on a server streams to a page. [[L-0267]] According to the class, Vercel, Netlify and similar tools used SSE for their deployment logs and have since switched their model. Any tool that streams deployment logs into a rich interface is still a good place to watch SSE in action. [[L-0268]]
+
+SSE and WebSockets are mostly browser- and device-to-server mechanisms. Server to server is possible, but in the class’s experience people typically don’t do it, because of the overhead. There is now one big counterexample: LLM APIs stream their responses to backend services as SSE. <Cite href="https://platform.claude.com/docs/en/docs/build-with-claude/streaming">platform.claude.com</Cite> [[L-0269]]
+
+SSE is dead simple and very lightweight compared with a WebSocket: the client subscribes, the server sends, the client accepts. What you give up is two-way communication. Two limits are worth knowing. SSE is text only: the stream has the MIME type `text/event-stream`, must be UTF-8, and has no binary frames. <Cite href="https://html.spec.whatwg.org/multipage/server-sent-events.html">html.spec.whatwg.org</Cite> And over HTTP/1.1 a browser allows only about six connections per domain, shared across all its tabs, which SSE streams use up quickly; over HTTP/2 they are multiplexed. <Cite href="https://developer.mozilla.org/en-US/docs/Web/API/EventSource">developer.mozilla.org</Cite> [[L-0270]]
+
+An implementation takes very few lines. The class’s estimate was hardly 14, and it put MDN’s working example at about 21. [[L-0271]]
+
+SSE is strictly one-way, and the reason is the specification. The TCP connection underneath is bidirectional, but the SSE protocol gives the client no way to send data to the server over it. (The client can still send the server anything it likes with ordinary HTTP requests, just not over that stream. 5.7 uses exactly that.) [[L-0385]]
+
+The connection closes when the client decides it is done and terminates it, or when the server goes down. If the connection merely drops, the browser’s `EventSource` reconnects by itself, unless the client calls `close()` or the server answers `204 No Content`. <Cite href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events">developer.mozilla.org</Cite> [[L-0379]]
+
+A question in class raised that SSE can also sit behind a load balancer, so the backend servers scale out like any others; that works. Keep the stream from looking idle while it’s there: some proxies, notably older ones, drop quiet HTTP connections after a short timeout, and the SSE spec suggests sending a comment line (one starting with `:`) about every 15 seconds. <Cite href="https://html.spec.whatwg.org/multipage/server-sent-events.html">html.spec.whatwg.org</Cite> [[L-0283]]
+
+How do you test it? The instructor has never unit-tested the connection itself, for instance in a deployment-log streaming feature he built. What he tests is the business logic for each type of message that arrives over SSE. [[L-0380]] The connection, in that view, you can rely on: it will work. One caveat is worth adding: do test the reconnect behaviour (`Last-Event-ID`, the `retry` delay, proxy timeouts), because that path only runs when something has already gone wrong. [[L-0381]]
+
+The way to really know these four patterns is to build the hello world of each: a short poll, a long poll, a WebSocket and an SSE stream. The class suggested Socket.IO for the WebSocket hello world. Note that Socket.IO isn’t a plain WebSocket implementation: it adds its own packet format and falls back to long polling, so a plain WebSocket client can’t talk to a Socket.IO server. To learn raw WebSockets, use the browser’s `WebSocket` API with a plain server library such as `ws`. For SSE, MDN’s example is the place to start. <Cite href="https://docs.w3cub.com/socketio~4/">socket.io docs</Cite> [[L-0272]]
+
+From practice: one team automates on-premises VMs (VMware) at sites where no inbound connection is allowed at all. So the on-prem side opens an *outbound* connection to the company’s servers, a WebSocket, an SSE stream or plain polling, and the server’s automation commands flow back down it. [[L-0393]]
+
+Few companies run SSE in production, in the class’s experience. Most say “let’s just use WebSockets”, in case they ever need two-way communication. One large counterpoint: LLM APIs, which stream every response as SSE. <Cite href="https://platform.claude.com/docs/en/docs/build-with-claude/streaming">platform.claude.com</Cite> [[L-0394]]
+
+</Section>
+
+<Section id="s5-6" no="5.6" title="Push notifications are a different thing" crumb="5.6 Push"
+  dek="Reaching a phone with no open tab: a service you don’t run, with its own protocol."
+  meta="About 2 min · class 02:16–02:20">
+
+A Medium writer’s phone is locked, and their story just got its 1,000th clap. No Medium tab is open, so there is no WebSocket or SSE stream to carry the news.
+
+That is a job for **push notifications** (GCM, today FCM, and Apple’s APNs), and they are a totally different thing from WebSockets and SSE. They have different guarantees and different protocols, and they aren’t under your control. You can mimic a push notification with SSE or with periodic checks, but you can’t implement one. [[L-0284]]
+
+A calendar app shows a meeting reminder even with no network. That is not a push at all: the app generates a local notification for itself, which mimics one. [[L-0285]]
+
+<Figure id="fig-5g" no="Fig 5·g" k="L-0284 L-0285 L-0286"
+  caption="The push path. Your server hands the notification to a push service you don’t run; the phone keeps one connection to it for all apps. A calendar reminder never leaves the phone.">
+  <Desk><PushPath /></Desk>
+  <Phone><PushPath layout="phone" /></Phone>
+</Figure>
+
+Push notifications can be lost too; what makes them different is their protocol. Imagine having a persistent connection open with GCM all the time: very inefficient. So push services use their own optimized specifications, and GCM’s is different from APNs’. [[L-0286]]
+
+<SourceNote href="https://support.apple.com/en-us/102266" site="support.apple.com" k="L-0286">
+
+“Push can be lost” is right: APNs is best-effort, stores only one pending notification per app and may throttle. <Cite href="https://developer.apple.com/tutorials/data/documentation/usernotifications/sending-notification-requests-to-apns.md">developer.apple.com</Cite> But the device *does* keep a persistent connection to the push service: Apple devices use TCP port 5223, falling back to 443. The efficiency comes from sharing: one connection from the operating system for all apps, instead of one per app. <Cite href="https://firebase.google.com/docs/cloud-messaging/fcm-architecture">firebase.google.com</Cite>
+
+</SourceNote>
+
+<MarginNote title="From practice, 2015" why="skip unless you send mobile push" k="L-0287 L-0288">
+
+In 2015 the instructor, then a fresher, was on a team that built its own push service natively on GCM and APNs. Amazon SNS had terrible delivery rates for push at the time, and OneSignal had only just started. That pain is exactly why services such as OneSignal and Twilio now wrap the whole thing in one API call. [[L-0287]]
+
+The suggested exercise from class: integrate natively with GCM once, from its documentation. [[L-0288]]
+
+<SourceNote href="https://developers.googleblog.com/2018/04/time-to-upgrade-from-gcm-to-fcm.html" site="developers.googleblog.com" k="L-0288">
+
+That exercise is now done with FCM. Google deprecated GCM in April 2018 and announced its APIs would be removed as soon as April 11, 2019; Firebase Cloud Messaging replaced it. On Apple devices FCM delivers through APNs. <Cite href="https://firebase.google.com/docs/cloud-messaging/fcm-architecture">firebase.google.com</Cite>
+
+</SourceNote>
+
+</MarginNote>
+
+</Section>
+
+<Section id="s5-7" no="5.7" title="Medium, hop by hop" crumb="5.7 Hop by hop"
+  dek="Every hop a clap crosses, and the protocol each one speaks."
+  meta="About 4 min · class 02:08–02:13 and 02:20–02:23">
+
+Back to the clap. Here is every hop it crosses, and what each hop speaks.
+
+A reader’s browser talks to Medium’s API servers with normal HTTP request-response, over TCP. The API server talks to the database over a persistent, plain TCP connection. Not a WebSocket. [[L-0273]]
+
+<Figure id="fig-5h" no="Fig 5·h" k="L-0273 L-0274 L-0275 L-0290 L-0294"
+  caption="Communication in Medium. Each hop speaks its own protocol; only the live claps need a channel the server can push on. Redrawn from the class board at 02:08–02:13.">
+  <Desk><MediumHops /></Desk>
+  <Phone><MediumHops layout="phone" /></Phone>
+</Figure>
+
+Live claps are the real-time part, and they go over a WebSocket. When two people read the same story and one claps, the other sees the animation without refreshing. [[L-0274]] Twitter’s like count on a celebrity’s post, changing as you watch, and the hearts floating up on an Instagram Live, work the same way. [[L-0275]]
+
+There is a lighter design, and it came up in class. Send the clap as an ordinary HTTP POST, update the clapper’s screen straight away (an optimistic UI), and push the updated counts to every reader over SSE. The first objection is that plain SSE doesn’t fit, because readers also send claps, not only receive them. The POST carries that part, and the class’s verdict on the combination was: “you can do that.” The full design comes with Slack next week. [[L-0279]]
+
+One more thing about HTTP’s own connection. It is persistent too, as the class pointed out: you explicitly break it after the response. [[L-0289]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc9112#section-9.3" site="rfc-editor.org (RFC 9112)" k="L-0289">
+
+As in 5.2: since HTTP/1.1, connections are persistent by default, and the client and server reuse them across requests until one sends `Connection: close` or an idle timeout ends it. Closing after every response was the default in HTTP/1.0. <Cite href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x">developer.mozilla.org</Cite>
+
+</SourceNote>
+
+The app-to-database hop doesn’t use WebSockets either. Each database has its own protocol over persistent TCP: MySQL one, Postgres another, MongoDB a third. The class called it a *dialect*. The usual name is **wire protocol**; “dialect” is what ORMs call the flavour of SQL a database accepts. <Cite href="https://www.postgresql.org/docs/current/protocol.html">postgresql.org</Cite> <Cite href="https://docs.hibernate.org/orm/6.4/javadocs/org/hibernate/dialect/Dialect.html">hibernate.org</Cite> [[L-0290]]
+
+A wire protocol is a byte-level specification of how a query is laid out on that connection: the first byte means one thing, the next few another, then come the bytes of the SQL itself. Your one or two kilobytes of query have to be structured according to it. In MySQL, for example, every packet starts with a 3-byte length and a 1-byte sequence number. <Cite href="https://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_PROTOCOL.html">dev.mysql.com</Cite> [[L-0291]]
+
+<Figure id="fig-5i" no="Fig 5·i" k="L-0291 L-0293"
+  caption="A query on the wire, illustrative, with MySQL’s packet framing: a length, a sequence number, a command byte, then the SQL text.">
+  <Desk><WirePacket /></Desk>
+  <Phone><WirePacket layout="phone" /></Phone>
+</Figure>
+
+Every protocol in this section works that way. HTTP is a format, WebSocket is a format, and server-sent events have their own; a specification says how to bundle a message so that both sides understand it. [[L-0293]] Redis has one too, called RESP, and anyone who talks to Redis has to use that format. [[L-0294]]
+
+The HTTP specification itself, and the places where you shouldn’t use HTTP at all, come later. <ForwardChip when="week 3" /> [[L-0292]]
+
+<RuleBox rule="No channel is right everywhere: ==pick the one the use case needs==." k="L-0278 L-0272 L-0282">
+
+You can’t replace short polling with long polling in every use case. WebSockets aren’t always the answer either, because they are very expensive. Short polling may not survive a big surge of requests. Long polling works where the wait isn’t long, say 5 to 10 seconds. Write the hello world of each, because anyone can draw the boxes and the implementation is what shows you their limits. And stay away from over-complication.
+
+<Desk><PickByUseCase /></Desk>
+<Phone><PickByUseCase layout="phone" /></Phone>
+
+</RuleBox>
+
+<h3 id="s5-compare">Four ways to hear about a change</h3>
+
+<TradeoffTable caption="Short polling, long polling, WebSockets, server-sent events and push notifications compared"
+  k="L-0278"
+  columns={[{ label: 'Short poll', glyph: 'shortpoll' }, { label: 'Long poll', glyph: 'longpoll' }, { label: 'WebSocket', glyph: 'websocket' }, { label: 'SSE', glyph: 'sse' }, { label: 'Push', glyph: 'push' }]}
+  rows={[
+    { label: 'Who starts each exchange', k: 'L-0250', cells: ['The client, every interval', 'The client; the server answers when something changes', 'Either side, any time', 'The server, after the client subscribes', 'Your server, through FCM or APNs'] },
+    { label: 'Connection', k: 'L-0378', cells: ['One request per poll', 'Held open while the request waits', 'One persistent TCP connection', 'One long-lived HTTP response', 'One shared OS connection per device; not yours'] },
+    { label: 'Direction', k: 'L-0385', cells: ['Client asks, server answers', 'Client asks, server answers late', 'Both ways', 'Server to client only', 'Push service to device'] },
+    { label: 'Requests for one change', k: 'L-0243 L-0245', cells: [{ text: 'One every interval, mostly redundant', bad: true }, 'One, plus a re-ask after each timeout', 'None: a message on the open connection', 'None: an event on the open stream', 'One call to the push service'] },
+    { label: 'Server cost', k: 'L-0248 L-0258 L-0270', cells: ['A flood of short requests', 'Many held requests; needs an async server', 'A connection per client, held for hours', 'A connection per client; simpler than WebSockets', 'Little of yours; delivery is best-effort'] },
+    { label: 'Good for', cells: ['Long jobs; the simplest to build', 'Waits of a few seconds: scores, job status', 'Chat, games, anything both sides send', 'Tickers, logs, live counts for readers', 'Reaching a closed app or a locked phone'] },
+    { label: 'Medium use', k: 'L-0274 L-0279', cells: ['The “importing…” status', 'The same import, with far fewer requests', 'Live claps', 'Clap counts pushed to readers (the alternative)', '“Your story got 1,000 claps”'] },
+  ]} />
+
+<h3 id="s5-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="A million readers poll a status endpoint every 10 seconds. What is the request rate, and which two options cut it?" k="L-0243 L-0248">
+
+Six requests a minute each, so <Nb>6 million</Nb> requests a minute, about <Nb>100,000</Nb> a second, almost all answering “in progress”. Long polling cuts it to one held request per reader per change. A pushed channel (WebSocket or SSE) cuts it to one open connection per reader, with the server sending only when something happens.
+
+  </RecallItem>
+  <RecallItem q="Why does a live clap counter for a read-only viewer not <em>need</em> a WebSocket, and why might Medium use one anyway?" k="L-0265 L-0279 L-0394">
+
+The viewer only listens, so a one-way channel is enough: server-sent events, which are simpler and lighter and reconnect on their own. The clap itself can go up as an ordinary HTTP POST. Medium might still pick a WebSocket because clappers also send, and because many teams choose WebSockets “in case” they need two-way traffic later.
+
+  </RecallItem>
+  <RecallItem q="Which protocol runs on each hop of a Medium clap: reader → API, API → database, API → co-readers?" k="L-0273 L-0274 L-0290">
+
+Reader to API: HTTP request-response over TCP. API to database: the database’s own wire protocol over a persistent TCP connection (and RESP to Redis). API to co-readers: a WebSocket, or SSE for counts if claps go up as HTTP POSTs.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '6 · What to keep', href: '#s6' }}
+  concepts={[{ label: 'request-response', href: '#s5-1' }, { label: 'RPC', href: '#s5-1' }, { label: 'short polling', href: '#s5-2' }, { label: 'long polling', href: '#s5-3' }, { label: 'WebSocket', href: '#s5-4' }, { label: 'server-sent events', href: '#s5-5' }, { label: 'push notification', href: '#s5-6' }, { label: 'wire protocol', href: '#s5-7' }]} />
+
+</Section>

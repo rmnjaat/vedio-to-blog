@@ -1,0 +1,202 @@
+import Section from '../../components/Section.astro';
+import NotationKey from '../../components/NotationKey.astro';
+import AnimationClip from '../../components/AnimationClip.astro';
+import RuleBox from '../../components/RuleBox.astro';
+import Figure from '../../components/Figure.astro';
+import Panel from '../../components/Panel.astro';
+import Desk from '../../components/Desk.astro';
+import Phone from '../../components/Phone.astro';
+import StepThrough from '../../components/StepThrough.astro';
+import PauseAndThink from '../../components/PauseAndThink.astro';
+import SourceQuote from '../../components/SourceQuote.astro';
+import MarginNote from '../../components/MarginNote.astro';
+import TradeoffTable from '../../components/TradeoffTable.astro';
+import RecallQuestions from '../../components/RecallQuestions.astro';
+import RecallItem from '../../components/RecallItem.astro';
+import SectionEnd from '../../components/SectionEnd.astro';
+import Nb from '../../components/Nb.astro';
+import { BottomUp, VerticalPanel, ReplicasPanel, ShardingPanel, LagFigure, CascadePoster } from '../../figures/lec01/scaling-db';
+
+<Section id="s2-4" no="2.4" title="Scaling the database" crumb="2.4 The database"
+  dek="Why the database is scaled before anything else, and the three ways to give it room: a bigger machine, read replicas, sharding."
+  meta="About 12 min · class 00:45–01:05 and Q&A 02:37–03:09">
+
+<NotationKey />
+
+### Why the database goes first
+
+In 2.2 Medium got a load balancer and a row of API servers behind it. API servers keep no state, so adding them is arithmetic: if one handles <Nb>100 requests</Nb> a second and a campaign will bring 500, you run five. Done right, capacity grows in a straight line with the number of machines.
+
+The requests don’t stop at the API servers, though. Each one they accept turns into work for whatever they depend on: the database, a shared cache, other teams’ services. Medium’s database is still one machine. Widen the API fleet five times and you have built something that sends five times the queries to a component nobody touched. [[L-0092]]
+
+When that component falls over, everything waiting on it fails too, and then everything waiting on *those*, until users can’t load a page. That chain is a **cascading failure**, and it shows up again and again in outage reports. [[L-0101]]
+
+<AnimationClip id="clip-cascade" no="Clip 2.4·1" duration="0:24"
+  lead="Before you play it: the campaign message goes out and five API servers are ready. Which box gives out first?"
+  chapters={[{ t: '0:00', label: 'spike arrives' }, { t: '0:06', label: 'API fleet scales' }, { t: '0:13', label: 'database saturates' }, { t: '0:19', label: 'cascade' }]}
+  caption="Five API servers forward five times the queries to one database. It saturates, the servers time out waiting on it, and the site goes down with it. The poster is the clip’s last frame.">
+  <Desk><CascadePoster /></Desk>
+  <Phone><CascadePoster layout="phone" /></Phone>
+</AnimationClip>
+
+So the order matters more than the amount:
+
+<RuleBox rule="Scale ==bottom up==: the database first, then the API servers." k="L-0100">
+
+Before a big campaign, confirm that everything you depend on can take the load, then widen the API fleet, then let the users in. How another team scales its service is their problem; that it *has* scaled before you send traffic is yours.
+
+<Desk><BottomUp /></Desk>
+<Phone><BottomUp layout="phone" /></Phone>
+
+</RuleBox>
+
+The database deserves this care more than any other part. It is the most critical and most brittle piece of Medium’s infrastructure: every story and every account lives there, and when it goes down, everything is down. There are three common ways to give it room, and they are usually reached for in this order: [[L-0121]]
+
+<Figure id="fig-three" no="Fig 2.4·a" panels caption="A bigger machine, copies that take reads, and exclusive slices that each take their own writes. Redrawn from the class board at 00:56.">
+  <Panel><VerticalPanel /></Panel>
+  <Panel><ReplicasPanel /></Panel>
+  <Panel><ShardingPanel /></Panel>
+</Figure>
+
+### A bigger machine
+
+The quickest fix needs no code. In the cloud console you change the database’s instance type: <Nb>16 GB</Nb> of RAM becomes 32, then 64, 128, 256, <Nb>512 GB</Nb>, <Nb>1 TB</Nb>, <Nb>2 TB</Nb>, <Nb>4 TB</Nb>. Most young products should stay here as long as they can, because every step after this one makes deployment more complex. [[L-0080]]
+
+The ladder has a top rung, and the reason is physical. A larger size needs different hardware, and every part has to speak the same bus protocol as the board it plugs into. A phone whose card slot supports <Nb>256 GB</Nb> won’t read a <Nb>512 GB</Nb> card for the same reason. Unless the data center has the next machine up, there is nowhere to go. (“The console doesn’t offer a bigger one” describes the symptom, not the cause.) [[L-0082 L-0083 L-0084]]
+
+### Read replicas
+
+Most applications read far more than they write: <span class="num-tab">90:10</span> is common and <span class="num-tab">99:1</span> is not unusual. Medium is a clear case. For every person writing a story, many more are reading it. If reads are most of the load, moving reads off the main database removes most of the problem. [[L-0104]]
+
+A **read replica** is a second database that keeps a copy of the **master**’s data. All writes go to the master, and the replica receives them *asynchronously*, a little later. MySQL, PostgreSQL and MongoDB all ship this as configuration you switch on rather than code you write.
+
+One detail is usually told backwards. The master doesn’t push changes out; the replica connects to the master and pulls them. PostgreSQL’s documentation describes its streaming replication this way: [[L-0109]]
+
+<SourceQuote source="PostgreSQL documentation, §26.2.5 Streaming Replication" href="https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION">
+
+“The standby connects to the primary, which streams WAL records to the standby as they’re generated … Streaming replication is asynchronous by default, in which case there is a small delay between committing a transaction in the primary and the changes becoming visible in the standby.”
+
+</SourceQuote>
+
+The same page puts that delay at “typically under one second”, provided the standby can keep up with the load. Under a second sounds harmless. Whether it is depends on who is reading.
+
+The database won’t split reads from writes for you. In the plain version, the API server does it: it opens one connection to each database, and every handler picks the right one for its query. [[L-0111]]
+
+```js
+const master  = new Pool({ connectionString: env.DB_MASTER_URL });
+const replica = new Pool({ connectionString: env.DB_REPLICA_URL });
+
+// a reader's profile can be a moment old: replica
+await replica.query('SELECT * FROM users WHERE id = $1', [userId]);
+
+// publishing a story is a write: always the master
+await master.query(
+  'INSERT INTO stories (author_id, body) VALUES ($1, $2)',
+  [userId, body]
+);
+```
+
+Which reads may go to a replica is a judgement per query. A profile can be a moment stale. A bank balance can’t: if a friend says the money is sent and your app reads from a replica that hasn’t caught up, the money looks missing. Reads like that are **critical reads**, and they go to the master. Proxies exist that route queries for you behind a single connection string, but not every stack has one, and you should know what they are doing. [[L-0113]]
+
+<PauseAndThink
+  q="The moment a writer presses <em>Publish</em>, Medium shows them their story, which means reading it straight back from the database. Which connection should that read use?"
+  choices={[{ label: 'The replica: it’s a read' }, { label: 'The master', correct: true }]}>
+
+The master, at least for the writer. For that one person this is a critical read: they just wrote the data, and they will notice if it is missing. A replica that hasn’t pulled the change yet returns nothing, and the writer concludes the publish failed. Readers arriving later can use the replica; a moment of lag costs them nothing. The next figure shows that window.
+
+</PauseAndThink>
+
+### Replication lag, step by step [[rail: Replication lag]]
+
+<p class="lead-in">Here is one story being published while a reader asks for it. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-lag" no="Fig 2.4·b" label="Replication lag figure"
+  caption="Time runs down. Lanes are the API server, the master and the replica; the red bracket is the window in which a replica read is stale."
+  steps={[
+    'The writer presses Publish. The API server sends the <code>INSERT</code> over its master connection, because every write goes to the master.',
+    'The master commits and replies. The writer sees <span class="term green">published</span>. The replica does not have the row yet.',
+    'A reader opens the story. Story reads use the replica connection, and the replica returns <span class="term red">nothing</span>. Nothing crashed; the reader got a <strong>stale read</strong>.',
+    'The replica asks the master for everything after its last position and applies the new row. The time between commit and apply is the <span class="term red">replication lag</span>.',
+    'The same read now <span class="term green">finds the story</span>. Nothing in the read path changed; the reader arrived after the lag closed.',
+  ]}>
+  <Desk><LagFigure /></Desk>
+  <Phone><LagFigure layout="phone" /></Phone>
+</StepThrough>
+
+Replicas cost the master something too. Each one fetching changes uses some of the master’s CPU, memory and network, which is why one master typically feeds around five replicas and not fifty. (Some databases let a replica read the binlog file directly, which is cheaper for the master; others serve changes over SQL or their own protocol.) If you need fifteen, replicas can feed replicas: five at the top, each serving two or three of its own. [[L-0326 L-0328 L-0329]]
+
+Keep adding replicas as the API fleet grows. Each database can serve only so many requests and hold only so many connections, and when the data is too big to cache whole, a redundant copy to read from is the only way to keep a read-heavy API fast.
+
+<MarginNote title="If the master dies" why="skip unless you run your own database">
+
+A replica can be promoted to master through leader election. Building that yourself is painful, and most product teams don’t: on a managed database such as AWS’s, the provider promotes a standby for you. Fault tolerance gets its own week (week 5).
+
+</MarginNote>
+
+### Sharding
+
+Replicas multiply reads. Every write still lands on one master. When that master can’t keep up even after a vertical bump and a set of replicas, or when the replicas’ fetching starts to hurt it, split the data. [[L-0115 L-0330]]
+
+**Sharding** divides the rows into mutually exclusive subsets and puts each subset on its own node. Each shard is a master that takes the writes for its subset, and each can have replicas of its own. Three shards are not three copies of one database: each holds roughly a third of the rows. [[L-0116 L-0128]]
+
+Something has to know which shard holds what. In the plain version that is the API server again. Medium can shard by user ID: hash the ID and the hash picks the shard. That mapping has to stay fixed, or a user’s stories will be looked for on the wrong node. [[L-0117]]
+
+```js
+const shards = [pool0, pool1, pool2];   // one pool per shard
+const shardFor = (userId) => shards[hash(userId) % shards.length];
+
+await shardFor(userId).query(
+  'SELECT * FROM stories WHERE author_id = $1', [userId]
+);
+```
+
+The API server holds a **connection pool** to every shard: three shards, three pools. They can’t be shared, because a TCP connection to a database is stateful and belongs to that one database. A proxy can hold the pools instead, and some paid databases shard for you behind what looks like one database. Many open-source ones don’t, so build the plain version once, locally, before adding a proxy. [[L-0118 L-0119 L-0357 L-0358]]
+
+There is no formula for the shard key or the shard count. Look at the data and how it is read, then decide. Splitting by table instead of by row, say users on one server and stories on another, is **vertical sharding**, and it needs the same pool per database. [[L-0373 L-0129]]
+
+<MarginNote title="Why not let replicas take writes too?" why="a common follow-up">
+
+A replica that accepts writes makes it a multi-master setup. Two masters can accept conflicting writes to the same row, and how to resolve that depends entirely on the use case. That is why sharding is the usual way to scale writes. The order is read replicas, then sharding, and multi-master only if you want to make things overtly complicated.
+
+</MarginNote>
+
+### The three side by side [[rail: Side by side]]
+
+<TradeoffTable caption="Trade-offs of vertical scaling, read replicas and sharding"
+  columns={[{ label: 'Bigger machine', glyph: 'bigger' }, { label: 'Read replicas', glyph: 'replicas' }, { label: 'Sharding', glyph: 'shards' }]}
+  rows={[
+    { label: 'What you do', cells: ['Pick a larger instance type', 'Add copies that pull the master’s changes; send reads to them', 'Split rows into exclusive subsets, one master each'] },
+    { label: 'Reads', cells: ['Scale, up to the ceiling', 'Scale; this is what replicas are for', 'Scale; each shard serves its own users'] },
+    { label: 'Writes', cells: ['Scale, up to the ceiling', { text: 'Don’t scale: every write still hits one master', bad: true }, 'Scale; each shard takes its own'] },
+    { label: 'Where it stops', cells: ['The largest machine the data center has', 'About 5 per master; a tree of replicas beyond that', 'No fixed number; depends on the data and how it’s read'] },
+    { label: 'Your code', cells: ['Unchanged', 'Two connections; critical reads go to the master', 'Route every query by key; one pool per shard'] },
+    { label: 'New problem', cells: ['Still one machine: if it goes down, everything does', 'Stale reads during replication lag', 'A key mapping that must never change'] },
+    { label: 'Reach for it', cells: ['First', 'When reads dominate, as at 90:10', 'When the master can’t take the writes, or replicas start to hurt it'] },
+  ]} />
+
+### Check yourself
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Medium doubles its API fleet for a campaign and nobody touches the database. What fails, and in what order should the scaling have happened?">
+
+The database takes twice the queries and saturates; the API servers waiting on it time out and fail with it, a cascading failure. Scale bottom up: make sure the database and every other dependency can take the load, then widen the API fleet, then let users in.
+
+  </RecallItem>
+  <RecallItem q="The master’s CPU is pinned by writes. Why won’t a sixth read replica help, and what will?">
+
+Replicas only take reads, so every write still lands on the master, and each extra replica’s fetching costs the master a little more CPU, memory and network. Sharding helps: each shard is a master for its own slice of rows and takes its own share of the writes.
+
+  </RecallItem>
+  <RecallItem q="A teammate calls Medium’s three shards “three copies of the database, for safety”. What’s wrong with that?">
+
+Copies are replicas. Shards hold mutually exclusive subsets: each has about a third of the users and each is a master. The API server sends every user to exactly one of them by hashing the user ID.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '3 · Concurrency', href: '#' }}
+  concepts={[{ label: 'cascading failure' }, { label: 'read replica' }, { label: 'replication lag' }, { label: 'critical read' }, { label: 'sharding' }, { label: 'connection pool' }]} />
+
+</Section>

@@ -1,0 +1,105 @@
+# Storyboard — clip l01-cascade (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l01-cascade
+title: Cascading failure
+lecture: 1
+section: "2.4 Scaling the database"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  Cascade + accumulation. Load piles up first (a fleet widens, five query streams converge, the
+  database's load climbs to the top), and only then does failure travel *backwards*, hop by hop:
+  database → API servers → readers. A still shows only the end state; the clip shows the order —
+  the untouched database fails first and takes everything above it down — which is why the rule
+  that follows is "scale bottom up".
+static_twin: "the page's CascadePoster (end state, site/src/figures/lec01/scaling-db.tsx) and board D-05 (b_004600.jpg); frame 0 is the pre-campaign row reader → lb → api → db"
+ledger:
+  taught:
+    - L-0099  # horizontal scaling's catch: extra requests the API servers accept are forwarded to the DB, which goes down if not prepared
+    - L-0101  # cascading failure: one component going down takes down those that depend on it, until users can't use the platform
+    - L-0102  # DB is the most critical and brittle component: if the DB goes down, everything is down
+    - L-0100  # final caption only: scale bottom up (DB first, then API servers)
+  context_only:
+    - L-0092  # campaign spike context (prose before the clip)
+fidelity_notes:
+  - "×5 is the sample page's illustrative fleet size (Fig 2·c: 100 rps → ×5), not a class number. No rps, latency or connection numbers appear on screen."
+  - "The 'load' fill inside the database is a qualitative gauge (no scale, no units). It stands for 'the DB can't handle that many concurrent requests' (L-0099 board text)."
+  - "'Queries queue, then time out' is our wording of how an overloaded DB fails its callers; the lecture says the DB 'goes down' and dependents fail with it (L-0099, L-0101)."
+  - "Not claimed: any share of outages. L-0101's 'most major outages' is softened per the fact-check (a major cause, SRE book); that stays in prose — the clip makes no frequency claim."
+  - "Reader icons are 'readers' (Medium case); three figures stand for the spike, not a count."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1040, note: "used at <= 640 px; top-to-bottom re-flow: readers row, lb as a horizontal bar, api x5 in one row, queries converge down onto the db; 30 px lettering (15 px at 358 px)"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 835   # 27.8 s; 55.7 s at 0.5×
+start_frame_equals: "one reader → lb → one api → db (solid arrows, graphite), low 'load' fill in the db"
+poster_frame: 834
+reduced_motion_stills: [85, 190, 370, 515, 740, 834]
+glyphs:
+  readers: {shape: stick-figure, x: 88, y: [150, 290, 430], note: "only y=290 at frame 0; the other two are drawn in B1"}
+  lb: {shape: lb-bar, label: "lb", pos: [236, 70, 26, 440]}
+  api: {shape: server-box, label: "api", pos: [360, 258, 160, 64], note: "fleet of 5 in B2 at y-centres 98/194/290/386/482"}
+  db: {shape: cylinder-solid, label: "db", cx: 990, top: 200, rx: 100, h: 180, note: "'load' fill inside; hand 'same size' under it (was 'unchanged', read as 'the database is unchanged')"}
+  arrows:
+    - {route: "reader → lb", solid: true, head: lb}
+    - {route: "lb → api (one per api)", solid: true, head: api}
+    - {route: "api → bus x=620 → trunk → db", solid: true, head: db}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "Before the campaign: one API server, one database."
+    on_screen: [static figure]
+    motion: none (hold)
+    ledger: []
+  - id: B1
+    step: 1
+    from: 90
+    to: 195
+    caption: "The campaign goes out. Readers flood in."
+    events:
+      - {at: 98, dur: 24, what: "two more reader figures + their arrows to lb drawn by pen"}
+      - {at: 100, dur: 26, what: "hand 'campaign spike' written top-left"}
+      - {at: 126, dur: 44, what: "blue packets stream reader → lb → api (3 paths, staggered); paths re-inked blue", colour: blue}
+    ledger: [L-0099]
+  - id: B2
+    step: 2
+    from: 195
+    to: 375
+    caption: "The API fleet scales to five. All five query the same database."
+    events:
+      - {at: 205, dur: 48, what: "four more api boxes drawn by pen (staggered), with lb → api arrows, stubs and the bus"}
+      - {at: 250, dur: 20, what: "hand '×5' over the fleet"}
+      - {at: 275, dur: 60, what: "five blue query paths re-inked + packets converging on the db; trunk heavy", colour: blue}
+      - {at: 300, dur: 24, what: "'5× queries' (blue) above the trunk"}
+      - {at: 300, dur: 45, what: "db load fill rises 0.25 → 0.55"}
+      - {at: 330, dur: 20, what: "hand 'same size' under db"}
+    ledger: [L-0099]
+  - id: B3
+    step: 3
+    from: 375
+    to: 520
+    caption: "The database saturates. Queries queue up, then time out."
+    events:
+      - {at: 385, dur: 70, what: "db load fill rises linearly to the top (accumulation)"}
+      - {at: 395, dur: 45, what: "four blue query dots stamp one by one, queued on the trunk before the db", colour: blue}
+      - {at: 455, dur: 10, what: "fill turns red", colour: red}
+      - {at: 460, what: "red ✕ stamped by the db; 'saturated' written (red)", colour: red}
+    ledger: [L-0099, L-0102]
+  - id: B4
+    step: 4
+    from: 520
+    to: 745
+    caption: "The servers wait on it and fail too: a cascading failure."
+    events:
+      - {at: 530, dur: 10, what: "queued dots fade (replaced by the red timeouts)"}
+      - {at: 532, dur: 45, what: "red dashed re-ink runs backwards db → bus → all five apis, red packets at the tip; 'timeouts' (red)", colour: red}
+      - {at: 580, dur: 60, what: "api boxes outlined red one by one, each with a small ✕", colour: red}
+      - {at: 630, dur: 24, what: "'fails with it' (red) under the fleet"}
+      - {at: 655, dur: 35, what: "red packets return api → lb → readers; ✕ at each reader; 'errors' (red)", colour: red}
+    ledger: [L-0101, L-0102]
+  - id: B5
+    from: 745
+    to: 835
+    caption: "Scale the database first, then the API servers."
+    on_screen: [end state = poster]
+    motion: none (3 s hold)
+    ledger: [L-0100]

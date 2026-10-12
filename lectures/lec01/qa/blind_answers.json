@@ -1,0 +1,656 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Caching at different levels, scaling, delegation, concurrency, communication (in that order).",
+  "evidence": "The class went through caching at different levels, then scaling, delegation, concurrency and communication, in that order.",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Only a short taste because week 2, day 1 goes deep on concurrency in databases with practical examples. (The 5-10 minute figure itself is not stated.)",
+  "evidence": "Concurrency gets only a short taste here. Week 2, day 1 goes deep on how concurrency in a database falls apart",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "It saves the network call to the remote cache (an expensive call); also takes load off the Redis server.",
+  "evidence": "a read from the process’s own memory saves a network call to the remote cache, and that is an expensive call",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Size limited by the memory the application itself needs; lost when the application goes down/crashes; with several instances each holds a different cache, so they disagree (inconsistency).",
+  "evidence": "It has three costs. Its size is limited by the memory the application itself needs. It is lost when the application goes down or crashes. And with several instances, each one holds a different cache",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "Each server's memory is local and nobody else can read it; a request landing on another server misses, hits the DB and fills its own copy, so copies are refreshed at different times and some readers see older views.",
+  "evidence": "An API server’s memory is local to that server and nobody else can read it. When the next request lands on a different server, that server misses, makes the database call, fills its own copy",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "With sticky sessions: the load balancer always sends a given user's requests to the same server, so that server can keep the user's data in memory (remote cache still alongside).",
+  "evidence": "With sticky sessions , the load balancer always sends a given user’s requests to the same server, so that server can keep the user’s data in its memory",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "Nearly static data that barely changes, where slightly old copies are fine; example: Medium's published stories (rarely change once published).",
+  "evidence": "Or the data is nearly static: it barely changes ... Medium’s published stories are the second case.",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "The TTLs on the local cache and how it is flushed matter a lot (give keys a max TTL, cap memory with eviction).",
+  "evidence": "An API server has very little RAM to spare, so the TTLs on the local cache and the way it is flushed matter a lot.",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "A materialized view stores the result of a query (e.g. a join of several tables plus computation) as a separate pre-joined, pre-computed table; it saves the expensive computation, joins above all.",
+  "evidence": "What the view saves is exactly that: the expensive computation, the join above all.",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "They must be updated explicitly ('refresh'; class named database triggers to fire it). They pay off only when data changes rarely; with frequently changing data, frequent refreshes slow everything down.",
+  "evidence": "Materialized views pay off only when the data changes rarely; with data that changes often, the frequent refreshes slow everything down.",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "A fair (limited, ~5 MiB) amount of data: e.g. API responses like a popular-stories list, recommendations; browser also caches static images/assets and some API responses; strings only in localStorage.",
+  "evidence": "the browser’s local storage is an excellent place to cache a fair amount of stuff. It is limited: not huge amounts, but a decent amount.",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "Page (not attributed to a student explicitly): an e-commerce team cached re-ranked product recommendations on category pages in the browser, mainly for perception; ran experiments on cache duration and accounted for it in training data. Extension: cache e.g. 50 recommendations but show 10 at random each view so it feels fresh though updated once a day (Amazon hypothetical, refresh periodically).",
+  "evidence": "if 50 recommended items are cached but the viewport shows 10, pick 10 at random on each view",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "That CDNs can only cache static things like images and video; a CDN is a proxy and everything is bytes, so it can cache anything, API responses included.",
+  "evidence": "A common misconception is that CDNs can only cache static things like images and video.",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Near-static API responses such as a popular-searches endpoint (search.abc.com/popular; Medium /popular). Company mentioned: Giphy caches search results of its most popular terms.",
+  "evidence": "Giphy does this for the search results of its most popular terms.",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Reader -> CDN -> (only on a miss) API server -> database. When the CDN has the answer it serves from the edge and the request never reaches your backend or centralized cache.",
+  "evidence": "Normally a request goes reader, CDN, backend, database; when the CDN has the answer, your servers never see it.",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "A cache is anything that saves an expensive computation or an expensive I/O (needn't fit in memory).",
+  "evidence": "A cache is anything that saves an expensive computation or an expensive I/O .",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "The disk is mostly empty (2-3 GB of 20 GB used) while RAM is scarce; a local disk read saves the network trip to the DB/central cache, and local disk is much faster than the network call.",
+  "evidence": "a copy on the API server’s own disk saves the network trip to the database or to the central cache",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "There is no central view: each server's disk (and RAM) holds its own copy, so the same request can return different results on different servers; you must accept that inconsistency, which is use-case specific.",
+  "evidence": "Statutory warning: there is no central view.",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "NOT ON PAGE (the page lists seven places along the route: browser, CDN, LB/API gateway, API server RAM, API server disk, centralized remote cache, DB materialized views; it does not give the board's six in order).",
+  "evidence": "Here is the full list along the common request path: the reader’s browser, the CDN, the load balancer or API gateway, the API server’s RAM, the API server’s disk, the centralized remote cache, and the database’s materialized views.",
+  "found": false
+ },
+ {
+  "id": "Q020",
+  "answer": "Scaling is the ability to handle a large number of concurrent requests; the stressed word is 'concurrent'.",
+  "evidence": "Scaling is the ability to handle a large number of concurrent requests, and the word that matters is concurrent .",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Vertical = Hulk, horizontal = Minions. Hulk: easy to manage (one machine) but downtime on upgrade/crash, no failure tolerance, stops at largest machine. Minions: linear capacity growth, failure tolerance, but complex architecture and network partitions.",
+  "evidence": "Vertical scaling is Hulk ... Horizontal scaling is Minions",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "Hardware: components connect over a bus with a fixed hardware protocol and both sides must support the size; analogy: a phone SD slot rated 256 GB won't read a 512 GB card (also USB stick golden lines as a bus).",
+  "evidence": "That is why a phone whose SD-card slot supports 256 GB doesn’t recognise a 512 GB card.",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "Horizontal scaling done right grows capacity linearly: one machine handles 100 rps, you need 500 rps, so 500/100 = 5 machines.",
+  "evidence": "If one machine handles 100 requests a second and you need 500, you need 500 ÷ 100 = 5 machines. The class calls this linear amplification",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "They take time to react (new instances must launch and start), so a sudden flood arrives before capacity; before a campaign prepare infrastructure for the spike first, then tell marketing to send (marketing must tell engineering beforehand).",
+  "evidence": "prepare the infrastructure for the spike first, then tell marketing to send",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "Load-test that machine configuration; no formula gives it.",
+  "evidence": "the only way to know is to load-test that configuration",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Capacity vs product age: rises fast by scaling vertically while young, then plateaus and grows horizontally; boxed rule: no premature optimization.",
+  "evidence": "A ruled box beside it says: no premature optimization.",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Scaled API servers forward all requests to their dependencies (database, shared cache, other services), which may go down and cause cascading failure; rule: scale bottom up, database first then API servers.",
+  "evidence": "Scale bottom up : the database first, then the API servers.",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Cascading failures (the instructor keeps finding it at the root of outage reports).",
+  "evidence": "That chain is a cascading failure . It is a major cause of big outages",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "90:10 is common and 99:1 is not unusual.",
+  "evidence": "90:10 is common and 99:1 is not unusual.",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "No; the replica connects to the master and pulls changes.",
+  "evidence": "The master doesn’t push changes out; the replica connects to the master and pulls them.",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "The API server opens two connections (one to master, one to replica) and each handler picks the right one: reads to replica, writes to master.",
+  "evidence": "The API server opens two connections, one to each database, and every handler picks the right one for its query",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "A non-critical read (e.g. a profile) can go to a replica; a bank balance (after a friend says money is sent) is a critical read and must go to the master.",
+  "evidence": "A bank balance can’t: if a friend says the money is sent and your app reads from a replica that hasn’t caught up, the money looks missing. Reads like that are critical reads , and they go to the master.",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "When the master gets more write traffic than it can handle even after a vertical bump and replicas (or replicas start hurting the master); sharding divides rows into mutually exclusive subsets, each on its own node/master.",
+  "evidence": "Sharding divides the rows into mutually exclusive subsets and puts each subset on its own node.",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "In the API server: it holds a connection/pool to every shard, hashes the user ID to pick the shard (hash % shard count), forwards the query there and returns the answer.",
+  "evidence": "Medium can shard by user ID: hash the ID and the hash picks the shard.",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Vertical scaling (small 16 GB cylinder becomes bigger up to 4 TB, hardware ceiling line); read replicas (API writes to master, reads to replica which pulls async from master, a few per master); sharding (API hashes user_id to three shards, each a master with 1/3 of users).",
+  "evidence": "Fig 2·e A bigger machine, copies that take reads, and exclusive slices that each take their own writes.",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "A replica can be promoted via leader election; if you build a cloud DB service you implement it, if you use one the provider promotes for you; building it yourself is a pain; covered the week after next.",
+  "evidence": "A replica can be promoted to master through leader election",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "Yes; a TCP connection to a database is stateful and belongs to that one database, so pools can't be shared.",
+  "evidence": "A TCP connection to a database is stateful and belongs to that one database, so each database gets its own connection pool",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "No; shards hold mutually exclusive subsets, each roughly a third of the rows; copies are replicas.",
+  "evidence": "Three shards are not three copies of one database: each holds roughly a third of the rows.",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "Horizontal. The group only launches instances and adds them behind the load balancer; scale-up/down rules (e.g. CPU > 60%) are yours to define.",
+  "evidence": "The scale-up and scale-down rules, such as the CPU threshold above, are yours to define.",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Whatever does not need to be done in real time should not be done in real time.",
+  "evidence": "Whatever does not need to be done in real time should not be done in real time.",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Showing an author's essay count ('74 essays') on the profile card via a total_blogs counter incremented on publish.",
+  "evidence": "add a total_blogs column to the users table and add one to it ( count++ ) every time the author publishes.",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "1: client request to API server; 2: API server delegates slow work to broker as async task (dashed); 3: API server responds right away; work happens later.",
+  "evidence": "1 request 2 delegate 3 respond; the work happens later",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "ON_PUBLISH event is published to SQS; workers take messages and run total_blogs++ (UPDATE) in the DB; ON_DELETE does total_blogs--.",
+  "evidence": "the API server puts an ON_PUBLISH message into a broker such as SQS or RabbitMQ and answers, and a worker reads the message and runs ... total_blogs++",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "A literal queue/buffer; homogeneous consumers doing the same thing; consumers pull; each message read exclusively by one consumer; consumer deletes when done; visibility timeout brings back unfinished messages; no partition concept exposed.",
+  "evidence": "The consumers are homogeneous : every one of them does the exact same thing.",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Both at 74; worker does total_blogs++ -> 75, crashes before ES write (75 vs 74); message retried and both writes run again -> count 76, search 75, still mismatched.",
+  "evidence": "Count 76, search 75: still wrong .",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "People/organizational: two teams (counter/analytics vs search) share one worker codebase -> fights, one team's change blocks the other's deploy, messy branches, no separation of concerns.",
+  "evidence": "Share one worker codebase between them and, in the class’s experience, you get fights",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Queue: homogeneous consumers, each message goes to one consumer which deletes it. Stream: heterogeneous consumers each read every message at own position; messages stay until retention (iterate & commit, not delete).",
+  "evidence": "In a queue they are homogeneous ... In a stream they are heterogeneous",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "API server sends ON_PUBLISH to Kafka; search service and counter service each consume the same messages at their own position (ES indexing, total_blogs++); nobody deletes until retention; each team owns its code. Advantage: decoupling, no team blocks another, counter keeps going if search is down.",
+  "evidence": "Each service reads the same messages from its own position, and each team owns its own code.",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Long-running tasks (spinning up EC2, encoding video); heavy computation queries; batch and write; anything that can be eventual.",
+  "evidence": "long-running tasks ... heavy computation queries batch and write ... anything that can be eventual",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Messages go to a topic (named queue), split into partitions (count per topic can differ); producer gives a partitioning key, Kafka hashes it to choose the partition (e.g. user_id -> same partition).",
+  "evidence": "Kafka hashes the key, and the hash decides which partition stores the message.",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Ordering only within a partition; no global ordering across partitions.",
+  "evidence": "Within a partition messages are ordered; across partitions there is no order guarantee.",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Consumer parallelism is capped by the number of partitions (3 partitions -> at most 3 consumers per type/group).",
+  "evidence": "This is the biggest limitation of Kafka: how many consumers can work in parallel depends on the number of partitions in the topic.",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "Kafka recording, per consumer group, how far the group has read (offset); a restarted consumer resumes from the last commit. Not a database commit.",
+  "evidence": "it is Kafka recording, per consumer group, how far that group has read.",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "At-least-once (not exactly-once): a consumer crashing after processing but before committing resumes from the last commit and reprocesses messages.",
+  "evidence": "Out of the box, Kafka guarantees at-least-once delivery, not exactly-once.",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Kafka and consistent hashing are both very stupid solutions in some cases; not salt to sprinkle on every design; know their strengths and weaknesses.",
+  "evidence": "Kafka and consistent hashing are both very stupid solutions in some cases.",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "You never subscribe a consumer to only one partition; Kafka assigns partitions, giving some consumers more than one if fewer consumers; ideal N for N; no global ordering either way.",
+  "evidence": "You never subscribe a consumer to only one partition. With fewer consumers than partitions, Kafka simply gives some consumers more than one.",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Cost: AWS bills SQS per message/request, Kinesis for the time it is running (stream is always-on infrastructure); for smaller workloads choose SQS.",
+  "evidence": "AWS bills SQS per message and Kinesis for the time it is running",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "The visibility timeout: the message is hidden while worked on; if not deleted before the timeout expires it reappears and another consumer takes it. Not deleting is the failure signal.",
+  "evidence": "So not deleting is the failure signal.",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Queue: consumer deletes the message when done. Stream: consumer commits how far it has read.",
+  "evidence": "In a queue you delete; in a stream you commit.",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "The pool's wait queue is an in-memory data structure inside one process; a message broker is an infrastructure component, a separate process many processes talk to.",
+  "evidence": "That wait queue is an in-memory data structure inside one process. A message broker is an infrastructure component",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Should be 2,000; you get about 1,997, because count++ is not atomic (read, add, write) and threads interleave, causing lost updates.",
+  "evidence": "You expect 2,000 and get something like 1,997, because count++ is not atomic",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Correct data (2,000 not 1,997) and high throughput. Correctness is ensured by protecting the critical section with locks (mutex/semaphore) or atomic operations / transactions.",
+  "evidence": "They have to guarantee correct data (2,000, not 1,997) and high throughput at the same time.",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "A traffic signal at a crossroads: junction is the critical section, one road green, others wait at red.",
+  "evidence": "A traffic signal at a crossroads works the same way.",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "Locks (optimistic, pessimistic), mutexes & semaphores, lock-free (CRDT).",
+  "evidence": "locks (optimistic, pessimistic) mutexes & semaphores lock-free (CRDT)",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "Must become 102; protect via database transactions and atomic instructions, e.g. UPDATE ... SET claps = claps + 1.",
+  "evidence": "We protect our data through transactions and atomic instructions .",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "Exposing an HTTP endpoint doesn't make it REST; REST is a set of rules for exposing endpoints, HTTP is the medium.",
+  "evidence": "Exposing an HTTP endpoint does not make it REST.",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Client sends REQ, server does heavy lifting (db, compute, auth) and sends RES; connection kept open with a timeout. Analogy: ordering a burger in a restaurant.",
+  "evidence": "It is like ordering a burger in a restaurant.",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Client repeatedly sends the same status request on a timer. Examples: AWS console EC2 instance status (in progress -> ready); live cricket scores on Cricbuzz/ESPNcricinfo.",
+  "evidence": "Launch an EC2 instance in the AWS console and it shows in progress ... Live cricket scores on Cricbuzz or ESPNcricinfo",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "6 million requests a minute (about 100,000 per second).",
+  "evidence": "Six requests a minute per reader × 1,000,000 readers = 6 million requests a minute",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Client sends a request; server holds it and replies only when state changes (timeout -> client re-asks). Cuts requests drastically but server does more of the heavy lifting.",
+  "evidence": "Long polling cuts the number of HTTP requests drastically, but someone still has to notice the change, and that someone is the server.",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Short polling: console keeps asking and gets 'in progress' until 'ready'. Long polling: once launch is acknowledged, the status request isn't answered until the instance is ready.",
+  "evidence": "For an EC2 launch, once the launch is acknowledged, the status request isn’t answered until the instance is ready.",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "A bidirectional channel between client and backend over one persistent TCP connection speaking the WS protocol. Class: it doesn't run on top of HTTP but in parallel as a different spec (page note: handshake starts as an HTTP Upgrade).",
+  "evidence": "WebSocket doesn’t run on top of HTTP; it runs in parallel to HTTP, as a different specification.",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Advantages: either side sends any time, server can push proactively, very fast/low overhead real-time. Cost: persistent connections are very expensive to manage.",
+  "evidence": "The price of all this is that persistent connections are very expensive to manage.",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Chat/messaging apps, stock tickers (Groww, Robinhood), live experiences, multiplayer games, chat inside a Zoom call, live claps.",
+  "evidence": "Stock tickers are a brilliant example ... live experiences, multiplayer games, and chat inside a Zoom call",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "MQTT is described as a kind of WebSocket equivalent (more exactly a lightweight pub/sub protocol that can run over WebSocket); all specs run on TCP or UDP and a persistent connection has to be TCP (class's view; note mentions QUIC).",
+  "evidence": "even a persistent connection has to be TCP",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Server-sent events: a persistent unidirectional channel where the server pushes data after the client establishes the connection. Correction: it's server-sent, not 'server-side' events.",
+  "evidence": "It is server- sent events. People often say server-side events; that isn’t the name.",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Stock tickers, deployment logs (Vercel, Netlify), remote terminals (and LLM APIs). Simpler and lighter than WebSockets but one-way only.",
+  "evidence": "SSE is dead simple and very lightweight compared with a WebSocket ... What you give up is two-way communication.",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Reader-API: HTTP; API-DB: persistent TCP, wire protocol; API-Redis: RESP; reader/co-reader to realtime likes service: WS (WebSocket).",
+  "evidence": "reader api HTTP RESP redis persistent TCP · wire protocol db realtime likes WS",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "It holds up: behaves like a near-persistent connection, much like a WebSocket, which is still scalable; needs an async, event-driven server.",
+  "evidence": "In fact it holds up. It behaves like a near-persistent connection, much like a WebSocket, and that is still scalable.",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "The TCP connection breaks and the client must resend the request; fine for a cricket score, but payments/orders need care to avoid duplicates.",
+  "evidence": "If the server goes down while it holds a request, the TCP connection breaks and the client has to send the request again.",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "No, do the math: ~10,000 companies × 4 bytes ≈ 40 KB/s per reader, nothing; send everything and filter on the client (at a million readers ~40 GB/s, then filtering may pay).",
+  "evidence": "About 10,000 listed companies × 4 bytes is roughly 40 KB a second per reader",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "No; you can mimic a push notification with SSE but can't implement one (different protocols/guarantees).",
+  "evidence": "You can mimic a push notification with SSE or with periodic checks, but you can’t implement one.",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "The database's own wire protocol (class called it a 'dialect'), e.g. MySQL's, Postgres's; not WebSocket.",
+  "evidence": "The class called it a dialect . The usual name is wire protocol",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "UDP in week 4; video streaming in week 6.",
+  "evidence": "→ week 4 UDP ... → coming later · week 6 : video streaming",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "Neither: SNS is pub/sub (broadcast). Yes, SNS in front of SQS (one queue per consumer type) can mimic Kafka, but loses history/replay.",
+  "evidence": "Put SNS in front of SQS and you can mimic Kafka",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "As taught, only by time: there's no API to evict, so you tune the TTL. (Note: API Gateway can flush/refresh; nginx purge is Plus.)",
+  "evidence": "a load balancer’s cache can only be invalidated by time",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "SQS had no ordering/sharding: several messages for the same DB object were picked up concurrently by several consumers and kept failing even with retries; Kinesis sends everything for one key to one shard/consumer.",
+  "evidence": "the team re-architected and moved from SQS to Kinesis, where everything for one key goes to one shard and one consumer.",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Memory, then local disk, then CDN (mobile) or S3; possible because configs need very little invalidation and the team could live with some inconsistency.",
+  "evidence": "works here because configs need very little invalidation and the team could live with some inconsistency.",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "Yes, it is caching (keeps a copy to avoid expensive work); it is essentially an API gateway (single point of contact).",
+  "evidence": "it is a single point of contact, essentially an API gateway, and a natural place for a cache.",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Yes, a little: each pulling replica uses master CPU, memory, network. Rule of thumb ~5 per master (6-7 fine). For 15, hierarchical/cascading replication: 5 replicas each feeding 3.",
+  "evidence": "Five replicas at the top, each serving three of its own (two would also do), gives fifteen.",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "It's the signal to move on to sharding.",
+  "evidence": "If the replicas start hurting the master anyway, that is the signal to move on to sharding.",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "On disk, not RAM (class view; note says hot objects also in RAM).",
+  "evidence": "Where does a CDN keep all this? On disk, not in RAM",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Run a few Kafka consumers (3 forwarders) that just push each message into SQS, and let ~100 SQS workers do the work; common in notification systems.",
+  "evidence": "Kafka feeding SQS feeding hundreds of workers is very common in notification systems.",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Class: the LB must be sticky (forward a client's connection to the same server) and support WSS; if the LB goes down, the client re-establishes the connection.",
+  "evidence": "the load balancer has to be sticky ... If the load balancer itself goes down, the client re-establishes the connection.",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Popular shows are cached inside ISPs (e.g. ACT) near users; Netflix asks ISPs to cache; possible because a show doesn't change once live, so no inconsistency.",
+  "evidence": "This works because a show doesn’t change once it is live, so there is no inconsistency to worry about",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "Security isn't part of the course (not high-level architecture); compression is basic, not deep: three or four algorithms, pick the one that suits.",
+  "evidence": "Compression is basic too, and not a deep topic for this course: there are three or four algorithms",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Horizontal (a cluster is several machines); the vendor's cluster splits data internally and looks like one DB to the app.",
+  "evidence": "A database cluster is horizontal scaling, not vertical ... A vendor’s cluster looks like one database to the application, while internally the data is split",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Yes: Kinesis shards = Kafka partitions; shard count sets max consumer parallelism. Two consumers can't share a partition because Kafka tracks one position per partition per group and promises order within a partition.",
+  "evidence": "Kafka tracks a group’s progress in a partition as one position, and it promises order within a partition.",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "No; streams don't replace distributed transactions. If two writes must be strongly consistent there is no option but a distributed transaction (outbox gives only eventual).",
+  "evidence": "Streams don’t replace distributed transactions.",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Via the browser's HTTP cache and local storage (localStorage.setItem/getItem; IndexedDB, Cache API). See it in DevTools: Network tab (cached images), Application/Storage panel > Local Storage.",
+  "evidence": "open the Application (or Storage) panel and click Local Storage on the left to see what any site is caching.",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "No golden formula; look at the data and access patterns and make the call (a key with many distinct evenly accessed values helps).",
+  "evidence": "There is no golden formula for the shard key or the number of shards.",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "Each client reconnects to whichever server is available. Class: it adds load but doesn't take much time since connection setup is cheap (note: reconnect storms can overload; use backoff+jitter).",
+  "evidence": "A thousand clients reconnecting at once does add load. In the class’s view it doesn’t take much time",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "When the client decides it's done and terminates it, or when the server goes down.",
+  "evidence": "The connection closes when the client decides it is done and terminates it, or when the server goes down.",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Use read replicas: redundant copies to read from, keep adding replicas as the fleet grows.",
+  "evidence": "When the data is too big to cache whole, redundant copies to read from are the only way to keep a read-heavy API fast.",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Yes, the TCP connection underneath is bidirectional, but the SSE protocol gives the client no way to send over it.",
+  "evidence": "The TCP connection underneath is bidirectional, but the SSE protocol gives the client no way to send data to the server over it.",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "Multi-master; two masters can accept conflicting writes needing use-case-specific resolution; sharding is the usual way to scale writes.",
+  "evidence": "A replica that also accepts writes makes it a multi-master setup, with its own set of problems.",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Hardly, for pure relaying of a long-lived connection; idle timeouts differ by layer/product, and L7 can make intelligent routing decisions.",
+  "evidence": "For a long-lived connection where it only relays messages back and forth, hardly",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Few companies run SSE in production; most just use WebSockets in case they need two-way later (counterpoint: LLM APIs).",
+  "evidence": "Few companies run SSE in production, in the class’s experience.",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Avoid generic statements like 'X doesn't support Y'; tools converge, no hard and fast rule; check what the tool can do today.",
+  "evidence": "So avoid generic statements like “X doesn’t support Y”.",
+  "found": true
+ }
+]

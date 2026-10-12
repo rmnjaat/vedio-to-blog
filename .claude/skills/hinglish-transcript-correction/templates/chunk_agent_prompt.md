@@ -24,7 +24,7 @@ Outputs (write exactly these files)
 3. `{{WORKDIR}}/chunks/{{CHUNK}}.notes.md` - new technical terms / names not in term_decisions (with times), speaker doubts, anything the lead should decide.
 
 Then run:
-`python3 "{{SKILL_DIR}}/scripts/verify_content.py" "{{WORKDIR}}/segments.jsonl" "{{WORKDIR}}/chunks/{{CHUNK}}.corrected.md" --log "{{WORKDIR}}/chunks/{{CHUNK}}.log.md" --from {{START}} --to {{END}} --strict --out "{{WORKDIR}}/chunks/{{CHUNK}}.verify.md"`
+`python3 "{{SKILL_DIR}}/scripts/verify_content.py" "{{WORKDIR}}/segments.jsonl" "{{WORKDIR}}/chunks/{{CHUNK}}.corrected.md" --log "{{WORKDIR}}/chunks/{{CHUNK}}.log.md" --chunk {{CHUNK}} --strict --out "{{WORKDIR}}/chunks/{{CHUNK}}.verify.md"`
 Fix every dropped/added run it lists (restore the text, or add the missing log row) until it says PASS.
 
 Report back: PASS/FAIL line from the verifier, counts of log rows by type, counts of markers, and the notes file content.

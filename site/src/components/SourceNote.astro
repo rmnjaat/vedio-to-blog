@@ -1,0 +1,13 @@
+---
+// Fact-check note. Placed right after the teacher's point, which stays as taught.
+// The body gives the precise version; the source is linked inline at the end.
+//   <SourceNote href="https://…" site="postgresql.org" k="L-0109">More precisely, the standby connects …</SourceNote>
+// label: "More precisely" (imprecise), "Since the class" (outdated), "Correction" (wrong).
+interface Props { href: string; site?: string; label?: string; k?: string }
+const { href, site, label = 'More precisely', k } = Astro.props;
+const host = site ?? new URL(href).hostname.replace(/^www\./, '');
+---
+<aside class="srcnote" role="note" aria-label={label} data-k={k}>
+  <p class="srcnote-label hand">{label}</p>
+  <div class="srcnote-body"><slot /> <a class="cite" href={href} rel="noopener">{host}&nbsp;↗</a></div>
+</aside>

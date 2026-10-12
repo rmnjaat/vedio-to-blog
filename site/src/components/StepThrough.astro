@@ -1,0 +1,91 @@
+---
+// Step-through figure. Default slot: the drawing, whose groups are <Step n={…}> (kit) — or <Desk>/<Phone>
+// layouts that both contain the same steps. `steps` are the numbered texts (inline HTML allowed).
+// Keys on the focused figure: ← → ↑ ↓ Home End. Deep link: #<id>/step-3. Without JS every step shows.
+interface Props { id: string; no?: string; caption?: string; steps: string[]; label?: string; k?: string; stepK?: string[] }
+const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [] } = Astro.props;
+---
+<figure class="wide stepper-fig" id={id} aria-labelledby={id + '-cap'} data-k={k} data-total={steps.length}>
+  <div class="stepper sheet">
+    <div class="lag-wrap lag" tabindex="0" aria-label={`${label}. Use left and right arrow keys to step.`} aria-describedby={id + '-live'}>
+      <slot />
+    </div>
+    <div class="steps-panel">
+      <div class="steps-head step-controls">
+        <button class="btn" type="button" data-prev aria-label="Previous step">← Prev</button>
+        <button class="btn" type="button" data-next aria-label="Next step">Next →</button>
+        <span class="counter hand" aria-hidden="true">1 / {steps.length}</span>
+      </div>
+      <ol class="steps">
+        {steps.map((s, i) => (
+          <li data-step={i + 1} data-k={stepK[i]}><span class="n" aria-hidden="true">{i + 1}</span><span set:html={s} /></li>
+        ))}
+      </ol>
+      <p class="kbd-hint hand">Keys: ← → to step · link to a step with <code>#{id}/step-3</code></p>
+      <p class="sr" id={id + '-live'} aria-live="polite"></p>
+    </div>
+  </div>
+  <figcaption id={id + '-cap'}>{no && <span class="fig-no hand">{no}</span>}{caption}<slot name="caption" /></figcaption>
+</figure>
+
+<script>
+  document.querySelectorAll<HTMLElement>('figure.stepper-fig').forEach((fig) => {
+    const TOTAL = Number(fig.dataset.total);
+    const groups = fig.querySelectorAll<SVGGElement>('.lag .step');
+    const items = fig.querySelectorAll<HTMLLIElement>('.steps li');
+    const prev = fig.querySelector<HTMLButtonElement>('[data-prev]')!;
+    const next = fig.querySelector<HTMLButtonElement>('[data-next]')!;
+    const counter = fig.querySelector('.counter')!;
+    const live = fig.querySelector('[aria-live]')!;
+    let cur = 1;
+    function show(n: number, announce: boolean) {
+      cur = Math.max(1, Math.min(TOTAL, n));
+      groups.forEach((g) => {
+        const s = Number(g.dataset.step);
+        g.classList.toggle('now', s === cur); g.classList.toggle('past', s < cur); g.classList.toggle('future', s > cur);
+      });
+      items.forEach((li) => {
+        const s = Number(li.dataset.step);
+        li.classList.toggle('now', s === cur); li.classList.toggle('future', s > cur);
+        if (s === cur) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+      });
+      prev.disabled = cur === 1; next.disabled = cur === TOTAL;
+      counter.textContent = cur + ' / ' + TOTAL;
+      if (announce) live.textContent = 'Step ' + cur + ' of ' + TOTAL + '. ' + (items[cur - 1].lastElementChild?.textContent ?? '').trim();
+      if (announce && narrow.matches) keepInView();
+    }
+    // Phones: the step bar sticks to the bottom of the screen; scroll just enough that the part of the drawing
+    // that changed sits between the top bar and the step bar, so the arrow and its sentence are on one screen.
+    const narrow = matchMedia('(max-width: 860px)');
+    const panel = fig.querySelector<HTMLElement>('.steps-panel')!;
+    function keepInView() {
+      const rects = Array.from(fig.querySelectorAll<SVGGElement>('.lag .step.now'))
+        .map((g) => g.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+      if (!rects.length) return;
+      const top = Math.min(...rects.map((r) => r.top)), bottom = Math.max(...rects.map((r) => r.bottom));
+      const barH = (document.querySelector('.bar') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 0;
+      const limit = Math.min(panel.getBoundingClientRect().top, innerHeight - panel.offsetHeight) - 12;
+      let dy = 0;
+      if (bottom > limit) dy = bottom - limit;
+      if (top - dy < barH + 12) dy = top - barH - 12;
+      if (Math.abs(dy) > 4) scrollBy({ top: dy, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+    prev.addEventListener('click', () => show(cur - 1, true));
+    next.addEventListener('click', () => show(cur + 1, true));
+    items.forEach((li) => li.addEventListener('click', () => show(Number(li.dataset.step), true)));
+    fig.querySelector('.lag-wrap')!.addEventListener('keydown', (e) => {
+      const k = (e as KeyboardEvent).key;
+      if (k === 'ArrowRight' || k === 'ArrowDown') { show(cur + 1, true); e.preventDefault(); }
+      else if (k === 'ArrowLeft' || k === 'ArrowUp') { show(cur - 1, true); e.preventDefault(); }
+      else if (k === 'Home') { show(1, true); e.preventDefault(); }
+      else if (k === 'End') { show(TOTAL, true); e.preventDefault(); }
+    });
+    const re = new RegExp('^#' + fig.id.replace(/[-]/g, '\\-') + '/step-(\\d+)$');
+    function fromHash() {
+      const m = re.exec(decodeURIComponent(location.hash));
+      if (m) { show(Number(m[1]), false); fig.scrollIntoView(); }
+    }
+    window.addEventListener('hashchange', fromHash);
+    show(1, false); fromHash();
+  });
+</script>

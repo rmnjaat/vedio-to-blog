@@ -1,0 +1,73 @@
+---
+// A Remotion clip in the page: predict prompt, poster + Play, notebook controls, chapter chips, caption,
+// and the clip written out as text (open by default when the reader prefers reduced motion).
+// Usage (MDX):  <AnimationClip clip="demo-replica-pull" no="Clip 2.4·1" lead="Before you play it: …" k="L-0107">Caption text.</AnimationClip>
+import fs from 'node:fs';
+import path from 'node:path';
+import ClipPlayer from './ClipPlayer';
+import { loadMeta } from '../animations/registry';
+
+//
+// A clip that is storyboarded but not built yet: omit `clip`, pass `id`, `duration` ("0:24"), `chapters`
+// ([{t:'0:06', label:'…'}]) and put the static poster figure in the default slot; the caption goes in `caption`.
+interface Props {
+  clip?: string; no?: string; lead?: string; k?: string; caption?: string;
+  id?: string; duration?: string; chapters?: { t: string; label: string }[];
+}
+const { clip, no, lead, k, caption, id, duration, chapters = [] } = Astro.props;
+const meta = clip ? await loadMeta(clip) : null;
+const fmt = (fr: number) => { const s = Math.round(fr / (meta?.fps ?? 30)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+// pre-rendered posters (scripts/clip-posters.mjs): public/clips/<id>/poster-{paper,blackboard}[-phone].png.
+// They go into the static HTML, so the poster shows before the island hydrates and without JS.
+const posters: Record<string, string> = {};
+if (clip) for (const t of ['paper', 'blackboard', 'paper-phone', 'blackboard-phone']) {
+  const rel = `clips/${clip}/poster-${t}.png`;
+  if (fs.existsSync(path.join(process.cwd(), 'public', rel))) posters[t] = '/' + rel;
+}
+const pid = id ?? 'clip-pending';
+---
+{lead && <p class="clip-lead">{lead}</p>}
+{!meta && (
+  <figure class="wide clip pending" id={pid} aria-labelledby={pid + '-cap'} data-k={k}>
+    <div class="clip-box">
+      <div class="stage sheet"><slot /></div>
+      <button class="play" type="button" aria-describedby={pid + '-cap'}>
+        <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 8.6 L19.6 14 L11 19.4 Z" fill="currentColor"/></svg>
+        <span class="lbl">Play clip</span> <span class="dur">{duration}</span>
+      </button>
+    </div>
+    {chapters.length > 0 && (
+      <ol class="chips" aria-label="Chapters">
+        {chapters.map((c) => <li><button type="button" data-t={c.t}><span class="t">{c.t}</span>{c.label}</button></li>)}
+      </ol>
+    )}
+    <p class="clip-status hand" role="status"></p>
+    <figcaption id={pid + '-cap'}>{no && <span class="fig-no hand">{no}</span>}{caption}</figcaption>
+  </figure>
+)}
+{meta && (<>
+<figure class="wide clip" id={meta.id + '-fig'} aria-labelledby={meta.id + '-cap'} data-k={k}>
+  <ClipPlayer client:visible clip={clip} meta={meta} posters={posters} />
+  {meta.chapters.length > 0 && (
+    <ol class="chips" aria-label="Chapters">
+      {meta.chapters.map((c) => (
+        <li><button type="button" data-frame={c.frame} data-label={c.label}><span class="t">{fmt(c.frame)}</span>{c.label}</button></li>
+      ))}
+    </ol>
+  )}
+  <figcaption id={meta.id + '-cap'}>{no && <span class="fig-no hand">{no}</span>}{caption}<slot /></figcaption>
+  <details class="clip-text">
+    <summary class="hand">The clip as text <span class="dur">{fmt(meta.durationInFrames)}</span></summary>
+    <ol>{meta.captions.map((c) => <li data-step={c.step}>{c.text}</li>)}</ol>
+    <p class="clip-alt">{meta.alt}</p>
+  </details>
+</figure>
+</>)}
+<script>
+  // storyboarded-but-not-built clips: say so instead of failing silently
+  document.querySelectorAll<HTMLElement>('figure.clip.pending').forEach((fig) => {
+    const status = fig.querySelector('.clip-status')!;
+    fig.querySelector('.play')?.addEventListener('click', () => { status.textContent = 'This clip is storyboarded; the player mounts here once it is built. The poster is its last frame.'; });
+    fig.querySelectorAll<HTMLButtonElement>('.chips button').forEach((b) => b.addEventListener('click', () => { status.textContent = `Would seek the clip to ${b.dataset.t}.`; }));
+  });
+</script>

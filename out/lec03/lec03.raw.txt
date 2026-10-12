@@ -1,0 +1,2540 @@
+[00:00:02] The third day second, it's all about distributed ID generators.
+[00:00:07] Like this is one of the most misunderstood topic out there.
+[00:00:14] Like, Hey, auto increment works giving ID wise this such a big problem.
+[00:00:20] Most people don't really face, don't really face this unless they hit the scale.
+[00:00:26] But nowadays, because of the mass internet penetration that we have, most companies hit that scale sooner than they think.
+[00:00:36] So which is where distributed ID generators really come into the picture.
+[00:00:40] That's why.
+[00:00:41] So that's one reason why you should know them in depth.
+[00:00:45] Second is there's some beauty of computer science going behind the scenes.
+[00:00:49] You just fall in love on how amazing engineers are in the device solutions like this.
+[00:00:56] is surely going to blow your mind.
+[00:00:59] Third, when we understand ID generation,
+[00:01:04] we see some really interesting side effects of that,
+[00:01:08] which most people didn't even think about.
+[00:01:11] So we'll touch upon all of that today.
+[00:01:13] And what I'll do in first one,
+[00:01:16] I'll take you through the journey on basics of ID generation.
+[00:01:21] And through that, we build or we formulate some really
+[00:01:27] foundational things that we should know about.
+[00:01:29] And then we take a look at how Amazon does it.
+[00:01:33] Oh, sorry.
+[00:01:34] How Amazon does it.
+[00:01:36] How Flickr does it.
+[00:01:38] How Twitter does it.
+[00:01:39] How Instagram does it.
+[00:01:41] Right.
+[00:01:41] And implement every single thing.
+[00:01:45] Right.
+[00:01:45] Without, and trust me, there are people from past courts.
+[00:01:48] Once they implemented, they got much deeper understanding.
+[00:01:50] Theoretically, it's all okay.
+[00:01:52] But implement every single one of these.
+[00:01:56] to get the deep understanding, why that works,
+[00:01:59] because there are such beautiful things out there.
+[00:02:03] I want all of you to experience that same joy,
+[00:02:07] which obviously early engineers, that is very different,
+[00:02:10] but at least you get that kick of you knowing those things really in depth.
+[00:02:15] Okay. So we'll do that.
+[00:02:17] So we start from really simple
+[00:02:19] and we touch upon some really interesting concepts.
+[00:02:22] While doing this, I'll show you a very interesting demo, not really a demo, but some really interesting side effects on that.
+[00:02:31] Okay.
+[00:02:31] So let's start with this.
+[00:02:34] So ID generation, first of all, IDs, IDs, we all just use so often, like identity of something.
+[00:02:42] We use ID word very often.
+[00:02:44] So it's more about, if I may want to put it in just one line, it is more about giving
+[00:02:49] uniqueness to a particular row, document, object, event, whatnot.
+[00:02:54] Anything that would help you uniquely identify something that is its ID.
+[00:02:59] So what our problem statement is that assign a globally unique ID to anything.
+[00:03:07] So whoever asked for an ID, we assign it to them.
+[00:03:10] Now here what we do is we write a function that spits out something unique every time
+[00:03:17] it is invoked.
+[00:03:19] So that's what we have to do.
+[00:03:22] As simple as when someone wants it, we invoke a function that function should spit out something
+[00:03:27] unique every time.
+[00:03:28] Now here, the function we are writing is not a central service.
+[00:03:34] Don't directly jump into that.
+[00:03:35] It's a function which is part of your business logic and not a central service.
+[00:03:42] A lot of people are directly, the ID generation,
+[00:03:45] I'll start writing a new service.
+[00:03:46] Don't think of that.
+[00:03:47] What we are right now being constrained by,
+[00:03:50] because this is where the foundation,
+[00:03:52] like this is what matters when you are building a foundation,
+[00:03:55] is we are just writing a function whose job is to spit out something new
+[00:04:00] every time it is simple.
+[00:04:02] As simple as that.
+[00:04:04] I'll take you through that evolution.
+[00:04:05] so that you understand it really well.
+[00:04:08] So it is part of our application logic and not a central ID generation service.
+[00:04:13] So when I get a request, I myself am generating an ID by invoking a function
+[00:04:18] called locally function call.
+[00:04:20] I get that idea and I use it.
+[00:04:21] That's what we are doing at the moment.
+[00:04:23] Then we'll build a central ID generation service kind of thing, whatever it's
+[00:04:27] at, right?
+[00:04:28] Okay.
+[00:04:28] So here the first hint that we get is because we want to write a function that
+[00:04:35] unique every time it is invoked. We know time is unique. We know time always moves forward.
+[00:04:42] So why can't our ID generation function just return my current epoch millisecond?
+[00:04:49] And that could be the, that could be the simplest starting point that we can think about.
+[00:04:54] That because we want to generate ID every time, generate something unique every time a function
+[00:05:00] is invoked. We know time always moves forward. So let's just, whenever someone asks for an id,
+[00:05:06] let me just generate an epoch millisecond, which is the current timestamp in millisecond.
+[00:05:12] That should work fine, but obviously something would break because if it was the case, then
+[00:05:18] everyone would be using this. So here we are taking epoch millisecond, which means we are
+[00:05:26] okay with the millisecond level granularity, which means this function cannot be invoked
+[00:05:30] twice within the same millisecond.
+[00:05:32] Otherwise you have to go to microsecond and nanosecond level.
+[00:05:36] So now what we do is that's okay.
+[00:05:39] Let's start with that.
+[00:05:40] With that constraint, it's fine.
+[00:05:42] So what if there are multiple machines?
+[00:05:45] Our function for ID generation was as simple as generating epoch millisecond and just
+[00:05:50] returning it.
+[00:05:52] What if there are multiple machines?
+[00:05:56] assume that a single machine, it is not possible for our use case to invoke the same function
+[00:06:01] twice within the same millisecond.
+[00:06:02] It is very much possible.
+[00:06:04] I will have multiple machines in which that same method is getting executed within the
+[00:06:09] same millisecond.
+[00:06:11] So when that happens, what would happen?
+[00:06:14] Collision.
+[00:06:14] Because both the machine at that very same time, let's say 1729 is the epoch millisecond
+[00:06:20] and just using a smaller number over here.
+[00:06:22] but imagine it's an epoch millisecond.
+[00:06:26] When this function is getting invoked at the very same millisecond
+[00:06:30] on those two machines, what would happen?
+[00:06:33] There would be a collision.
+[00:06:34] Both would generate the same ID
+[00:06:36] because what we were just returning was 1729,
+[00:06:39] the current epoch millisecond,
+[00:06:40] which means it is not globally unique.
+[00:06:42] So when you have multiple machines,
+[00:06:44] one thing that you can do in order to resolve this collision
+[00:06:47] is to concatenate machine ID and APOC-MEDISECOND.
+[00:06:53] So which machine generated which ID?
+[00:06:56] That becomes your ID.
+[00:06:58] So this is the function that would be executed
+[00:07:00] on both the machines now.
+[00:07:01] So when a request comes to a particular machine,
+[00:07:04] it invokes this function and the ID generates.
+[00:07:07] It's not just 1729, but M1-1729.
+[00:07:11] And I'm just using some nomenclature.
+[00:07:13] You can change it however you want.
+[00:07:14] But the ID are even same.
+[00:07:17] 1729 and M2-1729.
+[00:07:20] So here what is happening is we resolve the collision.
+[00:07:22] Now we see globally unique IDs.
+[00:07:25] This is M1-1729.
+[00:07:27] This is M2-1729.
+[00:07:29] So that is a very common strategy.
+[00:07:32] Whenever you see a collision, you try to add something that led to that collision in order
+[00:07:39] to resolve the collision.
+[00:07:40] It's a very standard practice.
+[00:07:42] So here we saw IDs are basic or primitive ID generation logic colliding.
+[00:07:47] it collided because we had two different machines executing at the same time.
+[00:07:51] So in order to resolve the collision or to handle this conflict,
+[00:07:55] we added machine ID because machine ID led to that. So our ID generation logic now
+[00:08:02] changes to machine ID and get epoch millisecond concatenation. Okay, this works fine. But what if
+[00:08:09] our program has threads? If our program has threads, which means that within that same machine,
+[00:08:17] be executed, the same function can be executed multiple times within the same millisecond.
+[00:08:24] Which means if I have two threads, let's say t1, t2 and m1 and t1 and t3.
+[00:08:30] These are typically integer thread IDs, which operating system assigns to the thread.
+[00:08:34] I'm just using t1, t2, m1, m2 to simplify the explanation.
+[00:08:39] So here what would happen is it is very much possible.
+[00:08:43] it is very much possible that your program has multiple threads running on multiple codes
+[00:08:47] which would invoke this exact same function within the same millisecond.
+[00:08:51] So now there is again a chance of collision because two threads executing at the same time
+[00:08:56] within the same machine would spit out that exact same id m1-1729.
+[00:09:01] We don't want that.
+[00:09:02] So what do we do?
+[00:09:03] We have two approaches.
+[00:09:04] First approach is like how we added a collision resolution thing
+[00:09:10] by attaching or by concatenating machine ID.
+[00:09:14] We do something similar by attaching thread ID.
+[00:09:17] So what we do is we write our ID generation logic.
+[00:09:21] That looks something like this.
+[00:09:23] Concatenate machine ID, thread ID and get up of milliseconds.
+[00:09:26] So when my ID generation function is now invoked,
+[00:09:31] it returns m1-t1-1729, m1-t2-1729.
+[00:09:37] There might be other thread IDs on m2, which is p1 and t3.
+[00:09:41] So m2-t1-1729 and m2-t3-1-1729.
+[00:09:46] So these are the actual IDs that will be used for those rows and columns and whatnot.
+[00:09:52] That is one way to do it.
+[00:09:54] Other way to do it is by adding a counter that resets every few minutes.
+[00:10:01] It's a very common practice.
+[00:10:03] So instead of you always adding a thing that in order to resolve the conflict, you always
+[00:10:11] adding the thing that led to conflict leads to gigantic, that which leads to basically
+[00:10:17] gigantic IDs.
+[00:10:18] What you can instead do, you can go for a static counter.
+[00:10:22] So what is a static counter?
+[00:10:24] share a ramp, static counter is globally allocated variable on heap.
+[00:10:30] Everyone can access that.
+[00:10:31] So both the threads can access that.
+[00:10:33] So what you can do is you can atomically increment that counter every time the function is invoked
+[00:10:39] and that becomes a resolution logic.
+[00:10:42] So and here what we do is we globally allocate a counter variable, getid function in all
+[00:10:51] is concatenation of machine id, timestamp and a static counter. This static counter becomes plus
+[00:10:59] plus every single time the function is invoked something like this and assume this is an atomic
+[00:11:04] increment. I did not write at locks, works, mutex and all but assume this is an atomic increment
+[00:11:08] like the increment is thread safe atomic increments. So what we get is every time the function is
+[00:11:15] in both my counter will become plus plus plus plus plus plus plus plus so which means i would
+[00:11:21] never see collision within the same machine because it's atomic increment so no matter
+[00:11:26] how many threads i have increment will always be atomic and it would be fine so no matter which
+[00:11:33] thread handles it my id would look something like this m1 hyper 1729 hyphen 01 m1 hyphen 172902
+[00:11:41] M1 172903 as my millisecond moves forward it become M1 happen 1730-03-04 and so on and so forth.
+[00:11:50] Every few minutes you can reset the counter or every few seconds you can reset the counter.
+[00:11:56] That's your business logic. But the idea is you would still have something you need because now
+[00:12:00] with every millisecond this is anyway moving forward you can choose to reset this at any
+[00:12:06] point in time. That's fine. So long as you don't exit the integer limit.
+[00:12:09] But you see how we now got two different ways to resolve collisions when it comes to your
+[00:12:18] program having multiple threads. One is by appending thread id and second is by using a static count.
+[00:12:24] So static count no matter how many threads you have it would automatically
+[00:12:27] atomically increment that's what this assumes. But if you look carefully here, given that
+[00:12:37] the counter is atomically increasing, time is redundant. Time plays no role because every time
+[00:12:50] your function is getting invoked, you are always doing count plus plus atomically. So no matter
+[00:12:57] have because the increment is atomic it would always be 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 and
+[00:13:05] so on and so forth.
+[00:13:06] So time is really not playing any part.
+[00:13:11] So can we remove that?
+[00:13:13] For sure can.
+[00:13:14] Because now what would happen is our IDs would become shorter.
+[00:13:18] So our another ID generation logic might look something like this.
+[00:13:22] We have a global counter variable.
+[00:13:25] getid function does a concatenation of machine id and counter that's it so whenever the request
+[00:13:31] goes to a particular machine it is handled by one of the threads and because the count plus plus
+[00:13:36] is atomic like we will make it atomic you don't like it's not by default atomic you wrap it in
+[00:13:41] logs and whatnot or do an atom or use a native atomic library to do that but the idea is assume
+[00:13:48] an atomic increment of countless of the variable cow and you get IDs like m101, m102, m103
+[00:13:55] and so on and so forth.
+[00:13:56] This kind of solves the problem, but what it has a limitation of that when it hits the
+[00:14:03] integer limit, that's a 4 billion or if it's 2 raised to 64, that's a massive number.
+[00:14:10] You might never hit that particular limit, but still it is ending up.
+[00:14:13] You would still write a good ID generation because of this.
+[00:14:18] wanted, you get it.
+[00:14:21] Machine ID concatenated with a static counter, which is atomically increment.
+[00:14:24] This solves the problem.
+[00:14:26] But okay, what next?
+[00:14:29] This is good.
+[00:14:30] So we saw multiple ways of or multiple common ways to build this ID generation or to implement
+[00:14:38] this ID generation.
+[00:14:39] Now what's next?
+[00:14:40] Now here we look at one very interesting factor, which is this static counter.
+[00:14:48] Int counter, this is a globally allocated variable.
+[00:14:51] Now what is happening is you have a static counter.
+[00:14:54] This is what your logic is, id generation logic.
+[00:14:57] The problem with this is what if your machine reboots?
+[00:15:04] As soon as your machine reboots, what would happen?
+[00:15:08] This counter would again be reset to zero because that's what would happen.
+[00:15:13] There is no layer of persistence at all over here.
+[00:15:18] thing. So when my process reboots or when my machine reboots, my counter will again start
+[00:15:24] from zero and when the request comes in, it would again start generating m101, m102, m103, m104,
+[00:15:30] which means that my ID generation logic is not unique because when my machine reboots,
+[00:15:37] it starts regenerating the IDs that it did after the previous reboot. So how do you solve it?
+[00:15:44] The root cause of this problem is that the place at which we are storing the counter
+[00:15:53] is actually a volatile memory.
+[00:15:55] So how do you solve it?
+[00:15:57] Very great answer.
+[00:15:59] Alok?
+[00:16:01] Back it up with the file locally.
+[00:16:03] Okay.
+[00:16:04] You write it to the file locally, right?
+[00:16:06] Because volatility is the problem.
+[00:16:08] So you start writing it to the file.
+[00:16:09] So it looks something like this.
+[00:16:10] So what we are doing over here is we store the counter to the disk every time.
+[00:16:16] And when my process starts, I load it from the disk, which means my code would look something
+[00:16:22] like this.
+[00:16:23] So here what we have is our counter is equal to a load function.
+[00:16:28] We basically assume that it loads from the disk.
+[00:16:31] My getid function 5 first to count plus plus.
+[00:16:34] I save the counter to the disk.
+[00:16:36] I concatenate with machine ID and counter.
+[00:16:40] it is we started storing the counter on the disk and not in some volatile memory.
+[00:16:48] So here, whenever my program starts, I first load the counter like this.
+[00:16:53] Whenever a function is invoked, I do count++ and immediately save the counter to the disk.
+[00:16:58] Maybe in a text file, I'm just dumping the counter every time, opening the file, writing
+[00:17:01] it there.
+[00:17:03] And my business project remains the same.
+[00:17:06] But here there is a problem that in here, what we are doing is when my function or when
+[00:17:13] my machine reboots, when my process reboots, I'm doing a disk IO, which is fairly okay.
+[00:17:17] One time at startup of my process or boot up of a machine, it's fine.
+[00:17:22] But every time that my ID function is getting invoked, I am doing a disk IO.
+[00:17:29] That would put, first of all, that would put a lot of pressure on the disk, 100% because
+[00:17:36] if it is getting invoked at a very high pace,
+[00:17:38] it would lead to so many disk IOS,
+[00:17:40] micro disk IOS happening on the disk.
+[00:17:43] Problem number one.
+[00:17:44] Problem number two is it might reduce the latency
+[00:17:49] that you are looking at
+[00:17:50] because you are doing disk IOS every time
+[00:17:52] or you were just serving it from memory.
+[00:17:54] So how do you solve this?
+[00:17:57] We are making massive micro disk IOS.
+[00:17:59] How do you mitigate this problem?
+[00:18:02] Jay?
+[00:18:05] How about adding another counter to the ID and you basically pick this counter up every
+[00:18:13] time you start up the server and then immediately increment it and write it back to a file.
+[00:18:21] So you'll pick up a unique one.
+[00:18:23] But how is the solving problem of frequent disk iOS?
+[00:18:26] You do it once at server startup only and then use that counter as part of SPS.
+[00:18:33] a third part of this.
+[00:18:35] You did that already. You loaded it from
+[00:18:37] the disk. But now whenever you are
+[00:18:39] generating this ID, every time you
+[00:18:41] are storing it on the disk. Correct?
+[00:18:44] This is...
+[00:18:44] I mean a third part in the
+[00:18:47] ID. Apart from this counter
+[00:18:49] we are already using.
+[00:18:51] No, but this is... But you are still
+[00:18:53] doing save counter every time, right?
+[00:18:55] No, just once
+[00:18:57] on server startup.
+[00:18:59] So each server startup
+[00:19:01] is represented by
+[00:19:03] a new counter.
+[00:19:06] How will this solve your problem?
+[00:19:08] Oh, okay.
+[00:19:10] So every time a server starts, that's a new counter
+[00:19:12] and then let your static counter start from zero.
+[00:19:15] Yeah.
+[00:19:16] Let your static counter start from zero and then booting up.
+[00:19:19] Okay, okay.
+[00:19:19] That's a good one.
+[00:19:20] That's a good one.
+[00:19:21] That's a good one.
+[00:19:22] But still, so then you will not be storing this at all.
+[00:19:25] You will be storing.
+[00:19:27] You will auto.
+[00:19:28] So basically you are not changing over here.
+[00:19:30] You are changing over here.
+[00:19:31] So you are not storing anything over here.
+[00:19:33] Yeah, no, that wouldn't be needed.
+[00:19:37] But then what's the downside of this?
+[00:19:44] When you increment ad server startup, that will have to be atomic.
+[00:19:51] That's right.
+[00:19:51] That can be made atomic.
+[00:19:55] A longer ID, longer than we have built here.
+[00:19:59] Correct.
+[00:20:00] Longer ID.
+[00:20:01] Right.
+[00:20:03] We'll talk about disadvantages of having long ID, but your approach is really good.
+[00:20:08] That approach is really good.
+[00:20:09] But that long ID might become a problem.
+[00:20:12] Not as big, but your approach is really nice.
+[00:20:14] I loved it.
+[00:20:15] I loved your approach.
+[00:20:17] Thanks.
+[00:20:20] I was just thinking of that case, but that would also not be that brilliant approach.
+[00:20:24] I liked it.
+[00:20:25] Every time, because you are now actually tackling this problem head on that instead of saving
+[00:20:29] it every time you are just starting a third part you're adding a third part to this really very
+[00:20:37] interesting very interesting and this is something i will definitely be adding to this going forward
+[00:20:42] thanks thanks thanks thanks for that okay uh uh harsh what else can we do to minimize this
+[00:20:51] i think it is something similar that i was thinking maybe we can have some bank of ids
+[00:20:57] For example, first time I read it is one just add 1000 to it and store it.
+[00:21:03] So once I reach 2000, then again read it and increase it by 1000.
+[00:21:08] So there are 1000 iterations we can do it in memory.
+[00:21:13] Got it. So what are effectively doing is you are minimizing the number of times you have to write to the disk by writing in a periodic manner.
+[00:21:23] Instead of writing it every time you are writing it at a certain frequency.
+[00:21:28] Right?
+[00:21:29] This way you are slashing down the number of disk IOs that you have to do.
+[00:21:33] Right?
+[00:21:34] Okay.
+[00:21:34] Let me walk you through on what, and I'll tell you why I'm a little bit stressing on
+[00:21:40] this approach because this comes in handy at two different places, but I still love the
+[00:21:44] first approach where every time the machine starts, you start with a third thing.
+[00:21:48] That's a really good one.
+[00:21:50] Really good.
+[00:21:51] Okay.
+[00:21:51] Okay. So what we do is instead of, we, let's say, we, let's say define a flush frequency.
+[00:21:59] Now this flush frequency would be something like this, that instead of writing, instead
+[00:22:03] of saving counter every single time, what we do is we define a flush frequency.
+[00:22:08] Let's say every thousand times, every thousand times we write, like after generating every
+[00:22:13] thousand IDs, I'll write it to the disk.
+[00:22:16] I'll write my counter to the disk.
+[00:22:17] So we are literally slashing on disk IO by a factor of 1000, which is a massive performance.
+[00:22:22] But what we just have to take care of that instead of just loading from the last point,
+[00:22:27] I have to just add the plus frequency over here so that we don't get any collision at
+[00:22:32] up.
+[00:22:32] So our logic now becomes counter equal to load plus the plus frequency.
+[00:22:36] Let's say every 1000 IDs we are writing do count plus plus counter mod equal to 1000
+[00:22:41] equal to zero.
+[00:22:42] Then you do write on the disk.
+[00:22:43] So we are not doing every time we are writing to the disk, but every thousandth time we
+[00:22:49] are writing to the disk.
+[00:22:51] Now this way, now just to give you how this would look like, just to explain how this
+[00:22:55] looks like.
+[00:22:56] Let's say hypothetically, my flush frequency is 3.
+[00:23:00] So every third value I flush to the disk.
+[00:23:04] What?
+[00:23:05] My counter.
+[00:23:07] So my machine ID is M1.
+[00:23:09] my counter is 1 2 it's our one 2 3 4 5 6 7 at night time so m1 happened when it created this
+[00:23:15] generated this generated this when it generated this your this invoke 3 mod 3 equal to 0 yes so
+[00:23:22] i save the counter so it flushes the counter to the disk so 0 3 got written on the disk then the
+[00:23:27] next iteration now rather next time the function call happened 4 5 6 6 8 also saw it wrote it to
+[00:23:35] the disk right then 7 8 and then the machine crashed when the machine crashed the last value
+[00:23:43] that was written was 6 the id that was generated was already 8 so now when my machine reboots
+[00:23:49] if I start from 6 if I see that hey 6 is written if I start from this place I would be generating
+[00:23:55] 7 8 again which is wrong because it was already used by something right so the safest value that
+[00:24:05] The last value that was flushed plus the flush frequency plus one.
+[00:24:11] So nine plus one, 10.
+[00:24:12] This is the safest value that you can start with.
+[00:24:14] So M1 happened 10, M1 happened 11, M1 happened 12.
+[00:24:17] Is what?
+[00:24:18] And then 12th day you do flush again.
+[00:24:21] This way, what happens is what you are trying to do is you are trying to ensure by adding
+[00:24:28] this small like by leaking or by not utilizing every single integer out there but might be because
+[00:24:36] here we never used 8 and 9 directly starting out 10 we lost those two values but that's so fine
+[00:24:42] that's okay right given that the correctness of the system matters more than you left you utilizing
+[00:24:49] every single integer out there right so always remember whenever you are trying to do something
+[00:24:56] with this, think of correctness.
+[00:24:57] Think of the safest value that you would want to start with.
+[00:25:00] So key takeaway from these is first not doing IO every time.
+[00:25:05] So you can add a periodicity factor.
+[00:25:07] Now don't think of a thread and timer and I'll do it.
+[00:25:10] Think of very simple approach as simple as a mod operation.
+[00:25:13] So n mod this, then you write it.
+[00:25:16] Right.
+[00:25:16] And second is whenever your machine recovers quote unquote, you start from the safest value.
+[00:25:23] This becomes the key design decisions or key design constraints when we are
+[00:25:28] deciding a distributed ID generator.
+[00:25:31] Okay.
+[00:25:32] Now, this is okay.
+[00:25:34] Now let's move to some other constraints.
+[00:25:37] Let's say instead of just having ID, if you look carefully, these IDs have no
+[00:25:42] particular order, like M1 can be literally anything.
+[00:25:44] I have hundreds of thousands of machines.
+[00:25:46] It like, there is no particular order in, in which we are, we are generating an ID.
+[00:25:50] What if I want to enforce a monotonically increasing constraint to my IDs?
+[00:25:59] So what we want is no matter how many machines I have in my infra, no matter how many machines
+[00:26:07] on which my IDs are getting generated, where the request goes, the IDs that should be generating,
+[00:26:12] it should be monotonically increasing, globally monotonically increasing IDs.
+[00:26:16] So even if I have 10 machines, the ID, like first request should always get ID, second
+[00:26:22] request should get ID 2, third request should get ID, let's say 5, next request should get
+[00:26:26] ID 6, no matter which machine it goes to.
+[00:26:29] Now let's say if we want monotonically increasing IDs, I will say first of all, why someone
+[00:26:35] would need this kind of monotonicity?
+[00:26:36] I'll give you a practical example for that.
+[00:26:39] Database.
+[00:26:40] in second week when we were building airline check-in system what we did is we saw importance
+[00:26:47] of locking and we always said hey we have two transactions transaction t1 and transaction t2
+[00:26:53] right then we said that hey transaction t1 ran this query and then transaction t2 ran this query
+[00:26:57] how did we know the transaction t1 came before transaction t2 one and two this one and two
+[00:27:07] because they are numbers, they tell you which one came first, which one came second.
+[00:27:12] It helps you in resolving conflicts.
+[00:27:15] For example, when T1 wrote something, T2 wrote something,
+[00:27:19] one of the conflict strategy would be the newer right overrides the older right.
+[00:27:25] Now this 1 and 2, it tells you that 2 is the newer right.
+[00:27:29] So you can actually accept during the conflict resolution strategy,
+[00:27:33] you can accept the right made by the newer transaction.
+[00:27:39] So monotonically increasing IDs play a very important role in doing conflict resolution,
+[00:27:44] which is where we need this.
+[00:27:46] And that is one of the places, one of the places, not all the places, but one of the
+[00:27:49] places.
+[00:27:50] So now what do we do is here in order for us to get monotonically increasing IDs.
+[00:27:56] Now, first of all, monotonically increasing IDs are, which increases monotonically does
+[00:28:02] not mean they are purely sequential like 1 2 3 4 5 6 is strictly monotonically increasing ids but
+[00:28:09] 1 2 5 7 8 9 32 33 34 that is monotonically increasing which means that my next id that
+[00:28:20] is generated is guaranteed to be greater than all the previous ids that are generated
+[00:28:25] That is monotonically increasing.
+[00:28:27] Now, if we were to have this as a feature in our thing,
+[00:28:34] what we can do is our logic that we wrote earlier,
+[00:28:38] where we concordinated machine ID and time,
+[00:28:42] we did machine ID and time.
+[00:28:44] So M1-1729.
+[00:28:46] Given that the time always moves forward,
+[00:28:51] it is always increasing.
+[00:28:53] what if we flip the order? What if we flip the order and have concatenation of time and then
+[00:29:02] machine ID? Given that the time always moves forward, if I do it at millisecond level, every
+[00:29:10] millisecond I would have a new value that I'm writing. It is always moving forward. These are
+[00:29:14] the most significant bits of my number. Machine ID can be literally anything. This way what I get
+[00:29:23] get monotonicity. It is not strict monotonicity, but it's pretty decent monotonicity that I'm
+[00:29:28] getting. Pretty decent. It's not strict. To some extent it would falter, but it's fine.
+[00:29:34] So what we are getting over here is something like this. This is what my ID would look like.
+[00:29:39] So this is my time. This is my machine ID. So 17290001, 17290002. These are machine IDs.
+[00:29:49] You can also change this to counters perfectly fine.
+[00:29:54] But the idea is putting time on the leftmost side gives you this natural order to IDs.
+[00:30:01] May not be very, may not be always monotonically increasing, but to a very good extent, it
+[00:30:08] is monotonically increasing.
+[00:30:10] And because it is possible that within the same millisecond, let's say these are machine
+[00:30:14] IDs, hypothetically, let's say these are machine IDs.
+[00:30:17] It is very much possible that the first request within the same millisecond went to machine
+[00:30:21] ID two and then the next request went to machine ID one.
+[00:30:24] So in that case, what you get is 17290002 first and then 17290001.
+[00:30:30] But within that millisecond, it would happen.
+[00:30:32] But as soon as millisecond passes by, you get almost monotonically increasing IDs across
+[00:30:41] your system.
+[00:30:42] Few things here and there is okay.
+[00:30:44] So you are not worrying about like here you see that it is still stateless.
+[00:30:50] Request and go to any machine because every machine is just doing the time concordinated
+[00:30:57] with machine ID.
+[00:30:58] Assume machine ID is integer and then it's just bits.
+[00:31:01] What you are getting is you are almost getting monotonicity.
+[00:31:05] Almost.
+[00:31:06] There might be incorrectness in the system.
+[00:31:07] That's fine without having to maintain a central state of things in order to get those things
+[00:31:14] increasing but getting pretty decent throughput pretty decent excellent throughput at very minimal
+[00:31:21] cost but here you see how we beautifully put time on the leftmost side of things to get almost
+[00:31:29] monotonically increasing ids because as your time moves forward the number would always be greater
+[00:31:35] because it is 17,290,001, 17,290,002, 17,300,001.
+[00:31:45] You see, this is always going to be increasing
+[00:31:49] because every millisecond, this is moving forward.
+[00:31:53] So this is a very key highlight
+[00:31:56] on why time is always on the leftmost side.
+[00:32:00] You would see a ton of ID generators.
+[00:32:05] time being on the leftmost side of your ID generation logic.
+[00:32:09] Pick any.
+[00:32:10] You would always see time sitting on the leftmost side.
+[00:32:13] This is the reason why.
+[00:32:14] Okay.
+[00:32:17] Now, although it's a good solution, but it still does not guarantee monotonicity.
+[00:32:21] One of the reasons that I will talk about was that, that it's not guaranteeing monotonicity,
+[00:32:27] but at least within millisecond, you have fair bit of monotonicity.
+[00:32:33] But there is another thing, another problem that would crop up is here.
+[00:32:38] What we talked about was the part where this, like the first request went to machine ID
+[00:32:44] 2 and then the next request went to machine ID 1.
+[00:32:46] So my IDs would be 1729002 and then the next ID would be 1729001.
+[00:32:51] So that is wrong.
+[00:32:52] But there is a problem even on the time side of things.
+[00:32:56] Right?
+[00:32:57] If even let go the part that it's okay that within a millisecond, I might have a little
+[00:33:02] bit of misordering, but at seconds or at time level, it should not be there.
+[00:33:08] So here what would happen is because our ID generation logic has time component and machine
+[00:33:15] ID component in that.
+[00:33:18] Here we up until now, we assume that the time across all of my machines is exactly synchronous,
+[00:33:27] but basically perfectly synchronized, which is not the case.
+[00:33:31] I'll tell you about it.
+[00:33:33] So clocks go here and there.
+[00:33:35] It's very common.
+[00:33:37] If you have worked in SRE team or DevOps team, you know you have a process that is running,
+[00:33:42] which is continuously syncing NTP clocks of your servers.
+[00:33:45] It's very common for your servers to go out of sync.
+[00:33:49] So what you do is you have a job running, job as in a normal process running, which
+[00:33:54] periodically syncs your machine clock to NTP servers.
+[00:33:59] So here what happens is, and first of all, why do clocks go out of sync?
+[00:34:05] That's a very fascinating thing.
+[00:34:06] So the clock that ticks on your machine is a hardware clock.
+[00:34:11] Although we see this digital time, it's actually a hardware clock.
+[00:34:15] There is a quartz crystal vibrating in your machine, in your laptop, on your server, in
+[00:34:21] your CPU.
+[00:34:22] It's vibrating.
+[00:34:24] measured and that tells you that hey one second has passed or one millisecond has passed because
+[00:34:28] it vibrates at a very particular frequency given that given that it's a physical movement that you
+[00:34:36] are measuring in order to see the time in order to measure the time what happens is that because
+[00:34:43] it's a physical movement we learned in physics that when you throw energy at a thing it vibrates
+[00:34:50] faster. So when you are having water, you provide it energy with fire, the water vibrates and it
+[00:34:59] starts boiling. And when you suck the energy out of it, you take the temperature down,
+[00:35:05] the water freezes, it stops moving, it becomes ice, it holds true for every single element in
+[00:35:13] the world. With quartz crystal, what happens is, if in most cases, when your machine, let's say
+[00:35:20] a very high intensity game which requires a lot of CPU power, your CPU heats up.
+[00:35:26] This energy affects the vibration of the quartz crystal.
+[00:35:31] Quartz crystal would start to vibrate faster and your clock would move faster.
+[00:35:36] If you are putting your machine in an extremely cold environment, the vibration of quartz
+[00:35:40] crystal would be slower, so your time would move slower.
+[00:35:44] physical phenomena affects the vibration of crystal which slows down or makes your clock
+[00:35:51] makes your computer clock go faster which is why there is a need of a periodic job that keeps the
+[00:35:57] clock in sync and it runs more frequently than you think it's really fascinating how physics and this
+[00:36:04] thing works together right you need to take care of these all sorts of phenomena when it comes to
+[00:36:09] this, there is a very famous article in case you have not read it, Jeff Dean and Sanjay
+[00:36:16] Ghimawat of Google, just Google friendship that made Google special.
+[00:36:21] Most of you would should know it in case you don't just search for this article friendship
+[00:36:26] that made Google special or something like this in which Sanjay Ghimawat and Jeff Dean
+[00:36:31] were facing a bug, which happened because a bit got flipped because of an explosion or
+[00:36:39] or also because of a solar storm that happened,
+[00:36:44] it flipped a bit in one of the data and they were scratching their heads
+[00:36:48] into understanding that why that even happened.
+[00:36:51] How did this bit got flipped automatically?
+[00:36:53] It was a natural phenomena that caused the bit to flip.
+[00:36:57] You cannot run away from nature.
+[00:36:58] Right?
+[00:36:59] So just Google the friendship that made Google special Jeff
+[00:37:03] Din and Sanjay Ghamawad brilliant folks.
+[00:37:05] Like I just love the papers that they wrote.
+[00:37:07] Jebdin and Sanjay Ghaavar.
+[00:37:09] Just read about them in case you are hearing the name for the first time.
+[00:37:13] So physical phenomena affecting this thing.
+[00:37:17] So even if we assume that our clocks will periodically
+[00:37:21] eventually be synced with NTP,
+[00:37:25] up until then, there is a chance that your clock is out of sync
+[00:37:29] when your ID is getting generated.
+[00:37:30] So hypothetically, let's say I have four machines.
+[00:37:33] machine id 2 machine id 4 machine id 7 machine id 9 and the time on those machines is 23 24 23 23
+[00:37:42] it's a pop many seconds i'm just using smaller numbers over here now here what would happen is
+[00:37:48] let's say my request first went to machine id 2 then it went to machine id 4 then it went to
+[00:37:52] machine id 7 and then it went to machine id 9 fine now when i fire get id function what we are doing
+[00:37:58] is we are concatenating machine like the time and the machine ID right so the ID that would
+[00:38:06] be generated on M2 would be 232 then the next ID would be generated would be 244 then 237 and then
+[00:38:18] 239 if you look carefully this is not monotonically increasing the first ID that was generated is 232
+[00:38:25] then 244 then suddenly it's 237 and then 239.
+[00:38:29] So you were expecting monotonicity, but you don't have it.
+[00:38:34] So this is a problem where you need monotonicity.
+[00:38:38] Even the clock skewness is what you need to take care of.
+[00:38:42] Somehow, we'll basically take a look at how people do it.
+[00:38:45] But this is actual thing that affects the,
+[00:38:50] in quote unquote, if that is the correctness of a system,
+[00:38:52] it affects the correctness of a system.
+[00:38:55] Okay, so now what we understand by this is ensuring monotonicity across distributed systems is almost impossible.
+[00:39:06] Almost impossible.
+[00:39:08] You might still see some strands here and there.
+[00:39:10] I did not find a theoretical proof of that, but you can very clearly see practically there are so many things that could break things that you cannot guarantee strict monotonicity in a distributed system.
+[00:39:20] where your ID generation logic is distributed.
+[00:39:26] So what do you do?
+[00:39:27] Let's say instead of putting it on independent machines,
+[00:39:32] let's have a central ID generation service.
+[00:39:35] Because there is one machine.
+[00:39:37] So whoever, basically idea is simple.
+[00:39:40] Whoever wants an ID, talks to this machine.
+[00:39:43] This machine generates an ID and sends it out.
+[00:39:45] Don't worry about throughput right now.
+[00:39:48] We'll talk about that.
+[00:39:50] client wants an ID, there is a central ID server.
+[00:39:53] The idea is that whoever wants the ID makes a network call, ID server generates an ID
+[00:39:59] and sends it back.
+[00:40:00] Whoever wants it makes a call, generates an ID, sends it back.
+[00:40:03] Now there is an ID generation service running over here because in a single machine,
+[00:40:08] clock skewness would not affect.
+[00:40:11] I will say why?
+[00:40:12] I'll tell you why.
+[00:40:13] Clock on a machine, assume that you are this machine, this particular machine, and you
+[00:40:20] moving faster. When you sync with the NDP server, you found out, hey, the current type
+[00:40:28] is not 24 but 23. So your clock does not change to 23. Your clock slows down the counting
+[00:40:37] and then it catches up and then it starts from 24. So instead of the time going back
+[00:40:43] on your machine, it just slows itself down and stretches that one second to become like
+[00:40:50] point three and then it receives.
+[00:40:52] So always remember the clock never goes back in time.
+[00:40:57] Never.
+[00:40:57] This means that on a single machine, you will never experience your clock moving back and
+[00:41:04] forth.
+[00:41:05] It can slow down or you can just pass it up.
+[00:41:07] So it would always move forward no matter what.
+[00:41:10] And that's such an important thing.
+[00:41:12] Now, which means that if you have your ID generation logic stick to one server, what
+[00:41:17] What would happen is that no matter where the request comes in, the clock on this machine
+[00:41:23] is always moving forward, it will always have monotonically increasing IDs.
+[00:41:27] That would work just fine.
+[00:41:29] Just fine.
+[00:41:30] But having this one machine is a single point of failure.
+[00:41:36] So now we need to solve it.
+[00:41:38] So you cannot have one machine, which means you need to have fault tolerance, you add
+[00:41:43] one more machine.
+[00:41:43] or adding a load balance so that anytime the request comes in,
+[00:41:47] it goes to either one of them.
+[00:41:48] Now, whenever whether this request goes over here or here,
+[00:41:52] it needs to connect to talk to other ID server
+[00:41:54] to see what was the last ID that it generated.
+[00:41:57] And then it would increase to plus plus of some buffer
+[00:42:00] and then it would generate a new ID.
+[00:42:02] So which means that these two servers need to constantly gossip
+[00:42:05] about the IDs that they generated
+[00:42:08] in order to generate a monotonically increasing ID
+[00:42:12] because they both have to agree upon that,
+[00:42:13] This is definitely larger than the other one that we ever generated problem.
+[00:42:19] So from a very simple ID generation logic, we made our things super complex and you can
+[00:42:27] very clearly see that this gossip, you will either lose on throughput when you're doing
+[00:42:34] this high throughput continuous gossip, it becomes very messy.
+[00:42:38] So atlas clock skewness problem is there.
+[00:42:40] So what we clearly see is that when you want strict monotonicity, there is no way, no way
+[00:42:48] for you to distribute.
+[00:42:52] So you cannot have an ID generation service which is distributed in nature, which also
+[00:42:57] guarantees strict monotonicity at high throughput.
+[00:43:01] Not possible.
+[00:43:03] Because you see, every time you think of something that is new problem or a new constant that
+[00:43:10] can't do this. You can't do it. Always, always that will happen. So there is no way, no way for
+[00:43:17] you to distribute this. So how do people go about it? That is where people relax up questions because
+[00:43:25] not everyone needs monotonicity. One question that might come to your head is, but my SQL server
+[00:43:32] has monotonic IDs, single machine. It's not distributed. It's single machine. The ID
+[00:43:40] logic is part of your database engine.
+[00:43:43] It's a single machine.
+[00:43:44] That's why you see ID 1, 2, 3, 4, 5, 6, so on and so forth.
+[00:43:48] If it would have been distributed, multi-master and whatnot,
+[00:43:51] you would never have it.
+[00:43:53] Try putting MySQL server in multi-master mode with an auto-increment ID.
+[00:43:57] See the number of conflicts you get because each one of them is its own brain.
+[00:44:02] Right?
+[00:44:02] So keep those things in mind that everything in computer science,
+[00:44:07] everything in software engineering is a trade-off.
+[00:44:10] you have to lose something.
+[00:44:12] You get something, you lose something.
+[00:44:14] Always.
+[00:44:15] And there are so many factors that we look at.
+[00:44:19] So in most cases,
+[00:44:20] whenever you are having a need of ID generation
+[00:44:24] or something similar,
+[00:44:26] always see that do you really need these constraints?
+[00:44:30] Do you really need what you have been asked for?
+[00:44:35] Try asking critical questions, challenging it.
+[00:44:38] that hey can we not relax these constants what if what if i don't care about integer rights
+[00:44:45] is that okay what if my ids are random like uuid or guids right what if my ids are not mono they
+[00:44:52] don't follow monotonicity is that okay because in most cases requirement says you need monotonicity
+[00:44:58] but after asking couple of critical questions that automatically it's in this because not everyone
+[00:45:02] thinks it through.
+[00:45:03] So asking these critical questions
+[00:45:05] is extremely important
+[00:45:07] whenever you are designed.
+[00:45:09] Okay.
+[00:45:11] One final thing before we take questions.
+[00:45:13] Why do we need ID generation?
+[00:45:15] Why?
+[00:45:16] Obviously, that should be the first thing
+[00:45:17] that we should answer.
+[00:45:18] But now that we have the context,
+[00:45:20] let me answer it for you.
+[00:45:22] You'd think that,
+[00:45:23] hey, MySQL is there now.
+[00:45:25] MySQL or any database,
+[00:45:27] it has ID,
+[00:45:28] MongoDB has ID.
+[00:45:29] Why are we,
+[00:45:32] and ID generation because imagine you are having a sharded database.
+[00:45:40] Multimaster mode.
+[00:45:42] Multimaster which means you have two master requests can go to anyone.
+[00:45:46] When requests can go to anyone, let's take an example of MySQL server itself.
+[00:45:52] So let's say I have a MySQL server, two MySQL servers.
+[00:45:56] Both are running in master mode which means write can go to anywhere.
+[00:46:02] a table you have an auto increment id you have an id column which is auto increment you have
+[00:46:08] either id column which is auto increment now if you do not have an id generation logic of your own
+[00:46:14] you would configure typically this auto incrementing now these two servers do not communicate or do not
+[00:46:20] talk to each other correct so when this request goes over here the auto increment id kicks in
+[00:46:26] when auto increment id kicks in it would start let's say you have a post there when you start
+[00:46:31] 4, here also 1, 2, 3, 4, because they don't know about each other.
+[00:46:38] Writes can go anywhere.
+[00:46:40] If you go for auto increment, this is where the problem would start to grip it.
+[00:46:45] So which is why now we understand why we need concatenate machine ID and this and that.
+[00:46:51] So that is a unique identification.
+[00:46:53] So now the ID is that you generate, you cannot just rely on database IDs, but you need to
+[00:46:58] have your own custom id logic where you cannot do this but just have something that would help you
+[00:47:04] uniquely identify those entries so whenever you have your databases operating in multi-master mode
+[00:47:11] you would typically see a custom id generation logic in place and that's where you need
+[00:47:18] distributed id generators we'll talk about very practical use cases of it in order to understand
+[00:47:23] how they are leveraged like all four examples will go in depth and understand okay any questions
+[00:47:28] We'll take till 10 and then we go on update.
+[00:47:31] Yeah, Aditi.
+[00:47:33] Yeah, so I was just wondering that the place where we opted for a shared service
+[00:47:39] to generate the IDs, instead of a shared service,
+[00:47:43] if we just have a common database and we take logs on it, would that work?
+[00:47:48] That's exactly shared service.
+[00:47:49] Your database is a shared service there, correct?
+[00:47:52] Yeah, but if we take logs on it, wouldn't it be unique then?
+[00:47:56] No, it will be unique, but that is still a single machine, right?
+[00:47:59] That is that database itself becomes a service, right?
+[00:48:02] Yeah.
+[00:48:03] Right.
+[00:48:04] Okay.
+[00:48:04] Okay.
+[00:48:04] Yeah.
+[00:48:05] That's the same thing.
+[00:48:06] That's one and the same thing.
+[00:48:07] Right.
+[00:48:08] Rajiv.
+[00:48:10] Orpid, the places where we want to resolve conflicts based on IDs now, since we tell
+[00:48:15] that, I mean, we are not sure whether the IDs on distributed system would be unique.
+[00:48:20] So how do we tackle that problem?
+[00:48:22] We'll talk about that.
+[00:48:23] there are still like we are still only uh basically 30 percent done and we'll talk about that right
+[00:48:29] how do we resolve what happens how should we approach that we'll talk about
+[00:48:36] yeah so when you were discussing the last point right about auto incrementing by
+[00:48:41] one two three four in both the servers so can't be like auto increment by like the number of
+[00:48:48] servers we have basically if you have two then zero two four and one will disparate like one three
+[00:48:53] five yeah we can do that but there is a slight disadvantage to that we'll discuss in the second
+[00:48:59] time i have it covered f5 right okay dk yeah so instead of static counter why can't we use a
+[00:49:11] random id generator here and append it to the uh we'll talk about it random but great great
+[00:49:16] that you folks are already thinking about this.
+[00:49:18] I am so loving this much.
+[00:49:20] You folks are continuously thinking,
+[00:49:21] but which is where the static counter would pick
+[00:49:23] because we wanted monotonicity.
+[00:49:25] That's why we went for that.
+[00:49:26] Random ID does not give you monotonicity.
+[00:49:28] That's why I said that if you need monotonicity,
+[00:49:31] like you may not always need monotonicity.
+[00:49:33] You may think you need monotonicity,
+[00:49:35] but in reality, you can relax those constraints
+[00:49:37] and say, hey, what if I don't have monotonicity?
+[00:49:40] Then you can go for a random ID like UUID.
+[00:49:44] Right, right.
+[00:49:45] So that is my second question.
+[00:49:46] Why can't you use a UUID instead of all this complexity?
+[00:49:50] We can, that's what I said.
+[00:49:51] Relax the constraint.
+[00:49:52] If it's okay for you to relax the constraint, then use UUID.
+[00:49:55] Don't rely on strict monotonicity because not everyone needs that.
+[00:49:58] Got it.
+[00:49:59] But in that case, I think we will not be able to, you know, give that ordering.
+[00:50:03] If you are using UUID.
+[00:50:04] Got it.
+[00:50:05] You get some, you lose some.
+[00:50:07] Got it.
+[00:50:07] Got it.
+[00:50:08] But we'll talk about UUID.
+[00:50:10] We'll talk about MongoDB IDs, UUIDs and whatnot.
+[00:50:13] We'll see where you can use it.
+[00:50:16] disadvantages of it, how monotonicity would help you all of that, like real practical
+[00:50:21] situations where ID generation, you really need need kind of thing.
+[00:50:25] We'll go in there after that.
+[00:50:27] I've got it.
+[00:50:28] Yeah.
+[00:50:29] So basically my question is about the central ID generation.
+[00:50:34] So what I was thinking is like a center server, which generates ID, you told us about the
+[00:50:40] distributed uh uh distributed uh thing also just a second
+[00:50:48] you also told us about the distributed id server also so what we can basically do is basically we
+[00:50:56] can have like a particular id uh like id for each server that we have like in the distributed system
+[00:51:02] in the id servers and just like they can have their own logic for like creating uh creating
+[00:51:11] and they append
+[00:51:12] they just append
+[00:51:16] their own
+[00:51:17] ID server
+[00:51:17] to that
+[00:51:21] logic which is generating
+[00:51:23] IDs.
+[00:51:25] But you are losing on monotonicity.
+[00:51:26] That's fine.
+[00:51:27] That's fine.
+[00:51:27] That's okay.
+[00:51:30] There is nothing wrong in it.
+[00:51:31] That's what I'm saying.
+[00:51:32] There is no one right way to do it.
+[00:51:34] For some, it works in one way.
+[00:51:36] For some, it works for other ways.
+[00:51:39] But your approach is also correct.
+[00:51:41] You get some, you lose some.
+[00:51:43] I'm just discussing on the core idea behind IT generation.
+[00:51:48] And now when we go into the specific examples, you'll see that, Hey, if you're.
+[00:51:53] Getting advantages on a certain part, you'd be losing on certain part, but at the end,
+[00:51:58] it's a trade off that you would have to make what you want and what you can give up.
+[00:52:02] By maximizing the throughput and performance and efficiency of your system.
+[00:52:08] Sure.
+[00:52:12] I wanted to propose one more solution for the part where we wanted to reduce the disk
+[00:52:18] IOS.
+[00:52:20] So, can we do something like when the server restarts, we read from the database, get the
+[00:52:25] last counter saved in the database, and then start incrementing ahead.
+[00:52:29] So we wouldn't need those periodical saves as well.
+[00:52:34] So then you are writing to database every time?
+[00:52:38] No, so we'll have some
+[00:52:40] last row which was
+[00:52:42] saved to database.
+[00:52:43] That's what I'm saying. This is not where we are using it and storing it in database.
+[00:52:47] No, no, no.
+[00:52:48] Not the IDs. Let's say
+[00:52:50] we are saving
+[00:52:52] messages to database. Now
+[00:52:54] that message ID, certain
+[00:52:56] row has a message ID which was last saved
+[00:52:58] to the database. That's exactly what this load
+[00:53:00] is actually doing. This load is
+[00:53:02] actually doing that itself. Writing it
+[00:53:04] to the database, one and the same thing.
+[00:53:08] You are starting from that particular point.
+[00:53:11] Correct.
+[00:53:12] But then how are you, but here you are assuming that you are writing this, this, whatever you're
+[00:53:18] doing using this get ID for, you are writing it back to database.
+[00:53:21] That row is getting inserted.
+[00:53:23] I'm not even assuming that.
+[00:53:25] Got it.
+[00:53:27] You are assuming that an entry is getting created in the database for every single thing.
+[00:53:32] And then you are picking the max row and then starting from that.
+[00:53:34] I'm not even assuming that you're using this, like in this approach, I'm not even assuming
+[00:53:38] that you are writing back to the database because that is anyway expensive.
+[00:53:42] Right.
+[00:53:42] I'm just focusing on this ID generation logic, but then what you're proposing max row ID.
+[00:53:49] And then you start from the, that's exactly what this load function is all about.
+[00:53:52] Here I'm tracking about loading from the disk, but with this, you're assuming that when you
+[00:53:57] get an ID, then you are doing something and then you're storing things into database.
+[00:54:01] And then that's an expensive call that you're making.
+[00:54:04] I'm not even assuming that you're
+[00:54:06] student back to the database.
+[00:54:07] You're just attaching something in this,
+[00:54:09] basically pushing it forward.
+[00:54:10] Let's say request ID kind of thing.
+[00:54:13] Right?
+[00:54:14] Yeah.
+[00:54:15] Okay.
+[00:54:16] Yeah.
+[00:54:17] Let's take a quick break for five minutes.
+[00:54:19] Once we come back, what we'll talk about is,
+[00:54:21] we'll talk about how Amazon does it using
+[00:54:24] central ID generation service and then other use cases.
+[00:54:26] I'll show you a very nice demo of why people
+[00:54:32] Why people go for a certain way and not the other way
+[00:54:35] and how to make those particular trade-off decisions.
+[00:54:39] So we'll take a quick break for five minutes.
+[00:54:41] We'll sing back at 10.
+[00:54:42] And we'll talk about Amazon, Flickr, Twitter, Instagram, and Pagination.
+[00:54:50] A very interesting side effect of having a good ID generation system.
+[00:54:54] We'll talk about it.
+[00:54:56] See you folks in five minutes.
+[00:58:50] Thank you.
+[00:59:55] Let's start with the
+[00:59:56] the second half so now what we'll talk about is we'll talk about how amazon does it uh fii i know
+[01:00:03] this because the team that did it sat right next to me so i used to attend a bunch of tech talks
+[01:00:08] there but uh i had a bunch of questions to them and kept on asking it clear how do folks do that
+[01:00:14] and they were kind enough to explain it in a in a public tech talk so okay so what amazon does
+[01:00:20] is for every order that you place is they assign a global ID to that order and that is unique.
+[01:00:29] Given the high throughputness of the system and plus not just this that they provide ID to a lot
+[01:00:36] of other internal services. One of them happens to be order which we all use on a day-to-day basis.
+[01:00:42] So that had to be unique. So what they had is they you leverage batching. Batching is one of the most
+[01:00:50] performance out of any system FII.
+[01:00:52] So what they do is they have something like this.
+[01:00:55] They have a bunch of API servers.
+[01:00:59] You can literally write this thing in 150 lines of code, not even exaggerated.
+[01:01:05] It's that simple to write.
+[01:01:07] Scaling you might just have to handle a few other cases here and there, but it's not difficult
+[01:01:12] for you to write this particular service.
+[01:01:14] Hardly 150 lines of code, not even kidding about anything else.
+[01:01:17] Python if you write 150 lines where you can write this entire surface.
+[01:01:21] So recommending you to write it FII.
+[01:01:25] Okay.
+[01:01:26] So APIs, they use a basic API server exposing your ID generation endpoints,
+[01:01:32] putting behind a load balancer classic thing and have a database.
+[01:01:35] Have a database.
+[01:01:35] Now this database is a classic relational database.
+[01:01:37] No fancy non-relational database.
+[01:01:39] I don't like to necessarily complicate things.
+[01:01:42] Normal relational database would work over here.
+[01:01:45] So what we do is similar to how we did not write to the disk every time we generated an ID,
+[01:01:55] we did it in batches.
+[01:01:56] Once every thousand ID generated things.
+[01:02:00] Similarly, we do things over here that instead of calling your remote service
+[01:02:06] every time you need an ID, you get a batch of IDs in one shot.
+[01:02:11] That's the core idea.
+[01:02:12] You would have seen a ton of videos, a few videos on YouTube about this, but let me go
+[01:02:17] into implementation details of it.
+[01:02:19] Given that we covered airline checking system, this becomes a piece of cake.
+[01:02:23] So now what would happen is, let's say I have two services, orders and payments.
+[01:02:30] When order service wants IDs.
+[01:02:33] So these are the servers that are running the order service.
+[01:02:38] These are servers that are running the payment service.
+[01:02:42] They don't care about monotonicity, FYI.
+[01:02:45] They don't care about monotonicity.
+[01:02:46] They need uniqueness as simple as that.
+[01:02:48] So now what you do is when order service wants an ID, any server of that makes a call to this
+[01:02:57] API, to this ID generation service and says, Hey, I just booted up.
+[01:03:02] Can you give me 500 IDs?
+[01:03:04] So it just requests for 500 IDs.
+[01:03:07] The request comes to this API server.
+[01:03:09] API server fires a SQL query on this team.
+[01:03:12] SQL query that, Hey, I need 500.
+[01:03:15] So it wrote 500 over here.
+[01:03:18] So 0 to 500.
+[01:03:19] So the range is sent to this server.
+[01:03:23] So 0 to 500 range.
+[01:03:25] You don't have to send individual IDs.
+[01:03:28] No start and end.
+[01:03:29] It's just integers, right?
+[01:03:31] So start and end, just send it at this range belongs to you.
+[01:03:35] And you update it in this database.
+[01:03:37] Now you can very quickly start thinking, Oh, exclusive.
+[01:03:42] You would do it for update like select start from this for update do it in a transaction so that it does not like multiple requests for a particular service does not affect.
+[01:03:52] All of that comes together.
+[01:03:53] So you would atomically update it in a transaction of the final value that is handed already handed over.
+[01:04:01] So let's say server one came up.
+[01:04:03] It said I don't have any ID to work with.
+[01:04:06] So I'll go to this and get 500 IDs.
+[01:04:09] to this server, updates this to 500 and responds back with this range, not independent IDs,
+[01:04:15] no needed. Why to send so much of data over network, just start and end, problem solved.
+[01:04:20] Then let's say server 2 came up and said, hey, give me another 500, I am new one, give me 500
+[01:04:26] more IDs. So it would make a call, call would go over here, it would go over here, it would say 500
+[01:04:32] plus plus, plus plus equal to 500, it get 1000. So it sends 500 to 1000 in response over here.
+[01:04:39] So now server two has this range.
+[01:04:41] Server one has range from zero to 500.
+[01:04:43] This is from 500 to 1000.
+[01:04:45] Now, order service, when they start getting the request from external world about orders,
+[01:04:51] when the request comes to this order services web server, they already have in memory this range.
+[01:04:58] Now, when they would want to generate, they would have their own databases, orders database or something.
+[01:05:02] They can start putting data into orders database, not really having to worry about anything.
+[01:05:07] The idea being that because they already have the range of IDs in memory, they can start
+[01:05:12] pulling that out.
+[01:05:13] And that becomes the globally unique IDs for that particular product.
+[01:05:18] And they can prefix it whatever they would want to do in case they follow those conventions.
+[01:05:23] But the idea is that this way, this central ID generation service just decouples the system.
+[01:05:28] Now you can have any number of service, order service can have any number of databases without
+[01:05:34] having any problem because ID generation service is separate and orders database separate so I can
+[01:05:39] shard order database and scale it horizontally without having any problem not needing and any
+[01:05:43] every one of those database can start accepting the rights this way what happens is that your
+[01:05:50] server does not have to make call every time to this ID generation service to get a set of IDs
+[01:05:54] I use 500 as a small example in reality it is 10 000 50 000 100 000 and depending on the throughput
+[01:06:00] of the service right okay disadvantage of this is in case your server got this range and then
+[01:06:08] its server crashed this range is gone so putting this range keeping this range too small means you
+[01:06:15] are making two frequent network calls to get the set of ids if it is too large and if your server
+[01:06:21] crashes you are losing that entire range so it's up to you your service your throughput in order
+[01:06:25] to fine tune how many service at max will you get it in a batch. It's up to you. You make that call,
+[01:06:32] you get it. Similarly, you had one entry for orders. Similarly, you would have one entry for
+[01:06:37] payment service. So when your payment service handles the request, it would not have to talk
+[01:06:41] to the central ID generation service every time. Instead, your server can load it once or once it
+[01:06:47] is about to be exhausted, it would load it and start using it whenever it wants to do that,
+[01:06:52] whenever it wants to process the payment.
+[01:06:54] Once any of this server sees that my IDs are getting exhausted,
+[01:06:58] let's say it got 500, 490 are already exhausted,
+[01:07:02] what it would do, it would make call and get another 500.
+[01:07:06] It might get some, let's say, 3000 to 3500.
+[01:07:09] So now it would have those rates,
+[01:07:11] it would start using from that particular range that it has.
+[01:07:14] So we are still not guaranteeing monotonicity across servers,
+[01:07:18] but you are handing them those IDs in batches.
+[01:07:22] This is how Amazon does it.
+[01:07:25] Really simple, very simple to build.
+[01:07:27] You can very clearly see how we can do this in transaction.
+[01:07:30] Airline check-in system, Ctrl-C, Ctrl-V over here.
+[01:07:33] Read, in transaction, update, atomically do plus equal to whatever range was,
+[01:07:39] or rather, however ID was requested.
+[01:07:42] You get the old value, you get the new value,
+[01:07:44] you send it as a range over here,
+[01:07:46] and server starts using those IDs over here.
+[01:07:49] So here, the single source of truth,
+[01:07:52] Because this is single server, it doesn't have to gossip with anyone.
+[01:07:55] You can very easily scale the system and just, it's just one update.
+[01:07:59] You don't even have to read all of it.
+[01:08:01] Just one minuscule tiny update that you're making in a database.
+[01:08:04] Every time someone wants this idea.
+[01:08:07] Right?
+[01:08:08] Okay.
+[01:08:08] This is how Amazon does it.
+[01:08:09] Any questions?
+[01:08:14] Rajiv?
+[01:08:15] I was wondering why it was in this architecture, a database not used for server
+[01:08:24] hello i'm audible now
+[01:08:31] yeah i have a question like oh wait wait wait sorry it must be problem with my mic wait wait
+[01:08:47] Yeah, Rajiv, go on.
+[01:08:50] Audible, Apit now?
+[01:08:51] No, no, no, yes, yes.
+[01:08:52] Apit, I was wondering why was that a database not used to keep track of information, how
+[01:08:57] much out of range a server has used and then when it comes up, it uses that information
+[01:09:02] to start consuming from there.
+[01:09:05] Why would you want to do that?
+[01:09:07] I mean, I know that the range is appropriate enough, those IDs would get wasted.
+[01:09:11] I mean, 100 IDs were used, 5, 4 out of 500, 400 got wasted with this thing.
+[01:09:18] let's say we go for 10,000 now for the same thing.
+[01:09:22] So 9,900 ideas got lost.
+[01:09:25] I mean, there's no way to again, go back and use them.
+[01:09:27] Imagine the overhead that you would have to keep in
+[01:09:29] in order to keep track of every single one of them.
+[01:09:31] That's a massive overhead.
+[01:09:33] Why?
+[01:09:34] Okay.
+[01:09:36] Imagine big integer 2-264.
+[01:09:39] Will you ever exhaust that number?
+[01:09:41] If that Amazon is 500 trillion dollar company.
+[01:09:48] it's okay it's okay boys under practical use usage of it then yeah obviously like think about
+[01:09:55] practicality at every step don't just think oh i have to use every single every single id that is
+[01:10:00] out there no one cares about it it's just few range of numbers because we tend to underestimate
+[01:10:05] the numbers for example 1 million to 1 billion if i talk about it we just use 1 million like it's
+[01:10:13] nothing. 1 million is a huge number. 1 billion is huge number.
+[01:10:18] The difference between a million and a billion is almost
+[01:10:21] equal to a billion and that's huge. Right.
+[01:10:25] And we just use it like this 1 million, 4 billion, 5 billion.
+[01:10:30] It's massive, massive, massive numbers and for a four by
+[01:10:35] integer 4 billion, 4 billion orders.
+[01:10:39] Imagine 4 billion orders of Amazon.
+[01:10:40] sound right if you exhaust that making 64 bits make it 8 by 20 meters 2x to 64.
+[01:10:47] not very much it's big enough range for you to not worry about it okay mohit yeah like if monotonicity
+[01:10:57] was not a requirement then why not just go ahead with a uuid kind of approach let's talk about it
+[01:11:02] let's talk about it like why not uuid so if uuid already exists for it why people are not
+[01:11:10] companies at scale don't prefer it.
+[01:11:12] First of all, for folks who don't know what UUID is, UUIDs are 128 bit integers.
+[01:11:17] Integers as it, 128 bit strings, which can be represented as gigantic integers.
+[01:11:22] They are extremely inefficient at scale.
+[01:11:27] Array, how my company is using UUID, are we inefficient at scale?
+[01:11:31] Yes, you are.
+[01:11:33] Okay, let me break up.
+[01:11:34] So, in the second week pre-reads, I shared a video on how indexes make database read faster.
+[01:11:43] In that we saw that indexes are also just tables with indexed values and the IDs of
+[01:11:52] the rows that it points to.
+[01:11:54] For example, post table has user ID and post ID and post title and whatnot.
+[01:12:00] If you are creating an index on user ID, it is effectively a new B plus three or a new
+[01:12:04] table which is created in which just two columns are there.
+[01:12:08] Just to visualize in which you have first column as post user ID, second value as post ID.
+[01:12:15] It's internally managed by database FYI.
+[01:12:17] So what happens over here is because in index for a dense index at every single row of your
+[01:12:25] database or of your index, they are also storing the row ID.
+[01:12:30] big, it would make your indexes bulky.
+[01:12:33] For example, 128 bit integers is equal to 16 bytes.
+[01:12:37] Right.
+[01:12:38] Now imagine if your indexes were set, if your index took one Gb, if your
+[01:12:44] ID was just a four byte integer, but now you are changing it to UID, which
+[01:12:48] is 16 byte integer.
+[01:12:49] So now you just bloated your index by a factor of four.
+[01:12:53] So your index, which was one GB in size is now suddenly four GB in size.
+[01:12:57] So always remember your database is as fast as you get the max performance out of your database.
+[01:13:05] It should be able to fit all the indexes in RAM.
+[01:13:10] If it is not able to fit all the indexes in RAM, no matter how many optimizations you do, your database will never gain speed.
+[01:13:17] Never.
+[01:13:18] Because whenever your SQL query executes and not just Rupert SQL, any database in the world, wherever indexes are.
+[01:13:26] Whenever you send any query, the first set of things that it does is does this basic
+[01:13:30] query plan, query execution plan it creates.
+[01:13:33] While doing that, all the operation it does on indexes because indexes are really tiny.
+[01:13:39] Really tiny indexes.
+[01:13:41] When it fits in RAM, let's say you're doing joins of two tables on the indexed columns.
+[01:13:46] It can just do it in memory.
+[01:13:48] It doesn't have to read from the disk anytime.
+[01:13:49] Once it knows the result, then it goes to the disk and reads the entire row.
+[01:13:54] So that's the last step.
+[01:13:56] So if your indexes are in RAM, entire query execution happens in RAM.
+[01:14:01] Just the things that you need from the row from the disk is the detailed row that was
+[01:14:06] setting in the result.
+[01:14:08] So this way your execution becomes lightning fast when your indexes can fit in RAM.
+[01:14:13] So when I am ever optimizing a database ever, when someone comes to me and says,
+[01:14:19] with my database is slow.
+[01:14:20] I have what to do.
+[01:14:21] The first thing I do is check their index sizes.
+[01:14:25] That's it.
+[01:14:26] When most cases index sizes are the problem.
+[01:14:29] Random index is created on the database and this and that I see the amount of
+[01:14:33] spills that happens on the disk simple because if your query execution.
+[01:14:38] For in order for you to even read your indexes, it has to go to the desk to read
+[01:14:42] it, that would be very slow.
+[01:14:44] So that's why it does not mean that your database keeps your indexes in RAM.
+[01:14:49] That is the main source, but it loads it in RAM during boot up
+[01:14:52] or whenever you are requesting it to, when you're filing a particular query
+[01:14:55] and it keeps in RAM.
+[01:14:57] So the RAM of your database server should be equal to,
+[01:15:01] or should be more than what your total index size is.
+[01:15:05] Then you get a max out of your database.
+[01:15:07] Otherwise you cannot.
+[01:15:08] Otherwise your database query execution would be pathetically slow.
+[01:15:11] Now, you're just over-exaggerating.
+[01:15:14] I'll tell you other designs where because of this,
+[01:15:17] people have not used UUIDs.
+[01:15:19] not used to UIDs.
+[01:15:21] Okay.
+[01:15:22] So UIDs, they're gigantic integers, 16 bytes, 4X larger.
+[01:15:26] That's huge.
+[01:15:27] So 1 GB index becomes 4 GB index now.
+[01:15:30] So they do not index well and they bloat up the index.
+[01:15:34] That's right.
+[01:15:35] But they're good for security because you cannot predict what's next in terms of UID.
+[01:15:42] They seem very random.
+[01:15:44] Because you cannot predict the next one,
+[01:15:46] so it's hard for anyone to scrape out the entire website.
+[01:15:50] If you're building Facebook and you know that you are exposing the database IDs, 1, 2, 3,
+[01:15:56] 4, 5, 6, people can just fire rest requests and start from for I equal to zero, I is less
+[01:16:01] than 1 billion I plus plus and start scraping the entire website.
+[01:16:05] So because UUIDs are very random, they're good for security because it's hard for anyone
+[01:16:09] to predict and penetrate or just predict other IDs.
+[01:16:13] In most cases they would get four of them.
+[01:16:15] So which is why people don't use UUIDs.
+[01:16:19] scale. It does not mean you should not use it. It works in some cases. It does not work in other
+[01:16:24] cases. In some cases where you're just scrapping it out, you know that your application is small
+[01:16:28] enough. You would never hit that table. You would never hit that scale. The UI is just fine.
+[01:16:33] Don't unnecessarily go for the best solution out there. See what works for you the best.
+[01:16:37] MongoDB is just happy with 96 bits log. So MongoDB IDs are 12 byte integers.
+[01:16:43] where look carefully first four bytes is epoch time always comes first right then five bytes of
+[01:16:53] random and three bytes of counter counter for each chart that it has right this is 12 bytes is
+[01:17:00] what they are favoring right now they didn't go for 16 for uid they what's stopping them from going
+[01:17:04] for uids nothing to reduce by four bytes they went for sure right mysql auto increment ids is
+[01:17:11] four byte integer, you're very happy.
+[01:17:12] That's very tiny index, right?
+[01:17:14] Four bytes, eight bytes is still doable beyond eight bytes.
+[01:17:17] You should worry about the performance at scale, at scale.
+[01:17:21] Okay.
+[01:17:22] So this is what MongoDB does.
+[01:17:24] New to see a lot of ID generation, sitting things on the left, like having
+[01:17:28] time on the left side and trying to keep the ID smaller, which is why in the
+[01:17:32] first half of when you're brainstorming, ID is becoming longer is a problem
+[01:17:37] because they do not index well.
+[01:17:39] Okay.
+[01:17:41] to help you understand this entire thing better.
+[01:17:44] Every single company, every single quote-unquote case study we look at,
+[01:17:48] every single one of the further case studies mentioned
+[01:17:51] that they didn't go for UIDs because they do not index well.
+[01:17:53] Because this is the harsh reality.
+[01:17:56] So let's take a look at what Flickr did.
+[01:17:58] So Flickr is pre-Instagram.
+[01:18:02] Flickr was Instagram of 2010s to 2010s.
+[01:18:07] A lot of things got posted there.
+[01:18:09] then obviously Instagram took over a lot of stuff.
+[01:18:12] So Flickr needed its own ID generation.
+[01:18:14] But why?
+[01:18:16] Because database was sharded,
+[01:18:19] which is what I always say.
+[01:18:20] Because your database is sharded,
+[01:18:22] operating in multi-master mode,
+[01:18:24] which means that writes can be going to anywhere,
+[01:18:27] they need a central ID generation thing
+[01:18:28] to maintain the uniqueness.
+[01:18:30] To guarantee uniqueness,
+[01:18:32] they need a central ID generation service
+[01:18:33] because they cannot just use auto increment everywhere
+[01:18:36] because that would result to conflict.
+[01:18:39] Because of which they needed a central ID generation service.
+[01:18:41] Now you know where you did it.
+[01:18:43] Flickr did it because of this exact same reason.
+[01:18:46] And in their blog, they mentioned why not UUIDs?
+[01:18:49] Because they index badly.
+[01:18:50] Every single one is mentioning UUIDs index badly because 16 bytes is a huge thing.
+[01:18:57] Huge thing because it just forexes your index.
+[01:19:02] Almost rough estimate.
+[01:19:04] Don't quote me on that because your integer was 4 bytes.
+[01:19:10] additional things that you are taking up in that forex is a wrong calculation actually depends on
+[01:19:14] the value but you get that there right okay so this is what it's written in their blog their
+[01:19:19] official blog if you cannot fit indexes in memory you cannot make your database pass and it's true
+[01:19:24] it's true anytime a serial engineer technical architect stop in your principal engineer ever
+[01:19:29] optimizes the database the first thing he or she looks at is the index size always remember this
+[01:19:34] Because if your index is spilled on disk, your database would always be slow.
+[01:19:38] Always be slow.
+[01:19:39] And this is one of the ways to which you can actually provision the database.
+[01:19:43] If someone asks you, not during interviews, interviews are crappy.
+[01:19:46] In your real world, if someone asks you, Hey, what should be the size of this database for
+[01:19:50] it to be performed?
+[01:19:51] The bare minimum side should be, should be the summation of sizes of all the indexes
+[01:19:56] that it holds.
+[01:19:57] Simple.
+[01:19:58] Bare minimum.
+[01:19:59] That's the bare minimum that it needs to be.
+[01:20:02] Beyond that, anything is good, but that's a bare minimum that you should have.
+[01:20:06] Right.
+[01:20:07] Always keep these things in mind.
+[01:20:08] That's why database fundamentals.
+[01:20:10] So, so, so important because that's the, as I always say, database is the most brutal
+[01:20:15] component of the most essential, but most brutal component of an infrastructure because
+[01:20:20] scaling API servers is easy.
+[01:20:22] They are mostly stateless.
+[01:20:23] Every other thing is stateless.
+[01:20:25] Database is the one where everything is getting stored.
+[01:20:27] Everything is getting varied.
+[01:20:29] entire load is handled by database.
+[01:20:32] So understand your database,
+[01:20:33] whichever database you are using really well.
+[01:20:38] So how did Flickr did it?
+[01:20:40] So Flickr built a central ticket server,
+[01:20:42] basically ID generation service.
+[01:20:44] And they built it on top of MySQL.
+[01:20:46] So what they do is whoever wants to get an ID,
+[01:20:50] they make a query to MySQL and they get an ID.
+[01:20:54] Don't think of performance.
+[01:20:55] It's their decision.
+[01:20:57] We can't say much about it.
+[01:20:58] But understand the beauty of this design.
+[01:21:01] That's what matters.
+[01:21:02] As an engineer, focus on the beauty of design rather than pointing out the faults.
+[01:21:07] It's okay to point out the faults, but pick the good parts of it.
+[01:21:11] Because it was their decision.
+[01:21:13] We can't interfere.
+[01:21:14] It's like your neighbors are fighting.
+[01:21:16] You know that both of them are wrong, but you should not say anything to them.
+[01:21:20] It's their life.
+[01:21:20] Whatever they want to do it, let them do it.
+[01:21:22] But pick the best parts of it.
+[01:21:24] So what they did is they created a table called tickets.
+[01:21:28] In this table, they added a column called id, big integer, unsigned, not null and auto
+[01:21:35] increment.
+[01:21:36] Right?
+[01:21:37] You clearly see big integer 2 raise to 64.
+[01:21:41] They added a column called stub will come to this what stub is all about.
+[01:21:44] They have made id the primary key, unique key to stub.
+[01:21:47] The idea is that if MySQL already gives me auto increment ids, why can't MySQL be my
+[01:21:55] id generation service?
+[01:21:58] sometime back right someone asked that but i think shriya was that that asked that part right why
+[01:22:03] can't we just use my existing id generation i can't use my database as my id generation service
+[01:22:10] that's exactly what they are doing they are using database itself as id so it's a separate database
+[01:22:14] photos are being stored in other sharded database your id generation itself is a separate database
+[01:22:20] in which you are leveraging the auto incrementedness of the database as your id generation
+[01:22:26] So what happens if let's say you want to naively use a database as that, you know,
+[01:22:32] database gives you auto increment.
+[01:22:33] Whenever someone needs an ID, it talks to this database and you want ID from that.
+[01:22:38] Basically, what would you do?
+[01:22:39] You have this column, ID auto increment ID.
+[01:22:42] You would delete this and add a new row.
+[01:22:44] When you add a new row, what would you get?
+[01:22:47] It would be the next ID.
+[01:22:49] Then when you need one, you delete one and you add one, it would get the next ID.
+[01:22:53] right but for you to add one you can just cannot insert a row with nothing you need to pass some
+[01:22:59] values to them so you had another column called stuff it's a normal column name seems fancy just
+[01:23:04] a normal dummy column some dummy value nothing special about it right but what we are effectively
+[01:23:10] doing is we are just inserting this row we are deleting and reinserting deleting and reinserting
+[01:23:15] deleting and reinserting this way whenever you're inserting into this table without providing the id
+[01:23:23] increment the id and would use that as a default value while inserting and then the next one and
+[01:23:28] then the next one and then the next classic auto increment id use case right so either we delete
+[01:23:33] or increment uh delete and insert in one transaction or we can use upsert because
+[01:23:39] delete plus insert is equal to upsert right so because they were using mysql i'm talking a bit
+[01:23:47] about mysql here but mysql because they're using mysql mysql provides two ways to do it
+[01:23:53] is insert on duplicate key update.
+[01:23:56] So it's very simple.
+[01:23:57] What it does is it tries to insert whatever you provided over here,
+[01:24:02] insert into this, this, this values, this, this, this, it tries to insert that.
+[01:24:06] But if it fails due to unique key constraint, then it triggers the update
+[01:24:12] that you pass it.
+[01:24:13] That is classic upset.
+[01:24:14] So you're trying to insert.
+[01:24:16] So how, what is upset?
+[01:24:17] You're trying to insert something.
+[01:24:19] If it exists, then update.
+[01:24:20] If it does not exist, then insert.
+[01:24:23] This is an absurd state for MySQL.
+[01:24:27] So there are two ways to do absurd.
+[01:24:29] First is this.
+[01:24:31] The second one is replaceInto.
+[01:24:33] Similar to how we have insertInto, there is replaceInto.
+[01:24:36] We saw this in key value store on relational database.
+[01:24:40] This replaceInto.
+[01:24:42] So replaceInto does absurd, but what replaceInto does internally, it actually deletes and inserts
+[01:24:50] the new row. So you can
+[01:24:52] very clearly see it is slower. It is
+[01:24:54] basically 32 times slower than on duplicate
+[01:24:57] key update. So you can use
+[01:24:59] either replace into or insert but replace
+[01:25:00] into is 32 times slower than this. I personally
+[01:25:03] benchmarked this. That's why I am
+[01:25:04] quoting this number 32x slower. I personally benchmarked
+[01:25:07] it on a MySQL server to see
+[01:25:08] the performance difference between the two.
+[01:25:11] So it is 32 times slower
+[01:25:12] over here. So pick one.
+[01:25:15] Anyway, what matters is doing
+[01:25:16] absurd. So what you are actually doing
+[01:25:20] like this whenever whenever a server a server wants an id so they can insert a photo in photos
+[01:25:27] database what it does is it fires a sql query on the central id service the tickets something like
+[01:25:33] this insert into tickets stub values a because you have to pass some value so you use stub a
+[01:25:39] random value nothing no no nothing matters that you put any value there but it is the constant
+[01:25:45] well insert into ticket stub a on duplicate key update id equal to id plus one simple
+[01:25:52] this day what happens is it would try to insert this a but it would see key array but this already
+[01:25:58] exists so on duplicate key update so it would update 74 to 75 and would return that right
+[01:26:06] Then next time the querifiers 76, 77, 78 and so on and so forth.
+[01:26:13] So you get IDs like this.
+[01:26:16] You are leveraging MySQL transaction, MySQL atomicity in order to get the IDs that you want.
+[01:26:23] So this is what Flickr does as part of like implementation logic.
+[01:26:28] But now what you see is like something like this.
+[01:26:31] So these are your photo service servers.
+[01:26:33] This would make it clear.
+[01:26:33] This is your ID generation server, my SQL that is different and photos database is different
+[01:26:38] which is sharded.
+[01:26:39] So what they're doing is whenever there is a request to post a photo request comes to
+[01:26:43] this API server, API server fires the request to this my SQL to get the ID.
+[01:26:46] You get the ID, then you store it in photos.
+[01:26:50] Right.
+[01:26:51] This is what is happening.
+[01:26:52] But if you look carefully, this is a single point of failure because there is one server.
+[01:26:58] If this server goes down then gone.
+[01:27:02] Right.
+[01:27:02] Now to solve it.
+[01:27:03] You put two servers.
+[01:27:06] But this is very similar to that problem now.
+[01:27:08] Cossip, gossip, monotonicity and whatnot.
+[01:27:11] Here we don't care about monotonicity.
+[01:27:12] So what we do, we put both databases behind a load balancer
+[01:27:19] and make one, someone also recommended this approach.
+[01:27:22] This is exactly what we are doing.
+[01:27:23] So what we do is we have two databases.
+[01:27:26] Now, even if one of the databases goes on,
+[01:27:27] other databases can handle the load.
+[01:27:29] But how do you ensure uniqueness?
+[01:27:30] tests. How do you ensure that they don't conflict? What we do is let's say I have two databases.
+[01:27:37] I'll have instead of doing increment plus plus I do increment plus equal to two. Let's say
+[01:27:43] one database generates odd IDs, other database generates even IDs. So how you can configure
+[01:27:50] this is auto increment underscore increment. These are actual configuration that you can
+[01:27:55] provide in your MySQL server.
+[01:27:58] Auto increment increment is set to 2
+[01:28:00] and auto increment offset is set to 1.
+[01:28:02] So increment increment
+[01:28:03] this means by how much you would want to
+[01:28:05] increment every time.
+[01:28:07] And increment offset is what's the starting point
+[01:28:09] of it.
+[01:28:11] So this is what you would configure.
+[01:28:12] And now the load valancer that you put over here
+[01:28:14] is configured in round robin port.
+[01:28:16] So first request goes over here.
+[01:28:20] It generates ID 1.
+[01:28:21] Second request goes to other server.
+[01:28:24] Third request comes to first server.
+[01:28:25] auto increment plus equal to 2
+[01:28:27] 1 plus 2 is 3 so you get ID 3
+[01:28:29] next request goes over your 2
+[01:28:31] plus auto increment increment is 2
+[01:28:33] so 4 5
+[01:28:35] 6 7 8
+[01:28:38] because you are doing it in round
+[01:28:39] you will always see positive request 2 year, 2nd year, 3rd year
+[01:28:41] 4th year, 5th year, 6th year, 7th year, 8th year
+[01:28:43] you almost get
+[01:28:45] more authenticity
+[01:28:47] you have solved problem
+[01:28:49] of
+[01:28:51] single point of failure now you have 2 servers
+[01:28:54] if one of the server goes down
+[01:28:55] fine for you because your ID generation is still continuing to work without any hiccups.
+[01:29:01] But what happens when it goes down? What do you do? If one server goes down, let's say my
+[01:29:07] odd server went down due to some reason. Now all of my requests will go to even server.
+[01:29:13] So the IDs that would spit out would be 2, 4, 6, 8, 10, 12, etc. Now assume that after 202
+[01:29:21] ID was generated, my server, my odd server came back up.
+[01:29:25] Now when my odd server came back up, either it can start from the point where it left
+[01:29:30] up because my SQL is a persistent source.
+[01:29:32] It's not storing in memory.
+[01:29:33] So let's say generated ID till five, it would generate seven, 204, nine, 206, 11, 208.
+[01:29:45] Right?
+[01:29:46] Here you see a huge discrepancy in IDs.
+[01:29:49] It's not that it's a constraint that you are playing with.
+[01:29:51] It just does not look aesthetically pleasing.
+[01:29:54] Much more for aesthetics rather than correctness.
+[01:29:57] You are still getting unique ID, but there seems to be very massive parity between.
+[01:30:01] So it's optional to just reset the one that you just spun up to the ID.
+[01:30:08] Let's say this generated ID to 202.
+[01:30:12] You will add some buffer, let's say 240 and you set here 241 and 242.
+[01:30:17] And then it resumes from that.
+[01:30:19] 242, 243, 244, 245, 246 and so on and so forth.
+[01:30:23] It's just for aesthetics, nothing about correctness, nothing about strict monotonicity.
+[01:30:26] Because we're still not guarantee strict monotonicity.
+[01:30:29] But you still have that as like nearly similar.
+[01:30:34] So it's good.
+[01:30:35] It's a good byproduct to have.
+[01:30:38] So this is how Flickr does it.
+[01:30:40] It's a really simple approach that we right now looked at.
+[01:30:44] It's pretty simple, but it's pretty brilliant in its own sense.
+[01:30:49] Ordin event and results back up.
+[01:30:51] That's one thing.
+[01:30:53] You would say who would do this?
+[01:30:54] Who would do this configuring?
+[01:30:56] Who would find this max buffer and then start page?
+[01:30:57] So we are starting with the safest value, right?
+[01:30:59] Who would do this?
+[01:31:00] Obviously when a server goes down SRE engineer, DevOps engineer,
+[01:31:04] you know, they would fix it.
+[01:31:06] They can configure it.
+[01:31:07] They can change it.
+[01:31:07] You can write an automated script, but typically database going down is a big thing.
+[01:31:12] There will be an engineer looking into it.
+[01:31:14] He or she will do this.
+[01:31:16] It's fine.
+[01:31:17] Right.
+[01:31:19] You can also, in case you want to automate, you can automate.
+[01:31:22] You just need to find the active server, find the max IDs, add some buffer to that, and
+[01:31:26] then set the values and then just do a quick process reboot on each server.
+[01:31:29] You are done.
+[01:31:31] Right?
+[01:31:31] Okay.
+[01:31:32] Any questions on this approach?
+[01:31:38] Yeah, man.
+[01:31:40] Yeah.
+[01:31:41] Can you just go back to the previous page where you have created that query?
+[01:31:45] I'm not able to understand how it's creating the unique value at this one.
+[01:31:50] Can you just elaborate maybe one more time?
+[01:31:52] This is 75, 76.
+[01:31:55] Insert into ticket stub values A.
+[01:31:57] So what we are trying to do, we are trying to insert a value.
+[01:32:00] Something we have not provided ID.
+[01:32:02] So we're trying to insert this value.
+[01:32:04] Right?
+[01:32:04] But stub is having what?
+[01:32:08] Unique key.
+[01:32:10] Correct?
+[01:32:11] What would happen?
+[01:32:12] This insert would fail.
+[01:32:15] have two same values over here in this column. Correct. So on duplicate key update, update to
+[01:32:21] what id equal to id plus one. That I understood. Step part where it is coming, not able to make
+[01:32:28] sense of that. It's just a common value. It's just a random value that you chose.
+[01:32:33] It's a hard coded value in your query. Hard coded. Oh. Right. It's a hard code. It can be literally
+[01:32:40] any string that you would want to keep.
+[01:32:41] It's just that you want to trigger this.
+[01:32:45] You want to break the unique constraint.
+[01:32:48] Correct?
+[01:32:49] You are just trying.
+[01:32:50] You are making your database
+[01:32:52] break the unique constraint
+[01:32:53] so that you can trigger an update atomic.
+[01:32:57] Oh, so for that purpose only stuff exists.
+[01:33:00] That's it.
+[01:33:01] That's it.
+[01:33:01] There is no other reason for stuff.
+[01:33:04] Okay.
+[01:33:04] Got it.
+[01:33:05] DK?
+[01:33:07] Yep.
+[01:33:08] if you can go to the last page,
+[01:33:11] I am not able to understand how
+[01:33:12] when the server comes back,
+[01:33:14] how you are resetting the values
+[01:33:16] with the buffer value.
+[01:33:17] This one, I said,
+[01:33:19] no, one engineer will do that.
+[01:33:22] This configuration,
+[01:33:23] these configurations,
+[01:33:25] it's MySQL specific.
+[01:33:27] Check how you can change
+[01:33:28] auto increment offset on the platform.
+[01:33:29] But why do we need to do that?
+[01:33:31] Because let's say one server comes back.
+[01:33:32] I said aesthetics.
+[01:33:34] I said it's for aesthetics.
+[01:33:36] Nothing more.
+[01:33:37] it, your system is still running correctly.
+[01:33:39] It would just look a bit.
+[01:33:41] The last value only will keep on updating it.
+[01:33:43] Right.
+[01:33:43] Or it doesn't work.
+[01:33:45] But that's what I said.
+[01:33:46] Let's say it died off at five.
+[01:33:49] Okay.
+[01:33:49] This value is 202 right now.
+[01:33:52] If odd server comes back up, what would be the next idea that would be generated?
+[01:33:58] But this is an event server.
+[01:34:01] This event page 202 odd server came back up.
+[01:34:04] What is the ID generated on the odd server now?
+[01:34:08] whatever value was.
+[01:34:09] I have three,
+[01:34:10] one,
+[01:34:10] three,
+[01:34:10] five.
+[01:34:10] What's the next value that would be generated?
+[01:34:12] One,
+[01:34:13] three,
+[01:34:13] seven,
+[01:34:14] seven.
+[01:34:15] And on the event server.
+[01:34:18] Okay.
+[01:34:18] Two,
+[01:34:18] zero,
+[01:34:19] four.
+[01:34:19] So just to maintain that.
+[01:34:21] Correct.
+[01:34:22] Right.
+[01:34:22] Just for aesthetics.
+[01:34:23] That's what I'm saying.
+[01:34:24] Just for aesthetics.
+[01:34:26] Okay.
+[01:34:26] There's nothing special.
+[01:34:27] Even if you don't do it,
+[01:34:28] your system would still function correctly.
+[01:34:30] It just for aesthetics.
+[01:34:31] You can just reset the value on both sides and make it look better.
+[01:34:36] That's it.
+[01:34:37] Okay, so after reset, what will be the right value according to you?
+[01:34:43] Start with 240, 239 and then let it round robin.
+[01:34:48] Got it.
+[01:34:50] Pick some value.
+[01:34:51] It's up to you.
+[01:34:52] You are the desire.
+[01:34:52] You are the architect of the system.
+[01:34:54] It's up to you where you want to reset.
+[01:34:56] You reset it to the safest value of that.
+[01:35:00] Makes sense.
+[01:35:01] That's why we discussed safest value in the first place.
+[01:35:03] So that we understand the importance of starting from a safest value
+[01:35:07] the ITs that were generated in the past.
+[01:35:10] Right?
+[01:35:11] Okay.
+[01:35:12] Chal.
+[01:35:12] One more question before we move forward.
+[01:35:15] Chathindar, go on.
+[01:35:16] Yeah.
+[01:35:16] So I think I'm a little confused here in this one.
+[01:35:18] You said the max plus buffer thing is just for aesthetics.
+[01:35:21] But let's say if the odd server goes down, let's add five and the end server goes on
+[01:35:27] till 202.
+[01:35:28] If we don't do this max plus buffer thing and the odd server starts producing IDs from
+[01:35:33] let's say seven, then they are not monotonically increasing.
+[01:35:37] Where did we enforce monotonicity?
+[01:35:40] Okay, we are not enforcing that here.
+[01:35:42] Never.
+[01:35:43] That's what I started saying.
+[01:35:44] We are not enforcing monotonicity.
+[01:35:46] It's a nice byproduct to hire.
+[01:35:48] Okay.
+[01:35:50] Because that's what I said.
+[01:35:52] Not everyone needs monotonicity.
+[01:35:53] And it's okay to not have it.
+[01:35:55] Social media, why would you care about monotonicity?
+[01:35:57] You should have it.
+[01:35:59] Okay.
+[01:36:00] Now the next part is we discussed the two approaches of Atilla that we saw.
+[01:36:06] Amazon and Flickr.
+[01:36:07] They were central ID generation service.
+[01:36:10] Now what we take, we take a look at distributed part,
+[01:36:14] or rather not distributed.
+[01:36:16] Decentralized ID generation logic, not service, logic.
+[01:36:20] So Twitter still uses this.
+[01:36:24] One of the best ID generation system out there.
+[01:36:28] So what Twitter uses an algorithm called Snowflake.
+[01:36:31] I, two words back, I never thought why they are calling it snowflake.
+[01:36:38] Now I remember just a little backstory.
+[01:36:42] Snowflake is like almost every single snowflake in the world that you see is unique.
+[01:36:49] That's why the ID generation logic, they are calling it as snowflake.
+[01:36:52] So pick any two snowflakes, they would no way be similar.
+[01:36:55] They would no way be exactly the same.
+[01:36:56] They would always be dissimilar.
+[01:36:58] That's the beauty of snowflake.
+[01:36:59] In case you're interested, the number file has a great video on why snowflakes are unique.
+[01:37:05] Not ID generation, but the actual snowflakes.
+[01:37:08] Unfortunately, computer has to, like when we hear Windows,
+[01:37:11] we think about operating system and not the physical Windows.
+[01:37:15] We are now used to that.
+[01:37:17] So snowflake, not ID generation, but the actual snowflake.
+[01:37:20] Every single snowflake is unique because of which they named this particular algorithm,
+[01:37:25] if I may call it, as snowflake.
+[01:37:30] is Twitter uses snowflake for their IDs.
+[01:37:34] Snowflake, this algorithm is also adopted by Discord and Instagram.
+[01:37:37] We'll talk about Instagram.
+[01:37:38] Discord is very similar.
+[01:37:39] We'll also talk about Discord also and Instagram also.
+[01:37:43] So snowflakes are 64 bits in TV.
+[01:37:48] 64 bits, keeping it small.
+[01:37:52] That's what they also went for.
+[01:37:53] They did not want to keep it large.
+[01:37:56] If they would have kept it large,
+[01:37:59] at Twitter scale, the amount of data that is getting ingested,
+[01:38:02] the amount of data that is getting indexed.
+[01:38:04] Imagine instead of having 64 bits, you are having 128 bits,
+[01:38:07] which means 16 bytes.
+[01:38:09] You are literally doubling the space that you need.
+[01:38:11] That's why efficiency at scale, storage efficiency at scale,
+[01:38:15] compute efficiency at scale.
+[01:38:17] So what Snowflakes are?
+[01:38:19] Snowflakes are very simple.
+[01:38:20] They are very similar to MongoDB's ID, but very small, very nice.
+[01:38:26] right so what they have is they have first 41 bits as epoch milliseconds left side always time
+[01:38:34] 41 bits epoch milliseconds which means every millisecond this would always move forward so
+[01:38:39] you almost get ordering in ids that's a very nice byproduct we'll take a look at pagination
+[01:38:45] because of this how it is very efficient then the next 10 bits for machine ids machine ids is
+[01:38:51] server that is generating this id not database server it's the api server of twitter so
+[01:38:56] So imagine you're tweeting something.
+[01:39:00] So what do you have?
+[01:39:00] This is you.
+[01:39:01] This is tweets TV, which is partitioned, massively partitioned, right?
+[01:39:07] And these are the API servers, normal API servers handle rest request to create a tweet.
+[01:39:13] Here you have this ID generation logic called snowflake.
+[01:39:17] It's not a library.
+[01:39:17] It's not a service.
+[01:39:19] It's a library, normal, normal integer, normal bit manipulation.
+[01:39:23] When you get a request to tweet something, it does basic validation there.
+[01:39:28] Tweet ID, user ID, text tags that.
+[01:39:30] It generates a random tweet ID using snowflake and it just stores it into this database.
+[01:39:37] These are API servers which are generated.
+[01:39:40] So this 10 bits are for these machine IDs.
+[01:39:43] Now because of this 10 bit constraint, you know the maximum number of API servers that
+[01:39:50] Twitter would have had for tweet service would be at max 2 raise to 10, which is 1024.
+[01:39:57] It cannot go beyond that.
+[01:39:59] Correct.
+[01:39:59] Otherwise this would overflow.
+[01:40:01] Correct.
+[01:40:02] That's what happens.
+[01:40:03] So you, it reserved 41 bits for epoch milliseconds, 10 bits for machine IDs and 12 bit for per
+[01:40:11] machine counter that static counter that we discussed at the first.
+[01:40:14] It will press, plus, plus, plus, plus, plus, plus, plus, plus every time.
+[01:40:17] Now this is what it generates on demand.
+[01:40:20] When you get this, see, when you get this in the business logic handle,
+[01:40:24] when you're generating a new snowflake ID, you need current time, you have it.
+[01:40:28] Machine ID, you would know that this is my machine ID.
+[01:40:30] It would be in range of 0 to 1, 0 to 1, pick one.
+[01:40:33] Every machine will get a unique ID to start with.
+[01:40:35] And a 12 byte machine counter, per machine counter.
+[01:40:39] What does this tell you?
+[01:40:41] This tells you that per machine counter is 12 bytes, sorry, 12 bits,
+[01:40:46] which means that in 1 millisecond,
+[01:40:51] one machine can generate 2 raised to 12 unique IDs
+[01:40:58] before seeing any collision.
+[01:41:01] Per millisecond per machine,
+[01:41:05] 2 raised to power 12.
+[01:41:07] 2 raised to 10 is 1024,
+[01:41:09] 2048, 4096.
+[01:41:13] 2 raised to 12 is 4096
+[01:41:16] one millisecond one machine can generate 4096 unique ids without seeing any conflict one millisecond
+[01:41:25] that's a humongous throughput that they have made the system tolerant enough that hard to
+[01:41:32] attend that scale right so they are prepared for well prepared for the future right because at
+[01:41:38] max 1024 machines so when entire coalition would happen when snowflake would see when when would
+[01:41:46] Noflake even see a collision where same IDs are getting generated.
+[01:41:50] It would happen when in one machine, in one machine, in one millisecond, you are handling
+[01:41:57] more than 4096 requests.
+[01:42:00] No one can do that.
+[01:42:02] One millisecond more than four, more one millisecond, more than 4,000 requests per millisecond
+[01:42:07] implies 400,000 requests per second.
+[01:42:11] No one does.
+[01:42:13] No one does it.
+[01:42:14] So they are very much safe from the scale that they are handling.
+[01:42:18] And they can at max have 10 machines.
+[01:42:20] So this is normal.
+[01:42:21] You can even write snowflake in three lines of code.
+[01:42:25] That too for aesthetic, I can write it in one line also.
+[01:42:27] Three lines of code.
+[01:42:28] Because you know the current time.
+[01:42:29] You know the machine ID.
+[01:42:31] You know a static counter you do atomically plus plus.
+[01:42:34] Just arrange those bits like this.
+[01:42:37] Like take a number.
+[01:42:39] Left shift by 23 and set a time.
+[01:42:44] and then set bitwise or
+[01:42:46] and basically create this ID
+[01:42:48] as simple as this normal bit
+[01:42:50] manipulation right but
+[01:42:52] the kind of benefits you get
+[01:42:54] out of this is because now there is no moving
+[01:42:56] component there is no need of a central
+[01:42:58] ID surveys and whatnot to talk to
+[01:43:00] it's literally
+[01:43:02] a request comes
+[01:43:03] you generate a snowflake ID you store it
+[01:43:06] in the database done
+[01:43:08] this is why twitter scales there is no
+[01:43:10] central because
+[01:43:11] Because firing tweets is one of the most high throughput things that the world is handling
+[01:43:16] right now.
+[01:43:17] People keep on tweeting stuff whenever there's a big event as if they're missing out on something.
+[01:43:22] They keep on tweeting.
+[01:43:23] These folks need to handle the scale.
+[01:43:25] If they would have had a set of lighting services, they would need to scale that part and this
+[01:43:29] and that and that and that.
+[01:43:31] Screw it.
+[01:43:32] We don't do that.
+[01:43:35] So the beauty of Snowflakes is that they are roughly sortable.
+[01:43:41] Within the same millisecond, assuming that the machine that has lesser ID is smaller,
+[01:43:46] the machine has larger ID is larger, within the same millisecond you get roughly sortable
+[01:43:51] IDs.
+[01:43:52] That's brilliant.
+[01:43:53] First 41 bits of f of millisecond means after every millisecond your number is massively
+[01:43:58] moving forward and it gives you an ability of getting a tweet before and after a certain
+[01:44:06] time because the first 41 bits.
+[01:44:08] So if you go to Twitter right now, click on any tweet, look at the link, the tweet ID
+[01:44:12] itself is an integer.
+[01:44:14] This is Snowflake that we are talking about.
+[01:44:15] Now what would happen is the first 41 bits of that number is actually epoch millisecond
+[01:44:20] when the tweet was made, which means that given you have IDs, you can very clearly tell
+[01:44:26] if this tweet was made before this time or after this time.
+[01:44:31] That is brilliant because now it makes your pagination super efficient.
+[01:44:38] So this is a very interesting byproduct of having roughly sortable IDs.
+[01:44:43] So if you ever take a look at Twitter API, unfortunately it is paid right now.
+[01:44:48] No, they reverted it, but now I think they already, they made it again paid.
+[01:44:52] Not sure what their current state is, but if you go through Twitter's API documentation,
+[01:44:57] what you will find interesting is the way you can paginate a tweet.
+[01:45:02] For example, you want to list all the tweets of a person's profile of a, of a made by a
+[01:45:07] particular account.
+[01:45:08] What you can do, there are two ways to pagination.
+[01:45:11] One most common limit offset based pagination.
+[01:45:14] So you fire a SQL query and use SQL as an example,
+[01:45:18] but it holds to per every database FII.
+[01:45:21] Select star from tweets where user ID is this limit 10 offset 0.
+[01:45:28] Then for the next page, limit 10 offset 10.
+[01:45:31] For next, limit 10 offset 20 and so on and so forth.
+[01:45:33] That is one way to pagination.
+[01:45:35] limit offset, skip limit, whatever you may want to call it.
+[01:45:39] That is one way of pagination.
+[01:45:41] But this has a problem.
+[01:45:43] When you do limit offset based pagination, it is pathetically slow.
+[01:45:48] In case of Twitter, imagine it is very common for people
+[01:45:53] to scroll down the tweets of a particular person.
+[01:45:56] Let's say Arpit made 10,000 tweets.
+[01:45:59] Going through all of his tweets is a very slow process.
+[01:46:02] Because if I go down deeper into page initial, like if I go level deep into it, third page
+[01:46:07] is okay.
+[01:46:08] Fourth page is okay.
+[01:46:08] Fifth page is okay.
+[01:46:09] Six page would be slower.
+[01:46:10] Seven would be even slower.
+[01:46:11] Eight would be even slower, but it is a very common use case to scroll through it.
+[01:46:15] You'll say, why would someone scroll through person's profile?
+[01:46:18] Okay.
+[01:46:18] Let me give you another example.
+[01:46:20] Let's say you are writing a bad job.
+[01:46:22] In order to compute trending topics, right?
+[01:46:27] Trending topics in last two, you want to process last one hour of tweets.
+[01:46:31] processing last one hour tweets in one hour twitter produces millions of tweets
+[01:46:36] imagine doing pagination across those million rows that would be so slow let me give you a
+[01:46:43] practical example of that i never thought this would come in this handy i wrote a very quick
+[01:46:49] demo uh back in 2016 i was getting bored at amazon didn't know what to do what i did is i
+[01:46:57] I was heavily into MongoDB back then.
+[01:47:01] I wrote a simple benchmark.
+[01:47:04] I found something interesting and I wrote a benchmark back in 2016.
+[01:47:08] Good that I got bored at Amazon.
+[01:47:10] So efficient pagination, MongoDB, MongoDB benchmark.
+[01:47:17] You want this?
+[01:47:18] Okay.
+[01:47:20] So this holds true for MongoDB.
+[01:47:23] This holds true for SQL.
+[01:47:24] this whole super literally every single database out there right okay let me explain what's happening
+[01:47:32] here how pagination id generation pagination are linked together right so there are two ways to
+[01:47:40] paginate as i said first way to do it is limit offset this is limit and offset mongodb's example
+[01:47:46] skip and limit the idea is that whenever you are firing or want to get the next one you fire queries
+[01:47:52] like this. You skip something, you limit something. You skip something, you limit something. Here it
+[01:47:55] should be 10 FII. But that's fine. You do that. Now what happens behind the scene when you execute
+[01:48:01] it? Now when you execute a query like this, limit n offset n. When you execute something like this,
+[01:48:10] your database has to evaluate the entire query, literally find the entire result set until the
+[01:48:17] point that you requested, skip those many of the result set and pick the one that you're interested
+[01:48:22] it. That is extremely expensive because every time you are executing the query, you have
+[01:48:28] to compute the entire result set. Then you are skipping and then you're picking the things
+[01:48:32] that you requested for. It becomes linearly expensive. I'll walk you through that.
+[01:48:39] But other way to do pagination is ID limit based pagination where let's say you just
+[01:48:44] want to iterate through a table. That's it. No advanced filters, no advanced varic losses.
+[01:48:52] want to iterate through the table.
+[01:48:54] That's it.
+[01:48:55] In Twitter's case, let's say you want to read tweets.
+[01:48:59] You as it Twitter wants to read tweets made in last one so that it can do processing of
+[01:49:03] funding trending topics and whatnot, or doing recommendation, putting it into Twitter speed
+[01:49:07] and whatnot, right?
+[01:49:09] Very common use case for Twitter.
+[01:49:10] So it's very common for them to iterate through all the tweets that made in last N minutes,
+[01:49:16] right?
+[01:49:16] In order for you to do that.
+[01:49:19] they need very efficient pagination which is where you go for id limit based pagination
+[01:49:24] first of all what is id limit based pagination when your ids are comparable for example my
+[01:49:30] sql auto increment ids they are comparable one two three four five six you know which one came
+[01:49:34] first which one came second right ids are comparable in case of mongodicree and snowflake
+[01:49:41] and anywhere where you see time on the leftmost side you can actually compare the ids you can
+[01:49:48] which one is larger. Right? So now what you can do is instead of paginating by limit and offset,
+[01:49:54] you paginate it by id. Something like this. And db.students.find where id is greater than the
+[01:50:02] last. So you first get the first 10 rows. Then you find the last id from this while iterating
+[01:50:08] you find the last id and then you do db.students.find where id is greater than the last id limit 10.
+[01:50:13] then id greater than the last id limited then id greater than the last id limited and so on and so
+[01:50:19] for given that your collection mongodb collection sql table are all physically stored by id that's
+[01:50:30] what how databases are stored they're physically stored order by primary key this becomes a very
+[01:50:36] efficient operation. Let me show you the benchmarking graph. Here this is the graph.
+[01:50:44] So here you see the blue line is the skip limit or limit offset based pagination and id limit
+[01:50:51] is the id based pagination. Obviously I cannot apply advanced where clauses over here but if
+[01:50:59] you don't have to you can get a constant time performance while doing deep pagination. Here
+[01:51:07] range or for smaller
+[01:51:09] depth of pagination, your time does
+[01:51:11] not very much. But as
+[01:51:13] you go deeper and deeper and deeper
+[01:51:15] and deeper and deeper,
+[01:51:17] you see the time increasing
+[01:51:19] linearly. It holds true for
+[01:51:21] every use case. This is where I had
+[01:51:23] a massive disk flush. I
+[01:51:24] was so keen why there is a sudden
+[01:51:27] spike over here. My
+[01:51:29] disk started to throttle
+[01:51:31] at that time and I was so happy that I made my
+[01:51:33] disk throttle. Because of it, there is a sudden
+[01:51:35] spike but it is actually linear.
+[01:51:37] And it was fun to understand that I got to put so much pressure on my desk
+[01:51:41] that it started crying and I was so happy.
+[01:51:44] I always wanted to saturate my IO and I was able to do that.
+[01:51:48] So here what happened is you can very clearly see a linear growth in time,
+[01:51:53] but it is constant performance when I'm doing ID based mission
+[01:51:56] because it is a property of database to keep things ordered by primary key.
+[01:52:01] Always, always.
+[01:52:03] Okay.
+[01:52:03] By the way, in case you are interested to know,
+[01:52:06] I have a members-only video on my YouTube last week posted,
+[01:52:09] not promoting, but in case you'd want to know deeper,
+[01:52:11] I'm covering a bunch of database engineering topics there on YouTube.
+[01:52:15] But it is members-only, so you may have to make that other purchase there.
+[01:52:18] But I went into how database actually stores,
+[01:52:21] like why database chooses B plus 3 to store it
+[01:52:23] and how it actually physically stores the data,
+[01:52:25] how it makes its operations perform.
+[01:52:28] So, iterating by primary key is very efficient
+[01:52:33] is actually physically storing the data in that exact same manner.
+[01:52:38] So for you to do, hey, give me 10 from this particular ID.
+[01:52:43] Literally log n time, it reaches to that location,
+[01:52:45] then sequential scan after that.
+[01:52:47] Very efficient for your database.
+[01:52:50] No matter, and because it is B plus 3,
+[01:52:52] it's always log n to reach to that particular ID
+[01:52:54] and then a sequential scan after that.
+[01:52:57] Log n, sequential scan, log n, sequential scan.
+[01:52:59] That's why no matter how deep you go,
+[01:53:03] not increase at all.
+[01:53:06] You see a constant,
+[01:53:07] very evident from this graph,
+[01:53:09] very evident.
+[01:53:10] You see a constant type of comments
+[01:53:12] always for ID based imagination.
+[01:53:14] Disadvantaged,
+[01:53:15] you cannot apply a complex
+[01:53:16] where clauses,
+[01:53:16] but it's okay.
+[01:53:17] That's what your use case is,
+[01:53:19] right?
+[01:53:20] But that is a very nice,
+[01:53:23] but basically that is a very nice
+[01:53:24] side effect or other byproduct
+[01:53:26] of using snowflake
+[01:53:29] or any iteration
+[01:53:30] or any ID generation logic
+[01:53:33] where timestamp is on the leftmost side.
+[01:53:36] You will always see that.
+[01:53:37] So MongoDB, I showed you an example holds true for Snowflake,
+[01:53:41] holds true for even MySQL.
+[01:53:42] Even in MySQL, you don't want to do that deep pagination
+[01:53:46] and you don't want fancy where clauses.
+[01:53:48] Try doing this.
+[01:53:49] You would get much, much, much, much, much larger performance
+[01:53:52] when you are going deeper into pagination.
+[01:53:54] But this does not mean you go and replace all of your
+[01:53:57] iteration logic because it has limitations that
+[01:54:00] if you have complex where clauses,
+[01:54:03] vegetation right but where you can go for it right okay so before i take question let me just cover
+[01:54:10] this snowflake at discord and after this we'll take question about snowflake and i will talk
+[01:54:14] about instagram software so here what happens is there is no enforcement we say that the first 41
+[01:54:22] bits over here is epoch millisecond so epoch millisecond is basically time stamp from epoch
+[01:54:29] epoch is 1st January 1970.
+[01:54:31] But if my company is starting in let's say 2011 or 2015, why, why should I start my time
+[01:54:39] from 1st January 1970?
+[01:54:41] Can I not get a custom epoch?
+[01:54:43] So this way I can get a larger range, right?
+[01:54:47] For example, the time that I lost from 1st January 1970 to let's say 2015, those big
+[01:54:53] of an ID range, I would get it to, it would just enlarge my ID.
+[01:54:59] even longer and like heads up for 20 30 30 for 35 years heads up that's huge like 35 years of ids
+[01:55:09] you will get it right so what discord does it has the exact same structure exact same structure as
+[01:55:14] twitter but it's just that the epoch time starts from first second of 2015 because in 2015 the
+[01:55:20] company started right snowflake is also used by sony the tv company sony they also use snowflake
+[01:55:29] based implementation it is open source you can find it on github go through the source code five
+[01:55:33] lines of code of core snowflake and you see it's literally bit manipulation that's it all right and
+[01:55:38] we'll also see it by instagram how they also manipulate those bits very easy right but go
+[01:55:44] through that it's very easy and this snowflake get very nice fraction because of its decentralization
+[01:55:51] there is no need of centralized id generation service there is no moving part required moving
+[01:55:56] part is no external surveys which needs to be scaled up and scaled out and whatnot.
+[01:56:00] It's very counterintuitive.
+[01:56:02] Whenever you think of ID generation, the first thing comes up,
+[01:56:04] I'll write a microservice that does that.
+[01:56:07] Good engineers never think like that.
+[01:56:08] Good engineers look at problem.
+[01:56:10] They look at the most efficient way to find a solution.
+[01:56:12] Not every solution requires you to build a service.
+[01:56:16] For some reason, everyone is doing that.
+[01:56:20] Very stupid.
+[01:56:22] Do things that matter to you and your business.
+[01:56:26] else is doing it right everything every system every solution is contextual it depends on the
+[01:56:33] context of your organization the expertise of your engineer the support from your management
+[01:56:37] but you are the one who can bring that chain in case you are unhappy if your solution is far
+[01:56:42] superior than others everyone else is proposing microservice but if you think snowflake works well
+[01:56:47] for you just go for snowflake you need to have you need to make data driven decisions if you show
+[01:56:52] the data, why would they not adopt it? It's really simple but just don't fall into this trap of
+[01:56:57] building microservices after like for every single problem. Microservices are stupid in most cases.
+[01:57:05] In most cases they are stupid, they are an overkill. So understand the context and then build
+[01:57:12] what you really need to build. Keep things simple because simple systems scale, always simple.
+[01:57:19] And if you look here, it is just a library.
+[01:57:23] Normal three lines of code leads you in generating a Snowflake ID.
+[01:57:28] You don't even have to make a network call for that because of its decentralization,
+[01:57:32] because of not having to make a network call and build a service and scale it in, it's
+[01:57:37] just so, so, so efficient for you to live this.
+[01:57:41] This is the beauty of Snowflake.
+[01:57:42] Any questions on this before we go to Instagram.
+[01:57:49] Yes, Rajiv.
+[01:57:50] Arpeth, that graph which you showed us, how did you come to know that the disk is throttling
+[01:57:55] there?
+[01:57:58] I happened to have Prometheus running at that point of time, which was exporting my node
+[01:58:03] metrics into somewhere.
+[01:58:04] I happened to have that happened.
+[01:58:06] It was all luck.
+[01:58:08] So what I saw was my disk IO.
+[01:58:11] I was continuously monitoring my disk IO.
+[01:58:13] Actually the node was monitoring it.
+[01:58:14] I had those metrics being exported somewhere else.
+[01:58:18] on, uh, all that was done on my local machine, but I was capturing those metrics for some
+[01:58:23] other thing. I was writing a Wikipedia. I was writing a search engine on Wikipedia.
+[01:58:27] I wanted to capture a bunch of metrics and I happened to have node exporter running and
+[01:58:32] it captured it. It showed my disk IO utilization, uh, as part of my node, uh, exporter, you
+[01:58:38] get this disk IO utilization metric. That's how I got to know. It was a hundred percent.
+[01:58:42] that thing. Okay. Uh, one more thing that, uh, you told about this, uh,
+[01:58:48] imagination logic works for all DB. Uh, you talked about B plus three of my SQL or SQL
+[01:58:54] based thing, but then when it comes to no SQL part, uh, uh, primary key, uh, reading
+[01:58:59] is the same for both people.
+[01:59:02] Depends on the storage engine. MongoDB, it works well. You saw it in MongoDB. MongoDB
+[01:59:06] is a no SQL data. Correct. Okay. Anyone that gives you sequential scanning, this would
+[01:59:12] that the DynamoDB also, but if you're having completely decentralized hash
+[01:59:16] based thing, then you cannot.
+[01:59:18] If you're, if you have data locality, then you get this benefit.
+[01:59:23] If your data is completely de localized, then you would never
+[01:59:27] get this performance benefit.
+[01:59:29] So understand how your database stores your data on the disk, which is why
+[01:59:33] knowing database internals is essential for you to build performances.
+[01:59:37] Otherwise you would have like, otherwise limit offset, everyone would have done
+[01:59:42] So how your database is actually storing the data,
+[01:59:45] you can make those performance optimizations
+[01:59:48] without having to worry about is this true or not?
+[01:59:50] Because you know it is how it is stored.
+[01:59:54] But MongoDB, it works.
+[01:59:55] And just one more example to that.
+[01:59:58] We saw in that graph that for smaller value, it is okay.
+[02:00:02] Elastic search, elastic search gives you two ways
+[02:00:05] to page in it, exact same thing.
+[02:00:08] Elastic search is also no SQL.
+[02:00:10] It's also Charlotte partitioned work part.
+[02:00:12] Elasticsearch puts a limit of 10,000 documents in a limit offset based pagination.
+[02:00:18] You cannot go beyond 10,000.
+[02:00:19] It's a hard-coded limit.
+[02:00:21] Try spinning up Elasticsearch server.
+[02:00:23] Try firing a query with offset, with skip.
+[02:00:28] I'm not sure what they call it.
+[02:00:29] I think they call it offset only.
+[02:00:31] 10,000, more than 10,000.
+[02:00:32] It gives you an error that you cannot go beyond this.
+[02:00:35] Please use cursor API to go beyond this.
+[02:00:38] Classic example where you are iterating through almost all the documents.
+[02:00:42] They're more than 10,000.
+[02:00:43] It's better to go for a cursor based approach versus going for a limit
+[02:00:47] offset based approach for smaller values.
+[02:00:50] It does not matter, but as you go deeper, deeper, deeper, that's
+[02:00:53] where these things starts to creep up.
+[02:00:56] Okay.
+[02:00:58] Yeah.
+[02:01:00] Yeah.
+[02:01:02] So what is counter here in this is no flag approach in static counter
+[02:01:05] atomically increment.
+[02:01:07] Every time you generate ID.
+[02:01:09] Okay.
+[02:01:10] Per server counter.
+[02:01:12] Per server.
+[02:01:13] Alright.
+[02:01:14] Yeah.
+[02:01:15] Which is exactly why I stress so much in the first time when we're discussing this.
+[02:01:18] It all comes together in all of these discussions.
+[02:01:22] Yeah.
+[02:01:24] Yeah.
+[02:01:25] I didn't understand like how in Discord, Epoch is just a number, right?
+[02:01:30] So even if we start from today's date, how is it like saving us?
+[02:01:36] Okay.
+[02:01:36] What is Epoch?
+[02:01:37] Let's say I'm starting with the current epoch.
+[02:01:49] The current epoch is 1676784716.
+[02:01:55] This is the current epoch second.
+[02:01:57] If I add three zero, it becomes current epoch millisecond.
+[02:02:00] This is the current epoch millisecond.
+[02:02:02] If I start, if I'm starting my company at this moment, I'm losing out on this.
+[02:02:07] big operate because this is my first 41 bits of it.
+[02:02:10] Right.
+[02:02:11] So now because I have 41 bits only the maximum value that I can store in those
+[02:02:16] 41 bits is.
+[02:02:21] Correct.
+[02:02:22] No, do the power 41.
+[02:02:23] It will get exhausted pretty quickly because now I'm not starting from zero.
+[02:02:27] I'm starting from this one.
+[02:02:29] Correct.
+[02:02:31] I could have caught up that big of a range.
+[02:02:33] if I start from 0
+[02:02:35] from this moment and let my time
+[02:02:37] move forward from here 1, 2, 3,
+[02:02:39] 4, 5, 6, on and so forth.
+[02:02:41] Got it? So we are essentially subtracting
+[02:02:43] the start time.
+[02:02:45] So this way we get a
+[02:02:47] massive range handy
+[02:02:49] because the rate
+[02:02:51] at which your time is moving
+[02:02:53] forward is exactly the rate at which the time
+[02:02:55] is moving forward. So this time and the actual time.
+[02:02:57] So you get 35 years of time.
+[02:02:59] If you start today, you get
+[02:03:01] 45 years of time.
+[02:03:03] Right.
+[02:03:04] Right.
+[02:03:05] So it would take more 45 years for you to exhaust that range of 41 minutes.
+[02:03:11] Right.
+[02:03:13] So you're just gaining that particular.
+[02:03:15] Right.
+[02:03:16] Okay.
+[02:03:17] Okay.
+[02:03:17] Now let's go into how Instagram does it.
+[02:03:20] And this is why you should love early engineers, not current, early engineers of Instagram.
+[02:03:24] You should like, they deserve to be millionaires, like multi-millionaires.
+[02:03:28] They deserve.
+[02:03:29] Look at this beautiful.
+[02:03:31] When I first read that blog, I started cursing because this is such a brilliant piece of optimization.
+[02:03:40] It just boggled my mind how someone having a deep knowledge of data, not really deep,
+[02:03:46] someone having decent knowledge of database can do this much out of it.
+[02:03:51] So what Instagram did is Instagram wanted to use Snowflake.
+[02:03:57] But what they did is they did Snowflake while inserting in DB.
+[02:04:03] So Twitter did Snowflake at API servers.
+[02:04:08] Instagram does it over here.
+[02:04:11] API server does not have Snowflake logic.
+[02:04:14] Database has it.
+[02:04:15] See the beauty of their implementation.
+[02:04:17] So what Instagram needed?
+[02:04:20] They wanted ID sortable by time.
+[02:04:21] Same use case as Twitter.
+[02:04:24] They wanted to process, find trending hashtags, push it to feeds of the users and whatnot.
+[02:04:29] Like do processing on the recent item.
+[02:04:31] So they needed ID sortable by time.
+[02:04:33] 64 ID so that they are efficient on indexes.
+[02:04:36] And they did not want to build a new service.
+[02:04:38] Look carefully.
+[02:04:39] How good companies, they are trying, continuously trying to not have microservices.
+[02:04:47] We on the other hand are told to build microservices every now and then.
+[02:04:51] That's why I always say good engineers never think in microservices.
+[02:04:54] They think in problems and solutions.
+[02:04:56] They did not go for a building Microsoft for every single thing out there.
+[02:05:00] That's an overkill for most organizations.
+[02:05:03] So they had these requirements.
+[02:05:05] So what they went with, they tweaked Snowflake a bit.
+[02:05:09] What they did, they put first 41 bits at epoch millisecond,
+[02:05:12] but from 1st January 2011.
+[02:05:15] So they get massive rage to play with now.
+[02:05:19] Then the next 13 bits is DB shard ID.
+[02:05:24] was already sharded we'll talk about the sharding structure also in a couple of minutes so what
+[02:05:29] snowflake for twitter did 41 10 for machine id and 12 for this what instagram did 41 bits 13 and 10
+[02:05:37] so 13 for db shard id and 10 is per shard sequence number static counter right okay let's first go
+[02:05:44] into and understand what logical shards and physical servers are for instagram so what we do
+[02:05:50] is in i hope you like it was shared in the period but i hope you saw that video on sharding and
+[02:05:55] partitioning that i put on my youtube and shared in the readings if not do watch it i'll give you
+[02:05:59] a glimpse of it so what instagram does instagram uses instagram uses uh postgres as a database
+[02:06:08] right at 10 what instagram had is instagram created bunch of logical shards also called as
+[02:06:15] partitions and physical DB servers.
+[02:06:18] Physical DB servers is actual physical servers on which your database is running.
+[02:06:22] Right.
+[02:06:22] Which means your MySQL servers that you are spinning up.
+[02:06:25] Right.
+[02:06:26] Within the MySQL server, you create database by firing create database command.
+[02:06:30] Right.
+[02:06:31] That create database is a logical partition.
+[02:06:35] Right.
+[02:06:35] So what you do is you create logical shard, which is thousands of them at max 2 raise
+[02:06:42] to 13, which is 8192 at max.
+[02:06:45] And you have fewer physical servers, let's say 10 or 15.
+[02:06:48] So on each server, you create create database Instagram 1, create database Instagram 2, create database Instagram 3.
+[02:06:55] Other server create database Instagram 2000, create database Instagram 5000.
+[02:07:00] So creating multiple logical partitions in your database, every partition will have the exact same tables with the exact same schemas.
+[02:07:10] So this is one database in which you have four tables.
+[02:07:15] database but different data table same schema same data different so this is logical partition
+[02:07:22] this is physical server right so my sql server that you spin up is a physical server within which
+[02:07:29] you when you do create database that is a logical partition so when you run a migration to add a
+[02:07:32] column you have to run it on all the databases that you have all the physical database servers
+[02:07:37] against which all the logical databases that you have when you do create database we always when
+[02:07:45] database and your company name and you create
+[02:07:47] users table, odd table and this.
+[02:07:49] They do this multiple times, like 8,000
+[02:07:51] times. But advantage
+[02:07:53] that they get because of this
+[02:07:55] is that
+[02:07:58] now
+[02:07:58] they can take a dump
+[02:08:01] of a database and put it into
+[02:08:03] some other database. For example,
+[02:08:06] let's say
+[02:08:07] one of my database is hot.
+[02:08:10] One of my databases
+[02:08:11] is hot. It can literally, we'll go
+[02:08:13] into this one more time.
+[02:08:15] in the fifth week, right?
+[02:08:17] But I'm just giving you a glimpse
+[02:08:18] on what this is all about.
+[02:08:20] They can literally take this small database,
+[02:08:23] logical partition,
+[02:08:24] and move it over here.
+[02:08:25] SQL dump commands,
+[02:08:26] they do this, they dump it,
+[02:08:28] and they load it in different place, right?
+[02:08:31] This way they can balance.
+[02:08:32] So for them,
+[02:08:33] horizontally scaling a database is easy.
+[02:08:35] They spin up a new physical server,
+[02:08:37] take this logical partition,
+[02:08:38] and move it there.
+[02:08:40] Why is logical partition?
+[02:08:40] Because now they can literally dump it very quickly
+[02:08:43] and load it very quickly.
+[02:08:45] If they were not having this logical partitions,
+[02:08:47] they had to go through every single row and then extract the row
+[02:08:49] that needs to be moved and then move it.
+[02:08:52] Instead, they just create separate logical partitions,
+[02:08:54] making their movement very easy.
+[02:08:57] So this is what Instagram has as their structure.
+[02:09:01] So they have 10 MySQL servers within each one of them,
+[02:09:04] thousand, thousand, thousand MySQL databases,
+[02:09:07] which is create database command that you fire,
+[02:09:09] that are being created, which has logical partition
+[02:09:12] and physical database server.
+[02:09:13] Now this database shard ID that here we are talking about is this.
+[02:09:19] Right?
+[02:09:20] They can be at max 2 raise to 13, which is 8192.
+[02:09:23] And per shard sequence number like static count.
+[02:09:26] But now what Instagram does is brilliant.
+[02:09:29] What they do?
+[02:09:30] They use stored procedures.
+[02:09:32] Things we neglected in college PL, SQL, no one studied that.
+[02:09:35] Stored procedures, what are they?
+[02:09:37] We are not going to use it.
+[02:09:38] We write raw SQL queries.
+[02:09:39] What Instagram did is something really fancy, really basic.
+[02:09:43] I did study this in college, but never thought it would be used in this way.
+[02:09:48] PLSQL.
+[02:09:49] I loved PLSQL, stored procedures and triggers and whatnot, but see how beautifully they're
+[02:09:54] using it.
+[02:09:55] So their photos table.
+[02:09:57] So as I said, there are multiple physical servers in which there are logical partitions
+[02:10:02] or logical databases that you're creating.
+[02:10:05] Each database has same set of tables with same set of schemas.
+[02:10:09] For each partition that it has table photos, it creates something like this.
+[02:10:15] So create database Insta 5, create table Insta 5.photos.
+[02:10:19] Schema of the photos table, other column, whatever you want to put it.
+[02:10:23] But ID column looks something like this.
+[02:10:26] ID, big integer, not null, default.
+[02:10:28] Default value is, when you don't provide any value, the default value is this.
+[02:10:32] This is a function called, a stored procedure, a function.
+[02:10:35] Insta 5.next ID.
+[02:10:38] So, when you are inserting a photo in the table, if you don't provide an ID, invoke
+[02:10:46] this function.
+[02:10:48] That's what it is doing.
+[02:10:49] When you don't provide an ID while inserting the photo in this database or in this table,
+[02:10:54] invoke this function, whatever the output is, use that as the ID.
+[02:10:59] Now what this function is?
+[02:11:01] This function is this.
+[02:11:03] Create or replace function insta5.nextID.
+[02:11:07] has its own next ID function because it is on fifth shard.
+[02:11:12] I'm having those five five five suffixed everywhere.
+[02:11:15] So next ID of this data, next ID, oh sorry, next ID of Insta 5,
+[02:11:20] photos table of Insta 5, create database Insta 5.
+[02:11:24] And how I'm defining this function is like this.
+[02:11:27] Insta 5.next ID is the function name which outputs result
+[02:11:31] which is of type big integer and it declares four variables.
+[02:11:37] First is an epoch variable of type big integer and this is the value which is 1st January
+[02:11:43] 2011 epoch timestamp epoch millisecond and sequence id something now millisecond big
+[02:11:50] integer something shard id is 5.
+[02:11:52] This 5, this 5, this 5, this 5, this 5 same right it's hard coded there.
+[02:11:58] This is for shard id 5.
+[02:11:59] Similarly you have to run the same you have to create this stored procedure for every
+[02:12:03] single database that you have right.
+[02:12:07] as an example.
+[02:12:08] Now, this is the business logic.
+[02:12:10] This is actually how you create a Snowflake ID.
+[02:12:12] So what you do?
+[02:12:13] Every database has a sequencer.
+[02:12:16] Like how does database generate auto-increment IDs?
+[02:12:19] Behind the scene, there is a sequencer
+[02:12:21] or a sequencing algorithm
+[02:12:22] whose job is to obviously table sequence.
+[02:12:25] There are multiple names for that,
+[02:12:26] but basically sequence is what you hear the general job.
+[02:12:29] So you create a sequence
+[02:12:31] which atomically increments and spits out the ID.
+[02:12:37] increments simple every time you invoke it it increments so you invoke a function called next
+[02:12:42] one it's a standard function next well insta pi dot table id sequence mod mod 1024 by 1024
+[02:12:49] 2 raise to 10 this is limited by 10 per shot sequence number right so no matter how many
+[02:12:56] transactions come in this will be an atomic increment and you do mod mod 1024 so it restricts
+[02:13:02] it to 10 bits as sequence ID.
+[02:13:05] So it stores it in this sequence ID over here.
+[02:13:07] Right.
+[02:13:08] Then you get now millisecond.
+[02:13:10] Now millisecond you get normal epoch millisecond
+[02:13:12] of your current database.
+[02:13:14] Right.
+[02:13:14] Now you want to create what you want to create snowflake ID.
+[02:13:19] So what do you do in result, which is a big integer.
+[02:13:22] You first 41 bits is what epoch millisecond since your customer
+[02:13:27] epoch which is 1st January 2011. Now millisecond minus epoch left shift by 23. So you compute
+[02:13:36] a time left shift by 23. When you left shift by 23 you would set the first 41 bits to be
+[02:13:45] epoch milliseconds. Then the next is shard id. You have a shard id which is 5 result
+[02:13:53] equal to result bitwise or shard id left shift 10.
+[02:13:58] So next 13 bits are set to 5 which is shard id.
+[02:14:02] And then you do result equal to result or sequence id.
+[02:14:06] And every time you invoke this function
+[02:14:09] or every time you insert this photo
+[02:14:11] without passing in any id,
+[02:14:13] it triggers this particular function
+[02:14:15] which generates the snowflake id,
+[02:14:18] returns it as result which gets inserted in this table.
+[02:14:23] Instagram does snowflake ID in the database code procedure.
+[02:14:28] Highly, highly, highly recommend you to implement this.
+[02:14:31] Don't just look at it in theoretical side.
+[02:14:33] Very easy to implement.
+[02:14:34] Just start your favorite server, MySQL, Postgres, anything and write this and see
+[02:14:39] how beautiful this implement is.
+[02:14:41] Post on the previous batch did it and they found it.
+[02:14:43] They were so amused when it first tried because it's so easy.
+[02:14:47] It's so easy.
+[02:14:48] It's so efficient because now you don't need to have logic on the API side.
+[02:14:53] all offloaded to database.
+[02:14:54] You just do normal insert like you always do without passing an ID.
+[02:14:58] Earlier, if you don't buy you to auto increment.
+[02:15:00] Now, instead of auto incrementing, it would invoke this function.
+[02:15:05] Problem solved.
+[02:15:06] This is such a beautiful thing that Instagram does.
+[02:15:08] It still does that.
+[02:15:10] You can still see Insta post having integer IDs, which are snowflake
+[02:15:14] generated exactly like this.
+[02:15:16] Right.
+[02:15:17] Okay.
+[02:15:17] Any questions on this?
+[02:15:23] Rajiv.
+[02:15:25] In this line, under dot table underscore added or sequence, this should be a column on Insta
+[02:15:31] five, right?
+[02:15:31] No, no, no, no, no.
+[02:15:32] This is not a column.
+[02:15:33] This is basically depends on database.
+[02:15:36] It is not need to be a column.
+[02:15:38] It's a sequencer.
+[02:15:39] Okay.
+[02:15:40] Okay.
+[02:15:40] So you can create as many sequence by default, when you create an ID column with auto increment,
+[02:15:45] it creates a sequence.
+[02:15:47] It basically creates a sequence behind the scene with a unique name and it assigns it
+[02:15:52] internally.
+[02:15:53] you generate new IDs, it just does a next file and gets a new integer and it uses it as the ID
+[02:15:59] for that row that you're inserting. Here we are just replacing the default one with this. So this
+[02:16:04] is what you would basically custom create as a new sequencer. I don't need it. It's an auto
+[02:16:09] incrementing sequence. Like how auto increment IDs are similarly. You don't need this to be a
+[02:16:13] separate column. One more question. We just lifted the logic from API server and just substituted and
+[02:16:18] put it in a DB, right?
+[02:16:20] Apart from logical partitioning, we just lifted and placed the logic in DB, which, which means
+[02:16:25] that we are like abstracting the logic inside DB, DB takes care of this.
+[02:16:28] So now you have large number.
+[02:16:29] You can have more than 10,000, 50,000 API servers also.
+[02:16:34] Okay.
+[02:16:34] There's no limit.
+[02:16:35] Twitter is limited by that now.
+[02:16:36] Twitter can only have two raised to 10 API servers.
+[02:16:42] Because of machine ideas.
+[02:16:43] Okay.
+[02:16:43] Yeah.
+[02:16:43] Yeah.
+[02:16:45] And we have, we have, we have, we have, we have, we have, we have a lot, we have a lot
+[02:16:49] many partitions.
+[02:16:50] Correct.
+[02:16:50] And here we have bottleneck five.
+[02:16:52] We can have at max 8,000 logical databases, which is huge number 8,000 databases.
+[02:16:57] What can you do?
+[02:16:59] Yeah.
+[02:16:59] Scaling actually helped you.
+[02:17:00] Okay.
+[02:17:01] I understand.
+[02:17:02] Right.
+[02:17:03] So, uh, Pankaj.
+[02:17:05] Yeah.
+[02:17:05] So, across machines, how are we comparing the IDs?
+[02:17:09] It's just that one if the machine ID 1 and machine ID 2 are generating at the same time,
+[02:17:15] one is given priority.
+[02:17:16] Is that one is smaller, two is larger.
+[02:17:18] Okay.
+[02:17:19] And that machine ID is like we are giving it by default.
+[02:17:23] Yeah, that any machine that can get separating.
+[02:17:25] Another let's say zookeeper is assigning you IDs when your machine spins up.
+[02:17:30] Okay.
+[02:17:31] Okay.
+[02:17:31] Yeah.
+[02:17:33] Okay.
+[02:17:34] By the way, that's all what I wanted to cover as part of ID generation.
+[02:17:39] implement every single thing that begins easy to implement it's nothing fancy over here but you can
+[02:17:44] very easily implement and see these things working in action it's really easy but do that you'll have
+[02:17:51] fun implementing all of this and trust me because i implemented i got much deeper understanding of
+[02:17:56] how they are doing what they are doing what advantages what disadvantages logical partition
+[02:18:01] that we discussed logical databases why do they need export and dump and load and shard and whatnot
+[02:18:05] not do that one life engineering is all we have would help us thrive in our careers but not good
+[02:18:13] any other questions anyone yeah rajin uh one more i just uh talked i mean bit earlier that
+[02:18:21] if we want to number the number the ids we have some logic in which um i know networks are
+[02:18:29] unreliable the time we insert in database is time we get right where the entry call got in
+[02:18:36] But with this approach, Snowflake and all those things, do we guarantee that the inserts in DB will always be monotonic?
+[02:18:43] I mean, if we have a business case where we want to serve that project.
+[02:18:48] What do you mean monotonic?
+[02:18:50] Snowflake is not monotonically increasing.
+[02:18:54] It does not guarantee strict monotonic.
+[02:18:56] If you need strict monotonic, auto-increment is the way to go.
+[02:18:59] And you can still see something's out of order.
+[02:19:04] That's okay.
+[02:19:05] social media app like Instagram and all, does it, do you really care about it?
+[02:19:09] Not much, but a financial application where you're listing the transactions.
+[02:19:12] Imagine bank, would bank use snowflake ID?
+[02:19:14] No.
+[02:19:16] Right.
+[02:19:16] You need strict order in which the transactions have happened.
+[02:19:19] Auto increment is the way to go for them.
+[02:19:22] Okay.
+[02:19:24] Yeah.
+[02:19:27] But I wanted to clarify my understanding of this, which is Insta5.table ID sequence.
+[02:19:37] model. So my understanding is that for every table, we have a sequence ID that is generated
+[02:19:42] when we create that table and then we are.
+[02:19:46] No that is done when you have an auto increment ID column, then otherwise you can explicitly
+[02:19:50] create any sequencer that you want with any name.
+[02:19:54] With any name.
+[02:19:56] And that sequencer is doing this responsibility of.
+[02:20:01] Atomically increment.
+[02:20:02] it's it's responsibility when you invoke next well it atomically increments it and returns
+[02:20:07] with the value.
+[02:20:10] When you create a table with an ID column with auto incrementing, this is implicitly
+[02:20:15] getting created, but here we don't have that.
+[02:20:17] We explicitly create one with the name that I just use table ID sequence.
+[02:20:21] It's a name that I do.
+[02:20:23] And by that, this is exactly the name that Instagram also has given.
+[02:20:26] So that's why I just stick to that.
+[02:20:28] But the thing is that you can name it anything that you want.
+[02:20:32] sequences as you want. It's just not that you can limit it to just one per table. You can have as
+[02:20:36] many as you want. You can have other columns which are auto increment. It's not a hard limit where
+[02:20:41] it says only ID can be auto increment. FYI, you can create another column. You can have three columns
+[02:20:45] with auto increments in your table. You can have that. But the idea is you create a sequencer whose
+[02:20:51] job is to atomically increment and give it to you which is exactly what a static counter did back in
+[02:20:55] that other logic. Right? So we just leverage that because we need thread safety. We need
+[02:21:02] that because of this yeah i understand now thank you akshay uh yeah uh for the gossip part that we
+[02:21:12] had in the distributor uh for the gossip do they use uh lampard clock implementation usually they
+[02:21:21] did not specify anything what they are using but lampard clock is very different for it is not used
+[02:21:26] for gossip as far as I know and gossip is normal protocol that you are using uh which
+[02:21:33] one I used I used one uh forgot the name what did I use for gossip it has very fancy name
+[02:21:42] I forgot about it shit it's very gossipy name like if I remember I'll tell you I need to
+[02:21:53] to Google search for that.
+[02:21:54] So what they do, it's just they abstracted,
+[02:21:58] like they just told in an abstract way
+[02:21:59] that they need to do gossip.
+[02:22:01] How you do gossip is up to you.
+[02:22:02] It can be as simple as making network calls
+[02:22:05] to check what the greatest ideas
+[02:22:06] and then agree upon something
+[02:22:07] and add some buffer to that,
+[02:22:08] which both of them agrees on.
+[02:22:10] Right?
+[02:22:11] It may not be an explicit algorithm per se.
+[02:22:14] You can write your own simple gossip thing
+[02:22:16] that works fine.
+[02:22:17] But I'm not sure what Flickr actually did
+[02:22:20] to implement that particular gossip
+[02:22:23] not bigger that other logic that need to complete a gossip because it's just a normal thing to say
+[02:22:27] you'd have gossip protocol pick your favorite write your own but attend the idea for that is
+[02:22:32] at the end of the gossip that you are doing you need to know and you both need to have a consensus
+[02:22:39] on the value that the other one would be picking right so long as that is there it's whole screw for
+[02:22:47] okay and also in the amazon implementation if we could like go to that stage go on
+[02:22:56] Yeah, in here like can't we like, can't the servers read from a queue that the API generator
+[02:23:07] actually publishes to?
+[02:23:09] Why not?
+[02:23:10] You can do that.
+[02:23:11] Keep generating the range, keep pushing it into the queue.
+[02:23:14] Let's server read from the queue, but not one idea at a time, but batch of IDs at a
+[02:23:18] time.
+[02:23:18] And we can guarantee like something like exactly once delivery.
+[02:23:24] You are offloading the atomicity to Q readness.
+[02:23:27] So when you are reading from the Q, that is atomic in nature.
+[02:23:29] Right.
+[02:23:30] And then the core property you are still playing with is atomic reads.
+[02:23:33] Correct.
+[02:23:34] You get it from the database.
+[02:23:35] You get it from the Q.
+[02:23:37] Anywhere it's fine.
+[02:23:39] Okay.
+[02:23:41] It's not just at end result as you're focusing on the core property that you read.
+[02:23:44] Q gives you atomicity.
+[02:23:46] Well, works for you.
+[02:23:47] Right.
+[02:23:48] Database gives you that atomicity.
+[02:23:49] Well, works for you.
+[02:23:50] I can replace this with DynamoDB.
+[02:23:52] Atomic instruction.
+[02:23:53] with redis also. That's not a problem. At that core property, what you need, if you
+[02:23:57] get from any system out there, it's good enough.
+[02:24:01] Got it. Okay.
+[02:24:03] Uh, I'll fit in your blogs graph that you showed, uh, the value shoots up in first
+[02:24:11] when the result is equal to 6,000 number of records in such a, it is equal to 6,000
+[02:24:16] and then comes down. Why is it shouldn't it be higher only?
+[02:24:21] It depends on what other, what other processes are running on my machine.
+[02:24:26] I did it on my local machine.
+[02:24:28] I did not use my employer's machine.
+[02:24:29] Did on my local machine.
+[02:24:31] There are tons of other processes which are running.
+[02:24:32] You don't know what all things are contending for that resource.
+[02:24:36] That's why you see those spikes.
+[02:24:38] Okay.
+[02:24:39] And for the Instagram implementation, which you showed the last slide,
+[02:24:44] table ID sequence variable, I think it should be stored in cash, right?
+[02:24:47] not disks which means not in the table.
+[02:24:51] What cash?
+[02:24:53] Cash as in local eat rather than making a call to disk.
+[02:24:58] Database, it's database implementation.
+[02:25:00] We don't really have to, by the way, it has to be persistent.
+[02:25:03] If not, if not, what if your database reboots?
+[02:25:07] It would start from zero.
+[02:25:09] That's wrong.
+[02:25:09] Okay.
+[02:25:10] Yeah.
+[02:25:11] Right.
+[02:25:11] Let it be persistent.
+[02:25:12] Right.
+[02:25:13] And it's database.
+[02:25:14] So database would optimize it.
+[02:25:15] it would do a periodic
+[02:25:17] flash and what not. Let
+[02:25:18] database take care of that.
+[02:25:20] We just create a sequencer and ask
+[02:25:23] it to generate values for us.
+[02:25:25] Thanks.
+[02:25:26] Great. Any other question anyone?
+[02:25:30] No? Brilliant.
+[02:25:32] Next week is all about social networks. I'll upload
+[02:25:34] the recordings and share the questions
+[02:25:36] by the end of the day.
+[02:25:38] Mostly by 3 or 5 today, I need to go out
+[02:25:40] somewhere. But
+[02:25:42] next week is all about social networks.
+[02:25:45] We'll go in depth of, don't spoil the fun man.
+[02:25:49] Wait, I'll pull you in.
+[02:25:50] Wait, wait.
+[02:25:52] What am I saying?
+[02:25:55] I'll upload the recordings by evening.
+[02:25:58] Do read the pre-reads.
+[02:25:59] Next week, we'll go in depth of CDNs, how they are used, what they are used.
+[02:26:03] We'll build a bunch of social network services, which are essential in it.
+[02:26:07] I'll now talk about, now that three weeks are got, we have built enough context.
+[02:26:12] Now we'll think from senior engineer's perspective.
+[02:26:15] start putting your folks into situation where you have to wear multiple hats in order to implement
+[02:26:21] different systems instead of just now systems will become more and more ambiguous that you have to
+[02:26:26] come up with requirements you have to come up with design you have to do a bunch of fancy stuff there
+[02:26:30] so a lot of interesting things planned for fourth fifth sixth week uh you'll have quite quite bit of
+[02:26:36] fun next week right thanks folks see you next week go on harsh yeah actually i thought just we are
+[02:26:54] So in one of the sentence, you said that the nation works fine.
+[02:26:59] When that column is comparable.
+[02:27:01] So does it mean that our columns are primary care, especially those IDs should be numerate.
+[02:27:06] No, it's not comparable.
+[02:27:08] Lexicographical strings.
+[02:27:11] Okay.
+[02:27:11] If an ID is a string, then your database would be stored in terms of lexicographical ordering
+[02:27:16] of the strings.
+[02:27:17] Yeah.
+[02:27:18] It's still also comparable.
+[02:27:20] So, okay.
+[02:27:20] Both are fine.
+[02:27:22] All right.
+[02:27:23] Yeah.
+[02:27:24] That's it.
+[02:27:24] Thank you.
+[02:27:25] Yeah.
+[02:27:25] So I have a question from last class.
+[02:27:32] Uh, shall I ask now?
+[02:27:35] Yeah.
+[02:27:37] regarding the CDC.
+[02:27:39] So yesterday...
+[02:27:39] Yet to talk about it.
+[02:27:40] CDC yet to talk about it.
+[02:27:41] Fifth thing will go in depth.
+[02:27:42] Meanwhile, read.
+[02:27:43] Read about it.
+[02:27:45] Because others would miss it.
+[02:27:46] That's why.
+[02:27:47] I'm yet to cover CDC.
+[02:27:48] I just sprinkled it.
+[02:27:50] If I talk something about it,
+[02:27:51] people will get confused.
+[02:27:53] I just don't want that to happen.
+[02:27:54] Right?
+[02:27:55] We'll talk about CDC in depth.
+[02:27:56] I'm yet to give you even an introduction
+[02:27:57] to what CDC is.
+[02:27:58] That will happen in fifth thing.
+[02:28:00] I would highly request you
+[02:28:01] to wait for your question
+[02:28:03] for until fifth thing.
+[02:28:04] More than happy to answer it
+[02:28:06] when I cover CDC.
+[02:28:08] It's just that discussion will digress.
+[02:28:11] I'll start spitting out terms.
+[02:28:12] People will get confused.
+[02:28:14] I'm just trying to minimize the conclusion that might happen.
+[02:28:18] Thanks.
+[02:28:20] Anupam?
+[02:28:23] I had a question about Twitter's snowflake implementation.
+[02:28:28] If my understanding is correct, the request must be round robin to increase.
+[02:28:33] Not necessarily.
+[02:28:34] Why?
+[02:28:34] You're not guaranteeing atomicity.
+[02:28:36] not guarantee monotonicity are you? Yeah, that was my follow up. If we want to guarantee
+[02:28:41] monotonicity, you cannot. Clocks can go out of sync. Yeah. You cannot guarantee monotonicity
+[02:28:51] in distributed setup. That's the thing. That's holy grail. That's, that's, that's written
+[02:28:56] in stone, right? Because it becomes extremely inefficient for you to guarantee monotonicity
+[02:29:02] when it's in distributed setup.
+[02:29:04] Right?
+[02:29:05] So you give up on those constraints.
+[02:29:07] But you still get roughly sorted.
+[02:29:08] So you try to get the max that you can
+[02:29:11] with rough sortability.
+[02:29:13] Right?
+[02:29:14] Got it.
+[02:29:15] And we talked about banks and all
+[02:29:18] where we have use cases for strict monotonicity.
+[02:29:21] Then we have to reduce our throughput requirements a bit.
+[02:29:25] And then...
+[02:29:25] Correct.
+[02:29:25] That's what you do.
+[02:29:27] Got it.
+[02:29:29] Yeah.
+[02:29:29] Brilliant.
+[02:29:30] Thanks.
+[02:29:31] Again, Simranath, I'll definitely take a question on CDC.
+[02:29:35] It's not that I'm not taking it up right now.
+[02:29:38] It's more about I don't want to have people to be confused about new terms that I spit out.
+[02:29:43] That's right.
+[02:29:44] More than happy to do it when I actually formally cover CDC.
+[02:29:49] Thanks, folks, for tuning in.
+[02:29:51] See you, folks, next week.

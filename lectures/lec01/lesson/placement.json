@@ -1,0 +1,3743 @@
+{
+ "lecture": "lec01",
+ "ledger": "learn/lec01/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1.1": "Where can a cache go?",
+  "1.2": "The API server's own memory",
+  "1.3": "The API server's disk",
+  "1.4": "Closer to the reader: the browser",
+  "1.5": "The CDN, and caches closer still",
+  "1.6": "The load balancer and the API gateway",
+  "1.7": "Inside the database: materialized views",
+  "1.8": "One route, every layer",
+  "2.1": "What scaling means",
+  "2.2": "Vertical, horizontal, and the hardware ceiling",
+  "2.3": "Spikes you can see coming",
+  "2.4": "Scaling the database",
+  "3.1": "Not everything belongs in the request",
+  "3.2": "Medium's total_blogs counter",
+  "3.3": "Message queues",
+  "3.4": "When one worker does two jobs",
+  "3.5": "Message streams",
+  "3.6": "Kafka essentials: topics, partitions, consumer groups",
+  "3.7": "Committing, and why messages come back",
+  "3.8": "Choosing: queue, stream, or broadcast",
+  "4.1": "Why bother with concurrency",
+  "4.2": "The lost update",
+  "4.3": "Locks, lock-free, and letting the database do it",
+  "5.1": "The usual way, and what REST isn't",
+  "5.2": "Short polling",
+  "5.3": "Long polling",
+  "5.4": "WebSockets",
+  "5.5": "Server-sent events",
+  "5.6": "Push notifications are a different thing",
+  "5.7": "Medium, hop by hop",
+  "6": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Opening line of the note: day 2 of week 1 finishes the framework (scaling, concurrency, delegation, communication), all on Medium."
+  },
+  "L-0003": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "'How to use this page': no post-class reading lists; lesson order varies by cohort. The '90% skip pre-reads' remark is not repeated."
+  },
+  "L-0004": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Explore primary sources yourself (MySQL datetime docs example); serendipity beats curated links. Echoed on the section 6 heuristics card."
+  },
+  "L-0005": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Keeps only the course-structure fact (8 weeks / 16 sessions, kept focused on engineering). The no-introductions logistics are dropped."
+  },
+  "L-0007": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Agenda order becomes the page TOC. The note says the page puts delegation before concurrency and why."
+  },
+  "L-0008": {
+   "section": "4.1",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "about",
+     "component": "AboutThisClass"
+    }
+   ],
+   "note": "Concurrency is a short taste here; week 2 day 1 shows how database concurrency falls apart, with practical examples."
+  },
+  "L-0009": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening claim of section 4: concurrency is the heart and soul of building systems at scale."
+  },
+  "L-0010": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Folded into the section 3 dek: these are the delegation basics you need."
+  },
+  "L-0011": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Frames section 1: for every place, ask what to cache, where exactly it sits, and what it saves."
+  },
+  "L-0012": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded as explanation: 'it reduces latency' is too vague, so name the box. Pushes past one centralized cache. No student named."
+  },
+  "L-0013": {
+   "section": "1.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·a (D-01): a hash map in API server RAM, next to the centralized Redis."
+  },
+  "L-0014": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Three costs: size bounded by app memory, lost on crash, per-instance copies are inconsistent. Also T1 rows."
+  },
+  "L-0015": {
+   "section": "1.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·b steps 2-4: one server refreshes a hot key while another lags, so users see different views."
+  },
+  "L-0016": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "A centralized cache avoids this inconsistency but gives up the local hop. Simplified-low, left as taught."
+  },
+  "L-0017": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Look beyond the centralized remote cache: it comes to mind first, and that is the reason to look past it."
+  },
+  "L-0018": {
+   "section": "1.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·b step 2: the next request lands on server B, misses, goes to the DB and fills B's own copy."
+  },
+  "L-0019": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The reason is performance, not consistency: it saves a network call to the remote cache. 'Extremely interesting hack'."
+  },
+  "L-0020": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Sticky sessions: one user always reaches one server, so that server can cache their data. A-CS-21 inline: if the server dies, the cache is rebuilt elsewhere."
+  },
+  "L-0021": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "You give up strong consistency between copies; acceptable or not depends on the use case."
+  },
+  "L-0022": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Startups use this hack, big companies typically don't. Imprecise-low: inline clarification (Redis docs: many large apps use client-side caching)."
+  },
+  "L-0023": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Works when data is nearly static and brief staleness is fine."
+  },
+  "L-0024": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Closing line of 1.2: be creative about where performance comes from."
+  },
+  "L-0025": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Medium hook: a published story almost never changes, so two servers holding two copies is fine. Medium can cache stories in API RAM."
+  },
+  "L-0026": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Not either/or: multi-level caching, local plus the remote Redis."
+  },
+  "L-0027": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Cache some info locally with an expiry: it saves network I/O and takes load off Redis."
+  },
+  "L-0028": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "API RAM is small, so TTLs and flushing matter. A-CS-12 (optional, used): give every local key a maximum TTL and cap memory."
+  },
+  "L-0029": {
+   "section": "1.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "MarginNote 'Or run Redis on the box'. Simplified-low, left as taught."
+  },
+  "L-0030": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Student proposal (views as a cache), stated as the tempting idea. SN-01: a plain view caches nothing, and a PostgreSQL MV is not auto-updated.",
+   "source_note": "SN-01"
+  },
+  "L-0031": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Definition: an MV stores a query's result (joins plus computation) as a pre-joined, pre-computed table. Fig 1·e."
+  },
+  "L-0032": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Mostly a relational-database property; some non-traditional databases use them too."
+  },
+  "L-0033": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Joins are the big cost. If ~80% of load is a six-table join over slow-changing data, store the result."
+  },
+  "L-0034": {
+   "section": "1.7",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 1·e: the derived column in the view."
+  },
+  "L-0035": {
+   "section": "1.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Board example: per-subject marks plus a derived total plus joined personal details. Used in Fig 1·e and the code sample."
+  },
+  "L-0036": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Refreshed explicitly; 'refresh' is the term, triggers were the class's mechanism. SN-02 + A-CS-01 + A-CS-02.",
+   "source_note": "SN-02"
+  },
+  "L-0037": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Only pays when data changes rarely; frequent refreshes slow things down."
+  },
+  "L-0038": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Data engineers use them daily; many backend engineers don't. Opinion, attributed as such."
+  },
+  "L-0039": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Read about views and MVs, then implement one, because otherwise it stays theory. Closing line of 1.7."
+  },
+  "L-0040": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "What it saves: expensive database computation, especially joins."
+  },
+  "L-0041": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Folded: the browser and the CDN are the two caches nearest the reader; 1.4 takes the browser, 1.5 the CDN."
+  },
+  "L-0042": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Browser caches images, assets, and some API responses, so the client may not call the backend at all."
+  },
+  "L-0043": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "JWT kept in the browser saves server work. SN-04: a JWT is a credential, not a cache; OWASP says not to keep it in localStorage (A-CS-22).",
+   "source_note": "SN-04"
+  },
+  "L-0044": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Offline-first local changes synced later feel fast. Imprecise-low: inline 'Service Workers + Background Sync, not plain Web Workers'."
+  },
+  "L-0045": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Local storage is an excellent place to cache a bunch of stuff. Simplified-low, left as taught; A-CS-23 sits next to L-0367."
+  },
+  "L-0046": {
+   "section": "1.2",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "The idea is stated (servers publish and subscribe to invalidations) and deferred to a later week. A-CS-11 inline: Redis CLIENT TRACKING."
+  },
+  "L-0047": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From practice: caching for perception', a recommendations team's story with no name. Unverifiable, attributed as one team's experience."
+  },
+  "L-0048": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Hypothetical: Amazon keeps a user's recommendations in local storage and refreshes them periodically."
+  },
+  "L-0049": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The 50-cached, show-10-at-random trick: fresh-feeling picks that update daily."
+  },
+  "L-0050": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "From practice: Cloudflare cached whole responses plus Prerender.io. Imprecise-low: inline 'Prerender caches rendered HTML for crawlers'."
+  },
+  "L-0051": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Misconception that CDNs cache only images: a CDN is a proxy and caches bytes. Speech bubble on Fig 1·d. A-CS-08 and A-CS-09 inline."
+  },
+  "L-0052": {
+   "section": "1.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "CDNs in depth come later (weeks 3-5)."
+  },
+  "L-0053": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Near-static API responses cached on the CDN never reach the backend or the central cache."
+  },
+  "L-0054": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Giphy caches results for its most popular search terms on the CDN."
+  },
+  "L-0055": {
+   "section": "1.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·d: the request stops at the CDN and never reaches your servers."
+  },
+  "L-0056": {
+   "section": "1.5",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 1·d label: search.abc.com/popular, which becomes Medium's /popular in the page. A-CS-10 inline: versioned names beat invalidation."
+  },
+  "L-0057": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Disk caching to save the network trip to the DB or cache. It is the P1 reveal and the payoff of 1.1's question."
+  },
+  "L-0058": {
+   "section": "1.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 1 rule: a cache is anything that saves an expensive computation or an expensive I/O."
+  },
+  "L-0059": {
+   "section": "1.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·c: 20 GB disk with 2-3 GB used. A-CS-04 inline: on AWS the root disk is usually EBS; instance store is the local, ephemeral disk."
+  },
+  "L-0060": {
+   "section": "1.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·c: of 8 GB RAM, the OS, app server and jobs leave little room, while the disk sits unused."
+  },
+  "L-0061": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "A local disk read beats the network trip to a central cache. SN-03 (A-CS-03 page cache, A-CS-05 latency ladder).",
+   "source_note": "SN-03"
+  },
+  "L-0062": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Use the disk cache where cross-server inconsistency is acceptable."
+  },
+  "L-0063": {
+   "section": "1.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From practice: it worked wonders': an engineer at a large bank applied disk caching. Anecdote, attributed."
+  },
+  "L-0064": {
+   "section": "1.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox body: question every component. If cache means RAM and central to you, you'll never find disk caching."
+  },
+  "L-0065": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Think at every step and use your own reasoning instead of taking components for granted."
+  },
+  "L-0066": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "A cache helps only if the cached read is cheaper than the work it replaces."
+  },
+  "L-0067": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'Statutory warning' in bold: no central view, so two servers can answer differently. Use case specific."
+  },
+  "L-0068": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "LBs and API gateways can cache responses like a CDN. SN-06 (ALB doesn't cache; nginx and API Gateway do). A-CS-07.",
+   "source_note": "SN-06"
+  },
+  "L-0069": {
+   "section": "1.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox body: for every component on the request route, ask whether you can cache there and whether it helps."
+  },
+  "L-0070": {
+   "section": "1.8",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 1·f layer map (static; the route walk was judged not a time dynamic): browser, CDN, LB/API GW, API RAM, API disk, Redis, MV."
+  },
+  "L-0071": {
+   "section": "1.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Every cache is a trade-off. If data changes rarely and some staleness is fine, 'it's the best thing ever'."
+  },
+  "L-0073": {
+   "section": "2.1",
+   "component": "TradeoffTable",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "T2 header glyph 'Hulk': make the infrastructure bulky (CPU, RAM, disk)."
+  },
+  "L-0074": {
+   "section": "2.1",
+   "component": "TradeoffTable",
+   "also": [],
+   "note": "T2 Hulk column: easy to manage; risk of downtime."
+  },
+  "L-0075": {
+   "section": "2.1",
+   "component": "TradeoffTable",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "T2 header glyph 'Minions': add more machines."
+  },
+  "L-0076": {
+   "section": "2.1",
+   "component": "TradeoffTable",
+   "also": [],
+   "note": "T2 Minions column: linear amplification and fault tolerance vs complex architecture and network partitioning."
+  },
+  "L-0077": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Folded into the section 2 dek: the weight is on how databases are actually scaled."
+  },
+  "L-0078": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition: the ability to handle many *concurrent* requests. Concurrency is the hard part."
+  },
+  "L-0079": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Two strategies; vertical means more RAM and CPU on the same machine."
+  },
+  "L-0080": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·a ladder: 16 GB to 4 TB by changing the instance type. Ends on the question 'why can't you keep going?'."
+  },
+  "L-0081": {
+   "section": "2.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "P2's tempting wrong answer: 'AWS doesn't offer a bigger one'. Supercomputers exist."
+  },
+  "L-0082": {
+   "section": "2.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "P2 reveal: the 256 GB SD-card slot can't read a 512 GB card. Fig 2·a inset."
+  },
+  "L-0083": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Buses and hardware protocols: both sides must support the size."
+  },
+  "L-0084": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Vertical ends where the physical hardware ends; software is an abstraction over hardware. Simplified-low, left as taught."
+  },
+  "L-0085": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "CS fundamentals (computer architecture) go a long way."
+  },
+  "L-0086": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Where this comes from': the instructor learned it in a college data center. Personal anecdote."
+  },
+  "L-0087": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Horizontal = more machines once one can't keep up; generally preferred."
+  },
+  "L-0088": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Linear amplification: 100 rps x 5 = 500 rps (Fig 2·c labels). Imprecise-low: inline 'usually called linear scalability; holds while dependencies keep up'."
+  },
+  "L-0089": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Prime Day: BI forecast divided by per-machine capacity gives the machine count. Predictive scaling. Fig 2·d panel a."
+  },
+  "L-0090": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Autoscaling groups are too slow for big sudden spikes. Simplified-low, left; A-CS-20 inline (scheduled, predictive, warm pools)."
+  },
+  "L-0091": {
+   "section": "2.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·d panel b: the campaign spike arrives before the autoscaler reacts, so prepare first, then send."
+  },
+  "L-0092": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Big campaigns need cross-team coordination; scaling is a team game."
+  },
+  "L-0093": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Autoscaling is fine for small spikes."
+  },
+  "L-0094": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Load testing is the only way to know a machine's capacity; there is no formula."
+  },
+  "L-0095": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·b (D-03): start vertical, then horizontal. Not either/or."
+  },
+  "L-0096": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·b pink box 'No pre-mature optimizations'."
+  },
+  "L-0097": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·c (D-04): for Medium, vertical first, then LB + horizontal API servers."
+  },
+  "L-0098": {
+   "section": "2.2",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Designing a load balancer: week 3."
+  },
+  "L-0099": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Sample text: extra requests become load on dependencies. Clip l01-cascade."
+  },
+  "L-0100": {
+   "section": "2.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 2 rule (sample): scale bottom up, with the org-level campaign note."
+  },
+  "L-0101": {
+   "section": "2.4",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Cascading failure. Unverifiable-low: softened inline ('a major cause'; Google SRE book link)."
+  },
+  "L-0102": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The DB is the most critical and most brittle component (sample)."
+  },
+  "L-0103": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Easy first step: vertical (bigger type); points back to 2.2 for the ceiling."
+  },
+  "L-0104": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Read:write 90:10 or 99:1. Simplified-low, left as taught."
+  },
+  "L-0105": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Blogs and YouTube: readers outnumber writers."
+  },
+  "L-0106": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Handle reads well and most of the problem is solved."
+  },
+  "L-0107": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Master + replica with async replication, almost native config. A-CS-14 one sentence (semi-sync). Sample's vendor list cut."
+  },
+  "L-0108": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "SREs do this daily; search 'how to set up MySQL replication'."
+  },
+  "L-0109": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Replica pulls, master doesn't push. Imprecise-low: inline via the sample's PostgreSQL quote (replica connects, primary streams). Arrow replica to master."
+  },
+  "L-0110": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The DB doesn't route reads and writes; the app does. Simplified-low, left; A-CS-16 sits at L-0112."
+  },
+  "L-0111": {
+   "section": "2.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Sample's two-pools code: profile read from the replica, publish to the master."
+  },
+  "L-0112": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Magic layers exist, but you decide which reads are critical. A-CS-16 inline."
+  },
+  "L-0113": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Bank balance vs profile (sample). P3 is the sample's writer-reads-back prompt. A-CS-13 inline."
+  },
+  "L-0114": {
+   "section": "2.4",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Read/write proxy layers: week 5 or 6."
+  },
+  "L-0115": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Shard when the master can't keep up after a vertical bump and replicas."
+  },
+  "L-0116": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Mutually exclusive subsets; every shard is a master with its own replicas. Fig 2·e panel c."
+  },
+  "L-0117": {
+   "section": "2.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "hash(user_id) routing in the API server; fixed mapping. Simplified-medium: light inline clarification + A-CS-17 (mod N remaps)."
+  },
+  "L-0118": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Naive sharding: one connection per shard, forward, return."
+  },
+  "L-0119": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Build the naive version locally before proxies."
+  },
+  "L-0120": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "API servers scale easily because they are stateless (ASG, HPA, LB); data is where it gets interesting."
+  },
+  "L-0121": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "The three common ways (summary line before T3)."
+  },
+  "L-0122": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'If the master dies' (sample) + SN-07 (RDS doesn't auto-promote read replicas; Aurora does). A-CS-15.",
+   "source_note": "SN-07"
+  },
+  "L-0123": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Leader election is painful; most product companies rely on the cloud."
+  },
+  "L-0124": {
+   "section": "2.4",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Leader election: next-to-next week; it comes up in three places."
+  },
+  "L-0125": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: one connection string means a proxy does the routing; the naive way is the API server."
+  },
+  "L-0126": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: pools to every DB are needed anyway, so the API server must reach each one."
+  },
+  "L-0127": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: one pool per DB because DB TCP connections are stateful; a proxy can hold them."
+  },
+  "L-0128": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "RecallQuestions"
+    }
+   ],
+   "note": "Shards are not three copies; each holds about a third of the rows. Recall Q3 (sample)."
+  },
+  "L-0129": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Vertical sharding = tables on different DBs; needs pools to each. Fig 2·h."
+  },
+  "L-0130": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "'Clusters': RAC-style clusters are valid; there is no one way; DB fault tolerance is week 5."
+  },
+  "L-0131": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: autoscaling EC2 is horizontal scaling (step rule: avg CPU > 60% adds a node)."
+  },
+  "L-0132": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: the ASG only launches and registers instances; you write the scale rules."
+  },
+  "L-0134": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Folded into the section 3 dek: includes the Kafka essentials needed for design."
+  },
+  "L-0135": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Delegation is the most underrated way to get performance."
+  },
+  "L-0136": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "2020 talk by a VP of Engineering at Hotstar. Anecdote, attributed; it leads into the RuleBox."
+  },
+  "L-0137": {
+   "section": "3.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 3 rule: whatever doesn't need to be real time shouldn't be."
+  },
+  "L-0138": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'Real time' = inside the request context; only the essential work happens there."
+  },
+  "L-0139": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Fast responses, little DB load in the request, everything else async. Simplified-low, left as taught."
+  },
+  "L-0140": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Using delegation fully is what makes systems at scale work."
+  },
+  "L-0141": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·a profile card '74 essays' (generic author name); total_blogs count++ on publish."
+  },
+  "L-0142": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Honest framing: a join would work; the example is deliberately manufactured."
+  },
+  "L-0143": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Not a critical update, so it can be async."
+  },
+  "L-0144": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·b (D-08): client, API, broker, workers, DB, numbered 1-2-3."
+  },
+  "L-0145": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·b annotation: the request context ends at response 3."
+  },
+  "L-0146": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The buffer is called a broker."
+  },
+  "L-0147": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Fig 3·c (D-09): ON_PUBLISH to SQS, workers run total_blogs++ in the DB."
+  },
+  "L-0148": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The new count appears on the next read, not instantly."
+  },
+  "L-0149": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Trade a processing delay for no synchronous write load. Simplified-low, left as taught."
+  },
+  "L-0150": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Protect the DB, the most brittle component."
+  },
+  "L-0151": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The iPhone-with-a-cover analogy."
+  },
+  "L-0152": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The broker is the heart and soul of delegation."
+  },
+  "L-0153": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 3·c footer: an ON_DELETE event does total_blogs--."
+  },
+  "L-0154": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Two kinds of broker: queues and streams. Simplified-low, left; SNS comes in 3.8."
+  },
+  "L-0155": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "A queue with homogeneous consumers. Fig 3·d."
+  },
+  "L-0156": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Typical queue tasks: spin up EC2, update a count, send an email or reminder."
+  },
+  "L-0157": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "SQS and RabbitMQ are queues."
+  },
+  "L-0158": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Consumers pull, almost never push. SN-10 (RabbitMQ pushes) + A-DC-05, A-DC-06. Verdict overridden to imprecise/medium.",
+   "source_note": "SN-10"
+  },
+  "L-0159": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 3·d steps 1-3: c2 gets m1, c1 gets m2, c3 gets m3; process, then delete."
+  },
+  "L-0160": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The queue is a buffer while consumers do the heavy lifting."
+  },
+  "L-0161": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Read exclusively by one consumer. SN-11 (at-least-once; A-DC-03).",
+   "source_note": "SN-11"
+  },
+  "L-0162": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Kafka and Kinesis are message streams."
+  },
+  "L-0163": {
+   "section": "3.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·e: the same SQS worker does count++ and the ES write. A-DC-23 inline."
+  },
+  "L-0164": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Two teams in one worker codebase: fights, blocked deploys. Opinion, attributed."
+  },
+  "L-0165": {
+   "section": "3.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Fig 3·e step 3: count 75, search 74."
+  },
+  "L-0166": {
+   "section": "3.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Fig 3·e step 4-5: the retry gives count 76, search 75. P4 reveal."
+  },
+  "L-0167": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Doing two things in one shot is always a problem; distributed transactions are costly. A-CS-25 one sentence (outbox)."
+  },
+  "L-0168": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Streams solve it on a different principle. Simplified-low, left; the at-least-once caveat comes in 3.7."
+  },
+  "L-0169": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board: 'not a good design, no separation of concern; two teams' work'."
+  },
+  "L-0170": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Queue = homogeneous, stream = heterogeneous consumers. Simplified-low, left as taught."
+  },
+  "L-0171": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Board list of what gets delegated (long-running, heavy query, batch & write, anything eventual)."
+  },
+  "L-0172": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Buffered until retention ends. Simplified-low, left as taught."
+  },
+  "L-0173": {
+   "section": "3.5",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Clip l01-queue-vs-stream: queue consumers delete; stream consumers iterate."
+  },
+  "L-0174": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Retention policy is yours; consumers never delete. A-DC-08, A-DC-09 inline."
+  },
+  "L-0175": {
+   "section": "3.5",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Clip l01-queue-vs-stream: each consumer type at its own pace."
+  },
+  "L-0176": {
+   "section": "3.5",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Clip l01-queue-vs-stream beat: ES down, the counter keeps going."
+  },
+  "L-0177": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Streams are among the most powerful tools; companies re-architect around them. Opinion, attributed."
+  },
+  "L-0178": {
+   "section": "3.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·f (D-12): search service and counter service, each team owns its code."
+  },
+  "L-0179": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Decouple as much as possible."
+  },
+  "L-0180": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Kafka is the backbone of modern systems, and many people misunderstand it."
+  },
+  "L-0181": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·g: topic ON-PUBLISH, like a named queue."
+  },
+  "L-0182": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 3·g: N partitions per topic; it varies per topic."
+  },
+  "L-0183": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·g: the key is hashed to pick a partition."
+  },
+  "L-0184": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·g second tube: user_id key, so one author always lands in the same partition. Cross-link to sharding. Simplified-low, left."
+  },
+  "L-0185": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Many consumers of one type (3 search consumers) vs counter consumers independently."
+  },
+  "L-0186": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "Consumer group; Kafka assigns partitions. Simplified-low, left; A-DC-13 in a small margin line."
+  },
+  "L-0187": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 3·h: 3 partitions, 3 consumers, one each."
+  },
+  "L-0188": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Order only within a partition. A-DC-16 inline."
+  },
+  "L-0189": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Fig 3·h struck boxes: consumers 4 and 5 idle. P5."
+  },
+  "L-0190": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Biggest limitation: parallelism = #partitions. Simplified-medium: light inline clarification + link to SN-13 (share groups)."
+  },
+  "L-0191": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "The cap applies per consumer type."
+  },
+  "L-0192": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "One consumer reads all 3 partitions. Imprecise-low: inline 'not strict round robin'."
+  },
+  "L-0193": {
+   "section": "3.7",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·j: commit, and Kafka tracks per group. A-DC-19 inline."
+  },
+  "L-0194": {
+   "section": "3.7",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 3·j steps: crash after 4 processed, before commit, so the 4 are re-consumed."
+  },
+  "L-0195": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "At-least-once out of the box. SN-15 (A-DC-17).",
+   "source_note": "SN-15"
+  },
+  "L-0196": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Consumers must tolerate re-consumption; links forward to the section 4 counter."
+  },
+  "L-0197": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Kinesis shards = Kafka partitions. Simplified-low, left; A-DC-09, A-DC-10 inline."
+  },
+  "L-0198": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Kafka is the default when delegating to several consumer types."
+  },
+  "L-0199": {
+   "section": "3.8",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "The one place Kafka fails miserably: a later week."
+  },
+  "L-0200": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Kafka and consistent hashing are not salt."
+  },
+  "L-0201": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: no global ordering; consumers don't coordinate one."
+  },
+  "L-0202": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: never pin a consumer to one partition; fewer consumers get all partitions. Simplified-low, left."
+  },
+  "L-0203": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Queues and streams share the basics: buffer + consumers at their own pace."
+  },
+  "L-0204": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "One operation per message means a queue."
+  },
+  "L-0205": {
+   "section": "3.8",
+   "component": "TradeoffTable",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "T4 billing row: SQS per message vs Kinesis per running time. Simplified-low, left; A-DC-20 inline."
+  },
+  "L-0206": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Always think about cost."
+  },
+  "L-0207": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Partition count by consumption rate. Simplified-medium: light inline clarification + A-DC-14."
+  },
+  "L-0208": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Batch commits rather than per message."
+  },
+  "L-0209": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "A queue = one consumer group; more groups need a stream. Simplified-low, left as taught."
+  },
+  "L-0210": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Fig 3·d steps 4-5: visibility timeout. SN-12 + A-DC-01, A-DC-02.",
+   "source_note": "SN-12"
+  },
+  "L-0211": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Different queues, different guarantees."
+  },
+  "L-0212": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Not deleting is the failure signal; you write the delete (Fig 3·d step 5)."
+  },
+  "L-0213": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Queue: delete. Stream: commit."
+  },
+  "L-0214": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Commits are never magic: in code or configured. A-DC-18 inline."
+  },
+  "L-0215": {
+   "section": "3.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Not the same queue': a connection-pool wait queue vs a broker."
+  },
+  "L-0217": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Concurrency = most out of one machine via processes or threads."
+  },
+  "L-0218": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Two issues: inter-thread communication and shared resources. Fig 4·a."
+  },
+  "L-0219": {
+   "section": "4.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    },
+    {
+     "section": "4.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Clip l01-count-race beats 1-3 + count++ 2 x 1000 gives ~1997; not atomic. Fig 4·b framing."
+  },
+  "L-0220": {
+   "section": "4.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Why isn't count++ atomic?': look it up if you're not from CS."
+  },
+  "L-0221": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Locks protect the critical section: optimistic and pessimistic. Simplified-low, left as taught."
+  },
+  "L-0222": {
+   "section": "4.3",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Optimistic/pessimistic locking: weeks 3-6."
+  },
+  "L-0223": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Semaphore around count++. Simplified-low, left; A-DC-25 inline."
+  },
+  "L-0224": {
+   "section": "4.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 4·c traffic signal: the junction is the critical section."
+  },
+  "L-0225": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Pessimistic locking defined."
+  },
+  "L-0226": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "CS borrows from how humans behave."
+  },
+  "L-0227": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Pessimistic locking via mutexes and semaphores. Simplified-low, left as taught."
+  },
+  "L-0228": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Lock-free structures such as CRDTs. SN-18.",
+   "source_note": "SN-18"
+  },
+  "L-0229": {
+   "section": "4.3",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Concurrency in databases in depth, seen in action."
+  },
+  "L-0230": {
+   "section": "4.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "StepThrough"
+    },
+    {
+     "section": "4.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "P6 and Fig 4·b: two claps at once, 100 must become 102."
+  },
+  "L-0231": {
+   "section": "4.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "4.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Clip l01-count-race beat 5 (atomic version) + Section 4 rule: transactions or atomic operations. SN-19 + A-DC-24 + CodeBlock.",
+   "source_note": "SN-19"
+  },
+  "L-0232": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Communication is the most neglected part."
+  },
+  "L-0233": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "HTTP endpoint is not REST. Imprecise-low: inline 'REST is an architectural style (Fielding)'."
+  },
+  "L-0234": {
+   "section": "5.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'So you know REST?': pointer to the instructor's video."
+  },
+  "L-0235": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "RPC is the generic term. Simplified-low, left as taught."
+  },
+  "L-0236": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 5·a (D-15): request-response, server does the heavy lifting."
+  },
+  "L-0237": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Burger analogy."
+  },
+  "L-0238": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Short polling defined. Fig 5·b."
+  },
+  "L-0239": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "AWS console EC2 'in progress' to 'ready'. Unverifiable, kept as illustration."
+  },
+  "L-0240": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "For long-running jobs; refresh in JavaScript."
+  },
+  "L-0241": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Cricbuzz / ESPNcricinfo. Unverifiable, kept as illustration."
+  },
+  "L-0242": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The simplest option."
+  },
+  "L-0243": {
+   "section": "5.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "P7 math: 6 req/min/client x 1M = 6M req/min. Accurate-low: worded 'per minute', not 'concurrent'."
+  },
+  "L-0244": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Each poll is a full HTTP request (handshake, teardown). SN-20 (A-CM-01, A-CM-02, A-CM-22). Override: wrong/medium.",
+   "source_note": "SN-20"
+  },
+  "L-0245": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Redundant 'in progress' responses for an hour."
+  },
+  "L-0246": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Long polling defined. A-CM-03 inline. Fig 5·c."
+  },
+  "L-0247": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Not out of the box. Imprecise-low: inline + A-CM-04 (Socket.IO fallback, SQS WaitTimeSeconds)."
+  },
+  "L-0248": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Fewer requests, the server waits. Simplified-medium: light inline clarification (park and wake, don't loop)."
+  },
+  "L-0249": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Cricket: answer when the next ball is bowled. Simplified-low, left (loop wording kept, nuance given at L-0248)."
+  },
+  "L-0250": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Short answers now; long answers on change."
+  },
+  "L-0251": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The most common way to build messaging and real-time apps."
+  },
+  "L-0252": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Polling 'kind of' stateless vs a persistent WebSocket. Simplified-low, left as taught."
+  },
+  "L-0253": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Like the day-1 connection pool."
+  },
+  "L-0254": {
+   "section": "5.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 5·d (D-18): bidirectional channel over persistent TCP."
+  },
+  "L-0255": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "WSS ~ HTTPS; WS 'parallel to HTTP'. SN-21 (A-CM-05).",
+   "source_note": "SN-21"
+  },
+  "L-0256": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The server can push. A-CM-08 inline."
+  },
+  "L-0257": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Chat example."
+  },
+  "L-0258": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Expensive to manage. Simplified-low, left as taught."
+  },
+  "L-0259": {
+   "section": "5.4",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Scaling WebSockets and Slack's real-time design: week 2 Sunday."
+  },
+  "L-0260": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Lightning fast, low overhead. Simplified-low, left as taught."
+  },
+  "L-0261": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Groww / Robinhood tickers."
+  },
+  "L-0262": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Live experiences, multiplayer games, Zoom chat."
+  },
+  "L-0263": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "MQTT as a WS equivalent. Imprecise-low: inline + A-CM-25."
+  },
+  "L-0264": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Specs over TCP/UDP; 'a persistent connection must be TCP'. SN-22 (A-CM-21).",
+   "source_note": "SN-22"
+  },
+  "L-0265": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "SSE defined. Fig 5·e. A-CM-09 inline."
+  },
+  "L-0266": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Server-sent, not server-side."
+  },
+  "L-0267": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tickers, deployment logs (Vercel, Netlify), remote terminals."
+  },
+  "L-0268": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Those vendors switched models; SSE still common in log streaming. Unverifiable, attributed."
+  },
+  "L-0269": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Browser-to-server, rarely server-to-server. Imprecise-low: inline (LLM APIs stream SSE)."
+  },
+  "L-0270": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Simple and light, but one-way. Simplified-low, left; A-CM-11, A-CM-12 inline."
+  },
+  "L-0271": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "About 14 lines; MDN's example ~21. Unverifiable, kept as 'about'."
+  },
+  "L-0272": {
+   "section": "5.7",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox body: build the hello world of each. A-CM-17 inline in 5.5 (Socket.IO is not plain WS)."
+  },
+  "L-0273": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 5·h (D-20): user to API is HTTP; API to DB is persistent TCP."
+  },
+  "L-0274": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 5·h: live claps over WS; the section-5 opening problem."
+  },
+  "L-0275": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Twitter likes, Instagram Live hearts."
+  },
+  "L-0276": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'How many connections can one server hold?' SN-25 (A-CM-20).",
+   "source_note": "SN-25"
+  },
+  "L-0277": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: long polling holds a connection, still scalable. Simplified-medium: light inline clarification."
+  },
+  "L-0278": {
+   "section": "5.7",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Section 5 rule: pick per use case; no universal answer."
+  },
+  "L-0279": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Alternative clap design (POST + optimistic UI + SSE), caveat and approval both kept; full design with Slack."
+  },
+  "L-0280": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Server dies, so the client resends; fine for scores, care for payments."
+  },
+  "L-0281": {
+   "section": "5.4",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P8: 10,000 x 4 B = 40 KB/s; send all, filter on the client. Simplified-low, left + one-line scale note."
+  },
+  "L-0282": {
+   "section": "5.4",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "P8 reveal closing line: stay away from over-complication."
+  },
+  "L-0283": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "SSE behind an LB so backends scale (open item, stated plainly). A-CM-13 inline."
+  },
+  "L-0284": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Push is a different beast. Accurate-low: 'today FCM'. Fig 5·g."
+  },
+  "L-0285": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Calendar app's local notification mimics a push."
+  },
+  "L-0286": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Push can be lost; 'a persistent connection to GCM is inefficient'. SN-26 (A-CM-23).",
+   "source_note": "SN-26"
+  },
+  "L-0287": {
+   "section": "5.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From practice, 2015': the instructor's push-service story."
+  },
+  "L-0288": {
+   "section": "5.6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Try integrating with GCM once. Override: outdated. SN-27 (A-CM-24): use FCM.",
+   "source_note": "SN-27"
+  },
+  "L-0289": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "HTTP TCP is persistent, 'you close it after the response'. SN-20 (shared with L-0244).",
+   "source_note": "SN-20"
+  },
+  "L-0290": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "DBs use their own protocol over persistent TCP. Imprecise-low: inline 'wire protocol, not dialect'."
+  },
+  "L-0291": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 5·i packet layout (marked illustrative). Imprecise-low: inline (MySQL 3-byte length + 1-byte seq)."
+  },
+  "L-0292": {
+   "section": "5.7",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "The HTTP specification and where not to use HTTP: week 3."
+  },
+  "L-0293": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Each spec defines its own message format."
+  },
+  "L-0294": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Redis speaks RESP."
+  },
+  "L-0296": {
+   "section": "6",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next week Saturday: relational, live demo of transactions, locking, concurrency, throughput."
+  },
+  "L-0297": {
+   "section": "6",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next week Sunday: NoSQL, then Slack real-time + three messaging apps."
+  },
+  "L-0299": {
+   "section": "6",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "UDP: week 4 (kept out now to avoid confusion)."
+  },
+  "L-0300": {
+   "section": "6",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "The instructor has used UDP twice in production; folded into the UDP chip's tooltip."
+  },
+  "L-0301": {
+   "section": "1.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Video streaming: week 6."
+  },
+  "L-0302": {
+   "section": "1.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Video streaming is mostly CDN'. Simplified-low, left as taught."
+  },
+  "L-0303": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "SNS: neither queue nor stream, broadcast."
+  },
+  "L-0304": {
+   "section": "3.8",
+   "component": "TradeoffTable",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "T4 column heads: SQS queue, Kinesis stream, SNS pub/sub."
+  },
+  "L-0305": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "SNS doesn't persist (student remark, stated plainly). Simplified-low, left; A-DC-21 next to L-0307."
+  },
+  "L-0306": {
+   "section": "3.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·k: SNS fan-out to per-consumer SQS mimics Kafka. Simplified-low, left as taught."
+  },
+  "L-0307": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "No history with SNS+SQS. Imprecise-low: inline + A-DC-21 (SNS FIFO archive)."
+  },
+  "L-0308": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "LB/API gateway cache: TTL-only, no invalidation API. SN-06 (A-CS-06). Wrong/medium.",
+   "source_note": "SN-06"
+  },
+  "L-0309": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "TTL is the lever you tune. Simplified-low, covered by SN-06."
+  },
+  "L-0310": {
+   "section": "3.8",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'From practice: SQS to Kinesis'. SN-17 (SQS FIFO; A-DC-04).",
+   "source_note": "SN-17"
+  },
+  "L-0311": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "Figure"
+    }
+   ],
+   "note": "SNS+SQS lets multiple consumers get the same messages (open item, stated plainly)."
+  },
+  "L-0312": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Ordering and sharding decide SQS vs Kinesis. Simplified-low, left as taught."
+  },
+  "L-0313": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "One entity to one consumer allows local caching and bulk writes (hedged; low-confidence ASR)."
+  },
+  "L-0314": {
+   "section": "1.8",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "Figure"
+    }
+   ],
+   "note": "'From practice: a config platform': S3 snapshot to memory + disk. Fig 1·g."
+  },
+  "L-0315": {
+   "section": "1.8",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 1·g label: '+3 ms is a no-go'."
+  },
+  "L-0316": {
+   "section": "1.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "Fig 1·g: mobile clients read from a CDN instead of S3."
+  },
+  "L-0317": {
+   "section": "1.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Deep layering works because configs barely need invalidation."
+  },
+  "L-0318": {
+   "section": "1.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Don't assume one central cache; use layers that keep infrastructure cheap."
+  },
+  "L-0319": {
+   "section": "1.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Fallback paths are an anti-pattern; make the fallback the normal path (open item, stated plainly)."
+  },
+  "L-0320": {
+   "section": "1.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·g: disk always exercised on boot, background CDN fetch, git + CDN publish together."
+  },
+  "L-0321": {
+   "section": "1.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Memory flushed falls back to disk, which is always exercised on startup anyway."
+  },
+  "L-0322": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: any intermediate copy that saves compute or I/O is a cache."
+  },
+  "L-0323": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: a fan-out service in front of the backends acts like an API gateway."
+  },
+  "L-0324": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: replicas do affect the master, but not by much."
+  },
+  "L-0325": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Each replica's fetching costs the master CPU, network and memory."
+  },
+  "L-0326": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "About five replicas per master. SN-08 (A-CS-19). T3 cell edited.",
+   "source_note": "SN-08"
+  },
+  "L-0327": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "How replicas fetch varies. Imprecise-low: inline (replication protocol; PG log shipping)."
+  },
+  "L-0328": {
+   "section": "2.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·g: replicas of replicas, a tree."
+  },
+  "L-0329": {
+   "section": "2.4",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 2·g: 5 top replicas x 3 = 15."
+  },
+  "L-0330": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Replicas hurting the master is the signal to shard."
+  },
+  "L-0331": {
+   "section": "1.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "CDN details: week 3 (merged with the L-0052 chip as 'week 3 onward')."
+  },
+  "L-0332": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Folded with L-0051: a CDN is basically a proxy (open item, stated as the class's framing)."
+  },
+  "L-0333": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "CDNs store on disk, not RAM. SN-05.",
+   "source_note": "SN-05"
+  },
+  "L-0334": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "SSD ~ RAM, and CDNs are close already. SN-05 (A-CS-05). Wrong/medium.",
+   "source_note": "SN-05"
+  },
+  "L-0335": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "The student's RAM-disk-origin model. Imprecise-low: inline 'broadly how CDN tiers work'."
+  },
+  "L-0336": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·i: Kafka consumers forward to SQS, with ~100 workers."
+  },
+  "L-0337": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "One extra component to manage."
+  },
+  "L-0338": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Common in notification systems: sending is slower than consuming."
+  },
+  "L-0339": {
+   "section": "3.6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Kafka 'broadcast' mentioned and noted to check. SN-14 covers it with L-0398."
+  },
+  "L-0340": {
+   "section": "3.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Kafka as a 'dumb' broker: producers push, consumers pull."
+  },
+  "L-0341": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'Behind a load balancer': sticky LB for WS. SN-23 (A-CM-15, A-CM-16, A-CM-18).",
+   "source_note": "SN-23"
+  },
+  "L-0342": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "If the LB dies, the client reconnects. Fig 5·f."
+  },
+  "L-0343": {
+   "section": "3.6",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Kafka retention and large data: week 6."
+  },
+  "L-0344": {
+   "section": "1.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 1·d panel b: ISP cache at PoPs."
+  },
+  "L-0345": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "ISP sued Netflix over Squid Game. Imprecise-low: inline (SK Broadband, 2021)."
+  },
+  "L-0346": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "ACT example. Unverifiable, kept as illustration of the general mechanism."
+  },
+  "L-0347": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Works because a live show doesn't change. Simplified-low, left as taught."
+  },
+  "L-0348": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Cloudflare blogs on ISP work. Unverifiable-low, kept with 'findable by search', no specific link."
+  },
+  "L-0349": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "ISP caching beyond CDNs, Netflix pioneer. Imprecise-low: inline (Akamai earlier)."
+  },
+  "L-0350": {
+   "section": "6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Out of scope: compression basics. Simplified-low, left as taught."
+  },
+  "L-0351": {
+   "section": "6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "about",
+     "component": "AboutThisClass"
+    }
+   ],
+   "note": "Out of scope: security; topic list on the instructor's site."
+  },
+  "L-0352": {
+   "section": "6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Security matters but opens a Pandora's box."
+  },
+  "L-0353": {
+   "section": "6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "App security (rate limiters, DDoS, SQLi) is well documented elsewhere."
+  },
+  "L-0354": {
+   "section": "6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'DDoS = rate limiting'. SN-28 (A-CS-24). Wrong/high.",
+   "source_note": "SN-28"
+  },
+  "L-0355": {
+   "section": "6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "SQL injection and CVEs have standard fixes."
+  },
+  "L-0356": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Clusters': clustering is horizontal, not vertical."
+  },
+  "L-0357": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Vendor clusters are sharding underneath. SN-09 (RAC is shared-disk).",
+   "source_note": "SN-09"
+  },
+  "L-0358": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Who shards for you. Imprecise-low: inline (not paid vs open source)."
+  },
+  "L-0359": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Consumers don't choose partitions. Simplified-low, left as taught."
+  },
+  "L-0360": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Kinesis assigns shards too. Imprecise-low: inline (the KCL does it)."
+  },
+  "L-0361": {
+   "section": "3.6",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "P5 part 2 reveal: why two consumers can't share a partition. SN-13 (A-DC-12).",
+   "source_note": "SN-13"
+  },
+  "L-0362": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: streams don't replace distributed transactions."
+  },
+  "L-0363": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Strong consistency across two stores needs distributed transactions. Simplified-low, left; A-CS-25 back-link."
+  },
+  "L-0364": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 3·d step 4 label: timeout configurable (10 s or 10 min)."
+  },
+  "L-0365": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The visibility timeout exists elsewhere under other names. Simplified-low, left + short nuance."
+  },
+  "L-0366": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Folded: SQS is widely used in practice."
+  },
+  "L-0367": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Browser local storage is limited. A-CS-23 inline."
+  },
+  "L-0368": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "After the first load, images come from the browser cache, not the CDN."
+  },
+  "L-0369": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'See it yourself': the network tab."
+  },
+  "L-0370": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "localStorage setItem/getItem. Imprecise-low: inline (strings only)."
+  },
+  "L-0371": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'See it yourself': DevTools, Local Storage."
+  },
+  "L-0372": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: queues expose no partitions."
+  },
+  "L-0373": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "No formula for sharding: analyze the data and access pattern. A-CS-18 inline."
+  },
+  "L-0374": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Clients reconnect to any available server. Accurate-low (backoff note goes in SN-24). Fig 5·f."
+  },
+  "L-0375": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Reconnect storm is cheap. SN-24 (A-CM-19).",
+   "source_note": "SN-24"
+  },
+  "L-0376": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "React Query caches API responses. Simplified-low, left as taught."
+  },
+  "L-0377": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Memoization analogy."
+  },
+  "L-0378": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Long polling and SSE both keep TCP open."
+  },
+  "L-0379": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "SSE closes when the client is done or the server dies. Imprecise-low: inline (auto-reconnect) + A-CM-10."
+  },
+  "L-0380": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Test the per-message business logic, not the connection (personal practice, attributed)."
+  },
+  "L-0381": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Relying on the connection is fine. Unverifiable-low: light caveat inline (do test reconnects)."
+  },
+  "L-0382": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Too big to cache, read-heavy: replicas. Simplified-low, left as taught."
+  },
+  "L-0383": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Keep adding replicas as the API fleet grows."
+  },
+  "L-0384": {
+   "section": "6",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Caching strategies later; week 1 of 8."
+  },
+  "L-0385": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "SSE is strictly one-way by spec, though TCP isn't."
+  },
+  "L-0386": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Through a proxy, the client's TCP is with the proxy. Simplified-low, left as taught."
+  },
+  "L-0387": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Replica choice lives in the API server's business logic."
+  },
+  "L-0388": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Why not let replicas take writes too?' (sample): multi-master."
+  },
+  "L-0389": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Multi-master write conflicts, so sharding for writes."
+  },
+  "L-0390": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Order: replicas, sharding, multi-master only if forced."
+  },
+  "L-0391": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "L4 vs L7 doesn't matter for pure relaying. Simplified-low, left; A-CM-14 inline."
+  },
+  "L-0392": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "L7 can route intelligently (open item, stated plainly)."
+  },
+  "L-0393": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "From practice: on-prem VMs open outbound channels."
+  },
+  "L-0394": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Few run SSE in production. Unverifiable-low: counterpoint inline (LLM APIs)."
+  },
+  "L-0395": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "RabbitMQ persistent queues cover streams. SN-16 (A-DC-07).",
+   "source_note": "SN-16"
+  },
+  "L-0396": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Avoid generic 'X doesn't support Y' statements."
+  },
+  "L-0397": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "MongoDB supports ACID now. Simplified-low, left as taught."
+  },
+  "L-0398": {
+   "section": "3.6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Kafka 'now has broadcast'. SN-14.",
+   "source_note": "SN-14"
+  },
+  "L-0399": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Databases converge. Imprecise-low: inline (Cassandra LWT, not full ACID)."
+  }
+ },
+ "dropped": [
+  {
+   "id": "L-0002",
+   "reason": "Pure logistics: why the instructor doesn't provide transcripts (one-person team, ASR tool failed on accents). No course structure or content."
+  },
+  {
+   "id": "L-0006",
+   "reason": "Pure logistics: invitation to keep sending feedback."
+  },
+  {
+   "id": "L-0072",
+   "reason": "Pure logistics: other students' caching ideas deferred to the open forum. Every idea raised in that forum is placed under its topic."
+  },
+  {
+   "id": "L-0133",
+   "reason": "Pure logistics: named students' remaining questions deferred to the end of class (their answers are placed under their topics). Also carries student names."
+  },
+  {
+   "id": "L-0216",
+   "reason": "Pure logistics: break announcement and Q&A timing. The 'concurrency short, communication deep' framing is already carried by L-0008."
+  },
+  {
+   "id": "L-0295",
+   "reason": "Pure logistics: 'that covers the six components; pre-reads will be shared today'."
+  },
+  {
+   "id": "L-0298",
+   "reason": "Pure logistics: recording will be emailed; Hotmail marks login mail as spam."
+  },
+  {
+   "id": "L-0400",
+   "reason": "Pure logistics: end of lecture; something will be sent by end of day."
+  }
+ ],
+ "source_notes": {
+  "SN-01": [
+   "L-0030"
+  ],
+  "SN-02": [
+   "L-0036"
+  ],
+  "SN-03": [
+   "L-0061"
+  ],
+  "SN-04": [
+   "L-0043"
+  ],
+  "SN-05": [
+   "L-0333",
+   "L-0334"
+  ],
+  "SN-06": [
+   "L-0068",
+   "L-0308"
+  ],
+  "SN-07": [
+   "L-0122"
+  ],
+  "SN-08": [
+   "L-0326"
+  ],
+  "SN-09": [
+   "L-0357"
+  ],
+  "SN-10": [
+   "L-0158"
+  ],
+  "SN-11": [
+   "L-0161"
+  ],
+  "SN-12": [
+   "L-0210"
+  ],
+  "SN-13": [
+   "L-0361"
+  ],
+  "SN-14": [
+   "L-0398"
+  ],
+  "SN-15": [
+   "L-0195"
+  ],
+  "SN-16": [
+   "L-0395"
+  ],
+  "SN-17": [
+   "L-0310"
+  ],
+  "SN-18": [
+   "L-0228"
+  ],
+  "SN-19": [
+   "L-0231"
+  ],
+  "SN-20": [
+   "L-0244",
+   "L-0289"
+  ],
+  "SN-21": [
+   "L-0255"
+  ],
+  "SN-22": [
+   "L-0264"
+  ],
+  "SN-23": [
+   "L-0341"
+  ],
+  "SN-24": [
+   "L-0375"
+  ],
+  "SN-25": [
+   "L-0276"
+  ],
+  "SN-26": [
+   "L-0286"
+  ],
+  "SN-27": [
+   "L-0288"
+  ],
+  "SN-28": [
+   "L-0354"
+  ]
+ },
+ "additions": {
+  "A-CM-01": {
+   "section": "5.2",
+   "component": "SourceNote",
+   "note": "SN-20: HTTP/1.1 keep-alive by default."
+  },
+  "A-CM-02": {
+   "section": "5.2",
+   "component": "SourceNote",
+   "note": "SN-20: TCP closes each direction with FIN/ACK."
+  },
+  "A-CM-03": {
+   "section": "5.3",
+   "component": "Prose",
+   "note": "Keep long-poll timeouts around 30 s (proxies 408/504)."
+  },
+  "A-CM-04": {
+   "section": "5.3",
+   "component": "Prose",
+   "note": "SQS WaitTimeSeconds as off-the-shelf long polling."
+  },
+  "A-CM-05": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-21: the handshake is an HTTP Upgrade, then 101."
+  },
+  "A-CM-08": {
+   "section": "5.4",
+   "component": "Prose",
+   "note": "Ping/Pong keepalive frames."
+  },
+  "A-CM-09": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "EventSource auto-reconnect with Last-Event-ID."
+  },
+  "A-CM-10": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "(optional, used) A 204 stops SSE reconnects."
+  },
+  "A-CM-11": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "About 6 SSE connections per domain on HTTP/1.1."
+  },
+  "A-CM-12": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "(optional, used) SSE is UTF-8 text only; it goes in the T5 comparison too."
+  },
+  "A-CM-13": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "Comment line every ~15 s keeps proxies from cutting SSE."
+  },
+  "A-CM-14": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "note": "Idle timeouts per layer (ALB 60 s, NLB 350 s, nginx 60 s), so send heartbeats."
+  },
+  "A-CM-15": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-23: nginx must forward Upgrade/Connection."
+  },
+  "A-CM-16": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-23: ALB pins an upgraded WS to one target."
+  },
+  "A-CM-17": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "Socket.IO is not a plain WebSocket (hello-world advice)."
+  },
+  "A-CM-18": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-23: Socket.IO needs sticky sessions only with long-polling; an adapter for cross-node broadcast."
+  },
+  "A-CM-19": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-24: backoff with jitter."
+  },
+  "A-CM-20": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-25: the 4-tuple; WhatsApp 2M connections per server (2012)."
+  },
+  "A-CM-21": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-22: QUIC / HTTP/3 over UDP."
+  },
+  "A-CM-22": {
+   "section": "5.2",
+   "component": "SourceNote",
+   "note": "(optional, used) SN-20: HTTP/2 multiplexing further cuts per-poll cost."
+  },
+  "A-CM-23": {
+   "section": "5.6",
+   "component": "SourceNote",
+   "note": "SN-26: APNs best-effort, persistent device connection."
+  },
+  "A-CM-24": {
+   "section": "5.6",
+   "component": "SourceNote",
+   "note": "SN-27: GCM to FCM."
+  },
+  "A-CM-25": {
+   "section": "5.4",
+   "component": "Prose",
+   "note": "(optional, used) MQTT is a pub/sub protocol; WebSocket is one transport for it."
+  },
+  "A-CS-01": {
+   "section": "1.7",
+   "component": "SourceNote",
+   "note": "SN-02: PG MVs stale until REFRESH; CONCURRENTLY needs a unique index."
+  },
+  "A-CS-02": {
+   "section": "1.7",
+   "component": "SourceNote",
+   "note": "SN-02: Oracle ON COMMIT / ON STATEMENT refresh."
+  },
+  "A-CS-03": {
+   "section": "1.3",
+   "component": "SourceNote",
+   "note": "SN-03: the page cache makes a disk cache a RAM cache."
+  },
+  "A-CS-04": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "EBS root vs instance store."
+  },
+  "A-CS-05": {
+   "section": "1.3",
+   "component": "Figure",
+   "note": "Fig 1·c latency ladder (labelled circa 2012); also in SN-05."
+  },
+  "A-CS-06": {
+   "section": "1.6",
+   "component": "SourceNote",
+   "note": "SN-06: API Gateway TTL 300 s, flush, max-age=0."
+  },
+  "A-CS-07": {
+   "section": "1.6",
+   "component": "SourceNote",
+   "note": "SN-06: nginx proxy_cache; purge is NGINX Plus."
+  },
+  "A-CS-08": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Cloudflare doesn't cache HTML/JSON by default."
+  },
+  "A-CS-09": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Cache-Control: private for per-user responses."
+  },
+  "A-CS-10": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Versioned names over CDN invalidation."
+  },
+  "A-CS-11": {
+   "section": "1.2",
+   "component": "ForwardChip",
+   "note": "Redis CLIENT TRACKING, stated with the deferred pub/sub idea."
+  },
+  "A-CS-12": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "(optional, used) A max TTL on every local key, plus a memory cap."
+  },
+  "A-CS-13": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "ReplicaLag metric; PG lag usually under 1 s."
+  },
+  "A-CS-14": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "Semi-sync replication, one sentence."
+  },
+  "A-CS-15": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "note": "SN-07: RDS Multi-AZ vs read replicas vs Aurora."
+  },
+  "A-CS-16": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "Aurora reader endpoint; libpq target_session_attrs."
+  },
+  "A-CS-17": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "mod N remaps nearly all keys; consistent hashing."
+  },
+  "A-CS-18": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "Pick a high-cardinality, evenly accessed shard key."
+  },
+  "A-CS-19": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "note": "SN-08: RDS MySQL up to 15 replicas."
+  },
+  "A-CS-20": {
+   "section": "2.3",
+   "component": "Prose",
+   "note": "Scheduled / predictive scaling, warm pools."
+  },
+  "A-CS-21": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "(optional, used) Sticky target dies, so the local cache is rebuilt."
+  },
+  "A-CS-22": {
+   "section": "1.4",
+   "component": "SourceNote",
+   "note": "SN-04: OWASP, no session IDs in localStorage."
+  },
+  "A-CS-23": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "localStorage ~5 MiB, synchronous; use IndexedDB."
+  },
+  "A-CS-24": {
+   "section": "6",
+   "component": "SourceNote",
+   "note": "SN-28: infrastructure-layer DDoS."
+  },
+  "A-CS-25": {
+   "section": "3.4",
+   "component": "Prose",
+   "note": "Transactional outbox, one sentence; back-linked from 3.8."
+  },
+  "A-DC-01": {
+   "section": "3.3",
+   "component": "SourceNote",
+   "note": "SN-12: 30 s default, 0 s-12 h, heartbeat extension."
+  },
+  "A-DC-02": {
+   "section": "3.3",
+   "component": "SourceNote",
+   "note": "SN-12: DLQ maxReceiveCount."
+  },
+  "A-DC-03": {
+   "section": "3.3",
+   "component": "SourceNote",
+   "note": "SN-11: SQS standard at-least-once."
+  },
+  "A-DC-04": {
+   "section": "3.8",
+   "component": "SourceNote",
+   "note": "SN-17: SQS FIFO per-group order."
+  },
+  "A-DC-05": {
+   "section": "3.3",
+   "component": "SourceNote",
+   "note": "(optional, used) SN-10: SQS ReceiveMessage pull + long polling."
+  },
+  "A-DC-06": {
+   "section": "3.3",
+   "component": "SourceNote",
+   "note": "SN-10: RabbitMQ pushes; basic.get discouraged."
+  },
+  "A-DC-07": {
+   "section": "3.8",
+   "component": "SourceNote",
+   "note": "SN-16: RabbitMQ Streams (3.9)."
+  },
+  "A-DC-08": {
+   "section": "3.5",
+   "component": "Prose",
+   "note": "Kafka retention default 7 days; compaction."
+  },
+  "A-DC-09": {
+   "section": "3.5",
+   "component": "Prose",
+   "note": "Kinesis 24 h default, up to 365 days."
+  },
+  "A-DC-10": {
+   "section": "3.6",
+   "component": "Prose",
+   "note": "Kinesis shard throughput sets parallelism."
+  },
+  "A-DC-12": {
+   "section": "3.6",
+   "component": "SourceNote",
+   "note": "SN-13: share groups (KIP-932), production-ready in 4.2; 4.3 current."
+  },
+  "A-DC-13": {
+   "section": "3.6",
+   "component": "MarginNote",
+   "note": "KIP-848 broker-side assignment; default still classic in 4.3."
+  },
+  "A-DC-14": {
+   "section": "3.6",
+   "component": "Prose",
+   "note": "Adding partitions remaps keys; can't reduce."
+  },
+  "A-DC-16": {
+   "section": "3.6",
+   "component": "Prose",
+   "note": "Producer idempotence keeps order on retries."
+  },
+  "A-DC-17": {
+   "section": "3.7",
+   "component": "SourceNote",
+   "note": "SN-15: at-least-once default; EOS within Kafka."
+  },
+  "A-DC-18": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "Auto-commit every 5 s; at-least-once only if the batch is finished."
+  },
+  "A-DC-19": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "One integer offset per partition; rewind."
+  },
+  "A-DC-20": {
+   "section": "3.8",
+   "component": "Prose",
+   "note": "SQS / Kinesis pricing dimensions."
+  },
+  "A-DC-21": {
+   "section": "3.8",
+   "component": "Prose",
+   "note": "(optional, used) SNS FIFO archive and replay."
+  },
+  "A-DC-23": {
+   "section": "3.4",
+   "component": "Prose",
+   "note": "Elasticsearch near-real-time refresh (1 s)."
+  },
+  "A-DC-24": {
+   "section": "4.3",
+   "component": "SourceNote",
+   "note": "SN-19: READ COMMITTED; claps = claps + 1 is safe."
+  },
+  "A-DC-25": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "A binary semaphore, or an atomic increment."
+  }
+ },
+ "additions_not_used": {
+  "A-CM-06": "optional; RFC 8441 WebSocket-over-HTTP/2 is not needed for any point made in class.",
+  "A-CM-07": "optional; frame-header byte sizes are too low-level for this lesson.",
+  "A-DC-11": "optional; KCL's DynamoDB lease tables add cost detail that no class point needs (L-0360's inline note already says 'the KCL does it').",
+  "A-DC-15": "optional; sticky partitioning of keyless records isn't relevant, since every Medium example uses a key.",
+  "A-DC-22": "optional; duplicates A-CS-25 (transactional outbox), which is used instead."
+ }
+}

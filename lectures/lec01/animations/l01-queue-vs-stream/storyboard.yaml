@@ -1,0 +1,112 @@
+# Storyboard — clip l01-queue-vs-stream (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l01-queue-vs-stream
+title: Queue vs stream
+lecture: 1
+section: "3.5 Message streams"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  Ordering / position over time. "Deleted when read" versus "kept, with independent positions" is a
+  difference in behaviour, not in shape: the queue's pipe empties as consumers take and delete
+  messages, while the stream's messages stay put and two cursors move over them at different speeds.
+  The decisive moment — one consumer stalls (Elasticsearch down) while the other keeps going, then
+  catches up — exists only in time.
+static_twin: "Fig 3·d (queue) and Fig 3·f (stream); board D-11 final form (b_012030.jpg): queue pipe fanning out to three consumers above, stream pipe holding five squares with Search/Analytics hanging off their own squares below"
+ledger:
+  taught:
+    - L-0155  # queue: homogeneous consumers (all do the same thing) → three identical `count++` boxes
+    - L-0161  # a message read from a queue goes to exactly one consumer
+    - L-0170  # queue = homogeneous consumers; stream = heterogeneous (search + counter on the same messages)
+    - L-0173  # queue: read, process, delete; stream: consumers iterate, nobody deletes
+    - L-0174  # stream messages stay until the retention policy deletes them
+    - L-0175  # each consumer type iterates at its own pace
+    - L-0176  # Elasticsearch down → the counter keeps processing
+    - L-0213  # queue: you delete (stream: commit — the commit half is left to §3.7 prose)
+  context_only:
+    - L-0159  # queue walkthrough order m1→consumer 2, m2→consumer 1, m3→consumer 3 (used for dispatch order)
+    - L-0168  # streams (Kafka, Kinesis) as the answer to the two-writes problem
+    - L-0178  # Medium with Kafka: search service + counter service consume at their own pace
+fidelity_notes:
+  - "Dispatch order m1→consumer 2, m2→consumer 1, m3→consumer 3 is the class's walkthrough (L-0159); m4→consumer 1 and m5→consumer 2 are our continuation (illustrative)."
+  - "Consumer boxes are labelled `count++` to show they are homogeneous (the Medium total_blogs++ example of §3.3); the lecture calls them consumers."
+  - "Queue exclusivity is drawn as taught (L-0161). The at-least-once caveat (SN-11: SQS standard queues can redeliver) stays in prose next to Fig 3·d; the clip does not claim exactly-once."
+  - "Retention shows no number: L-0174 gives 40/60/100 days as examples 'up to you'; the Kafka 7-day default (A-DC-08) lives in prose. The on-screen label is just `retention`. Which messages expire (the two oldest) is illustrative."
+  - "Cursor speeds and the moment Elasticsearch goes down are illustrative; the lecture gives no timings. Positions are shown, not offsets or commits (commit is §3.7)."
+  - "Message order in the pipe: m1 entered first and sits at the right (the queue's exit end); stream cursors therefore iterate right → left, oldest to newest, following the numbers."
+  - "Fact-check L-0170 nuance (streams can have one homogeneous group; queues can fan out via SNS/fanout exchanges) stays in prose."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 850, note: "used at <= 640 px; queue above stream; waiting messages sit above each pipe and drop in; consumers and stores in a right-hand column; 30 px lettering (15 px at 358 px)"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1005   # 33.5 s; 67 s at 0.5×
+start_frame_equals: "two lanes, both pipes empty; five numbered ON_PUBLISH squares (5 4 3 2 1) waiting at the left of each; queue fans out to three `count++` consumers; stream has `search`→es and `counter`→db boxes, not yet connected"
+poster_frame: 1004
+reduced_motion_stills: [100, 340, 550, 730, 880, 1004]
+glyphs:
+  lane_titles: {queue: "hand 'queue' + mono 'sqs' (40,50)", stream: "hand 'stream' + mono 'kafka' (40,352)"}
+  separator: {route: "dashed thin line y=300", colour: ink3}
+  queue_pipe: {shape: pipe, pos: [340, 122, 460, 76], label: "sqs (title)"}
+  consumers: {shape: server-box, label: "count++", x: 880, w: 200, y_centres: [74, 160, 246], note: "connected to the pipe by a bus at x=840; no arrowheads (consumers pull, messages flow — direction shown by moving squares)"}
+  stream_pipe: {shape: pipe, pos: [340, 424, 460, 76]}
+  search: {shape: server-box, label: "search", pos: [860, 326, 180, 56], store: "cylinder es (cx 1124)"}
+  counter: {shape: server-box, label: "counter", pos: [860, 542, 180, 56], store: "cylinder db (cx 1124)"}
+  cursors: {route: "box → along y → down/up onto its message square", solid: true, head: "the message (the consumer reads)"}
+  messages: {shape: square 52px, label: "mono 1..5", slots_x: [738, 654, 570, 486, 402]}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Same five events. Top: a queue. Bottom: a stream."
+    on_screen: [static figure]
+    motion: none (hold)
+    ledger: [L-0170]
+  - id: B1
+    step: 1
+    from: 105
+    to: 345
+    caption: "Queue: each message goes to one consumer, which deletes it when done."
+    events:
+      - {at: 114, dur: 30, what: "the five squares slide into the sqs pipe (1 at the exit end)", colour: ink}
+      - {at: 150, dur: 114, what: "one at a time, each square rides the bus to ONE consumer (1→c2, 2→c1, 3→c3, 4→c1, 5→c2), blue while travelling", colour: blue}
+      - {at: 176, dur: 100, what: "on arrival the square is absorbed and its number is written green beside that consumer; its pipe slot leaves a dashed ghost", colour: green}
+      - {at: 282, dur: 24, what: "green 'all deleted' under the empty pipe", colour: green}
+    ledger: [L-0155, L-0161, L-0173, L-0213]
+  - id: B2
+    step: 2
+    from: 345
+    to: 555
+    caption: "Stream: messages stay. Each consumer type keeps its own position."
+    events:
+      - {at: 354, dur: 30, what: "the same five squares slide into the kafka pipe and stay"}
+      - {at: 392, dur: 24, what: "search's cursor drawn by pen onto message 1"}
+      - {at: 418, dur: 24, what: "counter's cursor drawn by pen onto message 1"}
+      - {at: 458, dur: 58, what: "cursors step at their own pace (ink, EASE_MOVE): search 1→2; counter 1→2→3"}
+    ledger: [L-0170, L-0173, L-0175]
+  - id: B3
+    step: 3
+    from: 555
+    to: 735
+    caption: "Search is down. The counter keeps going at its own pace."
+    events:
+      - {at: 565, dur: 8, what: "red ✕ stamped on es; 'down' written (red)", colour: red}
+      - {at: 590, dur: 10, what: "search's cursor turns red dashed (stalled at 2)", colour: red}
+      - {at: 610, dur: 58, what: "counter steps 3→4→5"}
+    ledger: [L-0176, L-0175]
+  - id: B4
+    step: 4
+    from: 735
+    to: 885
+    caption: "Search comes back and picks up where it stopped."
+    events:
+      - {at: 745, dur: 10, what: "✕ replaced by green ✓, 'down' replaced by 'back' (green)", colour: green}
+      - {at: 770, dur: 12, what: "search's cursor back to ink"}
+      - {at: 785, dur: 68, what: "search steps 2→3→4→5"}
+    ledger: [L-0175]
+  - id: B5
+    from: 885
+    to: 1005
+    caption: "Nobody deletes from a stream. Old messages expire by retention."
+    events:
+      - {at: 895, dur: 16, what: "messages 1 and 2 (oldest) fade to dashed ghosts"}
+      - {at: 905, dur: 24, what: "hand 'retention' (ink-2) above them"}
+    on_screen: [end state = poster]
+    ledger: [L-0173, L-0174]

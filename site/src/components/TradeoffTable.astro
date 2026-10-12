@@ -1,0 +1,25 @@
+---
+// Trade-off comparison. Columns can carry a header glyph (bigger | replicas | shards, see figures/glyphs.tsx).
+// A cell is a string, or { text, bad: true } for the red ✕ cell. Stacks into labelled rows below 700px.
+import { TH_GLYPHS } from '../figures/glyphs';
+interface Col { label: string; glyph?: string }
+type Cell = string | { text: string; bad?: boolean };
+interface Row { label: string; cells: Cell[]; k?: string }
+interface Props { caption: string; columns: Col[]; rows: Row[]; k?: string }
+const { caption, columns, rows, k } = Astro.props;
+---
+<table class="trade wide" data-k={k}>
+  <caption class="sr">{caption}</caption>
+  <thead>
+    <tr><td></td>{columns.map((c) => { const G = c.glyph ? TH_GLYPHS[c.glyph] : null; return <th scope="col">{G && <G />}{c.label}</th>; })}</tr>
+  </thead>
+  <tbody>
+    {rows.map((r) => (
+      <tr data-k={r.k}><th scope="row">{r.label}</th>
+        {r.cells.map((c, i) => typeof c === 'string'
+          ? <td data-col={columns[i].label}>{c}</td>
+          : <td data-col={columns[i].label} class:list={[c.bad && 'bad']}>{c.text}</td>)}
+      </tr>
+    ))}
+  </tbody>
+</table>

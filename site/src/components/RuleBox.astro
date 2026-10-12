@@ -1,0 +1,14 @@
+---
+// The hand-ruled rule box. `rule` is the boxed sentence; wrap the key phrase in ==double equals== to mark it.
+// Default slot: the explanation paragraph(s), then optionally a small sketch figure.
+interface Props { rule: string; label?: string; k?: string }
+const { rule, label = 'The rule for this whole chapter', k } = Astro.props;
+const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const html = esc(rule).replace(/==(.+?)==/g, '<span class="mark">$1</span>');
+const id = 'rule-' + Math.abs([...rule].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)).toString(36);
+---
+<div class="rule" role="note" aria-labelledby={id} data-k={k}>
+  <p class="rule-label scribble">{label}</p>
+  <p class="rule-text" id={id} set:html={html} />
+  <slot />
+</div>

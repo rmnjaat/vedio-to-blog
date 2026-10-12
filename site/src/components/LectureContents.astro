@@ -1,0 +1,32 @@
+---
+// "Contents of this lecture": numbered chapters and sections, "you are here" on the current one.
+// dim = not on this page (dimmed); now = the section the reader is in.
+export interface TocItem { no: string; title: string; href?: string; dim?: boolean; now?: boolean; children?: TocItem[] }
+interface Props { items: TocItem[]; open?: boolean; label?: string }
+const { items, open = true, label = 'Contents of this lecture' } = Astro.props;
+---
+<details class="toc hand" open={open} id="toc">
+  <summary>{label}</summary>
+  <ol>
+    {items.map((it) => (
+      <li class:list={[it.dim && 'dim', it.now && 'now']}>
+        <span class="no">{it.no}</span>
+        {it.now
+          ? <span><a href={it.href ?? '#'} aria-current="location">{it.title}</a><span class="you scribble">you are here</span></span>
+          : <a href={it.href ?? '#'}>{it.title}</a>}
+        {it.children && (
+          <ol>
+            {it.children.map((c) => (
+              <li class:list={[c.dim && 'dim', c.now && 'now']}>
+                <span class="no">{c.no}</span>
+                {c.now
+                  ? <span><a href={c.href ?? '#'} aria-current="location">{c.title}</a><span class="you scribble">you are here</span></span>
+                  : <a href={c.href ?? '#'}>{c.title}</a>}
+              </li>
+            ))}
+          </ol>
+        )}
+      </li>
+    ))}
+  </ol>
+</details>

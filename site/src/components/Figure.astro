@@ -1,0 +1,14 @@
+---
+// A numbered figure on graph paper. Default slot: the drawing. For a large figure, wrap the two layouts in
+// <Desk> and <Phone>: the phone layout replaces the desktop one at <= 640px (labels stay >= 12px).
+// panels: the slot holds <Panel> children laid out in a row (stacked below 960px), as in Fig 2.4·a.
+//   panels={2} gives a two-column row (default three).
+// max: the widest the drawing may show, in CSS px (e.g. 640 for a two-panel figure authored at 640 units),
+//   so it shows at about 1:1 instead of stretching across the wide column.
+interface Props { id: string; no?: string; caption?: string; wide?: boolean; panels?: boolean | 2 | 3; sheet?: boolean; max?: number; k?: string }
+const { id, no, caption, wide = true, panels = false, sheet = true, max, k } = Astro.props;
+---
+<figure class:list={[wide && 'wide']} id={id} aria-labelledby={id + '-cap'} data-k={k} style={max ? `--fig-max:${max}px` : undefined}>
+  <div class:list={[panels ? 'panels' : 'fig-stage', panels === 2 && 'two', sheet && 'sheet']}><slot /></div>
+  <figcaption id={id + '-cap'}>{no && <span class="fig-no hand">{no}</span>}{caption}<slot name="caption" /></figcaption>
+</figure>

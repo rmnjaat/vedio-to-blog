@@ -1,0 +1,63 @@
+**[01:33:59] Student 3:** But this is an even server.
+
+**[01:34:01] Teacher:** This even [unclear: "page"] 202, odd server came back up. What is the ID generated on the odd server now?
+
+**[01:34:08] Student 3:** Whatever value was.
+
+**[01:34:10] Teacher:** I have three, one, three, five. What's the next value that would be generated? One, three, seven,
+
+**[01:34:15] Student 3:** Seven.
+
+**[01:34:15] Teacher:** And on the even server. Okay. Two, zero, four. So just to maintain that. Correct. Right. Just for aesthetics. That's what I'm saying. Just for aesthetics. Okay. There's nothing special. Even if you don't do it, your system would still function correctly. It just for aesthetics. You can just reset the value on both sides and make it look better. That's it.
+
+> **Student Question [01:34:38] - Student 3:** Okay, so after reset, what will be the right value according to you?
+
+**[01:34:43] Teacher (answer):** Start with 240, 239 and then let it round robin.
+
+**[01:34:49] Student 3:** Got it.
+
+**[01:34:50] Teacher:** Pick some value. It's up to you. You are the [?designer | asr: "desire"]. You are the architect of the system. It's up to you where you want to reset. You reset it to the safest value of that. Makes sense. That's why we discussed safest value in the first place. So that we understand the importance of starting from a safest value the IDs that were generated in the past. Right? Okay. Chal. One more question before we move forward. Chathindar [check: name spelling], go on.
+
+> **Student Question [01:35:16] - Student 2:** Yeah. So I think I'm a little confused here in this one. You said the max plus buffer thing is just for aesthetics. But let's say if the odd server goes down, let's add five [check: "let's add five" - "let's say at five"?] and the even server goes on till 202. If we don't do this max plus buffer thing and the odd server starts producing IDs from let's say seven, then they are not monotonically increasing.
+
+**[01:35:38] Teacher (answer):** Where did we enforce monotonicity?
+
+**[01:35:40] Student 2:** Okay, we are not enforcing that here. Never.
+
+**[01:35:43] Teacher:** That's what I started saying. We are not enforcing monotonicity. It's a nice byproduct [?to have | asr: "to hire"].
+
+**[01:35:49] Student 8:** Okay.
+
+**[01:35:51] Teacher:** Because that's what I said. Not everyone needs monotonicity. And it's okay to not have it. Social media, why would you care about monotonicity? You should have it. Okay.
+
+<!-- topic-candidate [01:36:01]: Twitter Snowflake - decentralized ID generation -->
+
+[01:36:01] Now the next part is we discussed the two approaches [unclear: "of Atilla"] that we saw. Amazon and Flickr. They were central ID generation service. Now what we take, we take a look at distributed part, or rather not distributed. Decentralized ID generation logic, not service, logic. So Twitter still uses this. One of the best ID generation system out there. So what Twitter uses an algorithm called Snowflake. I, two words back [check: "two words back" - two weeks back?], I never thought why they are calling it Snowflake.
+
+[01:36:39] Now I remember just a little backstory. Snowflake is like almost every single snowflake in the world that you see is unique. That's why the ID generation logic, they are calling it as Snowflake. So pick any two snowflakes, they would no way be similar. They would no way be exactly the same. They would always be dissimilar. That's the beauty of snowflake. In case you're interested, the Numberphile has a great video on why snowflakes are unique. Not ID generation, but the actual snowflakes. Unfortunately, computer has to, like when we hear Windows, we think about operating system and not the physical Windows. We are now used to that. So snowflake, not ID generation, but the actual snowflake. Every single snowflake is unique because of which they named this particular algorithm, if I may call it, as Snowflake.
+
+[01:37:30] Is Twitter uses Snowflake for their IDs. Snowflake, this algorithm is also adopted by Discord and Instagram. We'll talk about Instagram. Discord is very similar. We'll also talk about Discord also and Instagram also. So Snowflakes are 64 bits [unclear: "in TV"]. 64 bits, keeping it small. That's what they also went for. They did not want to keep it large. If they would have kept it large, at Twitter scale, the amount of data that is getting ingested, the amount of data that is getting indexed. Imagine instead of having 64 bits, you are having 128 bits, which means 16 bytes. You are literally doubling the space that you need. That's why efficiency at scale, storage efficiency at scale, compute efficiency at scale.
+
+[01:38:17] So what Snowflakes are? Snowflakes are very simple. They are very similar to MongoDB's ID, but very small, very nice. Right, so what they have is they have first 41 bits as epoch milliseconds, left side, always time. 41 bits epoch milliseconds, which means every millisecond this would always move forward, so you almost get ordering in IDs. That's a very nice byproduct. We'll take a look at pagination because of this, how it is very efficient. Then the next 10 bits for machine IDs. Machine IDs is server that is generating this ID, not database server, it's the API server of Twitter. So
+
+[01:38:57] So imagine you're tweeting something. So what do you have? This is you. This is tweets DB, which is partitioned, massively partitioned, right? And these are the API servers, normal API servers handle REST request to create a tweet. Here you have this ID generation logic called Snowflake. It's not a library. It's not a service. It's a library, normal, normal integer, normal bit manipulation. When you get a request to tweet something, it does basic validation there. Tweet ID, user ID, text tags that. It generates a random tweet ID using Snowflake and it just stores it into this database. These are API servers which are generated. So this 10 bits are for these machine IDs.
+
+[01:39:44] Now because of this 10 bit constraint, you know the maximum number of API servers that Twitter would have had for tweet service would be at max 2 raise to 10, which is 1024. It cannot go beyond that. Correct. Otherwise this would overflow. Correct. That's what happens. So you, it reserved 41 bits for epoch milliseconds, 10 bits for machine IDs and 12 bit for per machine counter, that static counter that we discussed at the first. It will press, plus, plus, plus, plus, plus, plus, plus, plus every time. Now this is what it generates on demand.
+
+[01:40:20] When you get this, see, when you get this in the business logic handle, when you're generating a new Snowflake ID, you need current time, you have it. Machine ID, you would know that this is my machine ID. It would be in range of 0 to 1, 0 to 1, pick one. Every machine will get a unique ID to start with. And a 12 byte machine counter, per machine counter. What does this tell you? This tells you that per machine counter is 12 bytes, sorry, 12 bits, which means that in 1 millisecond, one machine can generate 2 raised to 12 unique IDs before seeing any collision. Per millisecond per machine, 2 raised to power 12. 2 raised to 10 is 1024, 2048, 4096. 2 raised to 12 is 4096.
+
+[01:41:17] One millisecond, one machine can generate 4096 unique IDs without seeing any conflict. One millisecond. That's a humongous throughput that they have made the system tolerant enough that hard to attend that scale, right? So they are prepared for, well prepared for the future, right? Because at max 1024 machines, so when entire collision would happen, when Snowflake would see, when, when would Snowflake even see a collision where same IDs are getting generated? It would happen when in one machine, in one machine, in one millisecond, you are handling more than 4096 requests. No one can do that. One millisecond more than four, more one millisecond, more than 4,000 requests per millisecond implies 400,000 requests per second. No one does. No one does it. So they are very much safe from the scale that they are handling. And they can at max have 10 machines.
+
+[01:42:21] So this is normal. You can even write Snowflake in three lines of code. That too for aesthetic, I can write it in one line also. Three lines of code. Because you know the current time. You know the machine ID. You know a static counter you do atomically plus plus. Just arrange those bits like this. Like take a number. Left shift by 23 and set a time, and then set bitwise or, and basically create this ID, as simple as this, normal bit manipulation, right? But the kind of benefits you get out of this is because now there is no moving component, there is no need of a central ID service and whatnot to talk to. It's literally a request comes, you generate a Snowflake ID, you store it in the database, done.
+
+[01:43:08] This is why Twitter scales. There is no central, because, because firing tweets is one of the most high throughput things that the world is handling right now. People keep on tweeting stuff whenever there's a big event as if they're missing out on something. They keep on tweeting. These folks need to handle the scale. If they would have had a set of [unclear: "lighting services"], they would need to scale that part and this and that and that and that. Screw it. We don't do that.
+
+[01:43:36] So the beauty of Snowflakes is that they are roughly sortable. Within the same millisecond, assuming that the machine that has lesser ID is smaller, the machine has larger ID is larger, within the same millisecond you get roughly sortable IDs. That's brilliant. First 41 bits of epoch millisecond means after every millisecond your number is massively moving forward and it gives you an ability of getting a tweet before and after a certain time because the first 41 bits. So if you go to Twitter right now, click on any tweet, look at the link, the tweet ID itself is an integer. This is Snowflake that we are talking about. Now what would happen is the first 41 bits of that number is actually epoch millisecond when the tweet was made, which means that given you have IDs, you can very clearly tell if this tweet was made before this time or after this time. That is brilliant because now it makes your pagination super efficient. So this is a very interesting byproduct of having roughly sortable IDs.
+
+<!-- topic-candidate [01:44:43]: Pagination - limit offset vs ID-based -->
+
+[01:44:43] So if you ever take a look at Twitter API, unfortunately it is paid right now. No, they reverted it, but now I think they already, they made it again paid. Not sure what their current state is, but if you go through Twitter's API documentation, what you will find interesting is the way you can paginate a tweet. For example, you want to list all the tweets of a person's profile of a, of a made by a particular account. What you can do, there are two ways to pagination. One most common limit offset based pagination. So you fire a SQL query and use SQL as an example, but it holds to per every database, FYI. Select star from tweets where user ID is this limit 10 offset 0. Then for the next page, limit 10 offset 10. For next, limit 10 offset 20 and so on and so forth. That is one way to pagination. Limit offset, skip limit, whatever you may want to call it. That is one way of pagination.
+
+[01:45:41] But this has a problem. When you do limit offset based pagination, it is pathetically slow. In case of Twitter, imagine it is very common for people to scroll down the tweets of a particular person. Let's say Arpit made 10,000 tweets. Going through all of his tweets is a very slow process. Because if I go down deeper into [?pagination | asr: "page initial"], like if I go level deep into it, third page is okay. Fourth page is okay. Fifth page is okay. Six page would be slower. Seven would be even slower. Eight would be even slower, but it is a very common use case to scroll through it. You'll say, why would someone scroll through person's profile? Okay.
+
+[01:46:19] Let me give you another example. Let's say you are writing a [?batch job | asr: "bad job"]. In order to compute trending topics, right? Trending topics in last two, you want to process last one hour of tweets. Processing last one hour tweets, in one hour Twitter produces millions of tweets. Imagine doing pagination across those million rows, that would be so slow. Let me give you a practical example of that. I never thought this would come in this handy. I wrote a very quick demo back in 2016. I was getting bored at Amazon, didn't know what to do. What I did is I, I was heavily into MongoDB back then.

@@ -1,0 +1,44 @@
+---
+// Predict, then reveal. The reader commits to a choice; the answer (default slot) is revealed with a verdict.
+// Without JS the answer is visible.
+//   <PauseAndThink q="Which connection should that read use?" choices={[{label:'The replica', correct:false},{label:'The master', correct:true}]}>answer…</PauseAndThink>
+interface Choice { label: string; correct?: boolean }
+interface Props { q: string; choices: Choice[]; right?: string; wrong?: string; label?: string; k?: string; id?: string }
+const { q, choices, right = 'Right.', wrong = 'Not quite. Here’s why:', label = 'Pause and think', k } = Astro.props;
+const id = Astro.props.id ?? 'think-' + Math.abs([...q].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)).toString(36);
+---
+<aside class="think" aria-labelledby={id + '-q'} data-k={k} data-right={right} data-wrong={wrong}>
+  <p class="think-label scribble">{label}</p>
+  <p id={id + '-q'} set:html={q} />
+  <div class="choices" role="group" aria-label="Your answer">
+    {choices.map((c) => <button class="btn" type="button" data-correct={c.correct ? '1' : '0'} aria-pressed="false">{c.label}</button>)}
+  </div>
+  <div class="answer">
+    <p class="hand verdict" aria-live="polite"></p>
+    <slot />
+  </div>
+</aside>
+<script>
+  document.querySelectorAll<HTMLElement>('aside.think').forEach((box) => {
+    const answer = box.querySelector<HTMLElement>('.answer')!;
+    const verdict = box.querySelector('.verdict')!;
+    answer.hidden = true;
+    const picks = box.querySelectorAll<HTMLButtonElement>('[data-correct]');
+    picks.forEach((b) => b.addEventListener('click', () => {
+      const ok = b.dataset.correct === '1';
+      picks.forEach((o) => {
+        o.setAttribute('aria-pressed', String(o === b));
+        // after a wrong pick, mark the option that was right
+        o.classList.toggle('is-answer', !ok && o.dataset.correct === '1');
+      });
+      const answerLabel = Array.from(picks).filter((o) => o.dataset.correct === '1').map((o) => '“' + (o.textContent ?? '').trim() + '”').join(' or ');
+      verdict.textContent = ok ? (box.dataset.right ?? '') : (box.dataset.wrong ?? '');
+      if (!ok && answerLabel) {
+        // the ✓ on the right option says it visually; say it in words for screen readers too
+        const sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = ' The right answer is ' + answerLabel + '.';
+        verdict.prepend(sr);
+      }
+      answer.hidden = false;
+    }));
+  });
+</script>

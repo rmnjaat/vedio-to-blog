@@ -1,0 +1,113 @@
+# Storyboard — clip l01-polling (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l01-polling
+title: Hearing ready
+lecture: 1
+section: "5.3 Short polling, long polling, push"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  The lesson is who talks when, and how requests pile up while nothing changes: a repeated protocol on one
+  time line. A still can list the three patterns; only motion shows short polling asking again and again and
+  getting the same answer, the long poll sitting held for the whole wait, the push connection idling, and then
+  all three hearing "ready" at the same moment with very different request counts.
+static_twin: "Fig 5·b (short polling), 5·c (long polling), 5·d/5·e (WebSockets / SSE); boards D-16..D-19"
+ledger:
+  taught:
+    - L-0238  # short polling: the client asks again and again, periodically
+    - L-0243  # every 10 s -> 6 requests a minute; 1M users -> 6M requests a minute
+    - L-0245  # the response often doesn't change: redundant "in progress" answers
+    - L-0246  # long polling: the request is not answered until the state changes
+    - L-0248  # fewer requests; the server holds/does more (shown as a held request, no loop)
+    - L-0250  # short polling answers at once; long polling waits until ready
+    - L-0256  # with an open connection the server can send first
+    - L-0265  # SSE: one persistent connection, the server sends; the client only opens it
+  context_only:
+    - L-0244  # per-request HTTP overhead (SN-20 in prose)
+    - L-0247  # you build polling yourself
+    - L-0249  # cricket long poll, "infinite loop" (fact-check nuance in prose)
+    - L-0254  # WebSocket = persistent bidirectional connection
+fidelity_notes:
+  - "60 s is an illustrative job length (the class used an EC2 launch that takes 'an hour'); the opening caption says 'Say a job is ready at 60 s'. The 10 s interval and 1M readers -> 6M requests a minute are the class's numbers (L-0243)."
+  - "Fact-check SN-20 / L-0244: no TCP handshake or teardown is drawn per poll. Each poll is one request and one reply (an HTTP/1.1 client would normally reuse one keep-alive connection for them). The cost shown is the request count, which is the lecture's point."
+  - "Fact-check L-0248/L-0249: the long poll is drawn as a request the server parks (held, dotted) and answers when the job is ready. No server loop is drawn. The board's 'timeout -> reconnect' is not shown because the example wait is shorter than a typical timeout; it stays in prose (Fig 5·c footer)."
+  - "6M is '6 million requests per minute' (about 100k a second), not 'concurrent requests' (fact-check note on L-0243)."
+  - "The push lane is labelled 'websocket / sse' and doesn't claim which one Medium uses. The browser's 'connect' is drawn as one blue request; the counter says '1 connection', not '0 requests'."
+  - "Round trips are drawn as narrow V's (request down, reply back up) and the playhead slows while each one is drawn: time is not to scale around the polls."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 960, note: "used at <= 640 px; three lanes stacked; ready-at-60 s on a top row; request counts on each lane title row; 1M-readers sum on its own row; 30 px lettering (15 px at 358 px)"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1085   # 36.2 s; 72 s at 0.5x
+start_frame_equals: "three empty lanes (short polling, long polling, push: websocket / sse), each a browser rail above a server rail"
+poster_frame: 1084
+reduced_motion_stills: [98, 312, 490, 650, 845, 958, 1084]
+glyphs:
+  lanes: {count: 3, header_y: [50, 250, 450], browser_rail_y: [90, 290, 490], server_rail_y: [160, 360, 560], x: [228, 1050]}
+  time: {x_of_seconds: "240 + 13 * s", ready_at: "60 s -> x 1020"}
+  poll: {shape: "V: request browser->server (solid, head at server), reply trace back (no head)", colour: "request blue, reply graphite ('in progress') or green ('ready')"}
+  held_request: {shape: "blue dotted span on the server rail", from: "0 s", to: "60 s"}
+  open_connection: {shape: "thick graphite band between the rails", from: "0 s", to: "60 s"}
+  push: {route: "server -> browser at 60 s", solid: true, head: browser, note: "server initiates"}
+  ready_line: {shape: "green dashed vertical per lane at 60 s", label: "ready at 60 s"}
+  counters: {pos: "lane header, right-aligned at x 860", text: ["N requests", "1 request", "1 connection"]}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Say a job is ready at 60 s. How does the browser find out?"
+    on_screen: [static figure]
+    motion: none
+    ledger: []
+  - id: B1
+    from: 105
+    to: 320
+    caption: "Short polling: ask every 10 s. Each answer: still in progress."
+    events:
+      - {at: 115, dur: 150, what: "five cycles: playhead moves to 10k s (14 f), blue request down (8 f), graphite reply back (8 f); counter 1..5 requests", colour: blue}
+      - {at: 268, dur: 22, what: "'in progress × 5' written under the lane"}
+    ledger: [L-0238, L-0245, L-0250]
+  - id: B2
+    from: 320
+    to: 497
+    caption: "Long polling: ask once. The server holds the request until it's ready."
+    events:
+      - {at: 320, dur: 12, what: "lane 0 ghosts to 38%"}
+      - {at: 330, dur: 12, what: "one blue request down at 0 s; '1 request'", colour: blue}
+      - {at: 342, dur: 100, what: "held span (blue dotted) grows along the server rail to 50 s with the playhead", colour: blue}
+      - {at: 445, dur: 22, what: "'held until ready' written"}
+    ledger: [L-0246, L-0248, L-0250]
+  - id: B3
+    from: 497
+    to: 657
+    caption: "Push: open one connection and keep it. The server can speak first."
+    events:
+      - {at: 497, dur: 12, what: "lane 1 ghosts"}
+      - {at: 507, dur: 12, what: "blue 'connect' request down at 0 s", colour: blue}
+      - {at: 519, dur: 80, what: "open-connection band grows to 50 s; '1 connection'"}
+      - {at: 602, dur: 24, what: "'connection kept open' written"}
+    ledger: [L-0256, L-0265]
+  - id: B4
+    from: 657
+    to: 851
+    caption: "At 60 s: the 6th poll, the held reply and the push all say ready."
+    events:
+      - {at: 657, dur: 12, what: "lanes 0 and 1 come back to full strength for the comparison"}
+      - {at: 665, dur: 30, what: "all three lanes advance 50 s -> 60 s (playheads, held span, open band)"}
+      - {at: 697, dur: 22, what: "green dashed ready line at 60 s, 'ready at 60 s'", colour: green}
+      - {at: 725, dur: 32, what: "6th poll: blue request, green reply, 'ready'; counter 6 requests", colour: green}
+      - {at: 761, dur: 28, what: "held request answered: green reply trace, 'ready'", colour: green}
+      - {at: 793, dur: 28, what: "server pushes: green arrow up with head at the browser, 'ready'", colour: green}
+    ledger: [L-0243, L-0250, L-0256]
+  - id: B5
+    from: 851
+    to: 965
+    caption: "A million readers polling every 10 s: 6M requests a minute."
+    events:
+      - {at: 861, dur: 30, what: "'1M readers: 6M req/min' written at the right of lane 0's note row"}
+    ledger: [L-0243, L-0245]
+  - id: B6
+    from: 965
+    to: 1085
+    caption: "Same news. Polling pays in requests, the others in open connections."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0248, L-0265]

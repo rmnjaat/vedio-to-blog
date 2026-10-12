@@ -1,0 +1,113 @@
+# Storyboard — clip l01-replica-lag (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l01-replica-lag
+title: Replication lag
+lecture: 1
+section: "2.4 Scaling the database"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  The lesson is a window in time: a row exists on the master but not yet on the replica, and a read
+  that lands inside that window is wrong. A static figure can show the states; only motion shows the
+  window opening, a read falling into it, and the window closing on its own while nothing else changes.
+  The time track accumulates the lag as a growing red span (accumulation = motion's job).
+static_twin: "fig-lag (step-through swim lanes, same 5 numbered steps) and board D-06(b)"
+ledger:
+  taught:
+    - L-0107  # master + replica, asynchronous replication
+    - L-0109  # the replica calls the master and pulls; the master does not push
+    - L-0110  # writes go to master, reads to replica; the app does the routing
+    - L-0113  # replication lag makes a read miss a just-made write (banking example → story 42)
+  context_only:
+    - L-0104  # reads dominate (why reads go to replicas) — prose, not in clip
+fidelity_notes:
+  - "The lecture never gives a lag duration. The clip shows no number and labels the axis 'time (slowed down)'."
+  - "'changes since 41?' is our wording for 'the replica calls the master and pulls the changes' (L-0109)."
+  - "Medium case: story 42 stands in for the lecture's banking example (same mechanism, L-0113)."
+canvas: {width: 1200, height: 800, fps: 30}
+duration_frames: 900   # 30.0 s; 60 s at 0.5×
+start_frame_equals: "static architecture: api → master / api → replica, dashed replica→master pull link, both hold story 41"
+poster_frame: 899
+reduced_motion_stills: [80, 262, 440, 650, 800, 899]
+glyphs:
+  api: {shape: server-box, label: "api", pos: [500, 40, 200, 84]}
+  master: {shape: cylinder-solid, cx: 255, rows: ["story 41"]}
+  replica: {shape: cylinder-dashed, cx: 945, rows: ["story 41"]}
+  write_arrow: {route: "api left → master top", solid: true, head: master}
+  read_arrow: {route: "api right → replica top", solid: true, head: replica}
+  pull_arrow: {route: "replica → master", dashed: true, head: master, note: "replica initiates"}
+  time_track: {axis_y: 568, x: [150, 1040], maps_frames: [90, 800], label: "time (slowed down)"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "All writes go to the master. The replica keeps a copy for reads."
+    on_screen: [static figure]
+    motion: none (hold; reader orients)
+    ledger: [L-0107, L-0110]
+  - id: B1
+    step: 1
+    from: 90
+    to: 168
+    caption: "The api server writes story 42 to the master."
+    events:
+      - {at: 96, dur: 40, what: "pen re-inks write arrow in blue, blue packet at the tip", colour: blue}
+      - {at: 98, dur: 30, what: "label INSERT story 42 written (mono, blue)"}
+      - {at: 138, dur: 22, what: "'story 42' written into master's second row"}
+      - {at: 142, what: "time track: green dot 'commit'; playhead starts at 90"}
+    ledger: [L-0110]
+  - id: B2
+    step: 2
+    from: 168
+    to: 272
+    caption: "The master commits and says OK. The replica doesn't have it yet."
+    events:
+      - {at: 182, dur: 14, what: "red dashed empty slot appears in replica row 2", colour: red}
+      - {at: 176, dur: 36, what: "green packet travels back master → api", colour: green}
+      - {at: 206, dur: 24, what: "label 'OK, published' (green)"}
+      - {at: 142, what: "red lag span starts growing from commit with the playhead"}
+      - {at: 196, what: "'replica behind…' under the span"}
+    ledger: [L-0107]
+  - id: B3
+    step: 3
+    from: 272
+    to: 452
+    caption: "A read sent to the replica finds nothing: a stale read."
+    events:
+      - {at: 272, dur: 12, what: "B1/B2 labels ghost to 38%; blue write overlay returns to ink"}
+      - {at: 282, dur: 36, what: "pen re-inks read arrow blue, packet api → replica"}
+      - {at: 330, dur: 36, what: "red packet returns replica → api", colour: red}
+      - {at: 360, dur: 24, what: "label '0 rows: stale' (red)"}
+      - {at: 366, what: "time track: red ✕ 'stale read' inside the growing span"}
+    ledger: [L-0113]
+  - id: B4
+    step: 4
+    from: 452
+    to: 662
+    caption: "The replica asks the master for new changes and applies story 42."
+    events:
+      - {at: 462, dur: 40, what: "pen draws the dashed pull arrow replica → master (ink, thicker), packet at tip"}
+      - {at: 464, dur: 30, what: "label 'changes since 41?'"}
+      - {at: 516, dur: 36, what: "packet travels back master → replica; label 'story 42' (mono) under the link"}
+      - {at: 552, dur: 22, what: "'story 42' written into replica row 2; red slot fades"}
+      - {at: 562, what: "time track: span stops; ink dot 'applied'"}
+      - {at: 580, what: "'replica behind…' becomes 'replication lag'"}
+    ledger: [L-0109]
+  - id: B5
+    step: 5
+    from: 662
+    to: 812
+    caption: "The same read, a moment later, finds the story."
+    events:
+      - {at: 662, what: "B3 labels removed (same position); B4 labels ghost"}
+      - {at: 672, dur: 34, what: "read arrow re-inked blue, packet"}
+      - {at: 716, dur: 34, what: "green packet back"}
+      - {at: 744, dur: 24, what: "label '1 row: story 42' (green)"}
+      - {at: 750, what: "time track: green ✓ 'fresh read'"}
+      - {at: 800, what: "playhead stops and fades"}
+    ledger: [L-0113]
+  - id: B6
+    from: 812
+    to: 900
+    caption: "Commit to apply: that window is the replication lag."
+    on_screen: [end state = poster]
+    motion: none (3 s hold)
+    ledger: [L-0113]

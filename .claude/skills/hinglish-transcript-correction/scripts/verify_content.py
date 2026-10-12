@@ -4,7 +4,8 @@
 Usage:
   python3 verify_content.py RAW (segments.jsonl | raw file) CORRECTED.md [--log corrections_log.md]
          [--block-min 10] [--max-drop-pct 2.0] [--max-add-pct 3.0] [--max-run 5] [--out report.md]
-         [--from HH:MM:SS --to HH:MM:SS]      # verify one chunk only
+         [--chunk chunk_NN [--index chunks/index.json]]   # verify one chunk (exact owned segments)
+         [--from HH:MM:SS --to HH:MM:SS]      # verify a time range (whole-lecture files only)
          [--strict]                           # final run: any unexplained run of >= 2 words fails
 
 How it works
@@ -96,8 +97,14 @@ def main():
                     help="also FAIL on any unexplained dropped/added run of >= 2 words (use for the final run)")
     ap.add_argument("--from", dest="t_from")
     ap.add_argument("--to", dest="t_to")
+    ap.add_argument("--chunk", help="chunk name from chunks/index.json (e.g. chunk_03): compare exactly the "
+                    "segments that chunk OWNS (by segment id / float boundaries); the corrected file and log are "
+                    "taken whole. Use this instead of --from/--to for chunk files.")
+    ap.add_argument("--index", help="path to chunks/index.json (default: <dir of RAW>/chunks/index.json)")
     ap.add_argument("--out")
     a = ap.parse_args()
+    if a.chunk and (a.t_from or a.t_to):
+        sys.exit("--chunk and --from/--to are mutually exclusive")
     t_from = parse_ts(a.t_from) if a.t_from else None
     t_to = parse_ts(a.t_to) if a.t_to else None
 
@@ -105,19 +112,42 @@ def main():
         return (t_from is None or t >= t_from) and (t_to is None or t < t_to)
 
     segs = load_raw(a.raw)
+    chunk = None
+    if a.chunk:
+        import json
+        idx_path = a.index or os.path.join(os.path.dirname(os.path.abspath(a.raw)), "chunks", "index.json")
+        try:
+            chunk = next(c for c in json.load(open(idx_path, encoding="utf-8")) if c["name"] == a.chunk)
+        except StopIteration:
+            sys.exit("chunk %s not found in %s" % (a.chunk, idx_path))
+        has_ids = all("id" in s for s in segs)
+
+        def owned(s):
+            # Exact ownership: by segment id when available, else by float start in [start, end).
+            if has_ids and "first_id" in chunk:
+                return chunk["first_id"] <= s["id"] <= chunk["last_id"]
+            return chunk["start"] <= s["start"] < chunk["end"]
+        a.t_from, a.t_to = fmt_ts(chunk["start"]), fmt_ts(chunk["end"])
+    else:
+        def owned(s):
+            return in_range(s["start"])
+
     raw = []
     for s in segs:
-        if in_range(s["start"]):
+        if owned(s):
             for k in norm_tokens(s["text"]):
                 raw.append([s["start"], k, k])
     raw_before = len(raw)
-    rows = [r for r in load_log(a.log) if in_range(r["time"])] if a.log else []
+    # In chunk mode the log and the corrected file belong to the chunk: take them whole. Their timestamps are
+    # whole seconds, so filtering them by the chunk's float boundaries would wrongly drop edge paragraphs.
+    keep_t = (lambda t: True) if chunk else in_range
+    rows = [r for r in load_log(a.log) if keep_t(r["time"])] if a.log else []
     raw, unapplied = apply_log(raw, rows)
 
     spans, stats = corrected_spans(a.corrected)
     cor = []
     for t, text in spans:
-        if in_range(t):
+        if keep_t(t):
             for k in norm_tokens(text):
                 cor.append([t, k, k])
 
@@ -185,7 +215,9 @@ def main():
 
     lines = ["# Content verification report", "",
              "- Raw: `%s`  Corrected: `%s`  Log: `%s`" % (a.raw, a.corrected, a.log or "-"),
-             "- Range: %s - %s" % (a.t_from or "start", a.t_to or "end"),
+             "- Range: %s - %s%s" % (a.t_from or "start", a.t_to or "end",
+                                     "  (chunk %s, segments #%s-#%s)" % (a.chunk, chunk.get("first_id"), chunk.get("last_id"))
+                                     if chunk else ""),
              "- Raw words (comparable): %d; after applying %d log rows: %d (%d removed/replaced via log)" % (
                  raw_before, len(rows), tot_raw, raw_before - tot_raw),
              "- Corrected words (comparable): %d" % tot_cor,

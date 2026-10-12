@@ -1,0 +1,3093 @@
+[00:00:01] Great week four day second after this will be completed 50% of the course. Interesting. Okay.
+[00:00:10] So we'll continue our discussion on social networks, but like how we digress the big yesterday on CDN side, but that's important. That's very essential for us to know.
+[00:00:23] Today, what we'll do is we'll digress a little bit more in some other direction to touch
+[00:00:29] upon something really interesting.
+[00:00:30] Yesterday, we fogged a discussion around, hey, Instagram private images are not really
+[00:00:37] private.
+[00:00:38] What if we want to make one?
+[00:00:40] Right?
+[00:00:40] We'll talk about that.
+[00:00:41] We'll talk about how to make a purely private image sharing platform, for example.
+[00:00:47] You'll get the gist of it.
+[00:00:48] Right. Yesterday, we just spoke about, Hey, CDN gives us image optimization.
+[00:00:54] Why to build one?
+[00:00:55] Today we'll build one and we'll see how it is actually, it's hardly going to be 10
+[00:00:59] minute discussion, but we'll see how simple it becomes to implement an on-demand image
+[00:01:04] and on-demand image optimization.
+[00:01:07] Then we take a break and then we discuss then from now on, given that we are almost 50% done
+[00:01:15] And with the course from now on, I'll start throwing you all into different situations
+[00:01:21] on typically what senior engineers are supposed to, how they are supposed to wear multiple
+[00:01:29] hats, participate in multiple discussions, take care of multiple things at once, right?
+[00:01:35] Think of extensibility of the system.
+[00:01:37] Think about cross-stream collaboration.
+[00:01:39] Those sort of factors will take care today.
+[00:01:42] We will understand how should we even approach this.
+[00:01:47] So you will see across three or four different systems that we discussed, I am forcing you
+[00:01:52] all to think in different lines.
+[00:01:54] So that is where we would pick up our discussion with tagging photos.
+[00:01:58] Seems like a really simple statement, but when we ask those critical questions, we realize
+[00:02:03] that it is not as simple.
+[00:02:05] It touches upon a lot of interesting factors.
+[00:02:08] right that and we'll end our session for today with a very interesting system that we use every
+[00:02:14] day but we don't give it enough credit which is newly unread message indicator i could not come
+[00:02:20] up with a better name really sorry for that but newly unread message indicator is how we use our
+[00:02:25] social network every single day or social media every single day and we just fail to acknowledge
+[00:02:31] that hey this system or this one small button can be so complex right but again through this
+[00:02:38] what I would like to do is I'd like to touch upon a very interesting high level pattern
+[00:02:41] that you can use or that a lot of company uses in production to prevent major outages.
+[00:02:49] So these are the four things that we'll discuss today.
+[00:02:52] But apart from that, I covered this one system just once,
+[00:02:57] designing notification for Instagram on my first ever quote.
+[00:03:00] I never covered it again because it was out there on YouTube.
+[00:03:04] But do watch it in case you haven't.
+[00:03:08] because there is one thing,
+[00:03:09] one key takeaway from the lens of very naive
+[00:03:11] is that you would realize how naive I was
+[00:03:13] when I was explaining that.
+[00:03:14] But even people found it amazing,
+[00:03:17] which shows the massive gap that exists.
+[00:03:21] One key thing from this discussion notification system
+[00:03:24] is how we bridge the gap of Kafka.
+[00:03:30] Yesterday also we saw that how the parallelization
+[00:03:34] or the parallelism of Kafka is limited
+[00:03:38] partitions in Kafka. How do you get past that? Because you may have to send a million notifications
+[00:03:44] or notification to a million users. Let's say Justin Bieber posted something. You want to send
+[00:03:49] notification to 10 or 15 however many million followers he has. You have to send notification
+[00:03:54] to those many folks. How do you do that? Because if you use Kafka, it's pathetically slow. If you
+[00:04:00] have limited number of partitions, adding large number of partitions becomes a problem. So what
+[00:04:04] do you do? Which is where I spoke about a very interesting high level pattern where you club Kafka
+[00:04:09] with SQS. So message stream with message broker to get very high degree of fan out. That's an
+[00:04:15] interesting concept. You should definitely watch that just for that one bit. Everything else you
+[00:04:20] can now design on your own. But that one bit on why are we making that decision? And basically
+[00:04:25] that's how notification systems are built. If you just draw and I'll have a message broker on which
+[00:04:30] send message input broadcast.
+[00:04:32] No, that's not what happens at scale.
+[00:04:34] That's not how you manage or handle scale.
+[00:04:37] To build such systems you need because I had to do it.
+[00:04:40] There was no option for me to send notifications to,
+[00:04:43] not even talking about million,
+[00:04:44] I'm just talking about few 50, 60,000,
+[00:04:47] but in the span of five seconds, we had to do it.
+[00:04:49] So in that case, when we are being this aggressive in marketing,
+[00:04:54] we had to pull that off, right?
+[00:04:55] So this is what we did.
+[00:04:57] This is how we stitched our system together.
+[00:05:00] a message stream with a message broker to get a high degree fan out.
+[00:05:04] So watch that video in case you haven't.
+[00:05:06] It's the first ever video I posted on YouTube.
+[00:05:09] So watch that.
+[00:05:10] If you sort it by oldest video first, you'll get it as the first.
+[00:05:14] So that's why I don't cover it again.
+[00:05:16] But watch that video to get how we club kindnesses or Kafka with SQS or EBITMQ to get high degree fan out.
+[00:05:28] First ever cohort, March 20, goes back two years.
+[00:05:30] two years, two years back.
+[00:05:33] I covered it.
+[00:05:34] Right.
+[00:05:34] Okay.
+[00:05:35] So this is the agenda for today.
+[00:05:37] Let's start with the first one.
+[00:05:38] But before we jump to designing gravatar, let's spend a bit of time to understand how images
+[00:05:45] are served.
+[00:05:46] Now, serving images is really important.
+[00:05:49] We all do it on a day-to-day basis.
+[00:05:51] But how are these images actually served?
+[00:05:56] Because we just say images are served.
+[00:05:59] How?
+[00:06:00] When I ask this question, the first thing you people say,
+[00:06:03] without even thinking about it, will you see it into service?
+[00:06:06] But someone has wrote that quote.
+[00:06:09] Someone has to read image and serve it.
+[00:06:11] What, how do we serve a static file?
+[00:06:15] Right.
+[00:06:16] Let's start with that because that's what would help you build a shit ton of
+[00:06:21] features and not even exaggerating on that.
+[00:06:24] We'll see a real practical demo where this comes in handy, because I don't
+[00:06:30] of it, right?
+[00:06:31] You'll understand how beautiful this thing is.
+[00:06:34] You can understand how companies mind blowing, like mind blowing,
+[00:06:38] awesomely use this particular feature.
+[00:06:41] Okay.
+[00:06:42] So whenever you hit a particular URL, your browser does not know it's an image URL.
+[00:06:49] Let's say you have this URL and you've hit it.
+[00:06:52] Your browser has no idea what's happening.
+[00:06:54] What browser would do.
+[00:06:55] Let's say it's for some reason, four or five words back, some people thought that it's
+[00:07:05] because of this extension, the browser knows it's an image.
+[00:07:08] No, browser does not have a clue.
+[00:07:10] Browser is a dumb, stupid piece of software.
+[00:07:13] It has nothing in it.
+[00:07:15] What you give.
+[00:07:17] So browser has a fixed defined behavior for everything.
+[00:07:21] And when I say browser also applicable to apps.
+[00:07:23] right so always remember whenever something is a platform browser is a platform app android app
+[00:07:31] ios app is a platform right so sorry the android os ios thing the sdk that you can they're all
+[00:07:37] platform they're all building block so they cannot be very smart they have to be basic enough so that
+[00:07:44] you can use it with hundreds of other things so for you to render an image what you typically do
+[00:07:50] You take some URL and you put it in an IMG tag, IMG SRC and you put the image URL there.
+[00:07:58] What happens when you send this HTML to browser and browser renders it?
+[00:08:04] So browser starts rendering the XML, the HTML that you sent, it stumbled upon IMG SRC tag.
+[00:08:11] What browser simply does, whatever you provide in IMG SRC tag, it makes an HTTP GET request
+[00:08:21] If you provide this URL, it would make HTTP get to this.
+[00:08:24] If you provide some other URL, it would make HTTP get to that.
+[00:08:28] Browser does not have any idea what it would get in return.
+[00:08:31] It is expecting an image.
+[00:08:33] So what it does, it makes HTTP GET request to whatever URL you specify in the AMG tag.
+[00:08:38] Whatever you get in the response, it tries to interpret it as an image.
+[00:08:44] How do you do that?
+[00:08:45] It's set up.
+[00:08:46] Yesterday we saw when GitHub sent, when we uploaded the image on GitHub issues.
+[00:08:51] happened we saw how that png files bytes were sent in that that header png and some rdf data
+[00:08:58] and whatnot was shared that is the file format the header of the png file tells you that it's a png
+[00:09:04] file jpg has a header bitmap has a header tiff has a header every single format in the world has a
+[00:09:10] header so what it does whatever bytes you get in return if it's a 2xx response whatever bytes you
+[00:09:16] to get in the response, it checks the header.
+[00:09:19] It sees, okay, this is a PNG image.
+[00:09:23] So it would interpret those bytes as PNG.
+[00:09:25] So every browser shifts with image encoders and decoders,
+[00:09:29] but rather mostly decoders, not really encoders,
+[00:09:31] but decoders for every type of format, PNG, JPG, TAPE, SVG and whatnot.
+[00:09:39] Whatever you get something as a response and it looks at header and says,
+[00:09:43] Hey, what kind of format is this?
+[00:09:46] So it would invoke the PNG decoder or basic PNG decoder code and it would decode that
+[00:09:52] and render it as a pixelated image on your browser.
+[00:09:56] That's what is happening.
+[00:09:57] So given that, we know now that IMG tag makes an HTTP GET call to get it.
+[00:10:06] So when HTTP GET call is made on this URL, what would happen?
+[00:10:11] The request would come to server pointed by this, arvizhany.me.
+[00:10:16] It's a web server.
+[00:10:18] What it would do is it would see what's the handler of this path.
+[00:10:23] You may have a handler.
+[00:10:24] Let's say you typically what you do is you map your static folder.
+[00:10:28] This is my static folder, right?
+[00:10:30] As one of the parts.
+[00:10:31] So slash static maps to this particular static folder.
+[00:10:33] You configure this on NGINX.
+[00:10:34] Configure this on Springboard.
+[00:10:36] Configure this on Flask, Django, whichever framework you are using.
+[00:10:39] Every framework supports a static folder path.
+[00:10:41] What happens when you say that, hey, slash static maps to this folder
+[00:10:46] local disk. It means that whenever a path like slash static slash something is hit,
+[00:10:56] interpret whatever is there after slash static as a relative file path, go to my static folder
+[00:11:03] on the disk, read this path, read the file present in this path and send it as a response.
+[00:11:10] That's it. It does not care if it's image or text or whatever. Literally whatever is there
+[00:11:16] So for example, slash static slash IMG slash appy.jpg.
+[00:11:19] Let's map this static folder to this static URL.
+[00:11:23] So what I'll do is whatever I get after this is what a piece of code is written.
+[00:11:27] It's not automatically does that.
+[00:11:29] There's a piece of code written in your web server so that you don't have to re-implement
+[00:11:33] it again and again.
+[00:11:34] What it would do that slash IMG slash appy.jpg would try to hunt that same path in the static
+[00:11:42] folder mapped on your directory.
+[00:11:43] It would find this file.
+[00:11:46] It would read this file, read the bytes of it and send it as a response as part of this
+[00:11:51] HTTP request.
+[00:11:52] Once this response is received by the browser, the browser interprets it as an email because
+[00:11:57] you put it in the IMG tag and it renders it.
+[00:12:01] So this is how render happens.
+[00:12:04] So here we spoke about how static folders are mapped.
+[00:12:09] So slash static path map to slash static folder on your directory.
+[00:12:14] Where your code is different, where your static site is different.
+[00:12:19] So this is what happens.
+[00:12:22] Now, what does this tells us?
+[00:12:25] That this is what is happening as part of your code.
+[00:12:29] It reads the URL.
+[00:12:30] This is part of a backend code.
+[00:12:32] It reads the URL.
+[00:12:33] It extracts the path after slash static.
+[00:12:37] It goes to that corresponding folder, like that corresponding relative path in your static
+[00:12:45] directory reads the content of in bytes and sends it back.
+[00:12:48] Which means that I instead of relying on slash static, I can do anything there.
+[00:12:56] I can write my own handler that instead of reading file from local test, it reads file
+[00:13:04] from S3.
+[00:13:05] For example, I can very well do that.
+[00:13:06] So let's say hypothetically, what I want to do is we saw how static path are exposed,
+[00:13:15] but let's say I want to expose a path slash raw, right?
+[00:13:19] So slash raw slash path, anything I gave over here as a path, what I want to do is whatever
+[00:13:27] path is over here.
+[00:13:28] I want to go to this S3 bucket at this path, read the file and written that as a response.
+[00:13:34] That's it.
+[00:13:37] to this is exact.
+[00:13:40] This is very similar to slash static, but slash static reads that same relative path
+[00:13:45] from local disk.
+[00:13:46] What we just did is we read that same thing from S3.
+[00:13:51] So which means that we don't have to configure for every single file on S3.
+[00:13:54] I'll configure one URL over here.
+[00:13:56] We just take a generic path over here.
+[00:13:58] Whatever is given over here, we're literally using that as a key of S3 present in this
+[00:14:04] bucket, reading the file and sending it to the user.
+[00:14:08] So with this three, four lines of code, what we just built is we built a proxy for S3.
+[00:14:16] So we provide, we make any HTTP requests like this,
+[00:14:21] HTTP call a slash, slash local as 5000 slash raw.
+[00:14:24] And whatever is there after that, it would use this as this path, read this path from
+[00:14:30] S3 present in the configured bucket, whichever bucket you have.
+[00:14:34] and serve this file.
+[00:14:37] Not a feature.
+[00:14:37] I'm not designing a new CDM.
+[00:14:39] I'm just telling you the possibility of how you can
+[00:14:44] return images as part of a normal HTTP response.
+[00:14:49] A lot of people for some reason think that we can only send JSON responses from Web server.
+[00:14:54] No, you can do a lot more than that.
+[00:14:58] One of the key things that you can do over here is to send the images
+[00:15:04] from your HTTP handlers that you have needed.
+[00:15:08] So I just literally just exposed a path,
+[00:15:12] exposed a URL,
+[00:15:15] sorry, exposed a route on my web server,
+[00:15:18] which literally just reading files from S3 and serving it to the user.
+[00:15:21] It's like, why are you doing it?
+[00:15:23] It's more about understanding what you can possibly do.
+[00:15:26] Now we'll see practical applications.
+[00:15:29] Okay.
+[00:15:30] So given that now it's in our control,
+[00:15:35] Whatever input is, it is not just that the image already.
+[00:15:40] What does this tells us?
+[00:15:41] It tells us that it is not really needed that your image already exists for it to read and serve.
+[00:15:50] We are just making a network call to S3 and reading it.
+[00:15:55] I can have my own custom logic over here.
+[00:15:59] And then what matters is the bytes we send to the end user.
+[00:16:04] That's it.
+[00:16:05] If we are sending a properly structured image in the response,
+[00:16:11] byte serialized version of it,
+[00:16:13] the browser would be rendering it.
+[00:16:15] Now, where do we see this in action?
+[00:16:18] I'm sure you would have seen a lot of images on social platforms
+[00:16:23] where people share about their GitHub repositories
+[00:16:27] or people share their GitHub repositories.
+[00:16:30] Now, let's take a look at how that works.
+[00:16:33] There's a very interesting side effect of understanding this.
+[00:16:37] I'm just sharing my complete screen.
+[00:16:39] I'll show you them.
+[00:16:40] So I have this project DiceDB.
+[00:16:42] Now, if I share this project on social platforms,
+[00:16:46] I'd want very interesting things about this project.
+[00:16:50] Because when you share it on Twitter or LinkedIn or Facebook,
+[00:16:55] you see a very nice way of representing it.
+[00:17:01] Do we have any people who have shared?
+[00:17:04] I think I have only done that.
+[00:17:06] I'll show you.
+[00:17:10] DiceDB.
+[00:17:16] See, this is...
+[00:17:17] No, not this.
+[00:17:18] This is the one I'm talking about.
+[00:17:21] So I shared the link.
+[00:17:22] DiceDB slash Dice.
+[00:17:23] GitHub.com slash Dice.
+[00:17:24] Dice.
+[00:17:25] What it rendered?
+[00:17:26] It rendered a social snippet of it.
+[00:17:29] It has ways to render a link.
+[00:17:32] It patches the information, the title, the site name,
+[00:17:34] the description that you provide and the image.
+[00:17:37] Now this image is not some generic image.
+[00:17:40] This image is specific to DiceDB.
+[00:17:43] DiceDB slash Dice.
+[00:17:44] This is the description, number of contributors, number of issues,
+[00:17:46] number of discussion, number of stars and number of folks.
+[00:17:49] This image.
+[00:17:54] This image is generated on the fly.
+[00:17:59] by GitHub, not every time, but on the fly by GitHub.
+[00:18:03] So let's take a look.
+[00:18:04] And I'm happy that I have five notifications.
+[00:18:07] Okay.
+[00:18:08] So when I share this thing, if you go and by the way,
+[00:18:12] how is this image rendered?
+[00:18:13] This is part of open graph protocol called OG.
+[00:18:17] So you in the HTML that you serve, you have to specify OG colon image,
+[00:18:21] whatever the URL you provide in OG colon image,
+[00:18:26] that URL is rendered as an image over here.
+[00:18:29] That's what happens.
+[00:18:30] So if I go through the code of this and I do view page source
+[00:18:34] and I search for OG image, you see this content, this thing.
+[00:18:41] And now if I do paste, you see this exact same image.
+[00:18:47] Now what is this?
+[00:18:48] What is this particular path?
+[00:18:50] If you look carefully, it does not end with .jpg, .png, anything like that.
+[00:18:57] But what it is indeed returning is it is indeed returning a valid image as a byte response,
+[00:19:04] like reading the bytes of the image and sending it back.
+[00:19:08] But now this does not mean that this image is stored on S3 somewhere by GitHub.
+[00:19:12] Imagine GitHub unnecessarily creating images on the fly because if you look carefully,
+[00:19:18] the data that you see in the image, it's very customized to what the current state of information
+[00:19:26] of my repository.
+[00:19:28] If you look carefully for car 74 to 75 contributors and whatnot, right?
+[00:19:33] This is very recent.
+[00:19:36] If in a day it changes, this would change again.
+[00:19:40] If you let's say become a contributor and dies DP, the count will change to 11.
+[00:19:45] Maybe it would take one day or two days to reflect, but it's very recent.
+[00:19:49] It's not that it is pre-generated by GitHub.
+[00:19:54] A lot of people think everything is pre-generated.
+[00:19:56] No, it is not.
+[00:19:57] Because imagine GitHub has millions and millions and millions of repositories.
+[00:20:03] Why would GitHub spend computation power generating one for each every single day?
+[00:20:08] So what happens is you generate image on the fly, on demand, whenever it is requested.
+[00:20:15] And this is what you do.
+[00:20:17] So here what is happening is if you look careful at the path,
+[00:20:22] This path shows us that for you to, if I did just take this image and put in the IMG tag,
+[00:20:31] it would render this image in my browser without any hiccup.
+[00:20:34] So what is happening is this is literally the route handler that we wrote, the one that
+[00:20:42] we wrote slash raw slash raw slash path.
+[00:20:45] This is kind of that.
+[00:20:46] And it is put behind CDN.
+[00:20:48] This is another CDN that it has open graph.githubassets.com.
+[00:20:52] This is another CDN that they hosted similar to how we saw
+[00:20:56] edge.arbitpending.me yesterday.
+[00:20:57] This is one more CDN on the GitHub side.
+[00:21:01] We saw one on the GitHub as well, user assets, GitHub something,
+[00:21:07] githubusercontent.com.
+[00:21:08] This is another CDN that they've configured.
+[00:21:11] So here this CDN looks very specific to Open Graph.
+[00:21:14] Open Graph, OG that I was talking about, that is Open Graph.
+[00:21:18] So this is what you are invoking.
+[00:21:21] How this is built is simple.
+[00:21:25] You have this key would remain constant for a repository or something.
+[00:21:31] You can generate it on the fly as well.
+[00:21:32] But the idea is pretty simple that when this URL is sent from the backend to the frontend,
+[00:21:38] frontend renders it in the IMG tag.
+[00:21:41] This request goes to CDN hosted at opengraph.githubassets.com.
+[00:21:45] CDN says if it has the file or not.
+[00:21:48] If it has cached the file, which is image file, good enough.
+[00:21:51] It would serve it back to the user, which is what is now happening.
+[00:21:53] See how quickly it gets loaded.
+[00:21:55] This means that it does not have to go to there every time.
+[00:21:59] It doesn't have to go to backend server every time.
+[00:22:01] Right?
+[00:22:01] If CDN does not have this file, what CDN would do?
+[00:22:04] It would make call to origin.
+[00:22:05] What is origin?
+[00:22:06] Origin is the API server of GitHub, which handles this request, which is generating
+[00:22:12] this image on the fly.
+[00:22:15] That, Hey, this is where my title should be.
+[00:22:18] my title, this is where my repository icon should be.
+[00:22:20] This is what I would have fetched the key statistics
+[00:22:23] about repository and put it over here.
+[00:22:25] This is a template, no matter which image you,
+[00:22:27] which repository you pick, you would see this exact same format.
+[00:22:31] It is a template I used to watch it.
+[00:22:33] So what is happening over here is the API server of GitHub,
+[00:22:36] when that particular API call is made by the CDN,
+[00:22:39] it is generating that image on the fly using image magic
+[00:22:42] for any library or like there is a library called PIL,
+[00:22:46] There is a library called image magic around tons of libraries out there to generate images on the fly.
+[00:22:51] It generates image on the fly and responds back to whom CDN met a request.
+[00:22:55] It sends response to CDN.
+[00:22:57] CDN gets the response.
+[00:22:58] CDN caches the file.
+[00:23:00] And then with some TTL, it keeps it there and serves it to the user.
+[00:23:03] The subsequent requests are served on the CDN.
+[00:23:06] After a day, when that thing exhausts, when the file expires,
+[00:23:12] The next request that comes in, there is a cache miss on CDN, goes to backend.
+[00:23:17] A new image is generated on the right, it is generated on demand.
+[00:23:20] So it's not that GitHub is creating and storing this image for every repository out there.
+[00:23:24] It is doing it on demand as it is distributed because the image itself contains the recent information,
+[00:23:31] which is why GitHub cannot pre-generate those images and store it.
+[00:23:36] And now you can see this feature at hundreds of places.
+[00:23:41] banner bear, always specializing in doing this.
+[00:23:45] This is how you make the social sharing stuff really easy,
+[00:23:50] really interactive, really real time.
+[00:23:53] For example, just imagine if Twitter tomorrow wants to do this.
+[00:23:57] I'll give an example.
+[00:23:58] If Twitter tomorrow wants to do this, would you see LinkedIn
+[00:24:01] quote unquote influencers taking a screenshot of their Twitter
+[00:24:05] and poet.so and creating a very nice beautiful image
+[00:24:08] and sharing it on LinkedIn.
+[00:24:09] Then imagine that as a native feature of Twitter, where when you share a Twitter URL, the OZ
+[00:24:16] image that is generates, it looks very beautiful like this.
+[00:24:20] What it could do is when that request comes into CDN, CDN does not have the data, it goes
+[00:24:24] to backend.
+[00:24:25] Twitter's API server would generate that image on the fly using that same template or using
+[00:24:31] the templatized version of it.
+[00:24:32] It captures the tweet, puts it in it, nicely formats it and sends it to the response.
+[00:24:36] right cash on the CDNs up to the user Twitter can build this as a name so when you share your
+[00:24:41] Twitter link it can automatically render your tweet in a very nice looking image as a social
+[00:24:47] in a very social image right and that's very powerful when it comes to experience when it
+[00:24:54] comes to designing great user experience because user sees personalized things user sees something
+[00:25:00] which is very recent it just does not see ah this is static rep of github and something something
+[00:25:06] where it is like what's the current likes and shares and comments
+[00:25:10] and retweets and reposts and all those things that matter
+[00:25:15] right there in the image which is shared.
+[00:25:17] And you can literally build this in hardly one hour.
+[00:25:22] Hardly one hour.
+[00:25:23] We lost a local prototype.
+[00:25:25] Highly recommend you to do this.
+[00:25:27] Highly, highly, highly recommend you to do this.
+[00:25:29] It's not difficult.
+[00:25:30] Install Python.
+[00:25:32] I've worked with Python for in order to build this.
+[00:25:34] Java also might have something or whatever language you're using
+[00:25:37] would have something.
+[00:25:38] But pick a library that helps you generate images on the fly.
+[00:25:42] Typically PIL, Python image library is the best out there.
+[00:25:46] It internally uses image magic.
+[00:25:48] It has a C++ binding to that.
+[00:25:50] But it just gives you native Python interface to create images on the fly.
+[00:25:55] And just do it.
+[00:25:56] Expose an API endpoint that does this.
+[00:25:58] You can generate the same thing for any GitHub repo in the world.
+[00:26:01] This exact same thing.
+[00:26:02] Just make a call to GitHub.
+[00:26:04] that information out, create image on the fly and serve it via your local host.
+[00:26:09] You learn so much from doing that. And this is how images are actually like these sort of dynamic
+[00:26:17] images are generated and so giving user a great experience. Earlier, if you remember,
+[00:26:27] when you shared images, GitHub used to render a very pathetic avatar of that user. So if I shared
+[00:26:32] images so my ugly image would just come there on the screen big flashy image that's a very that was
+[00:26:39] a very poor experience so github implemented this to make a sharing of repositories on social media
+[00:26:47] very pleasant right and through this you could see that how whatever we discussed up until now
+[00:26:55] whatever we discuss across these many weeks, every single thing you can see it in production
+[00:27:02] used by some of the other companies.
+[00:27:05] Nothing is theoretical as I always say.
+[00:27:06] You can prototype literally every single thing we discuss.
+[00:27:10] There is no such thing that I need 50,000 servers to do that.
+[00:27:13] No, you don't.
+[00:27:14] You can, you just want your local machine spin it up and try it out.
+[00:27:18] Right.
+[00:27:18] Nothing beats practical structure.
+[00:27:20] Right.
+[00:27:21] Okay.
+[00:27:22] Given we have built enough context on this.
+[00:27:25] talk about Gravita. Now this becomes an easy problem. After this, after we design, after
+[00:27:29] we discuss this, we'll take questions. Okay. So what is Gravita? So Gravita is a very interesting
+[00:27:36] concept. On Gravita, what happens is you would have seen that on some websites, even though
+[00:27:43] you do not sign up with your Twitter or Gmail or Microsoft or whatever account you are using,
+[00:27:49] it is still able to render your image somehow.
+[00:27:53] And which is where Gravatar comes in.
+[00:27:56] You might have logged into Gravatar in order to enable that.
+[00:27:59] But the idea of Gravatar is pretty neat.
+[00:28:01] So what Gravatar does is it creates your single embeddable URL for your profile picture.
+[00:28:12] For example, if let's say your email ID, let's say my email ID is rp.gmail.com.
+[00:28:19] Let's say it is arpit.gmail.com.
+[00:28:21] So what I could do is I could go to gravita.com, login me arpit.gmail.com and I can upload
+[00:28:28] a bunch of profile pictures there.
+[00:28:31] I can mark one of them as active.
+[00:28:33] Right.
+[00:28:34] Now my URL, what it would generate, it would not generate.
+[00:28:38] It's basically very simple.
+[00:28:39] It's an MD5 hash of my email ID.
+[00:28:42] So it pretty much is constant.
+[00:28:43] Pretty much it is definitely constant.
+[00:28:45] hashing. If you pass the value, I repeat, I direct gmail.com to the same hash function,
+[00:28:50] you get the same output always. So it's gravita.com slash hash of my email ID.
+[00:28:56] So when I go to this URL, this URL actually renders my current profile photo, which I can
+[00:29:05] literally put in any IMG tag, something like this. So https colon slash gravita.com slash
+[00:29:14] Let's say this is the hash of my email ID.
+[00:29:17] I think it's something like, this is something very similar to this.
+[00:29:21] So, hdps colon slash slash gravita dot com slash zero EAFD 172.
+[00:29:25] When this is put in IMG SRC, it actually renders the image in the browser.
+[00:29:31] It's not that this takes me to somewhere and that renders the email.
+[00:29:34] This is actually returning the image as bytes over here.
+[00:29:40] What we just looked at when we are reading from a message and survey data, similar.
+[00:29:45] It is literally this single URL to render your profile photo.
+[00:29:50] Now what happens is, let's say every company in the world adopts it, which means that whenever
+[00:29:56] you sign up on any platform or any social platform of the world, what you get is, what
+[00:30:02] they could do is they have your email ID.
+[00:30:04] They can pass that email ID to the hash function and use this to render your profile photo
+[00:30:11] wherever they want to.
+[00:30:12] So in the post and the profile page and wherever, they could just use this one URL to render
+[00:30:18] it.
+[00:30:19] Right?
+[00:30:19] If every company starts supporting this, now what would happen?
+[00:30:23] If tomorrow you want to change your profile photo, you don't have to go and upload on
+[00:30:27] every social platform.
+[00:30:28] What you can do is you can just go to gravatar.com, upload your new photo, mark that other one
+[00:30:33] is active.
+[00:30:34] When you mark that other one is active, the next request comes in for this URL.
+[00:30:39] Go to Gravatar backend.
+[00:30:41] It will find that other photo is active.
+[00:30:43] Pick that up, send it out.
+[00:30:45] Everywhere your profile photo is changed without any social network have to do anything.
+[00:30:52] You don't have to go to any website and do that.
+[00:30:54] But they don't obviously do that.
+[00:30:55] But it's a very novel concept.
+[00:30:57] What we'll do today is we'll build this very safe.
+[00:31:00] what we want to do is support this efficiently we are building around gravita.com it's a really
+[00:31:08] simple system that you can very well build in three or four hours not really good scan is
+[00:31:13] difficult building a prototype is not so that's why i recommend build prototypes as many as you
+[00:31:17] can right so what are our requirements our requirements from gravita what we are designing
+[00:31:22] is first user can upload multiple pictures on gravita second user can mark one of them as active
+[00:31:31] the one which is active whenever the API is requested when one of them is active it returns
+[00:31:36] the active one in the response this is what we have right so let's kick off our brainstorming
+[00:31:43] then let's see how we should approach this problem i want and given that we built so much of context
+[00:31:50] Let's directly kick off grades.
+[00:31:52] How would you start?
+[00:31:53] How would you approach this problem?
+[00:31:55] Raise your hands or pull you in.
+[00:32:07] Okay.
+[00:32:08] Let's start with database.
+[00:32:09] Let's start with database.
+[00:32:11] What kind of table you have?
+[00:32:13] What kind of schema would you have?
+[00:32:14] What would you store?
+[00:32:19] The hash of the email ID of the user.
+[00:32:23] What, which tables would you have?
+[00:32:25] Let's start with each table that you have, right?
+[00:32:28] With the user table where user gives his email ID and we store the hash for it.
+[00:32:35] Will you store email ID or not?
+[00:32:37] The actual email ID.
+[00:32:41] We should.
+[00:32:45] Why? If you are just using hash Y to store actual email ID.
+[00:32:49] Yeah, right.
+[00:32:51] No, it's not right. How would they log into Gravatar?
+[00:32:57] Correct.
+[00:32:58] We can directly hash their email ID.
+[00:33:02] Because see, ID is a derivable attribute.
+[00:33:08] So storing one of them makes sense.
+[00:33:11] and since you have
+[00:33:12] why
+[00:33:13] why all social
+[00:33:15] platforms take
+[00:33:16] your email ID
+[00:33:16] and not and
+[00:33:17] store your actual
+[00:33:18] email ID instead
+[00:33:19] of storing the
+[00:33:19] hash of it
+[00:33:23] no
+[00:33:23] they can also do
+[00:33:24] that that would
+[00:33:25] save them a lot
+[00:33:25] of space
+[00:33:26] I think the use
+[00:33:27] case there is a
+[00:33:28] little different
+[00:33:28] because you might
+[00:33:30] need to display
+[00:33:31] that email ID
+[00:33:31] somewhere but
+[00:33:32] at Gravita
+[00:33:33] we don't need
+[00:33:33] to display
+[00:33:34] why not if you
+[00:33:35] open Gravita
+[00:33:36] you go to the
+[00:33:36] profile page you
+[00:33:37] want to see
+[00:33:38] your email ID
+[00:33:38] don't you
+[00:33:41] How are you authenticating people there?
+[00:33:44] Right.
+[00:33:45] While authentication people pass it because in case of hash collision, you are locked
+[00:33:48] in some others account.
+[00:33:50] Also problem.
+[00:33:51] Correct.
+[00:33:54] It's always better to store email ID.
+[00:33:56] Right.
+[00:33:57] Okay.
+[00:33:57] So ID, email ID.
+[00:33:59] What else?
+[00:34:01] Not hash probably because hash is a derivable attribute.
+[00:34:05] Okay.
+[00:34:06] Hash is derivable attribute.
+[00:34:07] So I'll just write hash and cross it off.
+[00:34:11] You're not, you're deliberately not storing hash because it is derivable.
+[00:34:14] Okay.
+[00:34:15] Any other thing that you would add to user, that's what users table is fine.
+[00:34:18] Uh, which other table?
+[00:34:23] I think that, uh, just one, I don't know whether it should be a different table or
+[00:34:30] within the same one to store the image paths, not the active one, but just the
+[00:34:35] image paths.
+[00:34:37] how would you
+[00:34:38] store multiple
+[00:34:38] paths in a
+[00:34:40] single column
+[00:34:40] of relational
+[00:34:41] DB?
+[00:34:41] Yeah, we
+[00:34:42] won't be able
+[00:34:43] to.
+[00:34:43] That is why
+[00:34:44] I said.
+[00:34:44] So let's say
+[00:34:45] you have a
+[00:34:45] photos table.
+[00:34:46] Yep.
+[00:34:47] In which
+[00:34:48] what do you
+[00:34:48] store?
+[00:34:52] The email
+[00:34:53] ID of the
+[00:34:54] user ID.
+[00:34:58] Obviously
+[00:34:59] the photos
+[00:35:00] ID.
+[00:35:03] What is
+[00:35:04] photos ID?
+[00:35:05] The, the
+[00:35:06] The primary key of the photo step.
+[00:35:07] The primary key.
+[00:35:08] Okay.
+[00:35:09] Okay.
+[00:35:09] And what else?
+[00:35:14] The parts of the images, photos.
+[00:35:18] Do we really need to do that?
+[00:35:20] Recall yesterday's discussion.
+[00:35:22] Can you not derive it?
+[00:35:25] You can.
+[00:35:26] Right.
+[00:35:27] But there would be multiple.
+[00:35:28] I did think of the yesterday's discussion, but there would be multiple photos.
+[00:35:33] So there would be multiple rows over here.
+[00:35:35] What's the problem with it?
+[00:35:37] And obviously you need to start multiple photos, right?
+[00:35:39] Because user can upload multiple pictures on it and mark one of them as active.
+[00:35:44] So you need to render all of them.
+[00:35:46] Let's say you uploaded 10 photos.
+[00:35:47] You need to render 10 photos.
+[00:35:51] So all the photos uploaded by the user will go over here.
+[00:35:54] Right?
+[00:35:55] ID user ID.
+[00:35:56] And what else would you store?
+[00:36:01] The photo, which is active.
+[00:36:03] Okay.
+[00:36:04] So let's call it is active.
+[00:36:07] Anything else?
+[00:36:10] I think that's it.
+[00:36:12] Got it.
+[00:36:13] Heyman, let's write queries.
+[00:36:15] Let's write queries with which you would want to find all photos of a user.
+[00:36:20] What would that query look like?
+[00:36:23] Because on the UI, you would have to render all the photos of a user.
+[00:36:27] What would that query look like?
+[00:36:30] So maybe select star from photos table where user ID equal to given user.
+[00:36:40] We may need to filter it via adjective.
+[00:36:45] We want to sort the active one.
+[00:36:46] No, no, we'll show all of them because only one of them is active, right?
+[00:36:50] Yeah.
+[00:36:50] User ID is equal to something.
+[00:36:52] Okay.
+[00:36:52] Not sure.
+[00:36:53] Star is needed if we need only the ID because we are looking for.
+[00:36:59] fact right okay here do we have the user id of the user look at this no we we need to kind of
+[00:37:10] join it from the user table because we do not have so let's try so select star from photos where
+[00:37:17] Where select start from photos, you join it on users on photos.userid equal to user.id
+[00:37:31] something.
+[00:37:32] Users.id where userid equal to this.
+[00:37:38] Correct.
+[00:37:38] Okay.
+[00:37:39] But you still don't have userid.
+[00:37:43] Right.
+[00:37:43] Right? Because what you are getting over here is a hash of email ID.
+[00:37:48] Yeah. So that we need to kind of reverse hash and get the ID
+[00:37:54] because we are not storing the hashes which are derived.
+[00:37:57] So that derived part will come in computation.
+[00:37:59] So what will you do? So what's your query now?
+[00:38:02] You tell me the query, exact query.
+[00:38:04] Okay. Select your start from photos this.
+[00:38:06] where we can write a decrypt of input,
+[00:38:12] which is coming as has equal to.
+[00:38:14] You cannot get email from the hash.
+[00:38:16] It's not encryption. It's hashing.
+[00:38:18] So it's lossy.
+[00:38:19] You cannot get the actual email ID back.
+[00:38:21] Actually, in that case, I think, yes, got it.
+[00:38:24] Because there will be a collision.
+[00:38:25] Two different things can go.
+[00:38:27] So we have to have a has stored because in it,
+[00:38:32] we cannot go in a reverse way from email.
+[00:38:36] But can you not just do pass the hash function where hash of email is equal to the one that
+[00:38:44] you provided?
+[00:38:45] Yes, that we can do hash of email equal to user.
+[00:38:49] Whatever your input is.
+[00:38:50] Has ID.
+[00:38:51] That can work.
+[00:38:53] But what's anything wrong with this?
+[00:38:57] The wrong thing, it can be like two different email ID if they generate the same hash.
+[00:39:05] that we have accepted.
+[00:39:06] We have to accept that.
+[00:39:08] That two people having same hash
+[00:39:10] would not work because that's
+[00:39:12] what we are going with.
+[00:39:13] If two people are the same, how will you
+[00:39:15] disambiguate anyway?
+[00:39:18] Assume that hashes are unique.
+[00:39:21] Actually,
+[00:39:22] it's a bit of more computation
+[00:39:24] added in the query.
+[00:39:25] You are doing hash of email
+[00:39:28] every time. Each query
+[00:39:29] you are adding this computation.
+[00:39:31] We can try to avoid that.
+[00:39:34] Very lightweight.
+[00:39:35] Yeah.
+[00:39:35] I mean, it's lightweight, so we can say it or not, but at least I see this as a one problem
+[00:39:40] that it's not a simple query.
+[00:39:42] We are adding some computation on top of it.
+[00:39:44] Okay.
+[00:39:46] Let's say I have 10,000 rows.
+[00:39:50] How many rows would this scan?
+[00:39:53] This query scan?
+[00:39:55] Actually scanning is pretty bad because you have to do a cross join of both the tables
+[00:39:59] where the user IDs matches.
+[00:40:02] you will if you have index on user ids then you would have you have index on user id so you get
+[00:40:07] index of photos you get index of user and then you do a scan actually it is pretty bad in evaluation
+[00:40:15] because we do not know the user id so eval function first try to figure it out the user id
+[00:40:22] oh no no it will not it has to do the whole whole scan of looks like if we have the exact
+[00:40:31] user ID that would have reduced the scan part of table up to those user ID.
+[00:40:38] In this case, since we do not have that handy, we have to go and figure it out.
+[00:40:44] This value, do the whole scan and then do the join and then get those filter.
+[00:40:48] That's how you can think of.
+[00:40:50] But why does it have to do that entire scan?
+[00:40:55] Because of this hash.
+[00:40:56] Yeah, for each email ID, we have to create that hasing and evaluate that.
+[00:41:04] Now you got the email ID for that.
+[00:41:08] You have so once you do the whole scan, you read each and every row of the table for each
+[00:41:16] email, get that the has now out of those has you will do the search or like filter it,
+[00:41:22] which email ID we are talking.
+[00:41:24] Now, once we have that, then you can do the join only for those roads, which are in the
+[00:41:31] wear class.
+[00:41:31] Yeah.
+[00:41:32] Yeah.
+[00:41:33] Brilliant.
+[00:41:34] This is what the pain point is.
+[00:41:37] Okay.
+[00:41:37] Let me contradict.
+[00:41:39] Thanks so much for putting that in such a very, in, in, in a really nice way.
+[00:41:44] Yesterday we discussed now today I will contradict that yesterday.
+[00:41:48] We discussed that, Hey, whatever is derivable, we should not store that.
+[00:41:54] over here this query is very very very inefficient because the where clause itself contains a
+[00:42:05] computation which means that it cannot leverage indexes over here because unless it goes through
+[00:42:12] every single email it cannot say that it would have to compute the hash of it and then find which
+[00:42:20] matches with your given value.
+[00:42:24] So it would have to literally,
+[00:42:25] because there is no way for your relational database
+[00:42:27] to know, okay, this is the email ID that is pointing to,
+[00:42:30] that would evaluate to this hash.
+[00:42:31] You cannot leverage indexes over here.
+[00:42:33] This will result in a full table scan every single time.
+[00:42:39] This is why you need hash column over here,
+[00:42:43] because then you can index it and say,
+[00:42:47] where users.hash is equal to the one that is passed.
+[00:42:53] This makes a query order one, almost order.
+[00:42:56] Because now it's very pointy.
+[00:42:59] It's very pointy, very, because now what it can do is
+[00:43:01] it can literally just do the user that has equal to something.
+[00:43:05] It would filter out that one row from it and then join,
+[00:43:08] get the user ID, join it over here.
+[00:43:10] It's very quick, very, very, very, very quick.
+[00:43:14] So it's not always true that what is derivable, you should not store it depends because if
+[00:43:19] it is slowing things down for you, you have to store that redundant part.
+[00:43:24] This is where we are adding this one redundant column.
+[00:43:28] We are actually, whenever a user is getting created, we are not only storing the email
+[00:43:32] ID of the user, but we are also computing the hash of the email ID and storing it and
+[00:43:37] creating an index on literally every single column.
+[00:43:43] Email is a unique key, hash is a unique key.
+[00:43:47] But we have to do it.
+[00:43:48] We have to do it.
+[00:43:49] Otherwise this query, which is more, which is very common of a query.
+[00:43:55] That would be very expensive because there is no one efficient way for your database
+[00:44:00] to figure out which all rows it would need to converge on because there was an evaluation
+[00:44:05] in the where clause itself hash of email.
+[00:44:10] This implementation detail, I want all of you to focus on.
+[00:44:14] Again, as I say, drawing boxes is easy.
+[00:44:17] This is where the magic happens.
+[00:44:19] This is what makes you like when you scratch the surface, you see the
+[00:44:26] ugliness of the system.
+[00:44:27] Right?
+[00:44:28] So devil, sorry, the devil lies in the details that we all have heard it.
+[00:44:32] This is a classic example of that.
+[00:44:34] Unless you write that query, unless you figure out how that would execute,
+[00:44:38] you would see, we don't need this, but then you realize that your query
+[00:44:42] is not really performant enough.
+[00:44:44] Then you add, right?
+[00:44:45] Okay.
+[00:44:46] So this is what I wanted to very key point.
+[00:44:50] I wanted to highlight that, right?
+[00:44:51] This is why that column hash column is really important.
+[00:44:55] Okay.
+[00:44:55] So we talked about rendering all the photos of a person.
+[00:44:59] Now let's talk about marking someone or marking a photo as active.
+[00:45:02] Sunil, what would be the query to mark a particular photo as active?
+[00:45:08] So in photos table, we can keep like no, is that two column is already there, right?
+[00:45:16] So we can keep like no flag true or false. Okay. So that's okay. That's a boolean. So what would
+[00:45:22] your query look like? Oh, okay. So this is just to pull only active photo, right? That's your
+[00:45:29] It's marking a photo as active marking.
+[00:45:33] Yeah.
+[00:45:33] Okay.
+[00:45:34] Then it's an update query.
+[00:45:37] Update photos.
+[00:45:40] Set is active equal to true where user ID equal to.
+[00:45:55] and photo ID also we have to pass where on which photo like no user click to make it active
+[00:46:00] that is also do you really need because if ID is the primary do you need to pass user ID over here
+[00:46:05] no not required okay not so you're passing this okay yes what's the disadvantage of this query
+[00:46:15] what could go wrong
+[00:46:20] You were asking me, you gave this query.
+[00:46:25] What could go wrong over here?
+[00:46:32] See, this is what I love.
+[00:46:34] This is such a simple query.
+[00:46:36] You could see what's wrong in this query.
+[00:46:38] There is a big problem in this way, a big problem.
+[00:46:43] So they'll try to spot that.
+[00:46:51] Okay.
+[00:46:51] So if you give user ID also, then the scan will be like no less on the table.
+[00:46:58] No, ID is primary key scan would anyway be login.
+[00:47:00] So that's very efficient anyways.
+[00:47:03] Okay.
+[00:47:11] Three line query, one of the most simplest query that you could write almost hello world
+[00:47:18] And that is where like need to think about all this stuff and we implement.
+[00:47:23] And this is one aspect that almost every engineer,
+[00:47:26] everyone seen it, which you should not never.
+[00:47:32] Let me pull in Jyothi.
+[00:47:33] Jyothi, go on.
+[00:47:35] What's wrong in this query?
+[00:47:36] So you don't mark the previously active image as inactive.
+[00:47:40] That is, I think one issue.
+[00:47:42] Okay.
+[00:47:42] So how do you do that?
+[00:47:43] So let's start with that.
+[00:47:44] That's a good point.
+[00:47:46] You're not marking the other previous one as active.
+[00:47:48] So what's your query now?
+[00:47:50] So a very simple, I think naive way would be just to like,
+[00:47:54] get the currently active thing and mark it as inactive
+[00:47:58] or just do something like that.
+[00:48:02] But I feel that is like adding.
+[00:48:04] Getting active, marking that as inactive and marking others active.
+[00:48:07] Yes.
+[00:48:08] Can you simplify it?
+[00:48:10] I mean, I can think of sort of like a hack to do this.
+[00:48:15] just have a counter sort of like a counter or like the update I like some just stay with me for a
+[00:48:23] minute just have like a counter on the photo with on each row and increment in no that's not possible
+[00:48:35] try writing an update query for that in order to mark the current one the current active one as
+[00:48:40] inactive yeah uh yeah initially i was thinking it might be possible to do it in one query but
+[00:48:48] i'm not sure if i'm able to get that right now it would not be that's not possible so yeah you
+[00:48:55] You'll probably want to make like, I think the, the, the naive approach would be to have
+[00:49:01] three queries then.
+[00:49:03] Why three?
+[00:49:06] You okay.
+[00:49:07] Actually you can do two queries.
+[00:49:09] You can just mark all as false and then mark one as true.
+[00:49:12] Like correct.
+[00:49:13] Yeah.
+[00:49:13] So two queries.
+[00:49:15] What's wrong in this?
+[00:49:18] So we did exactly what you said.
+[00:49:21] We marked all of them as false and then we marked one as true.
+[00:49:25] what can go wrong?
+[00:49:38] Shreya, what can go wrong?
+[00:49:43] I mean, I had a solution that
+[00:49:45] we shouldn't mark everything as false.
+[00:49:47] Just add and in the where clause
+[00:49:49] and say is active is true.
+[00:49:50] So it will only pick up the row
+[00:49:52] which is currently active
+[00:49:55] Okay, so you are saying bad user ID is this and is activist true.
+[00:50:01] Okay, what is wrong in this?
+[00:50:06] What could go wrong in this?
+[00:50:19] It seems obvious, but I want all of you to basically explicitly tell that.
+[00:50:26] I mean, the other query should, should basically run only when the first one is completed.
+[00:50:34] Correct.
+[00:50:34] Correct.
+[00:50:34] Correct.
+[00:50:35] So what do you do?
+[00:50:38] So, uh, there's a dependency.
+[00:50:42] Um, so basically what we can do is when we get a response from the first
+[00:50:46] query that this has been executed, then you send another, or we can make it
+[00:50:51] as a transaction, something like that.
+[00:50:53] Transaction.
+[00:50:54] Yeah.
+[00:50:56] It sounds obvious, but we don't call it out explicitly.
+[00:51:00] And that's the problem because what if you update this and your process
+[00:51:04] crashed, then every photo is marked as.
+[00:51:08] active and you don't have any active photo.
+[00:51:10] Facebook is trying to render a profile photo and there is 404 not found coming up.
+[00:51:16] So this needs to explicitly be wrapped in a transaction.
+[00:51:25] Very simple thing, but people skip it.
+[00:51:29] We should be very focused on every intricate detail, especially in the simple systems because
+[00:51:35] It seems very obvious, but it is not.
+[00:51:38] Okay.
+[00:51:39] Thanks, Shriya, for spelling our transactions for that.
+[00:51:43] Chantan, what's wrong in this?
+[00:51:47] What can go wrong?
+[00:51:50] Now we also had a transaction.
+[00:51:54] Once we have added transaction, it becomes atomic in nature, right?
+[00:52:02] So I don't see that we will fail in concurrent request.
+[00:52:09] So if you don't.
+[00:52:10] So concurrency taken care of what other factors can go wrong?
+[00:52:20] Look at the query very carefully, very carefully, especially the second query.
+[00:52:26] That's a hint.
+[00:52:38] This is the simplest update query.
+[00:52:40] I could have written what's wrong with this.
+[00:52:41] There is a big problem in this way.
+[00:52:44] Big problem.
+[00:52:52] I'm not able to.
+[00:52:54] That's right.
+[00:52:54] That's right.
+[00:52:55] See, it's very hard to spot because you see it's like literally
+[00:52:58] wrote one print tab and you say why my program is not running. It's literally that it's literally
+[00:53:05] that like figuring out what's wrong with this. Okay. Yes Priyanka. What could go wrong in the
+[00:53:12] second query? So in the first query we said, you know, we are setting the active flag to true.
+[00:53:18] Whatever is existing active, we are already setting it to a false. Yes. And so now we have to set
+[00:53:28] another one to two, but again, you have to figure out which photo ID is that you have
+[00:53:33] your, you are already passing it.
+[00:53:35] That's fine.
+[00:53:36] But what is missing over here?
+[00:53:40] There's a big piece missing over here.
+[00:53:44] User ID.
+[00:53:46] Why?
+[00:53:48] If you have the photo ID, why do you need to pass user ID photo ID is the primary.
+[00:53:52] This is the primary key.
+[00:53:54] Okay.
+[00:53:54] Yeah.
+[00:54:02] I'll move to Mohit.
+[00:54:03] Mohit gone.
+[00:54:05] Yeah, I think user ID is required
+[00:54:07] because a user should be
+[00:54:09] allowed to change only his or her photos
+[00:54:11] not everyone.
+[00:54:12] Brilliant.
+[00:54:14] This is why.
+[00:54:16] You need this.
+[00:54:17] You need this.
+[00:54:18] Imagine someone from the front end
+[00:54:20] passing a very random photo ID.
+[00:54:22] If you don't have this check,
+[00:54:24] You are marking someone else's photo as active.
+[00:54:27] You are upgrading your own photos as inactive, but someone else's photos active.
+[00:54:33] So your photo is still an active, like you're like, basically none of the photos
+[00:54:36] active, but you're marking someone else's another photo is active.
+[00:54:39] So creates a problem.
+[00:54:41] So you should be, you as a user should be allowed to update or mark a photo as
+[00:54:47] active only yours, only your photos active, not someone else's security.
+[00:54:53] Correctness of the system.
+[00:54:54] It seems and this is why I love covering this problem segment
+[00:54:58] because this tells you that when you think of implementation,
+[00:55:02] how a very simple use case, really simple use case
+[00:55:06] has so many hidden intricacies.
+[00:55:10] This is what makes you a better engine.
+[00:55:13] Going into these details, like understanding
+[00:55:17] why do we need a certain field, a certain attribute,
+[00:55:21] ensuring correctness of the system in all cases.
+[00:55:24] that in all possible cases.
+[00:55:26] Now with this wrapped in a transaction,
+[00:55:29] with this thing in place,
+[00:55:31] with having to store redundant value over here,
+[00:55:35] we are ensuring our system is efficient and correct.
+[00:55:39] No matter what.
+[00:55:41] It's such a simple use case,
+[00:55:42] but I just wanted to highlight that part through this design.
+[00:55:46] That it seems very simple at first.
+[00:55:49] When you go into those details, you realize something's fishy.
+[00:55:54] Great.
+[00:55:55] Okay.
+[00:55:56] One more thing.
+[00:55:57] See, that's why it's, it's, this is exactly like code reviews.
+[00:56:01] When you write five lines of code, you'll get 50 comments.
+[00:56:03] When you write 500 lines of code, you'll get looks good to me.
+[00:56:06] Same thing.
+[00:56:07] When you have a simple system at hand, that's where people would try to basically nitpick
+[00:56:12] every single thing.
+[00:56:14] Okay.
+[00:56:15] There is one small minor, very minor optimization that you can do very minor.
+[00:56:24] Can anyone spot it?
+[00:56:26] Very minor.
+[00:56:26] Like it's literally insignificant, but still if you do it, it's slightly better.
+[00:56:31] Hey, man.
+[00:56:36] Actually, I'm not able to say, let me see it, but I have another question also.
+[00:56:41] And that's no question after a question.
+[00:56:42] Let's follow that optimization.
+[00:56:44] More than happy to take questions.
+[00:56:51] Any hint for, are you talking about the first part of query?
+[00:56:53] Okay.
+[00:56:54] Let's write a query to pick an active photo of a user because that's what would happen when you hit this URL.
+[00:57:03] When you hit this URL, you have to pick the active photo of the user.
+[00:57:06] What your query would look like?
+[00:57:08] So select a star from photos where has what we have provided as the user ID and join on
+[00:57:24] user id from photos table
+[00:57:29] so exactly this query but just with one more word class yes okay let me just copy this for
+[00:57:40] so where user has is this yes and user uh user photos.id yeah photos id
+[00:57:50] and one more no no no no no no no no not photos id but photos dot is active photos dot is active true
+[00:57:59] correct okay correct this is your query this would give you for all the uh one photo because
+[00:58:06] photo active true only one we ensure the correctness over here user hash and we join on this
+[00:58:11] user table okay can we optimize on something in this query very micro optimization i'm literally
+[00:58:16] nitpicking but just it.
+[00:58:22] Are you talking about left right join?
+[00:58:25] No, no, that's okay.
+[00:58:27] Inner join would work exactly the same performance as left left in that.
+[00:58:30] So it's fine.
+[00:58:31] Okay.
+[00:58:35] UJR has equal.
+[00:58:40] I can see only as I evolve part first is the join thing.
+[00:58:46] And then the conditional filtering filtering once we join on user ID, we got all the rows
+[00:58:56] for user matching user ID and then user has.
+[00:59:06] So I think eval should work not on that.
+[00:59:09] But first user has equal to user ID.
+[00:59:12] So it will figure it out.
+[00:59:13] What are the rows with the user has, which will go one row from user's table.
+[00:59:18] And then I got the row.
+[00:59:20] So I got the user ID.
+[00:59:22] Now that user ID will do the join on photos, which will give a number of,
+[00:59:27] let's say rows, which are there for each user, for that user.
+[00:59:33] And on that you are saying, which one is true?
+[00:59:39] it seems very
+[00:59:42] but
+[00:59:44] I'm extremely nitpicking over here
+[00:59:46] in practical use cases you might see
+[00:59:48] very minimal performance difference
+[00:59:50] very minimal but
+[00:59:52] I just wanted to highlight that
+[00:59:54] like just it's a very
+[00:59:56] it's a stretch but I still want you to
+[00:59:58] highlight that optimization that's why
+[01:00:02] okay
+[01:00:03] yeah Silesh
+[01:00:04] oh sorry sorry go on go on go on
+[01:00:08] Okay, so the only thing is the only extra work that we have to do is on ejective two.
+[01:00:20] So is there any ordering or something which it's anyway indexed because you would be anyway narrowing down on that one row that would be indexed.
+[01:00:31] So it will be an index lookup very fast.
+[01:00:33] So that's not a problem.
+[01:00:35] okay so i was i was able to think that only yeah maybe i'm giving up but again got it yeah sitesh
+[01:00:41] god what would you optimize yeah i can't optimize something on right hand side but left hand side
+[01:00:46] one optimization i can think is don't update if it is it's active it's true and so you're saying
+[01:00:53] one one one describe there yeah and one more thing is if i just zoom out i would store active photo
+[01:01:01] ID in the users table because it would be a heavy system. So writing this whole transaction would
+[01:01:07] get us out. Which one? This entire one? I'm saying in the users table, I would like to store
+[01:01:18] active photo ID. Ah, gotcha. So now what would it do? So basically like see on a high level,
+[01:01:28] This is a readavis system.
+[01:01:30] The whole transaction thing, the whole photo scan table, everything would...
+[01:01:34] Like this is a single scan in the photos table.
+[01:01:37] So we are saving everything.
+[01:01:39] All of these transaction queries, all of this will be nullified.
+[01:01:43] Correct.
+[01:01:44] You can very well know, but you would still need this transaction.
+[01:01:47] You would still need this because now you would want to update on that other thing.
+[01:01:51] You would still need this transaction.
+[01:01:52] Your queries would change.
+[01:01:54] But in this case, for this query, you are avoiding that join.
+[01:01:58] Yes.
+[01:01:59] No, but my question was.
+[01:02:01] Updating.
+[01:02:02] Yeah, but now when you're updating,
+[01:02:04] you would also need to update in that same transaction.
+[01:02:09] Update users table.
+[01:02:12] Set active photo ID.
+[01:02:17] Equal to the one that you get from the above.
+[01:02:20] So select from this and update over here.
+[01:02:22] Where user ID equal to this.
+[01:02:24] Where user ID equal to this.
+[01:02:28] ID was there. This is what happens is if you maintain an active photo ID over here,
+[01:02:33] you are more frequent query. The most frequent query on your platform would be this, right?
+[01:02:40] Getting the active photo ID and then rendering it on the UI. Even this is the most active query.
+[01:02:45] Here you can avoid this join. Although that's what I said. I'm very nitpicking,
+[01:02:49] extreme nitpicking business because it's not going to be a massive performance difference,
+[01:02:53] but we can still avoid this very small join that we are incurring. By just replacing this
+[01:02:59] to be
+[01:03:01] select star from
+[01:03:02] photos, select star from users
+[01:03:05] where
+[01:03:06] id is equal to this. That's it.
+[01:03:08] Because in star you get active photo id, active photo
+[01:03:10] id and user id computation. You can create
+[01:03:12] a S3 path, read the file and send it to the
+[01:03:14] user. As simple as that.
+[01:03:17] So you don't need
+[01:03:18] to complicate at all.
+[01:03:20] One question Arpit.
+[01:03:22] Why do you need to like, is there any another
+[01:03:24] query that we are supporting? Why do we need to store
+[01:03:26] is active in the photos table?
+[01:03:29] No, it's just that we have multiple photos.
+[01:03:32] You have to mark one of them as active, right?
+[01:03:33] That's right.
+[01:03:34] I mean, if you are supporting a query that is given a photo ID,
+[01:03:38] tell me it's active or not, you can join with the user, right?
+[01:03:41] But that's not a frequent query.
+[01:03:42] Now we can do that.
+[01:03:43] Now we can do that, right?
+[01:03:44] Yeah.
+[01:03:44] Now that we are storing it over here.
+[01:03:48] So there are two designs.
+[01:03:49] Either you store it as active in the photos table
+[01:03:52] or you store active photo ID in the users table, right?
+[01:03:55] This is what happens is your most frequent query in your system does not have to go and
+[01:04:01] join two tables.
+[01:04:02] It is literally a primary key lookup.
+[01:04:05] As simple as that.
+[01:04:06] And now when you are marking a photo as active, you don't need to mark others as inactive,
+[01:04:11] current one as active.
+[01:04:12] You can simply do this.
+[01:04:15] And it just simplifies your entire thing.
+[01:04:20] But it is very counterintuitive because you think is active is a property of photo, not a user.
+[01:04:28] This is another thing that I want to always bring out that we typically think like whenever
+[01:04:34] we are doing class design or rather low level design, the basic class design or when we
+[01:04:41] are designing schema of it, we tend to think in terms of attributes of a particular entity.
+[01:04:47] think in a normal human way, you think that is active is property of photos,
+[01:04:53] which is where in most cases we typically read is active in photo stable.
+[01:04:57] But it again, as I said, extreme nitpicking, but if you think a little
+[01:05:02] out of the box, you realize that if you store active photo ID over here,
+[01:05:06] it just oversimplifies it because now we don't need this.
+[01:05:09] Now we don't need this.
+[01:05:11] All you need is this with that, with those two additional checks.
+[01:05:15] Right?
+[01:05:17] Update or marking a photos active becomes just single query.
+[01:05:21] No need to have two or three queries put in a transaction at all.
+[01:05:24] If you have auto commit, a single query is a transaction in itself.
+[01:05:27] That would solve it.
+[01:05:29] Single query would do the job.
+[01:05:30] This query becomes really simple because all you are doing is just doing a normal select
+[01:05:35] over your select start from users where ID is equal to this.
+[01:05:39] You get a user ID, you get photo ID, you can create S3 path, read the image,
+[01:05:43] serve it to the user.
+[01:05:44] and you're just oversimplifying a lot of stuff.
+[01:05:48] A little counter-intuitive, but it works, right?
+[01:05:52] So I am purely highlighting these points purely from the perspective
+[01:05:58] that what seems very simple, it's not as simple as it seems
+[01:06:03] when you go into those details.
+[01:06:05] When you go into those details, a lot of things can be challenged.
+[01:06:09] There is no one way to build the system, right?
+[01:06:14] or is active as a property of photo to being a property of user,
+[01:06:18] which is showing the is active or active photo ID.
+[01:06:21] Right.
+[01:06:22] We are taking away, we just chopped up the complexities of the system by doing this.
+[01:06:27] But instead of directly jumping to this, we went because it's a natural progression.
+[01:06:32] It is 15th cohort of bike in every single cohort.
+[01:06:36] Since the time when I started taking this question, every single cohort,
+[01:06:39] people start with is active over here because we are trained to do so.
+[01:06:45] We are trained to think in a certain way,
+[01:06:47] but that might not be the most optimal.
+[01:06:50] And I'm not saying this is like,
+[01:06:51] that is like my approach is like humongously more optimal.
+[01:06:54] I'm just proving you folks into thinking that,
+[01:06:57] hey, some other solution,
+[01:06:58] which might be a little more optimized can exist, right?
+[01:07:03] So always be handy in challenging your own beliefs,
+[01:07:06] unlearn, relearn and become a better, right?
+[01:07:09] Okay, so these are the key things that I wanted to cover.
+[01:07:12] Let me formally cover it before we take questions.
+[01:07:15] And it's already one or 10 minutes that we didn't cover
+[01:07:19] on-demand image optimization yet.
+[01:07:21] Okay, nothing to worry about.
+[01:07:22] We have enough.
+[01:07:23] I have one question to this.
+[01:07:24] Wait, wait, wait.
+[01:07:25] We'll come back, we'll come back, we'll come back, right?
+[01:07:27] Okay.
+[01:07:29] So for our gravata.com,
+[01:07:31] given that we dive very deep into the SQL query side of things,
+[01:07:36] how we think about performance,
+[01:07:38] how we think about architecting, like,
+[01:07:39] Think about other implementation details.
+[01:07:41] Let's talk about how will you design it in general?
+[01:07:44] So we take the photo upload service that we designed yesterday,
+[01:07:47] plug and play as it over here.
+[01:07:49] No changes at all.
+[01:07:50] Like your photo upload service, pre-signed URL and whatnot remains as is.
+[01:07:54] Right.
+[01:07:55] But now when user is publishing the photo,
+[01:07:57] you just make an entry into the photo stable that we just designed.
+[01:08:00] Right.
+[01:08:01] That's how your photos upload would work.
+[01:08:03] Then when you are when user puts that even here, usually.
+[01:08:10] user ID is active as true schema users you store email and the hash storing
+[01:08:15] derived value contrary to what we studied yesterday here we are storing the
+[01:08:21] derived value because it makes index look up faster right that's why we are
+[01:08:25] doing it rendering the photo is really simple whatever you have now here just
+[01:08:30] walking you through the actual thing because now we do not want to serve
+[01:08:36] photos from our backend servers.
+[01:08:40] We want to survey a CDN.
+[01:08:41] Imagine at the scale of Facebook, at the scale of Instagram,
+[01:08:44] if they start using Gravita, right?
+[01:08:46] They're doing millions and millions and millions of hits coming in.
+[01:08:49] If that's the case, then how will you handle the traffic, right?
+[01:08:53] All so much of traffic coming to our backend servers,
+[01:08:56] which in turn gets pushed onto S3 that would create chaos.
+[01:09:01] Your AWS will go to shoot up.
+[01:09:02] So what do you do?
+[01:09:03] you have to use CDN for that to give a better user experience.
+[01:09:06] So now what we are doing is we are writing api.gravita.com
+[01:09:11] and then we put everything behind the CDN.
+[01:09:13] So now observe this, how CDN comes into the picture,
+[01:09:16] making things efficient.
+[01:09:17] So we expose an API endpoint called api.gravita.com
+[01:09:23] slash photo slash hash.
+[01:09:24] Whatever the hash we provide over here, we get the active photo.
+[01:09:28] We read the file from S3 and we return the response.
+[01:09:31] Standard procedure.
+[01:09:33] So we derive the S3 path on the fly because we know the user ID and we know the photos ID.
+[01:09:39] We take that and we generate this path and we send it over here.
+[01:09:42] Sorry, basically whenever they do that, it would fetch the photo from S3 and send it.
+[01:09:46] This way the photo is entered.
+[01:09:48] But now what we have to do is we want CDN to serve the photos.
+[01:09:53] So what we do is we configure a CDN and in CDN configuration,
+[01:09:58] we create a property called gravita.com.
+[01:10:03] behind the CDN collection gravita.com.
+[01:10:06] Gravita.com points to this as my origin.
+[01:10:11] api.gravita.com slash photos.
+[01:10:14] Because what we implemented just as the API endpoint
+[01:10:19] which serves the photo reading from a stream
+[01:10:20] and serving it back looks something like this.
+[01:10:23] api.gravita.com slash photos slash hash.
+[01:10:26] So what we do is we configure gravita.com
+[01:10:30] and origin to that is api.gravita.com slash photos.
+[01:10:33] So which means that now when the request for gravita.com slash hash comes in, this request would go where CDN?
+[01:10:40] Because in CDN we configured like how I configured edge.arpeedbhany.me.
+[01:10:45] Here I'm giving gravita.com as my CDN property directly.
+[01:10:50] My root domain itself is my property on CDN.
+[01:10:53] So this way when I make a request like this gravita.com slash hash, the request will go to CDN.
+[01:10:58] If CDN has the data, it would serve it.
+[01:11:00] If it does not have the data, it would go to origin.
+[01:11:03] What's the origin?
+[01:11:04] api.gaveta.com.
+[01:11:06] So what it would do?
+[01:11:07] It would do api.gaveta.com.
+[01:11:09] .
+[01:11:11] Which is exactly what we have handled up until now.
+[01:11:16] Because this is what we have handled, it would return the photo.
+[01:11:20] It would go to S3, read the photo, send it to the CDN.
+[01:11:24] CDN will cache it and serve to the user.
+[01:11:27] The subsequent request would be all served from the CDN.
+[01:11:32] So now this is what our flow would look like.
+[01:11:35] A very basic flow, nothing super complicated about it.
+[01:11:38] So we have a standard photo upload service.
+[01:11:41] You upload a photo using pre-signed URL on S3.
+[01:11:43] Once that is done, you make a call to API server and add a photo over here, which registers
+[01:11:48] it in your MySQL server.
+[01:11:50] Pick your favorite database.
+[01:11:51] That's fine.
+[01:11:52] Now, when the photo is published or let's say when a photo is marked updated, what we
+[01:11:58] do we update it in the DB and push an event to Kafka.
+[01:12:01] Right now why Kafka?
+[01:12:02] Because we want to invalidate the cache because your CDN, where you configure
+[01:12:08] gravita.com to API.gravita.com.
+[01:12:10] Let's say user B, user 2 opened a profile of user 1 and it rendered photo, something
+[01:12:15] like this, this URL, it rendered this photo.
+[01:12:17] This request is served via CDN to all the users out there.
+[01:12:21] Right.
+[01:12:21] But now when you as user 1 updated your photo, you want it to be updated right
+[01:12:28] So what do you do?
+[01:12:29] In order to do this, you have to invalidate the CDN cache.
+[01:12:32] So because photos don't change that often,
+[01:12:35] you might have a TTL of let's say one day or two day or something like that.
+[01:12:38] But now because you change it as to give a good user experience,
+[01:12:42] you want to invalidate that photo right there and then
+[01:12:44] so that the new photo is rendered.
+[01:12:46] So what you do?
+[01:12:47] When the photo is updated, you push an event to Kafka,
+[01:12:50] the photo updated, it goes to a bunch of consumers
+[01:12:53] whose job is to invalidate the CDN.
+[01:12:55] That's it.
+[01:12:58] by these workers they make API call to CDN CDN gives you those API so invalidate a particular
+[01:13:03] path so you would invalidate a path slash h1 from here so that file is deleted from CDN next request
+[01:13:09] that comes in CDN does not have the file it would go where it would go to the API server API server
+[01:13:15] will talk to DB get the S3 path API server will go to S3 read the file and send it to CDN CDN
+[01:13:23] will cache that file and serve it to the user.
+[01:13:26] Subsequent request will just serve from the CDM.
+[01:13:29] And this is how you can efficiently serve photos at scale.
+[01:13:33] And this is how you can design your own gravata.
+[01:13:36] Really simple, but covering those details is the key.
+[01:13:41] How we leverage CDM, how we leverage database transactions,
+[01:13:45] how we evolved our database schema over time,
+[01:13:48] asking those critical questions,
+[01:13:49] how we thought about security and correctness of the data,
+[01:13:52] no matter what.
+[01:13:53] These are the details that I want all of you to remember, no matter what.
+[01:13:57] It's a very simple system, but these details make it very interesting.
+[01:14:02] Right.
+[01:14:02] Okay.
+[01:14:03] Any question on this?
+[01:14:04] We'll take for five minutes question and then we have covered on demand image
+[01:14:07] optimization, then we take some more questions and then we go on a break.
+[01:14:11] Okay.
+[01:14:11] Go on, Heman.
+[01:14:13] Yeah.
+[01:14:13] Can you please go back to the screen where we have written the transaction
+[01:14:17] three queries?
+[01:14:18] Hmm.
+[01:14:20] Hmm.
+[01:14:21] Yeah.
+[01:14:21] So when we were writing the transaction before we added this query,
+[01:14:28] there was the second query, which says their ID equal to something for which we have to get the photo.
+[01:14:35] I was thinking at that time, if let's say somebody passes a wrong photo ID.
+[01:14:42] So that's why we have this user ID to prevent that, right?
+[01:14:46] So no rose update, it would happen.
+[01:14:48] That's okay.
+[01:14:49] That user ID came a bit late when we start initially thinking, and then we added this.
+[01:14:54] So let's say the user ID is not there.
+[01:14:55] I'm just talking about maybe a bit general problem.
+[01:14:59] I'm writing in a transaction some query and here I'm passing one parameter, which has
+[01:15:04] to be used to find the identifier row.
+[01:15:07] Now, due to any reason, it may be by mistake or something, I passed the wrong value.
+[01:15:12] Now that inside the transaction one query is not successfully handled.
+[01:15:18] Should we worry about writing something as a fallback here inside the transaction?
+[01:15:24] Or should we leave it?
+[01:15:25] What should be the right practice?
+[01:15:28] Ideally, if you were expecting something to be updated, but it was not.
+[01:15:32] So let's say a general behavior is something gets updated, but you saw that nothing got
+[01:15:36] updated.
+[01:15:37] That is an alarm for you.
+[01:15:40] In most cases, in most cases, which means that there might be a bug in the front end,
+[01:15:45] because here what you said is correct.
+[01:15:47] In that case, if let's say this does not match anything, what would happen for that user?
+[01:15:52] All the rows are false.
+[01:15:54] Like another photo is active, right?
+[01:15:56] And this does not make anything active.
+[01:15:58] Yes.
+[01:15:59] That's a problem.
+[01:16:00] That's a, that's a 404.
+[01:16:01] That's a 404 for user.
+[01:16:03] Correct.
+[01:16:03] So if that is your intended behavior, then no matter what,
+[01:16:09] a user should have exactly one row as active.
+[01:16:17] Exactly one row as active.
+[01:16:18] If that is what your need is, then you have to have that check
+[01:16:25] in this transaction that at least one is active or not.
+[01:16:28] If this does not change anything, then you don't do anything.
+[01:16:33] statement or you first do selects and ensure that everything is there.
+[01:16:36] And then you do update either.
+[01:16:38] So what you can do is you can select it.
+[01:16:40] This, this user have at least one photo is active.
+[01:16:44] It with Matt meets that day, you update an update that would solve your problem.
+[01:16:48] Right.
+[01:16:48] So the photo and this user, so you first do a get off the same thing.
+[01:16:53] Select is active true.
+[01:16:54] Sorry.
+[01:16:54] Select is active false.
+[01:16:56] That use where photo ID is this and user ID is this.
+[01:16:58] If that row exists, then only you do this to them.
+[01:17:01] Otherwise you don't.
+[01:17:03] Okay, because that's normally a requirement that you should have one active ID.
+[01:17:08] Yeah.
+[01:17:09] And if we are not taking care of this thing, then I mean, it will be too late when you
+[01:17:16] got to know that client is going to be taking care of at the first place itself.
+[01:17:22] So it is always better to just validate that whatever changes that you are doing will not
+[01:17:26] let your data go in consistent state.
+[01:17:29] So you first check and then you do these two.
+[01:17:32] Yeah, maybe there only we can say if the row zero rows return, then application logic take
+[01:17:37] care of saying that ID was not one at all not find active one. But I mean, the logic has to
+[01:17:44] be divided in two parts. Checking the result is coming as zero row. So we have application layer.
+[01:17:50] And this transaction not going through, I mean, rollbacking itself should be taking care itself
+[01:17:56] here I think that's all yes yes yes yes yeah could you explain the CDN mapping that we were doing
+[01:18:03] there uh because like we did yesterday right we saw yesterday how that CDN is mapped that same
+[01:18:08] thing what we are doing is we're configuring a CDN yeah and the specific property is gravita.com
+[01:18:14] like how I specified edge.arkipani.me so any request for edge.arkipani.me goes to CDN
+[01:18:19] Correct?
+[01:18:20] Here, any request to gravita.com goes where?
+[01:18:23] To CDN.
+[01:18:24] API.com.
+[01:18:25] Yeah.
+[01:18:25] No, no.
+[01:18:26] So it goes to CDN and CDN's origin is configured to API to gravita.com.
+[01:18:30] So if it does not have it, what it is doing, it's going to API.
+[01:18:34] And because only API server knows here, one common question that ask is why CDN not pointing
+[01:18:39] to S3 directly?
+[01:18:41] Because S3 is not public.
+[01:18:42] Only my database knows which photo is active.
+[01:18:45] S3 doesn't know which photo is active.
+[01:18:47] Right?
+[01:18:47] Only database is a source of truth for it to know which photo is active.
+[01:18:51] So which is why what we have to do is CDN falls back to apatradar.com,
+[01:18:56] reads the database, find active photo, goes to SP, gets the image and sends it to the CD.
+[01:19:01] Right.
+[01:19:02] Makes sense.
+[01:19:03] I was sort of confused.
+[01:19:04] Like I was taking it in the reverse order, the mapping that was there.
+[01:19:07] Okay.
+[01:19:09] DK.
+[01:19:14] Yeah.
+[01:19:14] Hi Arpit.
+[01:19:14] So first question is related to the hashing.
+[01:19:17] So for hashing, you have said that, you know, we cannot do,
+[01:19:22] we should not do the runtime hashing.
+[01:19:24] I was not able to understand why it was.
+[01:19:27] There we are there.
+[01:19:29] We cannot do it because if your query looks like this,
+[01:19:31] select start from users where hash of email ID equal to something.
+[01:19:36] Right.
+[01:19:37] Now for your database to evaluate, which email ID it matches to,
+[01:19:41] it would have to literally go through every single row.
+[01:19:45] compute the hash of the email ID.
+[01:19:47] See if it matches with the thing that you passed.
+[01:19:49] That is a full table scan.
+[01:19:51] Got it. Got it.
+[01:19:53] And in the, in those queries also,
+[01:19:55] when you are joining, you are joining on the user's ID.
+[01:19:59] And then you are putting a where clause of hash is equals to this.
+[01:20:04] So when we are joining on the user ID,
+[01:20:06] why can't we just search basis on the user ID itself?
+[01:20:08] Why do we need to do it?
+[01:20:10] You can do it because the input that we are getting from the URL is the hash.
+[01:20:15] That's the input that we are getting.
+[01:20:16] Correct.
+[01:20:17] But still we are not aware about the user ID then user ID is because the user is locked
+[01:20:23] in is the joint key.
+[01:20:24] Right.
+[01:20:24] So that's what you are joining the two tables on.
+[01:20:27] So that is our problem.
+[01:20:28] We are getting the user ID.
+[01:20:29] We are not aware about the user ID here or we don't need to get a user ID.
+[01:20:33] Right.
+[01:20:33] We don't need user ID.
+[01:20:34] We just a joint criteria because it's a foreign key.
+[01:20:38] This is just a joint criteria.
+[01:20:41] Okay.
+[01:20:42] Okay.
+[01:20:42] Got it.
+[01:20:43] This is not filtering.
+[01:20:44] We are not filtering on the basis of this.
+[01:20:46] It's just a join criteria.
+[01:20:48] Here what is happening is we are filtering on this.
+[01:20:50] So the first set of filter would be applied on this.
+[01:20:52] Then the join would happen.
+[01:20:53] It would filter, it would just narrow down.
+[01:20:55] So it will be keep on narrowing down.
+[01:20:57] First, a huge terror would happen on the hash of the user,
+[01:21:00] from which you'll get just one row as candidate match from the users table,
+[01:21:04] which would be joined on that one user ID to this photos table.
+[01:21:09] From the photos table, it will match 10 photos uploaded,
+[01:21:11] it will match 10 rows out of which,
+[01:21:14] the buttons, it would return all the 10 rows here because we are making one is active out of the 10,
+[01:21:19] it would filter out where which is active. So active photo, this is how your flow would happen
+[01:21:24] and your SQL query or in most cases, your database query optimizer takes care of which one to evaluate
+[01:21:31] first. Here it would do because it would find there is a unique key on user hash. This is the
+[01:21:35] first thing that your SQL query evaluation. What is that? That evaluation tree that it creates,
+[01:21:44] to be done as evaluate this.
+[01:21:46] Then it would define the joint criteria.
+[01:21:48] Then it would do that.
+[01:21:49] This is basically called as predict.
+[01:21:51] This is called as predicate pushed up.
+[01:21:53] If you just Google that predicate pushed up
+[01:21:55] is how a SQL query of SQL engines optimizes queries.
+[01:21:59] So whatever you need at the bottom of the tree
+[01:22:02] because a tree evaluates from the bottom to the top.
+[01:22:05] So this is what would be evaluated.
+[01:22:07] The first thing it would be at the bottom node
+[01:22:10] at the leaf node of your evaluation tree
+[01:22:12] and then the joint and then it goes up.
+[01:22:14] Got it.
+[01:22:15] And second question would be,
+[01:22:17] so in the CDN,
+[01:22:19] if you can go to the CDN diagram,
+[01:22:22] there,
+[01:22:22] how you are invalidating the cache
+[01:22:24] when the image is updating?
+[01:22:26] By making an API call to CDN.
+[01:22:29] So CDN has APIs exposed.
+[01:22:31] Cloudflare, Akamai,
+[01:22:32] every CDN has APIs exposed
+[01:22:34] to invalidate the cache.
+[01:22:36] Got it.
+[01:22:37] So whenever the new image is uploaded,
+[01:22:38] you are invalidating the cache
+[01:22:39] directly by calling the CDN.
+[01:22:41] Correct.
+[01:22:42] Synchronous.
+[01:22:42] Yes.
+[01:22:45] It's like when user is, so we are not depending on the TDL here.
+[01:22:49] We are just invalidating the cache beforehand.
+[01:22:51] Because user experience really matters over here that when the photo is changed,
+[01:22:56] I want to immediately see the uploaded photo everywhere.
+[01:22:59] Got it.
+[01:23:00] Got it.
+[01:23:00] That's right.
+[01:23:01] Thank you.
+[01:23:01] For richer user experience.
+[01:23:04] Chandran Anubha, I'll take your question in some time.
+[01:23:08] Let's cover a few parts of, by the way, this is what the next part was.
+[01:23:12] possible optimizations adding active photo ID over here is covered anyways.
+[01:23:16] What we'll do is we'll talk a bit about all demand image optimization
+[01:23:20] and then we take questions and then we go on a break.
+[01:23:22] So on demand image optimization as a problem statement is very interesting
+[01:23:27] and very simple.
+[01:23:29] Now that you know how CDN works, you know how Gravatar works,
+[01:23:33] all demand image optimization becomes a piece of cake.
+[01:23:36] Now let's assume that you have to optimize the images.
+[01:23:44] SSHedon does not give you that feature.
+[01:23:45] And you have to optimize the images, which means that on typical your Facebook,
+[01:23:50] you see profile photo rendered this tiny, teeny dot, 16 cross section,
+[01:23:54] 32 cross 32 pixels.
+[01:23:56] But on other page, it is like 256 by 256.
+[01:23:58] On some other page, it would be 512 by 512, something like that.
+[01:24:02] So user can upload image in any resolution,
+[01:24:06] the small one or the large one depending on what is requested.
+[01:24:09] So now you want to build your own on-demand image optimization.
+[01:24:14] This does not mean what we are not talking about is a I'll upload the image,
+[01:24:19] I'll post it as a message and have a bunch of servers optimizing it
+[01:24:22] and creating multiple variants of it.
+[01:24:23] No, we are talking about on-demand image optimization.
+[01:24:28] So now in case of on-demand image optimization,
+[01:24:31] just like how CDN accepts query parameters,
+[01:24:33] we would also accept query parameters like w equal to 32.
+[01:24:38] It means that transform the image to a 32 plus 32 pixel, not 32, but 32 width image over here.
+[01:24:44] For us to implement it in our gravatar use case, just extending the discussion.
+[01:24:49] It is now very simple.
+[01:24:51] What we do is just do this.
+[01:24:54] We were anyway reading the URL.
+[01:24:57] We check if the file exists on this or not.
+[01:25:03] would be by bad.
+[01:25:04] This is how your CDN flow would be
+[01:25:06] where it reads the URL.
+[01:25:08] If it has the file, it returns it.
+[01:25:09] If not, it reads the file from the origin.
+[01:25:12] In the origin, when this request comes to origin,
+[01:25:15] this request comes to origin,
+[01:25:17] what origin would do?
+[01:25:19] Origin would go to S3, read the image.
+[01:25:22] In that, it would then apply.transformation.pass
+[01:25:24] as the query parameter and send it.
+[01:25:27] This is where your libraries come in.
+[01:25:29] Your image manipulation or image processing libraries come.
+[01:25:34] like ImageMagick. This is the world's most popular image processing library out there.
+[01:25:40] Python image library PIL has two bindings. One is native Python binding. Second is ImageMagick.
+[01:25:46] ImageMagick is purely written in C++. Because it is written in C++ and almost every single
+[01:25:51] language in the world has C++ bindings, which means that you can natively invoke C++ code
+[01:25:55] in your preferred language. What you can do is you can actually just use ImageMagick
+[01:26:03] APIs to manipulate the image.
+[01:26:05] For example, resizing.
+[01:26:06] It has a native resize function.
+[01:26:08] Image.resize and you pass the new size.
+[01:26:11] It would resize and create and give you an in-memory bytes of it.
+[01:26:14] Just send it to the user.
+[01:26:16] So that's the only thing that you have to do.
+[01:26:18] That's the only thing that changes in the flow.
+[01:26:21] So now, because you are writing your on-demand image optimization,
+[01:26:25] whatever path you get in the query parameter,
+[01:26:27] pass the transformation,
+[01:26:29] whatever you would want to support,
+[01:26:30] grayscale, resizing and whatnot.
+[01:26:33] by the explanation, the request would come to our origin server
+[01:26:37] with those exact query parameters.
+[01:26:39] From that, you see, if you have the image, if not, you go to S3,
+[01:26:42] read the image, right?
+[01:26:44] From that you then use image magic as a library to resize the image
+[01:26:47] and apply the transformations.
+[01:26:48] And then you send it as a response.
+[01:26:50] This is exactly what CDN also does.
+[01:26:53] When we talk, when we spoke about it yesterday, CDN also does this.
+[01:26:57] It gives a transformation as logic or transformation is query parameters.
+[01:27:01] We are re-implementing the same thing.
+[01:27:04] how do you scale the system this one thing always remember image processing encryption
+[01:27:12] video processing these are all very heavy cpu based it's very cpu intensive uh uh workloads
+[01:27:21] right so what you need is you need very large amount of cpu to get things done so
+[01:27:28] So you throw money at your cloud provider, get bulky machines with large number of CPUs
+[01:27:34] and done.
+[01:27:35] This is what you do.
+[01:27:36] Whenever you're doing on-demand, it's not asynchronous processing, it is on-demand processing.
+[01:27:40] Whenever you're doing on-demand processing, you need to have bulky machines to do that
+[01:27:44] because large number of CPUs, you can parallelize a lot of stuff and get things done very quickly.
+[01:27:50] And this is purely how every single on-demand image optimization or on-demand XYZ processing
+[01:27:57] is built.
+[01:27:58] Nothing fancy over there.
+[01:28:00] And because just to highlight it, one thing, it cannot be made async
+[01:28:05] because this is a synchronous request.
+[01:28:07] Where in right now, when you're given this URL, you're given this query
+[01:28:10] parameter, you can say I'll do it processing async and send it to image.
+[01:28:13] It's not like that.
+[01:28:15] In when this URL is loaded, you have to write there and then send
+[01:28:20] the response with 240 pixels image.
+[01:28:22] So you cannot do it async.
+[01:28:25] So what you do is when the request comes to your origin server, you
+[01:28:28] the image and send it and here i'm assuming cdn does not give you this feature so if you are
+[01:28:33] building your own cdn this is exactly how you do it cloudflare cloudflare or cloudinary one of them
+[01:28:40] has a blog on it right they did exactly the same thing it's literally the shortest blog like one
+[01:28:45] of the shortest blog i've read it literally said we use image magic library this and run on massive
+[01:28:50] servers 30 32 cores or 64 cores or something like that right we just run on massive servers with
+[01:28:55] this, this, this, and that, and we just scale the fleet depending on the
+[01:28:59] requests that are coming in.
+[01:29:00] Right.
+[01:29:00] And we just scale it to a large amount.
+[01:29:03] That's it.
+[01:29:03] I read it like six or seven years back.
+[01:29:05] I just recalled it.
+[01:29:06] Right.
+[01:29:07] That's it.
+[01:29:07] That's all it's all about.
+[01:29:09] So handling scale in today's day and age, especially in case of
+[01:29:12] synchronous thing, that's no, no brain.
+[01:29:15] It's just that you need large servers to handle that particular part.
+[01:29:18] There is nothing magic when it comes to on demand image optimization.
+[01:29:21] Our synchronous processing will talk seven, we'll talk in six weeks when we discuss video
+[01:29:26] streaming a bit of it, right?
+[01:29:28] You understand when you do a sync, this is what we talk about image processing synchronous
+[01:29:33] on demand image optimization, right?
+[01:29:36] So what you can do, trust me on this, build this.
+[01:29:40] It's not really difficult.
+[01:29:42] It's not very difficult.
+[01:29:43] So the sequence in which we spoke until long from 9 AM to 10 30 AM, the sequence in which
+[01:29:51] is exactly how take two days of your time
+[01:29:54] and implement those exact same things,
+[01:29:57] the exact same way, step by step,
+[01:29:59] just one local prototype,
+[01:30:00] just one local prototype
+[01:30:02] and you will learn everything that you have to.
+[01:30:04] You will never have any questions about CDNs,
+[01:30:08] about image processing,
+[01:30:09] about building this synchronous things,
+[01:30:12] piece of thing, right?
+[01:30:13] Just one, you're just one implementation.
+[01:30:16] Right?
+[01:30:17] Okay.
+[01:30:18] There's nothing much to cover,
+[01:30:19] to be honest, in image optimization,
+[01:30:21] because it's all about having bulky servers to do that
+[01:30:23] and auto scaling them depending on the requests that are coming in.
+[01:30:27] Cloud providers give you those facilities anywhere out of the box.
+[01:30:30] Very few chances that you and I would be working on a team
+[01:30:33] that manages its own app.
+[01:30:35] Typically, it is all abstracted out.
+[01:30:37] So we typically don't worry about it in day and age.
+[01:30:40] We focus more on things that matter.
+[01:30:42] Okay.
+[01:30:42] Any questions in general around anything that we covered
+[01:30:45] from 9 a.m. to 10.30 a.m.?
+[01:30:47] We'll take questions for five minutes and then we go on a break.
+[01:30:52] You had a question.
+[01:30:55] Here.
+[01:30:58] Can you please go back to the page where we had those three update statements in a transaction?
+[01:31:04] And we did an optimization with active photo ID.
+[01:31:07] So my verification is that the new query after this active photo ID optimization,
+[01:31:14] we get the active photo.
+[01:31:15] So it should be select start from users where hash is equal to hash of email, right?
+[01:31:22] Yeah, so that's the exact.
+[01:31:23] So let me do that.
+[01:31:28] Update users set active photo ID equal to something where hash is equal to something.
+[01:31:45] Yes.
+[01:31:47] Yeah.
+[01:31:48] What I wanted to clarify.
+[01:31:49] Thank you.
+[01:31:54] Yeah, I just wanted to check like whenever we have like requirements like this, should
+[01:31:59] we have like Boolean variables like is active or should we generally store them as a type
+[01:32:04] and enum as active because that gives us like more flexibility in terms of, you know, changing
+[01:32:10] if something comes up in the future, right?
+[01:32:14] So long as you're doing it with tiny int it's fine.
+[01:32:18] So 8 byte integer if you are taking because boolean anyway takes 8 bytes to store the data.
+[01:32:23] And 8 bytes is 1 byte, 8 bits, 8 bits, I wanted to say 8 bits.
+[01:32:27] So you can go for enum and integer based enum that does it for you.
+[01:32:33] There's also fine.
+[01:32:34] And that gives you, as you said, that gives you flexibility on the fact that you can then
+[01:32:40] add one more state.
+[01:32:41] So active and active, you can add a third state if you want to.
+[01:32:44] So that gives you that flexibility.
+[01:32:47] But just go with a tiny end rather than a big one.
+[01:32:50] Don't store string as is in the database.
+[01:32:54] Yeah.
+[01:32:54] Thanks.
+[01:32:55] Harsh.
+[01:32:58] I was just thinking, should we improve this third update statements with some join on
+[01:33:05] the other table that, that at least that ID is correct.
+[01:33:09] Yeah.
+[01:33:09] Those, those checks are there.
+[01:33:11] Like I have to rewrite a lot of stuff there.
+[01:33:13] Right.
+[01:33:13] But you can check that if that photo is there or not and those parts.
+[01:33:17] So you can do a get and then set.
+[01:33:20] So get an update, you can check in that part.
+[01:33:23] Yeah, I wanted to check that photo ID belong to this.
+[01:33:26] Yeah, 100% you should do that.
+[01:33:28] Like if we take care of security over here and we lapse over here,
+[01:33:32] that would not work, right?
+[01:33:33] But then it would have required me to write a lot of queries again and again.
+[01:33:37] But you get the gist, right?
+[01:33:38] I'm so happy that you folks are thinking on those lines.
+[01:33:40] But think on those granular details, right?
+[01:33:43] We first do get and check and then update in any case.
+[01:33:47] Right.
+[01:33:48] Okay.
+[01:33:49] Yeah.
+[01:33:49] Chalda.
+[01:33:51] Hi, so it's like, uh, my question is, uh, related to this schema as well as, uh,
+[01:33:59] real text messaging.
+[01:34:00] We discussed in Slack, right?
+[01:34:02] So we had the user table and we had a channel table, but there we didn't make
+[01:34:08] any foreign key primary key.
+[01:34:10] we created a relationship
+[01:34:13] membership table.
+[01:34:14] Membership table, yeah.
+[01:34:16] Right.
+[01:34:16] But here we didn't go with that concept.
+[01:34:19] Is it because of one-to-one
+[01:34:21] and one-to-many concept?
+[01:34:23] Brilliant.
+[01:34:24] You gave the answer.
+[01:34:26] But here also it's one-to-many.
+[01:34:28] But there we were storing
+[01:34:30] other details as well on that.
+[01:34:32] In case of membership,
+[01:34:34] you could store last checkpoint
+[01:34:37] up until this you write a message,
+[01:34:40] This channel is marked as star for a particular user.
+[01:34:44] Here you don't have that complex of a user.
+[01:34:48] That's fine.
+[01:34:49] Thank you.
+[01:34:50] Yeah.
+[01:34:51] Gaurav, I'll take a question at the end.
+[01:34:53] It's 10.35.
+[01:34:54] We'll take a quick break.
+[01:34:55] We'll take a break for five minutes.
+[01:34:57] We'll come back at 10.41 and then we'll have discussion around tagged people in photos.
+[01:35:07] And we'll wear a different hat.
+[01:35:10] install one requirements.
+[01:35:11] We will not design system.
+[01:35:12] Designing system is easy.
+[01:35:13] This system is very easy.
+[01:35:14] What I want to highlight through this system is how this simple system affects so many
+[01:35:19] other systems, right?
+[01:35:21] Because as senior engineers, we should be thrown into, we are thrown into situations
+[01:35:26] where we are not just responsible for building this one system today, but rather seeing how
+[01:35:32] it affects, how it interacts with other system, how it could affect other systems and all.
+[01:35:36] so we'll be wearing that hat to understand how this simple thing and obviously we'll go to the
+[01:35:42] implementation details of it a bit but more importantly understanding like thinking around
+[01:35:46] the requirements itself will be the part of this right and then we cover newly unread message
+[01:35:51] indicator post that right see you folks in five minutes at 10 41 we resume our discussion on
+[01:35:57] tagging people thanks folks
+[01:39:41] Thank you.
+[01:40:39] Let's start with the second
+[01:40:41] for today and we'll discuss tagging in photos right so let's say what typically happens in a
+[01:40:51] startup one day someone from the senior environment sub typically a cxo comes to you and says hey
+[01:40:57] let's build let's allow people to tag people in photos that's all that's your product briefing
+[01:41:03] you have to go ahead and implement right so now a senior engineer you need to think of
+[01:41:11] senior management has not thought of.
+[01:41:15] Unfortunately, that's true.
+[01:41:17] More common than you think.
+[01:41:20] So now it's your responsibility because they trust your instinct.
+[01:41:23] They just give you a problem statement.
+[01:41:24] Now you have to figure out what all things to do.
+[01:41:28] It's not just high level.
+[01:41:29] High level is still easy.
+[01:41:31] It's more about understanding how it fits into the scheme of things,
+[01:41:35] how it fits into that entire puzzle of yours.
+[01:41:39] So now what we do is we think around requirements.
+[01:41:43] We will not talk about solution.
+[01:41:44] Not talk about solution at all.
+[01:41:46] We will talk about the requirements of them.
+[01:41:48] Wear the hat of a product manager.
+[01:41:50] As an engineer, you have to.
+[01:41:52] As senior engineer, so I always say this.
+[01:41:54] I will also repeat it next week.
+[01:41:56] Next to next week.
+[01:41:57] The senior engineer wears three hats.
+[01:41:59] It does not really wear one hat of each.
+[01:42:02] Senior engineer always wears three hats.
+[01:42:04] First is a hat of a product manager.
+[01:42:09] requirements, things that others have not thought about, bringing in that clarity.
+[01:42:14] Second is a hat of an architect where you're supposed to architect a system considering
+[01:42:18] extensibility of it in the future.
+[01:42:21] And third, the hat of an engineer, which goes into those low level nitty gritty details
+[01:42:26] of it and ensures that it is optimal across all the layers.
+[01:42:30] And this is what makes a good synergy.
+[01:42:33] You have to wear three hats.
+[01:42:35] today will bear the first hand
+[01:42:36] around thinking around requirements
+[01:42:39] where we
+[01:42:41] are just given a briefing,
+[01:42:43] a one-line briefing of the statement.
+[01:42:44] Hey, let's allow people to tag people in
+[01:42:47] for this.
+[01:42:48] Okay.
+[01:42:50] What questions would you ask
+[01:42:52] not to manager but to yourself, to your
+[01:42:55] team or how would you brainstorm
+[01:42:56] about it? Raise your hands.
+[01:42:59] I'll pull you in. One question, one person
+[01:43:01] and then we move to the next one.
+[01:43:02] Okay.
+[01:43:08] Yeah, maybe the first question I will try to figure it out.
+[01:43:15] What should be the schema of storing tags?
+[01:43:19] Nothing around engineering.
+[01:43:20] Nothing around engineering.
+[01:43:21] Don't think on engineering at all.
+[01:43:24] Because all you are given is this one line briefing.
+[01:43:27] Just one line briefing.
+[01:43:28] Allow people to tag other people in photos.
+[01:43:31] That's it.
+[01:43:32] Think on the product side here.
+[01:43:36] Okay.
+[01:43:38] Then maybe the most important thing will be around who can tag and is there a way that
+[01:43:48] I can mark tagging to be correct?
+[01:43:51] Who can tag is one thing.
+[01:43:54] No, who can tag?
+[01:43:55] So what is the significance of who can tag?
+[01:43:59] What would it allow?
+[01:44:01] What would it enable you to do?
+[01:44:05] that I'm the owner of let's say a photo then only I can tag.
+[01:44:10] I should so nobody else can kind of attack the wrong thing, wrong people, wrong object or something like this.
+[01:44:19] No, but someone else can tag you or not. That is also important, right?
+[01:44:25] I mean that that is okay, but we also need to think about if it goes through a check.
+[01:44:35] let's say some icons and not part of not not owner of a image and tries to tag somebody in a wrong
+[01:44:44] way and normally there are repercussions around that no no no no you are not the owner of the
+[01:44:50] image still you are doing that is different problem but you are tagging someone else in
+[01:44:54] your photo that's different so what you should more focus on is authorization part where who can
+[01:45:00] tag me in their photo obviously that's a check that you can only tag people in your photos right
+[01:45:06] don't go into the correctness of it think about r is other person allowing you to tag himself or
+[01:45:12] herself in your photo or not that is more important yes that's that's amenity right i know that's
+[01:45:18] what you made it but you you you put it in a different way a different way got it but here
+[01:45:24] it's more important that it should be in your control that do you want to have this feature
+[01:45:30] dictating who can tag you in their photos.
+[01:45:33] Yes.
+[01:45:33] Right.
+[01:45:34] Which means that now you have to have a separate authorization layer,
+[01:45:38] which keeps track of things that,
+[01:45:39] Hey,
+[01:45:40] am I allowed to tag?
+[01:45:41] Like who is allowed to tag me in their photos?
+[01:45:43] So you will see this feature day in and day out on Instagram,
+[01:45:46] where you are not,
+[01:45:47] or even on Twitter,
+[01:45:48] where you are not allowed to tag people in their posts,
+[01:45:51] in their photos and whatnot.
+[01:45:53] So that is an important part.
+[01:45:55] Okay.
+[01:45:55] Anubhav,
+[01:45:56] what other part?
+[01:45:59] Yep.
+[01:46:00] lot of other considerations around um how many people can be tagged in a photo can they remove
+[01:46:06] their tags themselves or one one one one one one one okay and then i'll and then i'll circle back
+[01:46:11] you in that's right but one which one would you want to play i i would prefer how many people can
+[01:46:16] be tagged in a photo so you are setting you're going for the max limit like the max number of
+[01:46:21] people, max limit of people tag in a photo.
+[01:46:29] Also, whether it is a photo level or at a broader, like maybe at an album level or
+[01:46:35] at a collection level.
+[01:46:36] Photo, photo, let's keep it photo.
+[01:46:39] But how, how would it define your system?
+[01:46:42] What, what would you have?
+[01:46:44] Like what changes can you make depending on this?
+[01:46:46] If let's say the max limit is five versus 10 versus 100 versus infinite.
+[01:46:56] Okay.
+[01:46:57] Five, 10, 100 infinite.
+[01:46:59] So we would need some sort of a mechanism to limit the number and given how like who
+[01:47:06] can tag, we would also need to manage a concurrency a bit.
+[01:47:09] So maybe if we have a limit of a limit of five, we want to concurrently update tags.
+[01:47:16] If I'm updating or if someone else is updating, we also might want to update in your photo.
+[01:47:22] You are the one who are tagging in your photo.
+[01:47:24] Someone else cannot come and tag you like tagging your photo.
+[01:47:27] Correct.
+[01:47:28] Okay.
+[01:47:29] Yeah.
+[01:47:30] That makes sense.
+[01:47:31] So concurrency is not a challenge here.
+[01:47:35] But how would this define what aspect of the system would this determine the max limit?
+[01:47:43] Let's say, let me simplify.
+[01:47:46] 5 versus 10,000.
+[01:47:49] Let me go to extreme 5 versus 10,000.
+[01:47:52] How would your system change?
+[01:47:53] If you are, if your max limit is 5, how would the system change?
+[01:47:56] If your max limit is 10,000.
+[01:48:12] I'll tell you if it is just five people, you can go and.
+[01:48:16] keep them in an array directly.
+[01:48:19] Right.
+[01:48:20] But if it is 10,000, you would need to have separate entries for them
+[01:48:23] because you cannot keep that entire thing chunk together in that one document.
+[01:48:27] Like what we discussed yesterday.
+[01:48:29] Right.
+[01:48:29] Yeah.
+[01:48:29] This is what it would affect because if you're allowing 10,000 people, then your
+[01:48:33] document size grows out to be really big.
+[01:48:35] And then you won't have to do pagination because no one will give you 10,000
+[01:48:38] in one shot unnecessary because no one's going to going through 10,000 in one shot.
+[01:48:43] So you would have paginated endpoints.
+[01:48:44] So you would not store everything in one document.
+[01:48:47] This is what determines your storage schema.
+[01:48:49] That this max limit of people,
+[01:48:51] like max limit of people who can be tagged in a photo.
+[01:48:56] Right?
+[01:48:57] This is what I want to probe.
+[01:48:59] Right?
+[01:48:59] Every single question that we ask leads to a change,
+[01:49:04] affects or rather should positively influence our design.
+[01:49:07] Right?
+[01:49:08] That's right.
+[01:49:09] Okay.
+[01:49:10] Vikram, one point from your side.
+[01:49:12] Yeah.
+[01:49:14] should we allow to send notifications to the tag? Great. If I say yes, then, then, then
+[01:49:25] we should also consider the above point at max limit that if notification should go to
+[01:49:32] everyone who are tagged, isn't it? Yeah. Otherwise, otherwise just imagine someone tagging you
+[01:49:38] in a very shitty photo and you don't even know about it.
+[01:49:43] Right?
+[01:49:44] That should not happen.
+[01:49:45] So what does this mean?
+[01:49:47] That you have to interface with notification team that,
+[01:49:50] hey, we are rolling out this feature.
+[01:49:53] You would see a huge spike on your traffic
+[01:49:55] as soon as people start to use this feature
+[01:49:57] because it's very likely for people to tag other people
+[01:49:59] in their photos.
+[01:50:01] So get ready to scale up your systems.
+[01:50:04] Yeah.
+[01:50:05] Right?
+[01:50:05] Because if they are not ready,
+[01:50:08] If they're not ready with scaling of the systems and you push notifications on their end, the system gets overburdened.
+[01:50:15] Other critical notifications might get affected.
+[01:50:18] So you have to interface with the notification.
+[01:50:20] As senior engineers, you have to interface with the notification team.
+[01:50:23] If it's a yes on sending notification to people, which in most cases would be.
+[01:50:27] You have to interface with the team and say, and just ensure that they're prepared for us to handle, to see a step, to see a rise in the notifications that are being sent.
+[01:50:39] This would also lead to the fact that there is a throttling.
+[01:50:47] Now this throttling is different.
+[01:50:49] This is basically product level throttling.
+[01:50:50] So typically people don't love products or the people don't like when apps send them
+[01:50:56] turn off notifications.
+[01:50:58] People hate it.
+[01:51:00] People, good apps only send three notifications a week or five notifications.
+[01:51:05] If someone, if some app is sending you a notification every single day, it's a big turn off.
+[01:51:09] People are very likely to unlock or to basically uninstall your app.
+[01:51:14] So if this is a new type of notification that is sent and let's say you are being tagged
+[01:51:20] Getting notifications for every single post you are tagged in
+[01:51:23] is a bad user experience.
+[01:51:25] So now you also have to talk to the interfacing team,
+[01:51:30] the notifications team that, hey, how are you handling this?
+[01:51:32] Are you having any kind of throttling?
+[01:51:34] If not, let's have that.
+[01:51:36] You need to ensure that you are not bombarding other users
+[01:51:39] with notifications for every photo that they are tagged in.
+[01:51:41] Club them.
+[01:51:42] Do some, like, make product better on that side.
+[01:51:45] Give them a rich notification experience.
+[01:51:49] Yeah.
+[01:51:50] also happened that let's say very famous celebrity posted one photo and other people are tag tagging
+[01:51:56] the him that just you would get lots of notifications. Correct. Correct. Correct.
+[01:52:03] So all these things, because it is very much possible that a senior management has not
+[01:52:07] thought this through that. They are just saying one line statement to you. Now it's your responsibility
+[01:52:13] to dissect it and go into those details and point them. Right. Okay. What else? Vishal.
+[01:52:20] One point from your site.
+[01:52:22] Yeah.
+[01:52:23] Maybe user level setting, whether anyone can tagging or did that first point, first
+[01:52:29] point, who can that.
+[01:52:35] No, I meant like a weather.
+[01:52:37] I am a user, so I should have like a profile in the like profile settings, whether anyone
+[01:52:44] can tag me or not.
+[01:52:45] Like if I have disabled, that's covered on the first one.
+[01:52:49] Any other.
+[01:52:50] No.
+[01:52:52] Okay.
+[01:52:52] Rahul?
+[01:52:54] Self removal of tag.
+[01:52:56] Correct.
+[01:52:59] Anyone tag me and I don't want to.
+[01:53:01] In a random photo.
+[01:53:03] Let's say in some obscene photo people tagged you.
+[01:53:05] You should have an option to remove yourself from that.
+[01:53:09] So now this makes authorization really interesting.
+[01:53:14] Because now authorization is not just about who can tag you.
+[01:53:17] but even more calendar level that you, all the photo is of user one,
+[01:53:23] but you are allowed to remove yourself from that photo.
+[01:53:27] A little more complex than we anticipated,
+[01:53:30] but now this requires you to build a very robust authorization layer.
+[01:53:33] Very important feature, right?
+[01:53:35] Thanks for bringing that up.
+[01:53:37] Anubhaf, which other feature?
+[01:53:40] Yeah, I was thinking from user experience perspective,
+[01:53:44] whether the tagging would be self-driven
+[01:53:47] tag someone knowing them or whether
+[01:53:49] we would have suggestions okay this
+[01:53:51] photo looks like this person from
+[01:53:53] your friends list something that facebook
+[01:53:55] does i think
+[01:53:56] so with for this we will
+[01:53:59] have some recognition and recommendation
+[01:54:02] machine learning
+[01:54:03] systems that provide us these inputs
+[01:54:05] we would need that so now what
+[01:54:07] would this entail like how would this
+[01:54:09] affect your design and peripheral
+[01:54:11] teams
+[01:54:13] with my design i have
+[01:54:17] with taking inputs from these peripheral teams.
+[01:54:20] Whenever a photo upload event is triggered,
+[01:54:24] I have to get these inputs from the,
+[01:54:27] both for the face recognition and suggestion inputs
+[01:54:29] from these systems from the periphery teams
+[01:54:33] and display them to the user.
+[01:54:35] So, which means that, okay,
+[01:54:37] so then front-end changes for you to display that.
+[01:54:40] And more importantly,
+[01:54:42] when you're displaying them,
+[01:54:44] the response time of that service needs to be slow.
+[01:54:47] should be fast enough.
+[01:54:48] If they are not fast enough,
+[01:54:50] then your user,
+[01:54:51] then sometimes user sees it,
+[01:54:53] sometimes user doesn't,
+[01:54:54] gives user a very poor experience.
+[01:54:57] Yes.
+[01:54:57] So you need to ensure
+[01:54:58] that whenever you are rolling this out,
+[01:55:00] that ML team, ML algorithm,
+[01:55:03] whatever they are running,
+[01:55:04] it's very fast.
+[01:55:05] It maintains a certain SLA.
+[01:55:07] So what this brings to the point
+[01:55:09] is notion of SLA
+[01:55:11] because you have a synchronous,
+[01:55:13] now you have a synchronous dependency
+[01:55:14] on the team
+[01:55:15] because as soon as user clicked
+[01:55:17] photos started tagging, you have to immediately show them the suggestions.
+[01:55:20] So given that the ML teams API, which is suggesting you things on the email,
+[01:55:26] they need to have a very strict SLA and they need to adhere to that because
+[01:55:30] you have a synchronous dependency on that.
+[01:55:32] And now you also need to create a fallback plan.
+[01:55:35] What if that API does not respond in time?
+[01:55:37] What would you do?
+[01:55:38] Will you not allow user to tag or will you allow user to manually tag?
+[01:55:42] It's still a protocol.
+[01:55:44] call, it sounds straightforward, but it's still a product call because it might be
+[01:55:47] possible in some cases that you don't even allow people to tag unless it's coming
+[01:55:51] from your MLT for some reason, for some reason you want to do that.
+[01:55:55] But it's important to think on those slides.
+[01:55:58] Okay.
+[01:55:59] One more point before I cover one other aspect of it.
+[01:56:02] Alok sir, go on.
+[01:56:04] What's that one feature you want, like what things that you'd want to consider?
+[01:56:07] One question, should we update the user's activity page or where the user
+[01:56:12] can see what happened?
+[01:56:16] Profile service activity.
+[01:56:17] Now, how would this affect your system?
+[01:56:23] If I say yes to this, what does this end?
+[01:56:28] We would be maintaining this information somewhere that what happened, what happens
+[01:56:32] to user profile.
+[01:56:33] So we have to actually start pushing this information.
+[01:56:35] They're also asynchronously.
+[01:56:37] Correct.
+[01:56:38] That's fine.
+[01:56:42] and also who can see this activity but then that is probably the users itself will be
+[01:56:48] will be seeing that activity that's fine but now i'll just add to that what does this affect
+[01:56:54] this affects one very interesting part that this the way you are storing this information
+[01:57:00] that in this photo these people attack they need to be indexed somehow you need to store
+[01:57:06] this information in a database where you can now you should be able to query that.
+[01:57:10] Now you cannot just have just things stored in an array, which is unindexable.
+[01:57:16] You have to store it in a database like the tagging in this photo.
+[01:57:20] These people are tagged in a way that you should be able to query that who all or rather
+[01:57:27] in which photos is this particular user tagged, which means the database that we pick.
+[01:57:34] has to support that query.
+[01:57:36] You just cannot pick any random database here.
+[01:57:39] You need to be very particular about the database
+[01:57:42] that supports this kind of queries very efficiently.
+[01:57:46] Very seemingly simple problem statement.
+[01:57:48] But this is what happens typically in startups and mid-scale companies
+[01:57:52] where senior management has not thought it through.
+[01:57:55] But when we start brainstorming on it,
+[01:57:58] when we start diving deep,
+[01:57:59] we realize that it affects so many things.
+[01:58:03] interface with so many other systems.
+[01:58:05] Some honorable mentions are feed.
+[01:58:09] For example, do you want to send or to like, let's say someone tagged Arpit in a photo.
+[01:58:18] Do you want Arpit's follower to get that event right in their feed?
+[01:58:24] If yes, then product call feed team needs to gear up for that scale because every time
+[01:58:29] someone tags, you push it into a feed.
+[01:58:33] to happen on feed that you don't show this kind of post every time. Only two few users you show
+[01:58:38] and whatnot. And those kinds of things would come up. Now on a bit of mathematical details of it,
+[01:58:45] what I want to bring out is this point that in most cases, when people are tagging in photo,
+[01:58:54] there are two ways to tag it. First is you just say, Hey, I just do X and Y. But if you look
+[01:59:03] X and Y of the sort of, of the coordinate where you are tagging it, but rather what
+[01:59:09] if you do X and Y, let's say your image is 720 by 720 pixel.
+[01:59:14] And let's say user tagged at this particular location.
+[01:59:17] Let's say this is 320, 320 comma 120.
+[01:59:20] Right.
+[01:59:21] Now, when you do this, you cannot store 320 comma 120 in the database.
+[01:59:26] Why?
+[01:59:27] Because image resizing.
+[01:59:30] What if on a low end device, the image is 360 cost 360.
+[01:59:35] And then if you tag at this location, X, Y, 320,
+[01:59:38] it would come somewhere over here, which is incorrect.
+[01:59:43] Right?
+[01:59:44] So that is where whenever you are tagging a bit of granular detail is that you have to
+[01:59:48] tag the relative positioning of it rather than the absolute one.
+[01:59:52] And it's a relative positioning.
+[01:59:54] It means that you store instead of storing 320, 120, you store 320 divided by
+[01:59:59] 720 and 120 divided by 720.
+[02:00:02] This way it's relative, which means no matter how this image is resized, so long as the
+[02:00:08] aspect ratio is maintained, your tag position will be perfect.
+[02:00:13] No matter how small the device is, no matter how large the device is.
+[02:00:16] So storing relative positioning is a very important implementation decision over here.
+[02:00:22] Okay.
+[02:00:23] Apart from that, what you stored is instead of just storing this one point, because in
+[02:00:29] So you are not just literally your mouse is not hovered on exactly this point for it to
+[02:00:33] show who is tagged over here.
+[02:00:35] It's typically a bounding box, which means that instead of just storing X, Y relative
+[02:00:43] position of it, you store the X, Y of this point and this point or X, Y of this and width
+[02:00:50] and height.
+[02:00:51] So these are called bounding box that you would store.
+[02:00:53] So you would store either left top, right bottom or X, Y width, height.
+[02:01:00] LTRB is left top and right bottom coordinates of these two points, the relative coordinates.
+[02:01:05] One way to store it.
+[02:01:06] Second way to store it is to store the coordinate of this and relative width and relative height
+[02:01:12] over here.
+[02:01:13] Either way, whatever your front end is more comfortable.
+[02:01:15] But these are really important when you are storing this information, because this way
+[02:01:21] you would be able to properly place your mapping.
+[02:01:24] And when mouse is forward, you show it.
+[02:01:26] even when your screen is like shrinking or growing
+[02:01:29] and you resize and whatnot.
+[02:01:31] Right?
+[02:01:32] Okay.
+[02:01:32] And just using things that you're interfacing with,
+[02:01:35] search, page detection, location, notification,
+[02:01:38] role-based access control, RBAC,
+[02:01:40] role-based access control,
+[02:01:41] the authorization that we spoke about.
+[02:01:43] And anything that you're interfacing with,
+[02:01:45] you will put it in Kafka no matter what.
+[02:01:47] So search, notification, analytics, profile, feed,
+[02:01:50] activity and whatnot.
+[02:01:51] Right?
+[02:01:52] So some things that senior management typically
+[02:01:55] has not thought about,
+[02:01:56] We have to think on that behalf and figure those details out because devil lies in the details.
+[02:02:02] Always remember. Right? Okay. So this is just a quick brainstorming that I wanted to do
+[02:02:07] around this system because it tells you that a very simple statement allowing people to tag
+[02:02:14] in photos leads to so many interesting things out there. And you can extend it in many ways.
+[02:02:20] And it is not that engineer cannot propose product ideas. Engineers can. It's just that
+[02:02:26] about it because we don't have product experience but we can still pitch in ideas and make them and
+[02:02:31] ask them the critical questions which they typically would not have thought of very possible
+[02:02:35] so whenever you're working with product team whenever you're working on something that is
+[02:02:40] user interfacing think as an end user put them put yourself into their shoes and think and propose
+[02:02:46] that's how you create a cross-team influence and a positive impact in the organization leading you
+[02:02:52] to have a good career.
+[02:02:53] Right.
+[02:02:54] Okay.
+[02:02:55] Now the final system for today is with design, newly unread indicator.
+[02:03:00] Listen to the problem statement really well.
+[02:03:03] Right.
+[02:03:04] So the problem statement is that you see this day in and day out on LinkedIn,
+[02:03:11] Twitter, Facebook, every, even Instagram, every social platform out there.
+[02:03:16] So it is possible that you are offline.
+[02:03:23] You receive a message and when you log in the next time, you see the counter of it.
+[02:03:29] I think I can show you a demo.
+[02:03:32] Let me quickly check if I received any messages on LinkedIn or Twitter.
+[02:03:36] If yes, I will show it to you.
+[02:03:40] No message on LinkedIn and no message on Twitter.
+[02:03:45] Okay.
+[02:03:46] On Instagram.
+[02:03:47] Do I have a message?
+[02:03:49] Oh yeah, I have messages.
+[02:03:52] I'll show you Devo.
+[02:03:52] It would clear out the requirements.
+[02:03:55] Because it's something that we see every day.
+[02:03:58] But we typically take it for granted.
+[02:04:02] Okay.
+[02:04:03] So the statement is that this message is three.
+[02:04:08] I don't know when I last checked it.
+[02:04:09] But these three messages that you see.
+[02:04:11] These are three messages.
+[02:04:12] These are not three unread messages.
+[02:04:14] These are three newly unread messages.
+[02:04:18] Because it is possible that now when I click on this.
+[02:04:22] the count becomes zero.
+[02:04:24] It does not mean that I have read the messages.
+[02:04:27] You can still see unread messages over here.
+[02:04:29] Right.
+[02:04:30] It does not mean that I have read the messages.
+[02:04:33] It just means that I am acknowledging that I have messages.
+[02:04:37] This is not behaving the way I wanted to, but you get the idea.
+[02:04:40] This count should reduce to zero.
+[02:04:42] Right.
+[02:04:43] So what we are doing is if I would have received any message over here,
+[02:04:46] I can just click on it.
+[02:04:48] Flying taxi.
+[02:04:50] Okay.
+[02:04:52] I have one message, but when I click on it, that count disappears,
+[02:04:56] but you could still see that there are a lot of messages which are unread.
+[02:05:02] Unread messages are there, but this does not mean that here I would say 99 or 10,000 or 50,000.
+[02:05:09] What I'm actually looking at over here is I have so many hundred messages,
+[02:05:14] but count there was zero because these are not acknowledged by me.
+[02:05:18] It's just that the presence of it is gone.
+[02:05:22] So this is newly unread.
+[02:05:23] So you can choose not to read the message,
+[02:05:27] but it indicates that there are new unread messages.
+[02:05:33] This is what we have built.
+[02:05:35] So let me clear out.
+[02:05:37] Now the problem statement is a bit more clear.
+[02:05:39] Let me walk you through the requirements
+[02:05:42] and then we brainstorm.
+[02:05:43] There is a very interesting high level pattern
+[02:05:45] that I want to introduce through the system.
+[02:05:48] Let me share.
+[02:05:56] Okay.
+[02:05:57] So the statement is very simple that we need to inform the user about presence of new messages.
+[02:06:05] Terminology, like the words that are used very carefully, presence of new messages, not unread, not unacknowledged.
+[02:06:11] So on the message icon, when you see this three, this implies that you have three newly unread messages.
+[02:06:19] It does not mean you have three total unread messages.
+[02:06:22] So you click on this and this country goes to zero.
+[02:06:25] It does not matter if you read the messages or not.
+[02:06:27] This is what we are building.
+[02:06:29] Now I'm just twisting it, twisting the problem statement and I just add a pseudo constraint
+[02:06:36] where this three does not indicate that you have three newly unread messages, but it indicates
+[02:06:42] that you have messages from three unique people.
+[02:06:47] right so if i say three over here it means i might have gotten 300 messages
+[02:06:53] but from three unique people so i'll show three only right so this is what a requirement is right
+[02:06:59] and when someone clicks on the messages this icon irrespective the user read all those messages or
+[02:07:05] not the count would disappear that's what we have to do right okay requirements near real-time
+[02:07:12] update message when received newly new and reads equal to demover of unique people from which you
+[02:07:17] received the messages valuable how would you approach this problem let's brainstorm
+[02:07:24] yeah something go on so first and foremost when we say newly right i think uh i would like to say
+[02:07:30] newly means less than 24 hours that is last time when i clicked on the message icon since then okay
+[02:07:38] okay so then what we need to do is uh okay first first and foremost the messages that we are
+[02:07:46] getting right we need to have an indication whether they are read or not that is the first
+[02:07:51] first indication just to know how many messages i have read and how many messages have not been read
+[02:07:58] and then there should be a way in which i can also know when was my last read time when i last
+[02:08:07] that the message icon so these are the two indicators and the third indicator is once I
+[02:08:13] have that there should be a kind of a filtering mechanism based on the last thread time so that
+[02:08:18] I can get the number of unique users that have messaged me and using that I can populate that
+[02:08:25] count on that on that icon these are the three aspects that I would focus on so the first thing
+[02:08:32] would be uh so first i want to start with a data model like the message data model that is received
+[02:08:39] from the message itself and the time stamp because time stamp is very critical here
+[02:08:48] received uh sorry you have your message yeah you have from which user yeah and you can also put
+[02:08:58] two users that could yeah that's that that's that two users also let's put so from and to yeah
+[02:09:08] and a time step and then there should be another data model which would be like
+[02:09:13] last red time so that is very important for me because i need the count
+[02:09:19] last red time
+[02:09:25] now yeah so now whenever uh so i'm so i you want me to talk about how the messages would be read
+[02:09:32] and all that stuff or that is already everything everything so what so obviously because this is a
+[02:09:38] messaging thing right so there will be a messaging queue and this user will be subscribed to that queue
+[02:09:43] and based on the number of uh and the partitioning would be on the from user that would okay let's
+[02:09:49] Let's go step back.
+[02:09:51] What is the input to the system?
+[02:09:53] Are you storing all the messages that your user received in this table?
+[02:10:00] Am I in this messages table?
+[02:10:04] Are you storing all the messages that a user ever received?
+[02:10:10] I can store.
+[02:10:11] There's no harm in storing, but I think that would not be a scalable solution.
+[02:10:15] Because then what are you storing in this?
+[02:10:17] What is this messages table?
+[02:10:23] Okay.
+[02:10:24] So I was just thinking one snippet of a message, like, you know, one message, one, like, hi,
+[02:10:29] how are you?
+[02:10:30] If I send it to you.
+[02:10:31] So that message unit, I was thinking in that way, how will you store that?
+[02:10:36] How will you figure out what that unit is?
+[02:10:38] What, what, what exactly are you storing?
+[02:10:40] Let's say user B sent a message to user A.
+[02:10:43] Okay.
+[02:10:44] So then this table needs to store either all the messages or part of messages.
+[02:10:49] are storing over here? That's the question now. So I would be storing pretty much all the, so this
+[02:10:54] data model, like for, uh, will store all the messages that a user that has sent to me. So
+[02:11:00] for example, it could be like, I have sent high messages ever. Correct. Yeah. I think there's no
+[02:11:08] arm in that way. Yeah. So this is our messages table. Yeah. Yeah. It is a messaging table. Yes.
+[02:11:14] So this is all your messages that is shared over here, right?
+[02:11:19] So the text part from this to this and times.
+[02:11:22] Okay.
+[02:11:23] You have that messaging table.
+[02:11:24] So now the scale of this is pretty huge, but that's we'll, we'll, we'll touch upon that later.
+[02:11:29] That's fine.
+[02:11:29] Okay.
+[02:11:30] Now in your other thing, what is your, this data model called that other one, where you're
+[02:11:35] storing the last red ad.
+[02:11:39] This, this can, this is basically for, for me to get the latest message up, right?
+[02:11:45] So this can be a latest message, like some kind of a metadata information.
+[02:11:52] So probably you need to have something substantial over here because you might want to store
+[02:11:56] something more.
+[02:11:57] So let's say right now I'm calling it messages or other, let's, let's just store it in a
+[02:12:05] user activity.
+[02:12:07] It's basically one-on-one mapping with user.
+[02:12:10] So every user will have this one entry over here
+[02:12:14] where you are storing that last read at
+[02:12:16] and other details around it.
+[02:12:17] This is your user activity table.
+[02:12:22] Now what you are doing over here?
+[02:12:24] What's your query to get the unique user scout part?
+[02:12:32] Okay.
+[02:12:33] So now the unique user part would be like
+[02:12:36] you know, select messages, select from messages where timestamp is greater than last read at.
+[02:12:47] So that is okay.
+[02:12:48] And then I need to order them by the, I need to order them.
+[02:12:55] You are not, you don't want to send a message.
+[02:12:58] You just want to render the count.
+[02:12:59] Why order?
+[02:13:00] Yeah, but you want the unique users counter.
+[02:13:03] You don't want the message count.
+[02:13:04] So if I do this way, then I would be getting all the number of messages, right?
+[02:13:09] You're doing select star from messages.
+[02:13:12] Yeah.
+[02:13:17] Where two is equal to your user and timestamp is greater than last read ad.
+[02:13:25] Assume join one is there.
+[02:13:27] What is the problem in this query?
+[02:13:30] See, the problem is, for example, I have sent, so this messaging table,
+[02:13:34] will store three rows. If I send three messages to you, hi, Arpit, how are you? So I've sent three
+[02:13:39] messages. So three rows, it will store. Now, in the previous requirement, you said you want from
+[02:13:45] unique users, how many users have messaged? Now, if I go with this approach, I would be getting three
+[02:13:51] rows as my input, right? But I don't want three rows as input. I just want one. So basically,
+[02:14:00] I'm mixing. I am accumulating all those three message rows into one. So that's the reason I said,
+[02:14:07] I, how are you doing that? Count count from direct to this now count of unique of from
+[02:14:20] correct. Yes. Select count unique from from messages where two is equal to your ID and
+[02:14:30] Okay. What's the problem in this?
+[02:14:36] I think the indexing would be the problem because I think we need to index it properly.
+[02:14:41] Otherwise, it's like one of the time-consuming queries because you're pretty much
+[02:14:46] getting all the messages. So what I would do is basically we can index from messages.
+[02:14:58] right so maybe we can index it using a key that has from and message both a message no not message
+[02:15:07] actually but maybe from the from from the from field i can index it or no not even that actually
+[02:15:16] from timestamp timestamp would be a good indexing factor because we want all the messages after time
+[02:15:21] this time right so yeah i think we can index it on the timestamp that's what i'm thinking just on
+[02:15:28] So it will be like across all users, all data is sorted by timestamp.
+[02:15:37] Yeah, that is what I'm thinking.
+[02:15:39] But this is still an expensive query because if let's say you have received 1000 or rather
+[02:15:43] 10,000 messages for a particular user, you are going through 10,000 rows of your table
+[02:15:49] and then doing a unique offer.
+[02:15:51] Now imagine doing it every time the page loads.
+[02:15:55] Very expensive.
+[02:15:57] Correct?
+[02:15:57] Yeah.
+[02:15:58] Yes.
+[02:15:59] Very expensive.
+[02:15:59] I am not doubting the correctness of the system.
+[02:16:02] System would work, but at millions of people, there are millions of users currently active
+[02:16:09] on this platform at this very moment, doing this, firing this query is super expensive.
+[02:16:15] And FII just to clear out, you will create an index on from and timestamp or composite
+[02:16:23] index on from and timestamp so that all the entries of a particular from a particular sorry
+[02:16:29] from to and timestamp a composite index on this so for an entry for and it will be ordered by
+[02:16:37] index on to from and timestamp in this particular order so all the entries of
+[02:16:45] two will be clubbed together then grouped by from and then ordered by timestamp
+[02:16:50] So this way, when you're sorting, when you're filtering it out, you are directly going to
+[02:16:55] that location where two of your interest starts within which two timestamp and from two timestamp
+[02:17:04] and from two from timestamp.
+[02:17:06] I think it should be two timestamp and from, right?
+[02:17:09] Because yes.
+[02:17:11] Yeah.
+[02:17:11] Because if you do, then you can very easily cut short.
+[02:17:14] So it will be two timestamp.
+[02:17:16] Yeah.
+[02:17:17] Yeah.
+[02:17:17] So to, time stamp and from, right.
+[02:17:21] But although it, you are trying to, you know, ounce out every single performance from this
+[02:17:27] by rearranging this field, but the worst case is imagine you having to iterate through these
+[02:17:33] many index entries to just get the count of it.
+[02:17:37] Right.
+[02:17:38] And in case, let's say a user hypothetical example, worst case, 10,000 messages are there.
+[02:17:43] You have to go through 10,000 entries of it and then do a unique entry to answer the count
+[02:17:48] is just one.
+[02:17:49] Right.
+[02:17:50] Let's hypothetically one user sent you 10,000 messages.
+[02:17:52] You're going to 10,000 index entries to eventually figure out that the unique count is just one
+[02:17:56] or two or three or something like that.
+[02:17:58] Right.
+[02:17:58] That is expensive.
+[02:18:00] Yeah.
+[02:18:00] Actually I'm just thinking instead of going messages, we can have another column or not
+[02:18:05] another column.
+[02:18:06] We can have another table that tells how many messages have been sent.
+[02:18:10] Just a count.
+[02:18:12] Correct.
+[02:18:13] care what messages are being sent right all i care is are messages being sent correct so you don't
+[02:18:21] care about the actual messages so now we are coming to a more efficient implementation of it
+[02:18:26] right okay so this is a crude way and this is not an incorrect way again i'm saying this is not an
+[02:18:33] incorrect way this is a crude way of building things which gives you which is not very efficient
+[02:18:38] but very correct when you fire this because this message is again again this goes for everyone
+[02:18:43] this is your source of truth for messages this is your source of this is your source of truth to say
+[02:18:48] when you last click the message icon doing this will exactly tell you how many people from which
+[02:18:55] you got those messages exactly it will be 100 correct no matter what but the problem is it is
+[02:19:03] just a little, a little, not a little, but rather inefficient.
+[02:19:11] That's the problem.
+[02:19:13] Right.
+[02:19:13] It's just inefficient because do we really need to iterate through all the
+[02:19:19] messages of a user that it received and then figure out, okay, these are the
+[02:19:23] unique ones can we do better.
+[02:19:26] Right.
+[02:19:27] Okay.
+[02:19:27] Uh, should I continue with Sandy?
+[02:19:33] your hands raised i'll just do it so that i don't forget i'll just do it because you you added some
+[02:19:38] brilliant points there i just want to pick others brains and see where we can go with this right
+[02:19:42] yeah but just basically keep your hands raised okay uh rahul how will you optimize this actually
+[02:19:50] like i will not go with this system instead of this i will try to go with non-relational database
+[02:19:57] database because like similar query you'll fire there.
+[02:20:02] Yeah.
+[02:20:02] So basically the system would, that's the system that I'm thinking is like,
+[02:20:07] uh, in the non-relational, non-relational database, there is a user key.
+[02:20:12] Basically there is a user key and it has sub hash maps in it.
+[02:20:17] Like it has more hash maps in it.
+[02:20:19] Okay.
+[02:20:20] So user key.
+[02:20:22] And in this we have total, uh, total count basically.
+[02:20:28] just just account.
+[02:20:33] And
+[02:20:36] not not not this not this.
+[02:20:39] Right.
+[02:20:40] Just just just count with a number.
+[02:20:43] Count with a number.
+[02:20:44] What do you mean count with a number?
+[02:20:46] I mean count count variable.
+[02:20:48] Then is this even a hash table?
+[02:20:53] No, no, no, no.
+[02:20:54] Count.
+[02:20:55] It's the name of the it's the name
+[02:20:57] of the key. That's what
+[02:20:59] I was saying.
+[02:21:01] It's the name of the key.
+[02:21:03] And
+[02:21:05] yeah.
+[02:21:07] These are actually
+[02:21:08] instead of saying count be purpose, right?
+[02:21:11] It's actually
+[02:21:13] total
+[02:21:14] or rather duly and read count.
+[02:21:17] Yeah.
+[02:21:19] Something like that. It's just
+[02:21:20] a nomenclature.
+[02:21:22] And
+[02:21:25] in this hash map also
+[02:21:28] we are also
+[02:21:30] having one other hash map
+[02:21:32] that is unique users
+[02:21:36] it's kind of like a
+[02:21:38] set actually
+[02:21:39] this is like a set
+[02:21:42] okay
+[02:21:44] now whenever
+[02:21:46] there is a new message
+[02:21:48] okay first
+[02:21:50] first, like, uh, first, what, what will happen is like, uh, the API will try to
+[02:21:54] fetch this, just, just one question.
+[02:21:57] Just one question.
+[02:21:58] What is the difference between this and this?
+[02:22:03] Okay.
+[02:22:03] So basically like a newly unread count, like how will you know, uh, a
+[02:22:08] unique user is messaging you.
+[02:22:10] Okay.
+[02:22:11] Correct.
+[02:22:12] Isn't that what set was supposed to be?
+[02:22:15] Yeah.
+[02:22:16] So basically like, uh, basically like, uh, there are two ways we can do this.
+[02:22:22] Basically we can have a, just a unique user site.
+[02:22:25] Okay.
+[02:22:26] And it will have like a list of unique, unique users and we can, uh, we can just
+[02:22:32] get, get the length of this unique user set and show it on the notification.
+[02:22:36] Do you really need this?
+[02:22:39] I was actually thinking like, uh, like, uh, it was kind of like, uh, an
+[02:22:46] So I was thinking like, no, no, no, no.
+[02:22:49] Set length is not doing.
+[02:22:51] Everyone keeps every set gives a track of the length of the set.
+[02:22:55] It's over.
+[02:22:55] Don't worry.
+[02:22:56] Okay.
+[02:22:57] Okay.
+[02:22:57] Okay.
+[02:22:58] Sure.
+[02:22:59] And so when, whenever any user, uh, user, uh, like, uh, messages, this user ID, it
+[02:23:06] will just, uh, it will just put the user in that set.
+[02:23:10] Okay.
+[02:23:11] Correct.
+[02:23:11] Now, whenever user click that button, like in the Instagram, whenever you user click that button, we can just delete this thing.
+[02:23:24] At that point of time.
+[02:23:26] And that deletion will be over and over.
+[02:23:28] So I think this system is much more efficient.
+[02:23:32] Correct.
+[02:23:34] Yeah, that's about it.
+[02:23:36] That's what we will need in this.
+[02:23:39] So what you went with, I'll just talk about it a bit.
+[02:23:42] Delete set when user clicks.
+[02:23:47] The messages icon.
+[02:23:49] Okay.
+[02:23:50] So what you did is.
+[02:23:52] Here, this is a classic case.
+[02:23:54] And again, you would see this more.
+[02:23:56] Everyone, I'm basically talking to everyone.
+[02:23:57] So this is what you would see almost in every single system when you are implementing.
+[02:24:02] You either can query the source of truth.
+[02:24:06] Or you can keep things pre-computed.
+[02:24:08] A classic way to build any system.
+[02:24:11] Either you directly fire source of truth when you need strong consistency.
+[02:24:16] Or you may build or to get more efficiency, you may pre-compute the data or store it in
+[02:24:22] a way which is consumable directly.
+[02:24:24] Because here, if you look carefully here, you can directly get the length of this set
+[02:24:30] and see the number of unique users that sent you the message.
+[02:24:33] Here you had to fire an expensive query, SQL, NoSQL implementation, anything that does not
+[02:24:37] matter.
+[02:24:38] But with this, you get this very nice optimization,
+[02:24:43] if I may call it, because now much more,
+[02:24:46] but obviously now it's our responsibility to keep this updated.
+[02:24:49] Here it was by nature, it was updated because it is actually
+[02:24:54] the source of truth.
+[02:24:55] All the messages ingested into this table, we pick out,
+[02:24:58] we index and then fire the query and get down.
+[02:25:01] But here we have to have another flow in which we are also
+[02:25:04] putting this data in this other approach that we are building.
+[02:25:08] Okay.
+[02:25:10] And again, as I said, neither this is wrong, neither this is wrong.
+[02:25:14] It depends on what you are prioritizing, what your scale is, right?
+[02:25:19] As a startup, this would work just fine for you folks.
+[02:25:23] But as your company grows, when millions and millions of people
+[02:25:26] are concurrently active on your system,
+[02:25:28] you might be tempted to go with this approach, right?
+[02:25:31] Okay.
+[02:25:32] Let's elaborate on this a bit more.
+[02:25:35] Hey man, which database would you pick?
+[02:25:38] to store this?
+[02:25:42] I think it should be a NoSQL system
+[02:25:45] because what I'm trying to put a variable length data
+[02:25:49] against the user ID.
+[02:25:51] So one user ID against one user ID,
+[02:25:53] I need to store, let's say,
+[02:25:56] 5, 100 or any number of user IDs.
+[02:26:00] So having a document, key value,
+[02:26:02] store your value in a set,
+[02:26:03] maybe MongoDB kind of a database,
+[02:26:06] where key is the user ID and value is a set where each element is a user ID.
+[02:26:14] That's it.
+[02:26:15] That should be sufficient.
+[02:26:19] Let's use Redis purpose.
+[02:26:21] And I'm just oversimplifying it for Redis because almost everyone is aware of Redis
+[02:26:25] and its functionality.
+[02:26:26] But you can pick any that gives you set functionality.
+[02:26:28] That's what the key highlight is.
+[02:26:30] Right.
+[02:26:30] Any key value store that gives you set functionality in the value so that you
+[02:26:33] don't have to check and set and whatnot.
+[02:26:36] just reuse what database already gives.
+[02:26:38] Right.
+[02:26:38] Okay.
+[02:26:39] So we use Redis to store this data.
+[02:26:43] Okay.
+[02:26:44] Now we, I'll just draw a few elements over here.
+[02:26:52] Okay.
+[02:26:53] Now when your user tries to get the message.
+[02:26:58] So how would, first let's talk about rendering the number that we are showing to the user.
+[02:27:06] It might be a get status API, which what it would do is it would talk to this Redis and
+[02:27:20] count the elements and return the response.
+[02:27:24] So get is done.
+[02:27:25] And similarly, when we are deleting from Redis, we can have a clear API that goes to Redis
+[02:27:32] and clears things off.
+[02:27:35] So we have clear API.
+[02:27:37] It goes to redis and it deletes the key that we just said.
+[02:27:41] So get done, clear done.
+[02:27:44] Right.
+[02:27:44] And if you look carefully read path is done, a very trivial right path is done.
+[02:27:51] Right.
+[02:27:51] Now comes the interesting part that how will you update this redis with this data that
+[02:28:01] you need.
+[02:28:03] This one, this unique set because someone has to put the data in that these are the
+[02:28:08] unique from which you received the message while you were offline.
+[02:28:11] So what, how would that work on Pankaj?
+[02:28:15] Yeah.
+[02:28:16] So two things here, like what I was thinking is the client also needs to be smart because
+[02:28:22] if the user is already on the messaging tab, even though he is reading some other users
+[02:28:28] message and he is getting the message at the same time, it still will not be counted.
+[02:28:33] as you know newly unread because he is already on the tab right so we don't need to show him that
+[02:28:39] notification at that time correct correct so the client also is offline yeah so yeah so the second
+[02:28:47] thing what i was talking about is like if we have a web socket connection for messaging so that
+[02:28:53] backend can check that if the socket connection with the client is off then i can update the redis
+[02:28:58] but the client also needs to be smarter that when it is on it it should not send it when the user is
+[02:29:04] already on that tab so if i am browsing through instagram or watching some reels then if somebody
+[02:29:11] sends me a message then i can trigger that update api but if if i am already on the tab then the
+[02:29:16] backend should take care that yeah okay if the socket connection is off then yeah i should update
+[02:29:21] the Redis. Okay. So the input to your system, brilliantly put, input to this system, which
+[02:29:27] updates things in Redis, looks something like this. Okay. Now that the cat is out of the pack,
+[02:29:35] I can directly cover this, right? And we'll talk about a high level pattern that I wanted to,
+[02:29:40] right? Because it's not just one database that we would have, we would have a few more databases
+[02:29:43] to support it. We'll just talk about it. Okay. So the input to the system will be our messaging
+[02:29:51] messaging service because our messaging service knows when a message is not sent to the user
+[02:29:58] right and here i'm simplifying it by saying that when user is offline they only do it in real world
+[02:30:04] you see very other use case as a very well explained where you are on some other tab you
+[02:30:09] still receive a message so your count increases those cases are there but i'm just simplifying it
+[02:30:15] you can add other cases where you would want to pop up that notification but here the idea is very
+[02:30:21] user is offline, when the message is unsend, now whatever your definition of unsend is,
+[02:30:27] user not on the tab, user offline or user doing something else, right?
+[02:30:31] Whatever your definition is of unsend, that comes from your messaging service.
+[02:30:36] Why messaging service?
+[02:30:37] Because messaging service would know if the message is delivered to you or not, if you
+[02:30:41] are on that tab or not, if your WebSocket connection is on or not.
+[02:30:45] In either case, this is the source of trust, your messaging service, right?
+[02:30:51] help of online, offline indicator service to see if you are online or not, or it might
+[02:30:56] own on its own have this information because it has the all the connections, persistent
+[02:31:01] connections are with that edge server.
+[02:31:03] So that edge server is the one that would know if you're online or offline or connected
+[02:31:07] or not or on which tab.
+[02:31:09] So in either case that becomes our source of trust that, Hey, if my message is sent or
+[02:31:14] Whenever messages is unsent, I'm creating an umbrella of everything that I want to pop
+[02:31:22] notification on into this message called on message unsent.
+[02:31:25] Right.
+[02:31:26] Depending on ifs and else's, where you are, what you are doing, you just implement those
+[02:31:30] logics over here from the front end.
+[02:31:32] Right.
+[02:31:33] Okay.
+[02:31:34] Now this, all of this comes to this Kafka on message unsent, which becomes the input
+[02:31:38] to our system.
+[02:31:39] And in that, what we do is we do this.
+[02:31:44] like from this user, this user, this message was sent because we want to store the number
+[02:31:49] of unique users.
+[02:31:50] We store it in a set.
+[02:31:52] And what we do is we typically store it in redis.
+[02:31:55] You can pick any key value database, which is partitionable by default.
+[02:32:00] All of them are and provide set as value any database.
+[02:32:05] So get status straight forward, clear status straight forward.
+[02:32:10] So when a user clicks on the message button, you delete the entry from the set.
+[02:32:14] the number of unread messages count you make a call to this count count the length of the set
+[02:32:20] and you return right okay for you to update things into redis your right path put to something this
+[02:32:26] on message and send coming from your messaging service leveraging online offline and whatnot
+[02:32:32] your consumers consume it and writes to this redis cluster that hey new user new user user you received
+[02:32:39] a new message you received a new message so all of that goes into this redis cluster
+[02:32:44] lot of people would stop designing over this stage.
+[02:32:49] You'd say only this much is in there, right?
+[02:32:52] You have a read path.
+[02:32:53] You have a right path.
+[02:32:54] You are almost converged onto the design, but no, this is not good.
+[02:32:59] Why?
+[02:33:01] Because imagine the situation, this database, and now this is the high
+[02:33:05] level pattern that I want to talk about in next 10 minutes.
+[02:33:08] This, this is one thing.
+[02:33:10] This Redis cluster that you have is serving a huge number of reads.
+[02:33:16] Imagine millions of users on your platform, constantly refreshing the page
+[02:33:20] or going from one page to other, you making a ZPI call to get the unread messages.
+[02:33:25] Right?
+[02:33:26] So this database is anyway handling large number of reads.
+[02:33:29] Plus whenever user clicks on the message icon, you see large number of writes
+[02:33:32] happening over here as well.
+[02:33:34] Plus anytime there is message unsend, you are updating into this database.
+[02:33:38] This database is overburdened.
+[02:33:41] When this database is overburdened, as I always say, database is the most little component
+[02:33:45] of an infrastructure.
+[02:33:46] See if you are doing some unnecessary operations on this database.
+[02:33:51] Are you doing any unnecessary operations?
+[02:33:52] Let's take a look.
+[02:33:54] Get status.
+[02:33:55] No option.
+[02:33:56] You have to go to the database because that is a source of truth.
+[02:33:58] You have to go to the database, read it, read replica.
+[02:34:01] You don't need it.
+[02:34:01] It's an in-memory DB anyway.
+[02:34:04] So get status.
+[02:34:05] Fair minimum.
+[02:34:06] clear status. You have to go and delete the key over here. You can't do much over there.
+[02:34:11] You are not doing any undo operation, any unnecessary operation in this path that you
+[02:34:17] are making the call. Okay. Let's talk about this path. Are you doing any unnecessary operation?
+[02:34:22] You might think that, Hey, every time I'm seeing an, every time I receive a message,
+[02:34:27] unsent event, I'm just updating this database.
+[02:34:31] I'm doing the bare minimum it seems, but no, given that in this
+[02:34:37] Redis cluster, the value is a set.
+[02:34:40] If I receive one message from user B or 10,000 message from user B, my message,
+[02:34:47] the state of my database is not changing for 9,999 times, right?
+[02:34:53] Because for the first message itself, the entry is being added into the set.
+[02:34:58] For everything else, there is no change happening in the database.
+[02:35:03] So can we reduce that?
+[02:35:05] And if you look carefully, look, go through your messages, see all of your, all of your
+[02:35:13] friends.
+[02:35:14] When you are offline, they don't send you just one message.
+[02:35:16] They send you 5, 10, 15, 20, 30.
+[02:35:18] Hey, what are you doing?
+[02:35:20] Come here.
+[02:35:21] We are going for this.
+[02:35:23] you a lot of short messages, right? Especially when you're off my habitat, right? Given that
+[02:35:31] first on the first thing you are writing it into the DB, DB state changes for all other N minus
+[02:35:37] one times. There is no changes happening in the DB, but you would still make a call to DB trying
+[02:35:44] to write to the set set does not exist. Oh, sorry, set already exists and there is no changes
+[02:35:50] happening in the DB anyway.
+[02:35:52] So you are wasting a lot of network IO happening over here
+[02:35:56] and not as network IO, but while making by letting this database
+[02:36:01] handle that request.
+[02:36:02] Now, how would this database handle the request?
+[02:36:04] It would get the request.
+[02:36:05] It would read the set, see if the entry exists in the set.
+[02:36:08] It would discard.
+[02:36:09] If it does not exist, it would add this too much of work going
+[02:36:13] into this DB doing nothing for those N minus one things.
+[02:36:17] So this cluster is in most cases doing nothing, but unnecessarily handling operations leading
+[02:36:26] to no state changes in the database.
+[02:36:30] This is what I want you to focus on.
+[02:36:33] That whenever you are looking at a database, again, one more high level pattern, here is
+[02:36:39] what I'm talking about.
+[02:36:39] that whenever you find a database that is doing a lot of unnecessary operations
+[02:36:45] leading to no state changes in database, try to minimize them
+[02:36:49] because database is the most brittle component of your infrastructure.
+[02:36:54] No matter which cloud provider you pick, if a database is done, everything is done.
+[02:36:58] Protect it, right?
+[02:36:59] It's like world emote and it's basically deathly halos.
+[02:37:02] Keep it protected no matter what.
+[02:37:04] Keep it like well protected by all the magical charms,
+[02:37:09] a really good mood for some reason.
+[02:37:11] Okay.
+[02:37:12] So protected, protected, however you can.
+[02:37:15] Right.
+[02:37:16] And given that we are doing a large number of unnecessary
+[02:37:18] operations over here, how do we minimize it by using an auxiliary database?
+[02:37:25] This is what I want to talk about.
+[02:37:27] Having an auxiliary database whose sole job.
+[02:37:31] So here, what you are doing is this is your primary database.
+[02:37:35] You want to protect it.
+[02:37:36] Network cost is not much in this case.
+[02:37:40] Preventing your main database from going down by adding a bit of network cost is a good trade-off to make.
+[02:37:48] Always remember this.
+[02:37:50] It's all about trade-off.
+[02:37:51] So you are incurring one more network IO.
+[02:37:54] But if you can reduce the load on your database, it's worth it.
+[02:37:58] It's worth it.
+[02:37:59] Every single time it's worth it.
+[02:38:02] So what we do is we add an auxiliary Redis into the scheme of things.
+[02:38:07] The job of this Redis is very simple.
+[02:38:10] Whenever the write happens, the write first happens into this redis and it checks if the
+[02:38:17] entry exists or not.
+[02:38:18] If the entry exists, good enough, I would not make a write to this database.
+[02:38:23] If entry does not exist over here, then I'll write to this database.
+[02:38:28] This way for n-1 times, you are not even calling this main DB, reducing the load on this database.
+[02:38:36] But all of this load is hunted by this.
+[02:38:39] everything, checking if I've already, which means it's basically checking if I've already
+[02:38:44] have an unread message from this particular user or not.
+[02:38:49] Right.
+[02:38:50] That's what it is all done.
+[02:38:51] This way what happens is this takes a bulk of the bulk of the n minus one queries are
+[02:38:58] firing over here.
+[02:38:59] Right.
+[02:39:00] While one query goes over this way, this database is protected while this takes all the hitting.
+[02:39:06] Right.
+[02:39:07] Now, what's the worst case?
+[02:39:09] this database goes down.
+[02:39:11] See, you are protecting this database.
+[02:39:13] If this goes down, then everything is done in any case.
+[02:39:15] Worst case is what if this goes down?
+[02:39:18] If this goes down, what would happen?
+[02:39:20] No right would happen over here.
+[02:39:21] All the rights would go over here.
+[02:39:23] So it would have to handle all n-1 rights
+[02:39:26] that anyway it was anyway doing.
+[02:39:28] So by adding this auxiliary database,
+[02:39:31] you are just trying to shed the load
+[02:39:33] that was there on this main database.
+[02:39:36] This is the high-level pattern I want to talk about.
+[02:39:39] is really important that whenever you have a very brittle component in your infrastructure,
+[02:39:44] just typically your database.
+[02:39:45] And if it is doing a lot of unnecessary operations leading to no state changes in the database,
+[02:39:50] try to add an auxiliary database and reduce the load on the main.
+[02:39:53] This way, the service will be up and running.
+[02:39:56] Everything will be happy.
+[02:39:57] Right?
+[02:39:57] So now just few changes by adding this thing, your status check API, when you clear the
+[02:40:02] status, it not only has to delete from here, but also delete from here.
+[02:40:06] That's it.
+[02:40:07] Some here and there glitches and consistency would come, but not much to worry about because
+[02:40:11] it's not transactional.
+[02:40:13] It's not something that deals with money and all it just unread messages.
+[02:40:16] No one even gives anything about it.
+[02:40:20] Right.
+[02:40:20] So don't worry much in case it goes into slightly inconsistency.
+[02:40:24] It's not an end of the world for your product.
+[02:40:26] So you can do that.
+[02:40:27] But if that entire system is done, that is end of your product because it's, it's very
+[02:40:33] bad experience.
+[02:40:34] Right.
+[02:40:34] So you need to pick your battles, what you are trading of for what.
+[02:40:40] And this is what I wanted to cover as part of this design,
+[02:40:43] this high level pattern and how we are approaching this situation.
+[02:40:47] And this is what I wanted to cover for today.
+[02:40:49] Folks who may want to drop off, I'll take questions around anything as part of the system.
+[02:40:54] And then across all the systems that we covered today,
+[02:40:57] I'll update a recording by 3 slash 4 today.
+[02:41:00] I will share the periods for the next week.
+[02:41:02] Next week is all about, it's my personal favorite week storage engines, where we'll build our
+[02:41:08] own storage engines.
+[02:41:09] It will clear a ton of concepts about databases, not just how to use it, but internals of it.
+[02:41:15] It would build that intuition around writing your own database.
+[02:41:18] And I'm not just talking about just for the sake of engineering, but more importantly,
+[02:41:23] knowing those internals would build you that intuition on how systems like Kafka work.
+[02:41:29] because I don't, I didn't know internals of Kafka.
+[02:41:32] I guessed it and it was exactly how it was implemented.
+[02:41:36] Right.
+[02:41:36] I want you all to form that same kind of intuition, that exact
+[02:41:40] same intuition so that whenever you come across a new system,
+[02:41:44] it's very easy to guess and you can guess anything, but in this
+[02:41:49] case, once your intuition is built 99% time, your guess would
+[02:41:52] be correct, which is what we want to do.
+[02:41:54] So next week is all about storage engines where we build three
+[02:41:58] interesting storage engines, two of them will 100% blow your mind
+[02:42:01] away because we'll go into those granular details, which I think
+[02:42:06] everyone should.
+[02:42:07] Right.
+[02:42:07] Okay.
+[02:42:08] So that's what we'll cover next week.
+[02:42:09] So folks who want to drop off, I'll take questions.
+[02:42:13] Go on Vikram.
+[02:42:14] Yeah.
+[02:42:15] So I would like to add one more, uh, optimization to this system.
+[02:42:18] Like, uh, so let's say on, on, on the front end.
+[02:42:22] Uh, so let's say there are thousands of messages and let's say
+[02:42:25] 10,000 messages, then instead of showing 10,000 messages, we should display more than let's
+[02:42:31] say 100 plus messages. And at a point that user is not, don't care that he had 10,000
+[02:42:38] sub messages. So let's say on the front end, if we have hundreds of 100 messages, then
+[02:42:45] we only show that 100 plus. And in next steps, we don't write to the database itself,
+[02:42:51] Redis cluster itself because we know that it does not matter.
+[02:42:54] It does not matter.
+[02:42:55] Yeah.
+[02:42:55] Yeah.
+[02:42:55] True.
+[02:42:56] True.
+[02:42:56] True.
+[02:42:57] True.
+[02:42:57] That's a good optimization.
+[02:42:58] So that's where you can also leverage this.
+[02:43:00] That it's not that every time you have a unique entry, you do this.
+[02:43:03] If this length is more than let's say 100, that's a threshold.
+[02:43:07] You don't even write a first entry to this.
+[02:43:08] We even say that one extra right that is happening over there.
+[02:43:11] Okay.
+[02:43:12] Yeah.
+[02:43:12] Thanks.
+[02:43:13] Thanks for adding that.
+[02:43:14] Okay.
+[02:43:15] Anything else?
+[02:43:15] Any question?
+[02:43:16] Anyone?
+[02:43:18] Was it really that clear?
+[02:43:21] DK. Yeah. So in the case of auxiliary Redis, what, how you are making the entries because
+[02:43:28] see in the case of Redis cluster, we are storing a set like B, we can, you know, we have CDEFG,
+[02:43:34] but in the auxiliary Redis, you are storing it as separate entries, like B maps to see
+[02:43:41] anything. I picked this so that we have a very clear different key models set up.
+[02:43:46] I would pick this like for example
+[02:43:48] B received message from C, B received message
+[02:43:50] from D as a key and value is just true.
+[02:43:53] I am just reducing the
+[02:43:54] overhead of storing an
+[02:43:56] extra set comparing if the key
+[02:43:58] exists or not. You can do that way also.
+[02:44:00] You can do this way also. Either way
+[02:44:02] is fine. And when you are
+[02:44:04] going to, so let's say at
+[02:44:06] the nth moment till n-1 you
+[02:44:08] are storing the values here in you know auxiliary
+[02:44:10] radius. Not storing, I am just
+[02:44:12] checking, checking, just checking, not storing.
+[02:44:15] Just checking.
+[02:44:18] Let's say a user B sent a, let's say user B sent a 10,000 messages.
+[02:44:24] I'll be writing one time over here and other 99 checks would happen over here.
+[02:44:30] So one time right over here, one time right over here for everything else.
+[02:44:33] I'm just checking it over here.
+[02:44:34] Correct.
+[02:44:35] Because if it exists already, so let's say I take this example.
+[02:44:39] If B sent a message to see if this entry already exists, why should I write it over
+[02:44:44] here?
+[02:44:46] right right so here i'll just check i don't have to create 99999 entries over here correct
+[02:44:52] got it uh yeah there was a gap in my understanding i was thinking you are just incrementing the count
+[02:44:56] here also no no there is no count there is no count over here this is just existence
+[02:45:00] just existence got it got it got it got it yeah thank you uh i had question related to clear
+[02:45:09] status because somewhere when we always keep B to C true, right?
+[02:45:17] I read the message by clicking and then again B to C happens.
+[02:45:27] So when you clicked on the message icon, when you clicked on the message icon, this set
+[02:45:31] got deleted.
+[02:45:32] These entries got deleted.
+[02:45:35] Okay.
+[02:45:35] When another message was sent,
+[02:45:38] then the entry would be created again.
+[02:45:40] What is the edge case that you're talking about?
+[02:45:42] Help me understand that.
+[02:45:45] No, as long as both are getting synced,
+[02:45:47] there is no issue.
+[02:45:49] So I was...
+[02:45:50] And obviously there is a problem.
+[02:45:51] Yeah, as you very rightly said.
+[02:45:53] In case, let's say you wrote over here,
+[02:45:55] but this right field,
+[02:45:57] or rather this right succeeded in this right field,
+[02:45:59] then there is a problem.
+[02:46:00] Not even denying that.
+[02:46:02] Right?
+[02:46:02] Not even denying that.
+[02:46:03] Yeah.
+[02:46:03] Right?
+[02:46:04] Yeah.
+[02:46:05] But it's not the end of the world.
+[02:46:07] And it's very likely, very likely that the WhatsApp was that would happen.
+[02:46:13] In the account, you would see two.
+[02:46:15] But in reality, you would have 300 messages.
+[02:46:18] Right?
+[02:46:19] Yeah.
+[02:46:19] And that's okay.
+[02:46:20] It's still okay.
+[02:46:21] Right?
+[02:46:21] Because it's not dealing with a financial system or really critical things.
+[02:46:25] Some inconsistency where one right succeeds, other right fails.
+[02:46:29] That is a problem.
+[02:46:30] But introducing that complexity of doing distributor transaction is not worth it.
+[02:46:35] Right.
+[02:46:36] You just accept a bit of inconsistency.
+[02:46:38] Right.
+[02:46:39] Yeah.
+[02:46:39] Thanks.
+[02:46:41] So should we build it, build this functionality where we're doing the status check API as a
+[02:46:46] transactional base, like updating both the databases, like the auxiliary and the redis
+[02:46:51] cluster at the same time, not required.
+[02:46:56] You take up some inconsistency responses in favor of high throughput, not worth it because
+[02:47:03] it's not very significant.
+[02:47:06] See, what's the worst that would happen?
+[02:47:08] You see two messages count of two, but in reality, you have three new messages.
+[02:47:13] You're anyway, clicking on it, going on that screen, you would see a hundred messages.
+[02:47:16] If that person has another thing and you did not respond and it was something about it
+[02:47:20] that would send another message to you.
+[02:47:21] That's okay.
+[02:47:23] Right.
+[02:47:23] So given how humans work, it's okay to, in this case, it's okay to have a bit of inconsistency,
+[02:47:28] but why to add that unnecessary complications of distributed transactions?
+[02:47:33] You really don't need that.
+[02:47:35] Yeah.
+[02:47:36] And this is again, that one thing that as engineer, you think you feel that you are
+[02:47:41] cheating or by not having this real transaction, making a data going in
+[02:47:44] inconsistent state, but in real world, it really does not matter.
+[02:47:47] You think from user experiences perspective, what's the worst that would happen?
+[02:47:51] Would it be an end of the world for them?
+[02:47:54] Right.
+[02:47:54] Not that.
+[02:47:57] Yeah, but I'm just weighing with why you like, instead of building
+[02:48:05] auxiliary radius why don't we do a read before write in the right path here read before right
+[02:48:12] over here no in the right uh even even read is okay you're saying we don't even want to want to
+[02:48:20] read on the database on this database right no no no i what i'm saying is i don't even want to read
+[02:48:29] here okay you don't even want to get because see every instruction you fire on this db
+[02:48:35] CPU consumes maybe even a slight bit of it, it consumes that.
+[02:48:39] I'm just protecting this.
+[02:48:40] This is like that, that, uh, beauty in the beast car rose that you are placed in this
+[02:48:45] glass jar, no matter what you don't want it to crumble.
+[02:48:49] Got it.
+[02:48:50] Got it.
+[02:48:50] Yeah.
+[02:48:50] Makes sense.
+[02:48:52] And, uh, one detail I might have missed in the Gravatar thing, uh, was there like, why
+[02:48:58] did not we provide a user ID in the graph?
+[02:49:01] Like that is privacy or that's by design.
+[02:49:04] How grow that is like, I.
+[02:49:05] Okay.
+[02:49:06] You are saying over here why we don't have user ID.
+[02:49:12] Yeah.
+[02:49:12] Like, or whenever you generate something, generate even in the hash or like just scramble it with user ID, right?
+[02:49:18] That will save a lot.
+[02:49:20] No.
+[02:49:21] Oh.
+[02:49:22] Okay.
+[02:49:23] So you are saying that, okay, somehow I inject user ID over here.
+[02:49:26] But then the problem is that this hash is universal function.
+[02:49:31] MD5 hash.
+[02:49:32] Right?
+[02:49:33] Now Facebook, let's say Facebook wants to integrate your Gravatar.
+[02:49:36] It does not need to know your Gravatar visitor ID.
+[02:49:39] Got it.
+[02:49:39] Yeah.
+[02:49:40] That's what I was trying to do.
+[02:49:41] All it just has.
+[02:49:42] If it has your email ID, it can just try to see if you have Gravatar or not, it can start
+[02:49:46] directly rendering it.
+[02:49:47] Yeah.
+[02:49:48] Yeah.
+[02:49:48] That's okay.
+[02:49:49] Yeah.
+[02:49:49] That's a simple requirement that people will feel easy.
+[02:49:54] Yeah.
+[02:49:54] Yeah.
+[02:49:56] I had a question about on message and sent.
+[02:50:00] I think I did not.
+[02:50:04] If a user is active and then they receive messages from any of the charts, we don't want to trigger that event.
+[02:50:12] Only if the user is inactive, whether we have an active web socket connection or online offline service, only then we want to trigger that on the unsent event.
+[02:50:24] I want to understand what unsent means.
+[02:50:27] I'm not able to.
+[02:50:28] It's an umbrella that I created when I was not able to send a message to this user in real time.
+[02:50:35] That's it.
+[02:50:37] Now, implementation of it depends on if user is on other tab, then also it is considered to be unsent.
+[02:50:44] Or if user is completely offline, then only it is considered to be unsent.
+[02:50:47] That is your product call.
+[02:50:49] But the idea is whatever flows into this on message unsent, it's like on message unsent in real time,
+[02:50:58] You have to update the account.
+[02:51:01] Right?
+[02:51:02] Yep.
+[02:51:03] Yep.
+[02:51:03] Thank you.
+[02:51:05] Any other question?
+[02:51:06] Anyone?
+[02:51:10] No.
+[02:51:14] Tick, tick.
+[02:51:14] One, two, three, four.
+[02:51:19] Fine.
+[02:51:20] Done.
+[02:51:20] Okay.
+[02:51:21] Thanks, folks.
+[02:51:22] For tuning in.
+[02:51:23] I'll update.
+[02:51:24] I'll upload a recording in sometime by three.
+[02:51:28] as well. See you folks next week. It's all about storage
+[02:51:30] engines. Quite fun. We'll dive into database
+[02:51:32] details and implement a couple of
+[02:51:34] other systems.
+[02:51:35] Thanks folks for tuning in. It was a great session. Great questions.
+[02:51:38] I have a small query here.
+[02:51:41] Sorry.
+[02:51:44] So
+[02:51:47] see, initially
+[02:51:48] we talked about the query
+[02:51:50] optimizations and database optimizations
+[02:51:52] for mySQL or let's say any
+[02:51:55] relational database.
+[02:51:58] to improvise on this because I personally feel that, you know, I'm really not good at this.
+[02:52:02] So what are the resources I can follow?
+[02:52:05] So what I would do, what I would recommend is I actually, to be honest, how I became
+[02:52:12] good at it is I focused very well during my college days on that subject very deeply.
+[02:52:18] Right.
+[02:52:18] So that is one that is my solid condition, but I cannot obviously recommend you to read
+[02:52:22] that entire textbook.
+[02:52:23] So what you should do is understand how database works,
+[02:52:27] how relational database works, how data is structured, right?
+[02:52:30] Those things you need to go really deep into it, right?
+[02:52:34] And how you do that?
+[02:52:35] I am right now running a series on my YouTube members only thing
+[02:52:39] around database internals.
+[02:52:41] In case you are interested, go through those videos
+[02:52:42] and see if you are interested into that, right?
+[02:52:45] I cannot claim that I will cover all of that,
+[02:52:47] but it is definitely going to be a big value add, right?
+[02:52:50] because I'm distilling the information from the textbooks,
+[02:52:53] from the courses that I did,
+[02:52:55] going into those nitty gritties of databases,
+[02:52:57] not really internals into it, into the page structures and all,
+[02:53:00] but more importantly, what you use in your day-to-day life,
+[02:53:02] what you should definitely know in your day-to-day life about it.
+[02:53:05] That is what I'm covering.
+[02:53:06] I'm literally going through my college textbook.
+[02:53:09] I'm not even exaggerating.
+[02:53:10] I'm literally going through my college textbooks,
+[02:53:12] three of them to just ensure that I've covered all the key details.
+[02:53:16] Very soon, I'll be putting out videos on phantom reads
+[02:53:20] is obviously coming next week.
+[02:53:22] After that, it will be SQL query optimization.
+[02:53:24] After that, indexing evaluation and whatnot.
+[02:53:27] It's all going to be around databases in general, right?
+[02:53:30] Because that's my strong quota.
+[02:53:31] That's what I realized.
+[02:53:32] So that's one.
+[02:53:34] But in case you still want to explore,
+[02:53:37] log into your production console,
+[02:53:39] whatever your production console is,
+[02:53:41] log into your production console,
+[02:53:43] your MySQL thing,
+[02:53:45] and start firing explain statements.
+[02:53:49] E-X-P-L-A-I-N.
+[02:53:50] In case you are unaware,
+[02:53:52] Google explain statements, MySQL.
+[02:53:53] It gives you the query plan of it, right?
+[02:53:56] Every single word of it,
+[02:53:58] Google that word of it, right?
+[02:54:00] What it does,
+[02:54:01] how the query plan is created, right?
+[02:54:03] And refer to actual MySQL document.
+[02:54:06] And I'm just using MySQL as an example.
+[02:54:08] Pick your favorite database.
+[02:54:09] Go through the official documentation of it
+[02:54:11] and not some blogs or videos about it.
+[02:54:13] Go through the official documentation.
+[02:54:14] You would see how dense those documentations are
+[02:54:17] because that would give you those nitty gritties
+[02:54:19] that typically videos overlook,
+[02:54:22] that typically blocks overlook.
+[02:54:24] Do that right.
+[02:54:25] But pick one query at a time,
+[02:54:28] run the explain statement,
+[02:54:29] get those terms,
+[02:54:31] look out in the official documentation
+[02:54:33] and re-iterate.
+[02:54:36] And over time,
+[02:54:38] three or four months will be well-versed in that.
+[02:54:40] Now, when you are doing this,
+[02:54:41] if you spot any optimization
+[02:54:44] company's workflow suggest, right?
+[02:54:47] On your staging environment, run those, make those changes
+[02:54:49] and see how it behaves.
+[02:54:51] See if it improves something or not.
+[02:54:53] Or in any case, you don't have to change in production
+[02:54:55] or change in staging.
+[02:54:56] You can just dump that database into other table,
+[02:54:59] fire that exact same query with your changes
+[02:55:02] and see what kind of improvement you've got.
+[02:55:05] Companies is a very good, is a very good playground for us.
+[02:55:09] In any case, if we improve, it's better for organization
+[02:55:11] and you learn stuff as well, right?
+[02:55:14] more than I would want to add.
+[02:55:17] So that's how I became good at it.
+[02:55:20] I should create a video on this.
+[02:55:22] It's a good topic.
+[02:55:25] Yeah.
+[02:55:26] Thanks, J.K.
+[02:55:26] Yeah, Chandan, go on.
+[02:55:28] Arpit, like a radius cluster is there.
+[02:55:31] Do we need auxiliary radius cluster also?
+[02:55:35] It will be cluster.
+[02:55:36] It will be cluster.
+[02:55:37] One single node will not be able to handle.
+[02:55:39] You need a cluster for that.
+[02:55:41] It just became too dense over here.
+[02:55:44] Yeah.
+[02:55:46] So thanks.
+[02:55:47] Great.
+[02:55:48] Thanks folks for doing and see you folks next week.
+[02:55:50] Bye-bye.

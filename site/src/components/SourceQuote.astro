@@ -1,0 +1,10 @@
+---
+// A quoted outside source: the quote, then the source line with a link.
+interface Props { source: string; href: string; site?: string; k?: string }
+const { source, href, site, k } = Astro.props;
+const host = site ?? new URL(href).hostname.replace(/^www\./, '');
+---
+<blockquote class="src" data-k={k}>
+  <slot />
+  <footer class="hand">{source} <a class="cite" href={href} rel="noopener">{host}&nbsp;↗</a></footer>
+</blockquote>

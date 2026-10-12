@@ -1,0 +1,399 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceQuote from '../../../components/SourceQuote.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import Nb from '../../../components/Nb.astro';
+import { VerticalLadder } from '../../../figures/lec01/fig-2a';
+import { ScalingPlan } from '../../../figures/lec01/fig-2b';
+import { MediumLB } from '../../../figures/lec01/fig-2c';
+import { CapacitySpike } from '../../../figures/lec01/fig-2d';
+import { F2eVertical, F2eReplicas, F2eSharding } from '../../../figures/lec01/fig-2e';
+import { F2fLag } from '../../../figures/lec01/fig-2f';
+import { ReplicaTree } from '../../../figures/lec01/fig-2g';
+import { RowsVsTables } from '../../../figures/lec01/fig-2h';
+import { Rule2BottomUp } from '../../../figures/lec01/rule-2';
+
+{/* §2 Scaling (2.1–2.4). Imported by lec01.mdx. §2.4 is the published design sample, adapted. */}
+
+<Section id="s2" no="2" title="Scaling" crumb="2 Scaling"
+  dek="More readers than one box can serve. What scaling means, the two directions, the spikes you can see coming, and why the database goes first."
+  meta="About 22 min · class 00:35–01:05 and Q&A 02:37–03:10">
+
+Medium’s marketing team is planning a campaign: one SMS or push notification to every user, and many of them may open the app within minutes. Until today one API server and one database have been enough. This section follows what has to change.
+
+Most of its weight sits on the part that is hardest to grow: the database, and how databases are scaled in practice rather than in theory. [[L-0077]]
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What scaling means" crumb="2.1 What scaling means"
+  dek="Many requests at the same moment, and the two ways to make room for them."
+  meta="About 3 min · class 00:35–00:36 and 00:40–00:41">
+
+Readers spread over a whole day are easy to serve; the same readers arriving in the same minute are the problem. **Scaling** is the ability to handle a large number of *concurrent* requests, and the word that matters is *concurrent*. Many requests in total are easy to serve; many at the same moment are what make it hard. [[L-0078]]
+
+There are two typical ways to make room. **Vertical scaling** adds resources, more RAM and more CPU, to the same machine. **Horizontal scaling** adds more machines. [[L-0079]]
+
+The class board gave them names that stick. Vertical scaling is **Hulk**: the same infrastructure made bulky, with more CPU, more RAM, more disk. Horizontal scaling is **Minions**: a crowd of ordinary machines sharing the work. [[L-0073 L-0075]]
+
+Hulk is easy to manage, because there is still one machine to deploy, watch and back up. It is also still one machine, so an upgrade or a crash means downtime. Minions add capacity in a straight line and tolerate failure: when one machine dies the others keep serving. The price is a more complex architecture and a new kind of failure, the **network partition**, where machines that should talk to each other can’t. [[L-0074 L-0076]]
+
+<TradeoffTable caption="Trade-offs of vertical (Hulk) and horizontal (Minions) scaling"
+  columns={[{ label: 'Hulk: one bigger machine', glyph: 'hulk' }, { label: 'Minions: more machines', glyph: 'minions' }]}
+  rows={[
+    { label: 'What you do', cells: ['Give the same machine more CPU, RAM and disk', 'Add machines and spread the requests over them'], k: 'L-0073 L-0075' },
+    { label: 'Easy to manage?', cells: ['Yes: still one machine', 'Harder: a fleet, a load balancer, more moving parts'], k: 'L-0074 L-0076' },
+    { label: 'Downtime risk', cells: ['High: an upgrade or a crash takes the only machine away', 'Low: the others keep serving'], k: 'L-0074 L-0076' },
+    { label: 'Capacity growth', cells: ['One size step at a time', 'Linear: twice the machines, twice the requests'], k: 'L-0076' },
+    { label: 'Failure tolerance', cells: ['None: one machine', 'Built in: lose one, keep the rest'], k: 'L-0076' },
+    { label: 'New problem', cells: ['Downtime', 'A complex architecture and network partitions'], k: 'L-0074 L-0076' },
+    { label: 'Where it stops', cells: [{ text: 'The largest machine the data center has', bad: true }, 'At whatever the machines share, such as the database (2.4)'], k: 'L-0084' },
+  ]} />
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="Vertical, horizontal, and the hardware ceiling" crumb="2.2 The hardware ceiling"
+  dek="Why a bigger machine runs out, and why the answer is not either/or."
+  meta="About 8 min · class 00:36–00:46 and Q&A 00:56">
+
+Medium’s database runs on a machine with <Nb>16 GB</Nb> of RAM. Scaling it vertically is a change of instance type in the cloud console: <Nb>16 GB</Nb> becomes 32, then 64, 128, 256, <Nb>512 GB</Nb>, <Nb>1 TB</Nb>, <Nb>2 TB</Nb>, <Nb>4 TB</Nb>. No code changes. Then the list ends. [[L-0080]]
+
+<Figure id="fig-2a" no="Fig 2·a" k="L-0080 L-0082 L-0083 L-0084"
+  caption="The vertical ladder: 16 GB, 32, 64, 128, 256, 512 GB, 1 TB, 2 TB, 4 TB, then the hardware ceiling. Inset: a card slot rated for 256 GB won’t take a 512 GB card.">
+  <Desk><VerticalLadder /></Desk>
+  <Phone><VerticalLadder layout="phone" /></Phone>
+</Figure>
+
+<PauseAndThink k="L-0080 L-0081 L-0082 L-0083 L-0084"
+  q="You’ve grown Medium’s database from 16 GB to 4 TB by picking bigger instance types. Supercomputers exist. Why can’t you keep going?"
+  choices={[{ label: 'The cloud console just doesn’t offer a bigger type' }, { label: 'The hardware can’t take it', correct: true }]}
+  right="Right: the limit is physical, not a menu."
+  wrong="The console only shows the symptom. The cause is physical:">
+
+The hardware. Every part talks to the board over a bus with a fixed protocol, and both sides must support the size. A phone slot rated for <Nb>256 GB</Nb> won’t read a <Nb>512 GB</Nb> card for the same reason. “The console has no bigger option” is the symptom, not the cause. Past the biggest machine the data center has, you go horizontal.
+
+</PauseAndThink>
+
+The tempting answer, one even senior engineers give, is that the cloud provider simply doesn’t show a bigger option. That describes what you see, not why. Nor is it that bigger computers don’t exist: supercomputers do. [[L-0081]]
+
+The reason is physical. Whenever two pieces of hardware connect, a USB stick in a port, a network card or a disk on the motherboard, RAM in its slot, bytes travel over a **bus**; the golden lines on a USB stick are one. Both sides of a bus must be compatible and speak the same hardware protocol (a protocol for moving bytes between components, nothing like HTTP). If one side doesn’t support a larger size, you can’t go higher. That is why a phone whose SD-card slot supports <Nb>256 GB</Nb> doesn’t recognise a <Nb>512 GB</Nb> card. [[L-0082 L-0083]]
+
+So vertical scaling can’t be infinite. Going one level up needs literally different hardware, and unless the data center has it, there is nowhere to go. Software is an abstraction; underneath, everything runs on physical hardware. [[L-0084]] It is one of many places where CS fundamentals, computer architecture and how a microprocessor talks to memory, go a very long way in system design. [[L-0085]]
+
+<MarginNote title="Where this comes from" why="skip if you just want the rule" k="L-0086">
+
+A third year of college spent working in the college’s data center, where the instructor’s microprocessor professor answered his questions and showed him a demonstration of why a bigger part needs matching hardware.
+
+</MarginNote>
+
+### Going horizontal
+
+Horizontal scaling picks up where vertical stops. Once one machine can’t handle the traffic, you spread it across several, and it is generally the preferred direction. [[L-0087]]
+
+Done right, it scales linearly. If one machine handles <Nb>100 requests</Nb> a second and you need 500, you need 500 ÷ 100 = 5 machines. The class calls this **linear amplification**. It is more often called linear scalability, and it holds only while the shared dependencies behind the machines keep up, which is what 2.4 is about. [[L-0088]]
+
+### Not either/or
+
+It is tempting to treat vertical and horizontal as a choice you make once. In practice there is a sweet spot. A young product starts vertical, because horizontal scaling makes deployment more complex, and goes horizontal once a bigger box is no longer enough. [[L-0095]]
+
+<Figure id="fig-2b" no="Fig 2·b" k="L-0095 L-0096"
+  caption="A good scaling plan, in general: capacity rises fast by scaling vertically while the product is young, then grows horizontally. Redrawn from the class board at 00:44.">
+  <Desk><ScalingPlan /></Desk>
+  <Phone><ScalingPlan layout="phone" /></Phone>
+</Figure>
+
+The box beside the curve on the board says the rest: no premature optimisation. Don’t build infrastructure for load you don’t have. Premature optimisation, in the old line, is the root of all evil, so start simple. [[L-0096]]
+
+For Medium that means: scale the API servers vertically first. When that runs out, put a load balancer in front of them and add API servers behind it. [[L-0097]] How a load balancer works inside is a topic of its own; here it is a box. <ForwardChip when="week 3" k="L-0098">designing a load balancer</ForwardChip>
+
+<Figure id="fig-2c" no="Fig 2·c" k="L-0097 L-0087 L-0088"
+  caption="medium.com behind a load balancer. Each API server handles about 100 requests a second, so five of them handle 500. Redrawn from the class board at 00:44.">
+  <Desk><MediumLB /></Desk>
+  <Phone><MediumLB layout="phone" /></Phone>
+</Figure>
+
+Adding API servers is the easy part, because they are **stateless**: no request depends on which server handled the one before, so servers can be added and removed freely with an autoscaling group, Kubernetes’ Horizontal Pod Autoscaler and a load balancer. Things get interesting when you scale the data. [[L-0120]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Spikes you can see coming" crumb="2.3 Predictable spikes"
+  dek="Count the machines before the campaign, because the autoscaler won’t arrive in time."
+  meta="About 4 min · class 00:41–00:44 and Q&A 01:03–01:04">
+
+Medium’s marketing team is about to send a push notification to every user. How many API servers should be running when it lands?
+
+Large retailers answer this with arithmetic. Before Amazon’s Prime Day, business-intelligence teams forecast the orders with prediction models. If you know what one machine can handle, its unit economics, the machines you need are the forecast divided by one machine’s capacity, and you can check before the day whether you have enough. This is **predictive scaling**. [[L-0089]]
+
+One machine’s capacity has to be measured. No formula says that a <Nb>32 GB</Nb> machine handles <Nb>5,000 requests</Nb> a second; the only way to know is to load-test that configuration. [[L-0094]]
+
+<Figure id="fig-2d" no="Fig 2·d" k="L-0089 L-0090 L-0091 L-0094"
+  caption="Capacity math and the spike. (a) Machines needed = forecast peak ÷ one machine’s load-tested capacity. (b) The campaign’s readers arrive before the autoscaler’s capacity does; raising capacity first (green) avoids the gap. The curves are illustrative.">
+  <Desk><CapacitySpike /></Desk>
+  <Phone><CapacitySpike layout="phone" /></Phone>
+</Figure>
+
+Why not let autoscaling handle it? Autoscaling groups exist, but for a large, sudden spike they fail badly, because they take their own time to react: new instances must launch and start before they serve. A campaign broadcasts a message by SMS or push notification, users flood in at once, and the group has no time to catch up before they arrive. [[L-0090 L-0091]]
+
+AWS’s own EC2 Auto Scaling has answers for spikes you know about in advance. **Scheduled scaling** raises capacity at a set time, say just before the campaign goes out. **Predictive scaling** forecasts recurring daily and weekly patterns and launches capacity ahead of them, and **warm pools** keep pre-initialised instances ready to join quickly. Reacting to load alone still lags. (<Cite href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-scheduled-scaling.html">scheduled</Cite>, <Cite href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-predictive-scaling.html">predictive</Cite>, <Cite href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-warm-pools.html">warm pools</Cite>) [[L-0090]]
+
+So the order for a campaign is: prepare the infrastructure for the spike first, then tell marketing to send. [[L-0091]] That only works if marketing tells engineering beforehand. Without that coordination a big campaign turns into a massive outage, unhappy users and lost business. Scaling is a team game. [[L-0092]]
+
+For smaller spikes, autoscaling is fine: it has breathing room to add machines before they are needed. [[L-0093]]
+
+### What an autoscaling group actually does [[rail: Autoscaling groups]]
+
+Autoscaling EC2 instances is horizontal scaling: it adds more instances. A typical step-scaling rule reads “when the cluster’s average CPU utilisation goes above 60%, add one more node”. [[L-0131]]
+
+The group itself, on AWS or any other cloud, only launches instances and adds them behind the load balancer. The scale-up and scale-down rules, such as the CPU threshold above, are yours to define. [[L-0132]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Scaling the database" crumb="2.4 The database"
+  dek="Why the database is scaled before anything else, and the three ways to give it room: a bigger machine, read replicas, sharding."
+  meta="About 12 min · class 00:45–01:05 and Q&A 02:37–03:09">
+
+### Why the database goes first
+
+Five API servers are ready for the campaign. The database is still one machine.
+
+API servers keep no state, so adding them is arithmetic: if one handles <Nb>100 requests</Nb> a second and the campaign brings 500, you run five. But the requests don’t stop at the API servers. When people say “scale horizontally” they usually mean the API servers, and every request those servers accept is forwarded to whatever they depend on: the database, a shared cache, other teams’ services. If those aren’t ready for that scale, they go down. Widen Medium’s API fleet five times and you have built something that sends five times the queries to a component nobody touched. [[L-0099]]
+
+When that component falls over, everything waiting on it fails too, and then everything waiting on *those*, until users can’t load a page. That chain is a **cascading failure**. Across the many outage reports the class has read, it is the root cause of most major outages, and Google’s SRE book treats it as a failure class of its own (<Cite href="https://sre.google/sre-book/addressing-cascading-failures/">sre.google</Cite>). [[L-0101]]
+
+<AnimationClip clip="l01-cascade" no="Clip 2·1" k="L-0099 L-0101 L-0102"
+  lead="Before you play it: the campaign message goes out and five API servers are ready. Which box gives out first?"
+  caption="Five API servers forward five times the queries to one database. It saturates, the servers time out waiting on it, and the site goes down with it." />
+
+So the order matters more than the amount:
+
+<RuleBox rule="Scale ==bottom up==: the database first, then the API servers." k="L-0100">
+
+Before a big campaign, confirm that the database and every service you depend on can take the load, scaling them explicitly if they can’t, then widen the API fleet, then let the users in. For a massive campaign this is an org-level effort, and each team you depend on should document how its service scales. How another team scales is their problem; that it *has* scaled before you send traffic is yours.
+
+<Desk><Rule2BottomUp /></Desk>
+<Phone><Rule2BottomUp layout="phone" /></Phone>
+
+</RuleBox>
+
+The database deserves this care more than any other part. It is the most critical and most brittle piece of Medium’s infrastructure: every story and every account lives there, and when it goes down, everything is down. Scaling it is the most basic thing to get right. [[L-0102]] There are three common ways to give it room, and they are usually reached for in this order: [[L-0121]]
+
+<Figure id="fig-2e" no="Fig 2·e" panels k="L-0116 L-0121 L-0107 L-0109"
+  caption="A bigger machine, copies that take reads, and exclusive slices that each take their own writes. In the middle panel the replica starts the copy: it asks the master for changes and pulls them. Redrawn from the class board at 00:46 (D-06); the board’s arrow ran master → replica, and it is reversed here to show the pull described at 00:50.">
+  <Panel><F2eVertical /></Panel>
+  <Panel><F2eReplicas /></Panel>
+  <Panel><F2eSharding /></Panel>
+</Figure>
+
+### A bigger machine
+
+The quickest fix needs no code: pick a bigger instance type in the console, up the ladder from 2.2. It is the easy first step, and a young product starts there (2.2). The ladder has a top rung (2.2), so sooner or later the database has to grow sideways. [[L-0103]]
+
+### Read replicas
+
+Most applications read far more than they write: <span class="num-tab">90:10</span> is common and <span class="num-tab">99:1</span> is not unusual. [[L-0104]] Medium is a clear case. Many more people read a blog than write one, just as many more people watch YouTube than upload to it. [[L-0105]] If reads are most of the load, handling reads well removes most of the problem, and that is what read replicas are for. [[L-0106]]
+
+A **read replica** is a second database that keeps a copy of the **master**’s data. All writes go to the master, and the replica receives them *asynchronously*, a little later. It is almost a native database feature: you configure it rather than write it. [[L-0107]] If you can’t afford to lose a committed write when the master dies, MySQL’s semisynchronous replication makes the master hold each commit until at least one replica has received it, at the cost of slower commits (<Cite href="https://dev.mysql.com/doc/refman/8.4/en/replication-semisync.html">dev.mysql.com</Cite>).
+
+Setting replication up is routine work for SRE teams, done day in and day out. If you have never done it, search for “how to set up MySQL replication” and follow it through once. [[L-0108]]
+
+One detail is usually told backwards. The master doesn’t push changes out; the replica connects to the master and pulls them. In MySQL, a thread on the replica connects to the source and asks for its binary log (<Cite href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">dev.mysql.com</Cite>). PostgreSQL’s documentation describes its streaming replication the same way: [[L-0109]]
+
+<SourceQuote source="PostgreSQL documentation, §26.2.5 Streaming Replication" href="https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION" k="L-0109">
+
+“The standby connects to the primary, which streams WAL records to the standby as they’re generated … Streaming replication is asynchronous by default … in which case there is a small delay between committing a transaction in the primary and the changes becoming visible in the standby.”
+
+</SourceQuote>
+
+The same page puts that delay at “typically under one second”, provided the standby can keep up. The delay can be watched, too: on Amazon RDS for MySQL the ReplicaLag metric reports how many seconds a replica is behind (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.Monitor.html">docs.aws.amazon.com</Cite>). Under a second sounds harmless. Whether it is depends on who is reading. [[L-0113]]
+
+The database won’t split reads from writes for you. All writes must go to the master, you want the reads on the replica, and in the plain version the application does that heavy lifting. [[L-0110]] The API server opens two connections, one to each database, and every handler picks the right one for its query: a reader’s profile from the replica, a new story to the master. [[L-0111]]
+
+```js
+const master  = new Pool({ connectionString: env.DB_MASTER_URL });
+const replica = new Pool({ connectionString: env.DB_REPLICA_URL });
+
+// a reader's profile can be a moment old: replica
+await replica.query('SELECT * FROM users WHERE id = $1', [userId]);
+
+// publishing a story is a write: always the master
+await master.query(
+  'INSERT INTO stories (author_id, body) VALUES ($1, $2)',
+  [userId, body]
+);
+```
+
+Tools and “magic layers” exist that route for you. Aurora’s reader endpoint balances connections across replicas, and PostgreSQL’s libpq can pick a primary or a standby from a list of hosts with `target_session_attrs` (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Overview.Endpoints.html">Aurora</Cite>, <Cite href="https://www.postgresql.org/docs/current/libpq-connect.html">libpq</Cite>). If your code only ever sees a single connection string, a proxy-like layer is doing this routing behind it. Not every stack has one, which is why the plain way is for the API server to route by itself. Either way, deciding which reads are critical is your call. [[L-0112 L-0125]] <ForwardChip when="week 5 or 6" k="L-0114">read/write proxy layers</ForwardChip>
+
+Which reads may go to a replica is a judgement per query. A profile can be a moment stale. A bank balance can’t: if a friend says the money is sent and your app reads from a replica that hasn’t caught up, the money looks missing. Reads like that are **critical reads**, and they go to the master. [[L-0113]]
+
+<PauseAndThink k="L-0111 L-0112 L-0113"
+  q="The moment a writer presses <em>Publish</em>, Medium shows them their story, which means reading it straight back from the database. Which connection should that read use?"
+  choices={[{ label: 'The replica: it’s a read' }, { label: 'The master', correct: true }]}
+  right="Right: for the writer, this is a critical read."
+  wrong="It is a read, but a replica may not have the story yet:">
+
+The master, at least for the writer. For that one person this is a critical read: they just wrote the data, and they will notice if it is missing. A replica that hasn’t pulled the change yet returns nothing, and the writer concludes the publish failed. Readers arriving later can use the replica; a moment of lag costs them nothing. The next figure shows that window.
+
+</PauseAndThink>
+
+### Replication lag, step by step [[rail: Replication lag]]
+
+<p class="lead-in">Here is one story being published while a reader asks for it. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-2f" no="Fig 2·f" label="Replication lag figure" k="L-0107 L-0109 L-0110 L-0113"
+  caption="Time runs down. Lanes are the API server, the master and the replica; the red bracket is the window in which a replica read is stale."
+  steps={[
+    'The writer presses Publish. The API server sends the <code>INSERT</code> over its master connection, because every write goes to the master.',
+    'The master commits and replies. The writer sees <span class="term green">published</span>. The replica does not have the row yet.',
+    'A reader opens the story. Story reads use the replica connection, and the replica returns <span class="term red">nothing</span>. Nothing crashed; the reader got a <strong>stale read</strong>.',
+    'The replica asks the master for everything after its last position, and the new row comes back as the answer. The time between commit and apply is the <span class="term red">replication lag</span>.',
+    'The same read now <span class="term green">finds the story</span>. Nothing in the read path changed; the reader arrived after the lag closed.',
+  ]}>
+  <Desk><F2fLag /></Desk>
+  <Phone><F2fLag layout="phone" /></Phone>
+</StepThrough>
+
+### How many replicas? [[rail: How many replicas]]
+
+Replicas do cost the master something, though not much. [[L-0324]] Each one fetching changes uses some of the master’s CPU, memory and network, which is why you don’t hang a huge number of replicas off one master. [[L-0325]] How a replica fetches depends on the database. A MySQL replica reads the source’s binary log over the replication protocol; a PostgreSQL standby streams the write-ahead log or replays WAL files shipped to it (<Cite href="https://dev.mysql.com/doc/refman/8.4/en/replication-threads.html">MySQL</Cite>, <Cite href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL</Cite>). Either way, the master serves every puller. [[L-0327]]
+
+The class’s rule of thumb is about five replicas per master. Six or seven is still fine; beyond that you typically don’t go. [[L-0326]]
+
+<SourceNote href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_MySQL.Replication.ReadReplicas.html" site="docs.aws.amazon.com" k="L-0326">
+
+There is no general five-replica ceiling. RDS for MySQL allows up to 15 read replicas per source, and AWS advises giving each the same compute and storage as the source so it can keep up. Aurora allows up to 15 readers (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Aurora</Cite>), and PostgreSQL is bounded by its `max_wal_senders` setting (<Cite href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL</Cite>). The practical number depends on write volume and how the replicas are sized.
+
+</SourceNote>
+
+If you need more replicas than the master can feed, say fifteen when it supports five, replicas can feed replicas. A replica becomes the source for others and the copies form a tree: **hierarchical**, or cascading, replication. [[L-0328]] Five replicas at the top, each feeding three, gives fifteen on the second layer (twenty in all); with two each, five plus ten makes fifteen in all. [[L-0329]]
+
+<Figure id="fig-2g" no="Fig 2·g" k="L-0325 L-0328 L-0329"
+  caption="Replicas of replicas. Every dashed arrow points from the puller to its source: the master feeds five replicas, and each of those feeds three more: fifteen on the second layer.">
+  <Desk><ReplicaTree /></Desk>
+  <Phone><ReplicaTree layout="phone" /></Phone>
+</Figure>
+
+If the replicas start hurting the master anyway, that is the signal to move on to sharding. [[L-0330]]
+
+Until then, keep adding replicas as the API fleet grows: one database can serve only so many requests. [[L-0383]] When the data is too big to cache whole, redundant copies to read from are the only way to keep a read-heavy API fast. [[L-0382]] Which replica a given query goes to is decided where the master-or-replica choice is made, in the API server’s business logic. [[L-0387]]
+
+<MarginNote title="If the master dies" why="skip unless you run your own database" k="L-0122 L-0123 L-0124">
+
+A replica can be promoted to master through **leader election**, a way to recover from a master failure automatically, though you won’t always see it in production. If you are building a cloud database service, you implement it. If you use one, the provider promotes a standby or replica for you. [[L-0122]]
+
+<SourceNote href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html" site="docs.aws.amazon.com" k="L-0122">
+
+On Amazon RDS (not Aurora), automatic failover goes to a Multi-AZ standby that is kept in sync but can’t serve reads, while read replicas are promoted by you, not automatically (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_ReadRepl.Promote.html">promotion</Cite>). Multi-AZ DB clusters, a different option, do have readable standbys. Aurora does promote a reader replica automatically, typically in under 60 seconds (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">Aurora</Cite>).
+
+</SourceNote>
+
+Building leader election yourself is a pain, and most product companies never need to, because the cloud gives them those guarantees. [[L-0123]] <ForwardChip when="the week after next" k="L-0124">leader election, which comes up in three places in this course</ForwardChip>
+
+</MarginNote>
+
+### Sharding
+
+Replicas multiply reads. Every write still lands on one master. When that master gets more traffic than it can handle even after a vertical bump and a set of replicas, split the data. [[L-0115]]
+
+**Sharding** divides the rows into mutually exclusive subsets and puts each subset on its own node. Each shard is a master that takes the writes for its subset, and each can have replicas of its own. [[L-0116]] Three shards are not three copies of one database: each holds roughly a third of the rows. [[L-0128]]
+
+Something has to know which shard holds what. In the plain version that is the API server again. Medium can shard by user ID: hash the ID and the hash picks the shard. That mapping has to stay fixed, or a user’s stories will be looked for on the wrong node. [[L-0117]]
+
+```js
+const shards = [pool0, pool1, pool2];   // one pool per shard
+const shardFor = (userId) => shards[hash(userId) % shards.length];
+
+await shardFor(userId).query(
+  'SELECT * FROM stories WHERE author_id = $1', [userId]
+);
+```
+
+The `% shards.length` is where “fixed” bites: add a fourth shard and almost every user maps somewhere new. Production routers use consistent hashing, fixed buckets or a lookup directory instead, which move only a small share of keys when the shard count changes (<Cite href="https://en.wikipedia.org/wiki/Consistent_hashing">consistent hashing</Cite>, <Cite href="https://vitess.io/docs/reference/features/sharding/">Vitess</Cite>). [[L-0117]]
+
+In this naive version the API server opens a connection to every shard, three shards and three connections, works out which user each request is for, forwards it to that shard, and returns the answer. [[L-0118]] Holding pools to every database might look like a burden on the API server, but there is no way around it: the server has to reach every database to send each request to the right one. [[L-0126]] Nor can the pools be shared. A TCP connection to a database is stateful and belongs to that one database, so each database gets its own **connection pool**, held either by the API server or by a proxy in front. [[L-0127]]
+
+Whether you build this routing at all depends on the database. Some vendors shard for you behind what looks like one database, and many open-source databases shard natively too: MongoDB, Cassandra, Vitess for MySQL, Citus for PostgreSQL. Stock MySQL and PostgreSQL are the ones where you shard yourself (<Cite href="https://vitess.io/docs/reference/features/sharding/">vitess.io</Cite>). [[L-0358]] Either way, build the plain version once, locally, before you put a proxy in between. Not every database has one, and you should know what it is doing for you. [[L-0119]]
+
+There is no golden formula for the shard key or the number of shards. Look at the data and how it is accessed, then make the call. [[L-0373]] One property is known to help, in AWS’s DynamoDB guidance: a key with many distinct, evenly accessed values, such as a user ID. Keys with few values or time buckets, such as a status code or a creation date, pile the traffic onto hot partitions (<Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-uniform-load.html">docs.aws.amazon.com</Cite>).
+
+Splitting by table instead of by row, say users on one server and stories on another, is **vertical sharding**, and it needs a pool per database just the same. [[L-0129]]
+
+<Figure id="fig-2h" no="Fig 2·h" k="L-0128 L-0129 L-0126 L-0127"
+  caption="Horizontal sharding splits the rows of one table across databases; vertical sharding puts whole tables on different databases. Either way the API server keeps one connection pool per database.">
+  <Desk><RowsVsTables /></Desk>
+  <Phone><RowsVsTables layout="phone" /></Phone>
+</Figure>
+
+<MarginNote title="Why not let replicas take writes too?" why="a common follow-up" k="L-0388 L-0389 L-0390">
+
+A read replica exists only to serve reads. A replica that also accepts writes makes it a **multi-master** setup, with its own set of problems. [[L-0388]] Two masters can accept conflicting writes to the same row, and how to resolve that conflict depends entirely on the use case. That is why sharding is the usual way to scale writes. [[L-0389]] The order is read replicas, then sharding, and multi-master only if you want to make things overtly complicated. [[L-0390]]
+
+</MarginNote>
+
+<MarginNote title="Clusters" why="skip unless you’re weighing a vendor cluster" k="L-0356 L-0357 L-0130">
+
+A database **cluster** is horizontal scaling, not vertical: a cluster means several machines. [[L-0356]] A vendor’s cluster looks like one database to the application, while internally the data is split across several storage nodes. [[L-0357]] Do you then handle the sharding yourself? It depends on the database vendor: if they charge you for the cluster, they handle it for you; with an open-source database that doesn’t shard natively, you implement it (see Sharding above). [[L-0358]]
+
+<SourceNote href="https://docs.oracle.com/en/database/oracle/oracle-database/23/adrac/rac_db.html" site="docs.oracle.com" k="L-0357">
+
+Not every vendor cluster is sharded. Oracle RAC is shared-disk: its instances all access one set of database files on shared storage. Shared-nothing clusters, such as MongoDB sharded clusters or Vitess (<Cite href="https://vitess.io/docs/reference/features/sharding/">vitess.io</Cite>), do split the data.
+
+</SourceNote>
+
+Clustered servers such as Oracle RAC, used to avoid database outages, are a valid design too. There is no single way to build a system, and this section is the simple first-week view. [[L-0130]] <ForwardChip when="week 5" k="L-0130">database fault tolerance, restructuring so there is no outage and recovering when there is</ForwardChip>
+
+</MarginNote>
+
+### The three side by side [[rail: Side by side]]
+
+<TradeoffTable caption="Trade-offs of vertical scaling, read replicas and sharding" k="L-0121"
+  columns={[{ label: 'Bigger machine', glyph: 'bigger' }, { label: 'Read replicas', glyph: 'replicas' }, { label: 'Sharding', glyph: 'shards' }]}
+  rows={[
+    { label: 'What you do', cells: ['Pick a larger instance type', 'Add copies that pull the master’s changes; send reads to them', 'Split rows into exclusive subsets, one master each'], k: 'L-0103 L-0107 L-0116' },
+    { label: 'Reads', cells: ['Scale, up to the ceiling', 'Scale; this is what replicas are for', 'Scale; each shard serves its own users'], k: 'L-0104 L-0106' },
+    { label: 'Writes', cells: ['Scale, up to the ceiling', { text: 'Don’t scale: every write still hits one master', bad: true }, 'Scale; each shard takes its own'], k: 'L-0115' },
+    { label: 'Where it stops', cells: ['The largest machine the data center has', 'A handful per master in practice (RDS allows 15); a tree beyond that', 'No fixed number; depends on the data and how it’s read'], k: 'L-0326 L-0328 L-0373' },
+    { label: 'Your code', cells: ['Unchanged', 'Two connections; critical reads go to the master', 'Route every query by key; one pool per shard'], k: 'L-0111 L-0113 L-0117 L-0127' },
+    { label: 'New problem', cells: ['Still one machine: if it goes down, everything does', 'Stale reads during replication lag', 'A key mapping that must never change'] },
+    { label: 'Reach for it', cells: ['First', 'When reads dominate, as at 90:10', 'When the master can’t take the writes, or replicas start to hurt it'], k: 'L-0390 L-0330' },
+  ]} />
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Medium doubles its API fleet for a campaign and nobody touches the database. What fails, and in what order should the scaling have happened?" k="L-0099 L-0100 L-0101">
+
+The database takes twice the queries and saturates; the API servers waiting on it time out and fail with it, a cascading failure. Scale bottom up: make sure the database and every other dependency can take the load, then widen the API fleet, then let users in.
+
+  </RecallItem>
+  <RecallItem q="The master’s CPU is pinned by writes. Why won’t a sixth read replica help, and what will?" k="L-0115 L-0325 L-0330">
+
+Replicas only take reads, so every write still lands on the master, and each extra replica’s fetching costs the master a little more CPU, memory and network. Beyond a handful of replicas you build a tree of replicas or shard. For writes, sharding is what helps: each shard is a master for its own slice of rows and takes its own share of the writes.
+
+  </RecallItem>
+  <RecallItem q="A teammate calls Medium’s three shards “three copies of the database, for safety”. What’s wrong with that?" k="L-0116 L-0128">
+
+Copies are replicas. Shards hold mutually exclusive subsets: each has about a third of the users and each is a master. The API server sends every user to exactly one of them by hashing the user ID.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '3 · Delegation', href: '#s3' }}
+  concepts={[{ label: 'vertical and horizontal scaling', href: '#s2-1' }, { label: 'linear scalability', href: '#s2-2' }, { label: 'predictive scaling', href: '#s2-3' }, { label: 'cascading failure', href: '#s2-4' }, { label: 'read replica', href: '#s2-4' }, { label: 'replication lag', href: '#fig-2f' }, { label: 'critical read', href: '#s2-4' }, { label: 'sharding', href: '#s2-4' }, { label: 'connection pool', href: '#s2-4' }]} />
+
+</Section>

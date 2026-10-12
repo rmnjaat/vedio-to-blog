@@ -1,0 +1,3207 @@
+[00:00:01] Great. Week 5, day 2nd and we'll continue our discussion on standard engines.
+[00:00:08] The agenda for today are two very interesting problem set points that would not only be interesting but will also solidify a lot of core understanding that you need.
+[00:00:20] When you're trying to build an interesting system or you're trying to get the maximum out of existing systems.
+[00:00:27] So there are a lot of building blocks, a lot of foundational concepts that would help you think in a very different way.
+[00:00:33] And both of them are actively used in production.
+[00:00:38] It's not something that's just theoretical.
+[00:00:41] You will find practical use of both of the systems to a huge extent.
+[00:00:48] Okay.
+[00:00:49] So let's start with the first one.
+[00:00:50] The problem statement itself, and we'll directly start with the brainstorm.
+[00:00:53] The problem statement in itself is very quote-unquote tricky.
+[00:00:57] What we will do is we will build a word dictionary without using any traditional database.
+[00:01:04] Like no MySQL, no Postgres, no MongoDB, no Redis, nothing.
+[00:01:08] You have to be creative.
+[00:01:10] You cannot use any traditional database.
+[00:01:13] Sorry.
+[00:01:14] You cannot use any traditional database to build this word dictionary.
+[00:01:19] So you have to be creative into thinking, how will you do this?
+[00:01:24] This thing needs to be scalable, which means you should not be
+[00:01:28] worrying about scale, but then obviously some constraints would be there,
+[00:01:32] but it needs to be quote unquote scalable.
+[00:01:36] And on both the sides.
+[00:01:38] So typically when you design any system, you can bifurcate into two, one is
+[00:01:42] storage, other is compute.
+[00:01:43] Compute basically your API servers and storage means your database.
+[00:01:46] Here you cannot use your database.
+[00:01:48] So that's an interesting problem to solve, but it needs to be scalable.
+[00:01:53] with respect to both storage and API servers,
+[00:01:57] it's okay to have high response time
+[00:02:00] because that's not what we are trying to solve over here.
+[00:02:03] Getting performance is different trick.
+[00:02:05] We have done it in past at lot of systems.
+[00:02:07] What we are more focusing on is this constraint
+[00:02:10] that you cannot use a traditional database.
+[00:02:13] So we are okay to have a little high response
+[00:02:16] because we know hundreds of ways to improve it,
+[00:02:18] like caching, matching and all what we can improve.
+[00:02:20] But let's not focus on that.
+[00:02:21] Let's focus on the core part of it that it's okay for us to have a little high response time,
+[00:02:27] but what we want is we want portability.
+[00:02:31] Now portability, how come when we kick off our brainstorming,
+[00:02:35] I would explicitly point out, hey, this is not making our system portable enough
+[00:02:39] and you'll understand the importance of portability the next system and next week.
+[00:02:44] So I just compiled this problem statement in order to cover a lot of critical building blocks
+[00:02:51] in day in and day out in real world.
+[00:02:53] So we want portability.
+[00:02:55] Our response time can be high.
+[00:02:58] Okay.
+[00:02:59] So you cannot use a traditional database.
+[00:03:00] You have to be creative.
+[00:03:02] Now here, one key point.
+[00:03:04] In the dictionary, it's a standard English dictionary.
+[00:03:07] You have English words.
+[00:03:09] You have English meanings.
+[00:03:12] When you do this,
+[00:03:13] or when you're serving this dictionary,
+[00:03:15] it's mostly read-only.
+[00:03:17] You are not going to update.
+[00:03:18] Imagine how frequently Oxford dictionary gets updated.
+[00:03:21] Not much.
+[00:03:22] Right.
+[00:03:22] So what we are doing is we don't want to support continuous update.
+[00:03:27] What we are doing is the words and the meanings will be updated weekly.
+[00:03:32] It's not that it will be updated anytime you want.
+[00:03:35] Weekly, you will be given a changelog file.
+[00:03:39] In this changelog file, you will have the updated words and the updated meanings.
+[00:03:43] Right.
+[00:03:43] You would have this information.
+[00:03:44] You have to take this changelog file and apply it to whatever storage engine or whatever database you are building.
+[00:03:51] So you don't have to support pointed updates right there and there like live pointed updates.
+[00:03:57] These will be given to you weekly basis.
+[00:04:00] Let's say every Sunday.
+[00:04:02] Every Sunday you are given this new changelog file over email.
+[00:04:04] You have to apply those changes over here.
+[00:04:07] The lookup in this dictionary will always be a singular word.
+[00:04:11] You don't have to think about autocomplete or not.
+[00:04:14] Given a word, give me the meaning.
+[00:04:15] That's it.
+[00:04:16] If the word does not exist, return 404.
+[00:04:19] The entire size of the dictionary is one terabyte.
+[00:04:24] And the dictionary in total has 170,000 words.
+[00:04:30] So total dictionary size is one terabyte.
+[00:04:33] 170,000 words you have in the dictionary.
+[00:04:36] So you have to build a system like this.
+[00:04:41] Build a word dictionary without using any database.
+[00:04:46] So no MySQL, no MongoDB, no Elasticsearch, no Redis, no Memcache, nothing, nothing, nothing.
+[00:04:51] Be creative in your approach.
+[00:04:53] Think about it.
+[00:04:55] How would you go about it?
+[00:04:55] And things that we would brainstorm on is around storage query, quotability and seamless
+[00:04:59] updates.
+[00:05:00] So let's start with the storage one.
+[00:05:03] Go on, Raghun.
+[00:05:05] So basically there are two ways that I can think of.
+[00:05:08] We can store this.
+[00:05:09] One is a text file and other is a JSON format basically.
+[00:05:15] And one terabyte dictionary, Jason format.
+[00:05:19] Yeah, that's a bad way to go, but like just as a reference, how do you, how do you query
+[00:05:24] a Jason format?
+[00:05:26] So basically it would be like marshaling and marshaling and that would be a very expensive
+[00:05:32] process.
+[00:05:32] Exactly.
+[00:05:33] That's why I'm like more inclined towards text file.
+[00:05:38] Uh, so basically, uh, is it okay if I like, uh, tell about updates also?
+[00:05:45] And let's cover this one part in depth.
+[00:05:48] Okay.
+[00:05:48] You mentioned text file.
+[00:05:50] You mentioned Jason file.
+[00:05:51] So when you said Jason file, you would want to store all the words.
+[00:05:54] And all the meanings in this one Jason file.
+[00:05:57] Right.
+[00:05:57] Yeah.
+[00:05:57] Given that you brought up this topic, it's it's, first of all, thank you
+[00:06:00] for breaking this topic up, but now what would happen?
+[00:06:03] A lot of us put a lot of data in Jason files.
+[00:06:07] Now the disadvantage of storing data in Jason files, especially in this,
+[00:06:11] in this use case is that for you to check if a word exists in this JSON file or not,
+[00:06:19] you anyway have to read the entire JSON file, deserialize it,
+[00:06:23] create this in-memory object and then check like in-memory hash map or something
+[00:06:27] and then check.
+[00:06:28] That becomes really costly.
+[00:06:30] Size of the dictionary is one terabyte big.
+[00:06:32] There is no direct way to access a particular thing in this JSON
+[00:06:36] without reading the entire JSON file because that's what the format says.
+[00:06:41] is why we cannot go with JSON file, a singular JSON file containing all the data, which means
+[00:06:50] that what we can pick is we can pick a simple text file.
+[00:06:54] Raul, what will be the format of the text file?
+[00:06:56] So basically it would be like, it will be something like write ahead log, which will
+[00:07:01] have like, which will create some logs.
+[00:07:03] Like this word is updated.
+[00:07:04] This word is like this word is updated with this meaning dictionary.
+[00:07:08] How are you storing?
+[00:07:09] yeah so that's
+[00:07:11] that's that's how like basically like
+[00:07:13] this word equals to
+[00:07:15] meaning equals to
+[00:07:17] anything kind of CSV
+[00:07:20] yeah you can
+[00:07:21] say that right so let's
+[00:07:23] say I score apple
+[00:07:24] comma fruit
+[00:07:27] and then new line
+[00:07:28] and then let's say you have Amazon
+[00:07:32] and it can
+[00:07:33] have repetitive columns like
+[00:07:34] it can have like columns with
+[00:07:37] the same name
+[00:07:39] There are no columns. You only have words and meanings.
+[00:07:41] Like rows with the same
+[00:07:44] same words.
+[00:07:46] No, no, no. We don't want same words
+[00:07:48] in the dictionary. Imagine this file
+[00:07:50] opened in any text editor.
+[00:07:52] People would find it difficult.
+[00:07:54] You want portability. You cannot have
+[00:07:57] duplicate things over here.
+[00:08:02] It is related
+[00:08:03] to the updates that I thought.
+[00:08:05] But that's not
+[00:08:06] now I'm adding.
+[00:08:09] out of the box, right?
+[00:08:10] Yeah.
+[00:08:11] I know where you're going with this.
+[00:08:13] Right.
+[00:08:13] Now then you'll create an index
+[00:08:14] and what not on top of it.
+[00:08:16] No, I was actually thinking
+[00:08:17] about dirty reads
+[00:08:18] and something like that
+[00:08:19] in that context.
+[00:08:21] But let's keep it simple
+[00:08:22] because this one constraint
+[00:08:24] that I'm adding
+[00:08:25] that you cannot have
+[00:08:25] repetitive things in this file
+[00:08:27] will make things very,
+[00:08:28] let me add it.
+[00:08:33] No repetitive entries.
+[00:08:36] Okay.
+[00:08:39] Okay.
+[00:08:40] So now what will you do?
+[00:08:42] Is this format according to you okay enough to start with?
+[00:08:46] Yeah.
+[00:08:47] For starters, it is okay.
+[00:08:50] Okay.
+[00:08:51] Just one question before I move to Heman.
+[00:08:53] Will you keep this file sorted in some fashion?
+[00:08:59] Okay.
+[00:09:00] If there is a sorting constraint, then there will be like...
+[00:09:03] No, there is no constraint.
+[00:09:03] Will you keep it sorted?
+[00:09:07] No, I don't think so.
+[00:09:09] don't have any like like I we don't have any restrictions on the response time right as of
+[00:09:15] now like we are not bound to just give the answer quickly so I will not prefer sorting here okay so
+[00:09:24] words can come and fit in any order here okay yeah okay fine okay hey man else else I will go with
+[00:09:31] the trees or something like that wait wait wait wait wait we'll come to that we'll come to that
+[00:09:39] that's how because it's fun to discover it step by step right because that that solidifies the
+[00:09:44] understanding for him that's right right okay so uh himan yeah anything that you would want to
+[00:09:51] change in this file format yeah i maybe i would like to start from scratch the way i have to think
+[00:09:59] it. So if I say the biggest requirement, it is first searchable dictionary, the first,
+[00:10:11] most important and the heavy thing is it's a, it should be a searchable via key. Let's say,
+[00:10:18] I consider this thing as a key value store, where key is a word, well, you can be a two line, three
+[00:10:24] line for an explanation of that word searchable via key plus it's a read heavy operation.
+[00:10:31] This dictionary is always maybe have a thousand to one ratio of read and write or maybe something
+[00:10:37] too skewed.
+[00:10:38] Much more than that to be honest.
+[00:10:40] It's much more than thousand to one.
+[00:10:42] So read heavy searchable system is one thing.
+[00:10:45] The only third thing which I have to take care when I'm going to add or modify a word.
+[00:10:52] I should not kind of
+[00:10:54] boil the ocean for
+[00:10:56] changing a small thing. That's
+[00:10:58] a second thought I am having.
+[00:11:00] What did you say about the last thing when you are modifying
+[00:11:02] something? So I'm
+[00:11:04] saying it should not kind of
+[00:11:05] disturb my whole system by doing
+[00:11:08] a very small change. I should
+[00:11:10] be able to update or add.
+[00:11:12] So that's the third
+[00:11:14] thing I have to keep in my mind when I'm
+[00:11:16] designing it.
+[00:11:18] If I design in a way
+[00:11:22] each update is too costly, then also not a very good design.
+[00:11:25] It may be a good, but not very good.
+[00:11:28] But just to probe you on that, our updates are going to be weekly once.
+[00:11:34] Yes, when I say it should not disturb means it should not need to do too much
+[00:11:41] heavy on IO side or read side on desk.
+[00:11:45] If you put it in such a structure, then I have to go and scan each and every file
+[00:11:52] figure it out where it is and then change or add,
+[00:11:56] then it does not seems like a good design.
+[00:11:59] That's yeah.
+[00:12:00] But then in any case, our updates are I totally agree with your point that each
+[00:12:04] update, each single word update cannot be very costly.
+[00:12:09] Yes.
+[00:12:09] But given that my total I'm getting updates in batch, I can still do one huge
+[00:12:16] processing. Yes.
+[00:12:18] One huge processing is okay.
+[00:12:22] I think we have understood the fair bit of biggest requirement of the system.
+[00:12:26] Let's think about making it how we can do it.
+[00:12:29] When we say we need something searchable,
+[00:12:33] definitely a sorted via key looks like the first thing that we have to thought.
+[00:12:40] If you do not sort it, there is no way you can do a search in a very better way.
+[00:12:47] I mean, an efficient way, if I have to use the right word.
+[00:12:49] So starting by key should be the way now how you will store it.
+[00:12:56] So that if I have to search it, I can efficiently do it means in place of having a single text file,
+[00:13:07] maybe I need to start it or partition it where there are multiple of files.
+[00:13:12] And if you use yesterday's pattern of figuring out the routing,
+[00:13:19] you sent a word ABC and you figure out out of 100 files that I am having,
+[00:13:26] this file is responsible for ABC, let's say.
+[00:13:29] So I have not to go and search it and that file is sorted.
+[00:13:32] So if I go and know that this is the way we are up to search it,
+[00:13:37] I can immediately go and read that specific place in the file
+[00:13:41] so that disk.io and seek and all those things is minimal.
+[00:13:46] Just to stop you there.
+[00:13:49] You are proposing we don't have just one file.
+[00:13:52] We can split it into multiple files.
+[00:13:55] Just one thing added this constant of portability.
+[00:13:58] We cannot have multiple files.
+[00:14:01] Okay.
+[00:14:03] Because when you have multiple files, what you are killing is you are killing portability.
+[00:14:08] What we want is literally this one file in some format.
+[00:14:11] We do a copy like it should be one file which we should be easily able to ship.
+[00:14:15] We should not be able to copy tens and hundreds of files.
+[00:14:19] Only a specific software can read it.
+[00:14:21] Right.
+[00:14:22] What we would want to have is we want to just have this one file
+[00:14:24] containing everything we need to read and write to it.
+[00:14:28] Okay.
+[00:14:29] I have a bit different of Arpit there.
+[00:14:33] When we say multiple files, that's a logical way of saying it.
+[00:14:39] We may think about like having a one single zip,
+[00:14:42] which have hundreds of folders and each folder has something which makes.
+[00:14:45] No, but then you would still have to extract it to use it.
+[00:14:48] Right.
+[00:14:50] I'm also against it.
+[00:14:52] I'm saying have just one.
+[00:14:56] And you'll understand why I'm adding this constraint
+[00:14:58] when we reach the end of the solution.
+[00:15:00] Because it forms the foundation for hundreds of systems
+[00:15:04] that I'll talk about.
+[00:15:05] That's why I'm just probing you to think.
+[00:15:07] It might seem like Arpit is adding random constraint,
+[00:15:10] but these will all come in very handy.
+[00:15:13] I got it to your point.
+[00:15:16] Maybe I will think.
+[00:15:16] So when I say multiple files, my thought came from the logical division,
+[00:15:22] not necessarily we need to have a multiple files in one single file.
+[00:15:26] We have a logical division which says like, okay, first hundred pages or first hundred is
+[00:15:30] for this part and then up to this to this area.
+[00:15:34] So we can have a proper header or something which is a second file which talks about up
+[00:15:40] to this sector and this place are for this area and we can do it by a single file.
+[00:15:44] The idea is about making it searchable by sorting.
+[00:15:48] So that's why partitioning is necessary.
+[00:15:51] Sorting is necessary when you store it.
+[00:15:54] Now what we need to think about is when we are going to do a
+[00:16:02] representation in the system, we need a key and maybe a big size of variable size of value.
+[00:16:11] So in file, if you take a line by line approach or any approach when we are writing it, maybe
+[00:16:20] that will not be so good.
+[00:16:21] So we need to think about it encoding it in a way.
+[00:16:24] So in place of directly JSON, if you use any other format of encoding, when we are storing
+[00:16:30] it, that may be helpful, but it will definitely add the cost of decoding it.
+[00:16:38] So if I, in place of Jason, if I use any famous paracet or any other format that, that will
+[00:16:46] add a bit of a work there, but it seems that that should be not too much in my understanding.
+[00:16:54] You may need to think about the real facts and numbers to figure it out.
+[00:16:58] If it is a too bad a con that not do it.
+[00:17:03] Got it.
+[00:17:04] Thanks.
+[00:17:04] Thanks.
+[00:17:05] Thanks so much for adding so much.
+[00:17:08] trying not to digress into parquet, avro and all this format,
+[00:17:13] but trying to build a base understanding of this while still keeping it simple.
+[00:17:18] Because what you suggested that we have multiple partitions in our file,
+[00:17:23] and we should be able to look up within that,
+[00:17:26] that is still a complex enough solution that we'll touch upon later.
+[00:17:31] I'm trying to go in a very simpler direction so that the base concepts that we
+[00:17:36] need to build anything queryable works.
+[00:17:39] And just to add to a real world use case on why I'm just trying to keep it simple is on AWS, AWS has S3.
+[00:17:50] We all know AWS has S3.
+[00:17:53] Right?
+[00:17:53] On S3, we can upload any CSV file.
+[00:17:56] Yes.
+[00:17:57] And we can query it using a service called Athena.
+[00:18:00] I know.
+[00:18:01] Right?
+[00:18:01] Now in Athena, when you are storing things on S3, you are just storing simple CSV file,
+[00:18:07] but you are still able to seamlessly query on Athena.
+[00:18:10] That's what I'm trying to simulate.
+[00:18:12] With this example, with this basic understanding, we are trying to build AWS S3, not at that
+[00:18:18] scale, but basically that particular compute engine, how they would have thought of this,
+[00:18:25] how they would have implemented this.
+[00:18:26] And it has a ton of other applications as well, but this is what I'm trying to simulate.
+[00:18:31] very simple sense can we make and obviously the points that you said we will all incorporate that
+[00:18:36] right but not with that specific like let's say parquet and this because not a lot of people would
+[00:18:41] know about it but simplifying it to have an understanding okay this is what we need you can
+[00:18:47] use parquet and whatnot to build it but instead of going into that complexity we'll just keep it
+[00:18:51] really simple on that okay just maybe a last line to say on that in terms of the thought process
+[00:18:57] how Athena has came or other systems works in a such way.
+[00:19:01] We need to think about something like Lucene's way of tokenizing and putting.
+[00:19:07] Here the only thing is in the key,
+[00:19:10] Lucene tries to figure out the document ID and name
+[00:19:13] and all those things against it to save it.
+[00:19:15] Here we have to save it maybe a continuous data of two, three lines,
+[00:19:20] which is the meaning of that word.
+[00:19:23] So we need to think about building something like this.
+[00:19:28] And that looks near real because if you see the Lucene index,
+[00:19:33] they are creating a single file also.
+[00:19:35] I mean, one index is good enough in one single file,
+[00:19:39] which is quite large, even can go to one terabyte,
+[00:19:42] whatever you are saying.
+[00:19:43] So that's all I can think of to start with.
+[00:19:46] No, but you added some great parts.
+[00:19:48] It's just that I'm trying to keep it one level down
+[00:19:51] and then jump the level.
+[00:19:54] That's it.
+[00:19:55] Okay.
+[00:19:56] Sidesh, given this file that we have,
+[00:19:59] it will contain all the words that we have seen for now.
+[00:20:05] How would you search on this?
+[00:20:09] Yeah, Arvit.
+[00:20:09] So I was going to come to that.
+[00:20:11] Given that we have a single file,
+[00:20:13] and let us suppose this is terabyte big file,
+[00:20:15] what I would do is basically,
+[00:20:18] like imagine I will start with binary search
+[00:20:19] and then we will go ahead.
+[00:20:22] what I would do is basically take some offsets in this,
+[00:20:25] store it as indexes and given a word.
+[00:20:29] How?
+[00:20:30] So basically, yeah, now, okay, I'll get there.
+[00:20:33] Where I'm getting is basically I'm getting into a B plus tree.
+[00:20:36] I want in two keys and values
+[00:20:38] and basically create blocks of pages in memories.
+[00:20:41] So let us construct a first level index first.
+[00:20:45] Okay.
+[00:20:45] Now let us suppose you have a one terabyte file
+[00:20:48] and you have eight kilobyte block.
+[00:20:51] go to blocks and I'll keep it very simple.
+[00:20:54] Very simple.
+[00:20:54] Like what a five year old to understand.
+[00:20:57] Okay.
+[00:20:57] Okay.
+[00:20:58] Makes sense.
+[00:20:58] Like let us suppose you can keep 1000 keys in memory.
+[00:21:03] Okay.
+[00:21:03] Now, wait, wait, wait, wait, why only 1000 keys in memory?
+[00:21:07] So I can keep a lot.
+[00:21:09] No, why I'm saying this is we are over exaggerating.
+[00:21:14] We are over engineering.
+[00:21:15] This, this is a very simple word dictionary, right?
+[00:21:17] Keep it very simple.
+[00:21:19] No need to add B plus trees.
+[00:21:21] some anything fancy keep it very simple because that's where you see the power of the system
+[00:21:26] and i'm just trying to bring it down to a very simplistic level because you would see the beauty
+[00:21:32] of the system right that's why that's why given that you have what would be the first intuition
+[00:21:36] the first way of making or let me let me cover that i know you folks would go into very fancy
+[00:21:43] direction i'll just i'll just pull you into this give me a minute right okay so the nine way let's
+[00:21:48] say we discussed that, Hey, we cannot use a traditional database to store this particular
+[00:21:53] dictionary.
+[00:21:54] Dictory contains key and the meaning.
+[00:21:57] Now for us to make things now, given that we cannot use a traditional DB, the simplest
+[00:22:02] thing that we can come up with is, Hey, let's just store things in a simple text file.
+[00:22:06] Given that we are storing in things in a simple text file, what format would you store?
+[00:22:10] The normal format that we can think of is let's say we store it in a CSV format, but
+[00:22:15] first thing is key then you have this gigantic meaning for that particular key.
+[00:22:20] Okay given we have this we need to now search for this like because that's what our use case is.
+[00:22:27] Your use case is to do a key lookup. Now given that we have this one gigantic one terabyte file
+[00:22:33] and now we want to do key lookup in this what is a naive way? If you have this just this one file
+[00:22:38] and you want to do key lookup what will you do? You'll open this file read this file line by line
+[00:22:45] find the particular key that you are looking for.
+[00:22:48] Once you find it, you stop the iteration, read the meaning and return the response.
+[00:22:52] Right now doing this for every single read is very expensive because dictionary is a
+[00:22:58] very read heavy application.
+[00:23:00] So linear search is not a way to go because when you search linearly for every read
+[00:23:06] request that is coming in, you would be worst case, you would be effectively reading
+[00:23:10] one terabyte file every single time.
+[00:23:12] Right.
+[00:23:13] worst case right on an average would be reading half a terabyte for every read which will make
+[00:23:18] your things first of all very slow second it would degrade the performance of your disk third your
+[00:23:25] disk sectors will go bad because it is very heavily overutilized at the moment right so it has hardware
+[00:23:31] problems it has software problems it has time problems right so whenever you are in the situation
+[00:23:37] where your reads are slow, always, always in order to make things faster, in order to
+[00:23:44] make reads faster, the only thing that should come to your mind is indexing.
+[00:23:52] So can we somehow index the data?
+[00:23:56] Can we somehow create a small index through which we would be able to not, through which
+[00:24:03] we should avoid doing a sequential scan of this entire file to hunt for the meaning that
+[00:24:09] we are doing or to hunt for the key that we are looking for.
+[00:24:12] So can we create an index on top of it?
+[00:24:16] So that's what would be the index that we'll create.
+[00:24:19] Just one level index, simple.
+[00:24:21] What would this index look like?
+[00:24:23] Yeah.
+[00:24:24] So basically offset and the name, like basically Apple or MSN.
+[00:24:30] And the key, right?
+[00:24:31] Key and the offset.
+[00:24:33] point to what? Offset is basically inside the file. So first line of this file is basically,
+[00:24:42] let us suppose we have organized it line by line is offset zero and so on. So offset is the
+[00:24:50] nth byte from the beginning of the file up until with that line starts. Right. So Apple is done.
+[00:24:58] Amazon is offset to which points over here.
+[00:25:01] Then maybe you might have a third word.
+[00:25:03] Let's say book with offset three with stores over here.
+[00:25:06] And offset is the byte position of that word in that file.
+[00:25:09] Okay.
+[00:25:09] Now let's estimate the size of this index.
+[00:25:13] So this is a classic index.
+[00:25:16] Now, how would the read happen?
+[00:25:18] Now, first of all, we would now what we'll do.
+[00:25:21] Now, if you were to, given that we have an index,
+[00:25:27] gigantic file and now if let's say I'm searching for a word if I'm let's say searching for apple
+[00:25:33] what I can do is I can read this file I can open this file index file that I have I'll iterate this
+[00:25:39] file line by line at the moment we have still not done what how should we read this file but assume
+[00:25:44] that we are reading this file line by line and we find the key that we're interested in let's say
+[00:25:49] we're interested in apple we got it we got the offset around it we went to the corresponding
+[00:25:57] file and then we read this entire line from it, get the meaning and send it to the user.
+[00:26:03] It's like, but you are doing linear scan over here.
+[00:26:05] You're still doing linear scan over here.
+[00:26:07] How is this better?
+[00:26:09] This is better because here, when you are doing the linear scan, you are also going
+[00:26:15] through the meanings of the word, which are going to be huge while you're doing
+[00:26:20] linear scan over here.
+[00:26:22] What's happening is you are just for each key that you have, you are just having a
+[00:26:27] right offset that you are storing against which right.
+[00:26:30] So you are not iterating around MVs of data, but rather this is just 4 byte offset.
+[00:26:35] So it's very fast to read this small file sequentially worst case sequentially as compared
+[00:26:41] to this gigantic file, because when you do file IO, you always go in a sequential way
+[00:26:47] over there.
+[00:26:48] Right.
+[00:26:49] Okay.
+[00:26:50] Now, can we like, should we do this sequentially?
+[00:26:54] Let's see.
+[00:26:55] Can we fit this index in memory?
+[00:26:57] some basic computation to see how big this index file would be.
+[00:27:02] Right.
+[00:27:03] Harsh, I'll pull you in.
+[00:27:05] How we need to estimate the size of this index.
+[00:27:08] The number of words that we have is 170,000 words.
+[00:27:16] And what next?
+[00:27:17] How will you compute the size of this index?
+[00:27:22] Harsh.
+[00:27:24] Yeah.
+[00:27:25] Hi, Arbit.
+[00:27:27] thinking one very small way to do it. Like in this index, can we have that 26 entries
+[00:27:33] like ABCD, E, F, G something and their indexes or location.
+[00:27:39] But then we only have 26.
+[00:27:41] But then still you would have to go to those, those all the words for Apple in order to
+[00:27:45] find that one word.
+[00:27:46] Right.
+[00:27:47] Yeah.
+[00:27:47] But we at least know about ABCD.
+[00:27:50] But then isn't this better given that you already know Apple, you know, the
+[00:27:54] opposite to directly go to that line and read it.
+[00:27:57] We have all the words, right?
+[00:28:00] That's your concern.
+[00:28:01] Right.
+[00:28:02] But let's assume, let's compute the size of the index.
+[00:28:05] How big that index is.
+[00:28:08] The size of each entry in the index is how big?
+[00:28:11] The length of the key and the length of the offset.
+[00:28:14] Correct?
+[00:28:15] Correct.
+[00:28:16] So what's the length of the key is the length of the word that you have.
+[00:28:20] The length of the word on an average in English dictionary is 4.3 something.
+[00:28:28] average length.
+[00:28:29] So average length is 4.3
+[00:28:31] plus what you are storing
+[00:28:33] and offset. Offset is
+[00:28:35] integer. Integer will take up 4 bytes.
+[00:28:38] Right?
+[00:28:39] So 4.3 plus
+[00:28:41] 4 is roughly
+[00:28:43] the size of one index record.
+[00:28:46] This much. Correct?
+[00:28:47] Correct.
+[00:28:49] And now let's say you store it in a new line.
+[00:28:51] So you add 2 more buffer characters.
+[00:28:54] One for comma
+[00:28:55] and one for new line that you have.
+[00:28:57] Right.
+[00:28:59] So these many characters or these many bytes per index, you are having one entry for each
+[00:29:07] word that you have.
+[00:29:08] You have total 170,000 words.
+[00:29:11] So this would be the size of your index.
+[00:29:13] Correct.
+[00:29:14] Correct.
+[00:29:15] Okay.
+[00:29:15] Do this multiplication and tell me what the size of the index is.
+[00:29:19] Open a calculator and do this multiplication for me.
+[00:29:25] Yeah.
+[00:29:26] Take your time.
+[00:29:52] 17,000,000.
+[00:29:55] 17,000,000.
+[00:29:57] Tell me the exact number.
+[00:30:00] 17,000,000.
+[00:30:02] 17,000,000.
+[00:30:04] 17,000,000.
+[00:30:06] These many bytes.
+[00:30:08] Right.
+[00:30:09] So if these many bytes is the size of the index file,
+[00:30:13] it seems too big.
+[00:30:14] Let's convert it into KB.
+[00:30:17] It will be?
+[00:30:21] 1751
+[00:30:22] KB
+[00:30:23] which is equal to 1.751
+[00:30:26] MB. That's it.
+[00:30:28] Okay.
+[00:30:29] Now, will you
+[00:30:31] worry about it? 1.751
+[00:30:34] you can fit it in RAM very easily.
+[00:30:36] Right.
+[00:30:37] Right? So this is what I wanted
+[00:30:39] to showcase that
+[00:30:40] this is why number crunching
+[00:30:43] is very important when you are
+[00:30:45] designing any system.
+[00:30:48] What seems to be very huge one terabyte big file or 170,000 words.
+[00:30:55] When you do this computation, you find out, Hey, this file is indeed one terabyte big,
+[00:30:59] but the index that we are creating is like can fit in just 1.751 MB, which is peanuts,
+[00:31:08] which is nothing.
+[00:31:09] You can literally load this index in memory stored in disk while processing load this
+[00:31:14] in memory.
+[00:31:15] So now, the things that you're trying to do, like A to Z, you don't really have to, because
+[00:31:21] you can fit this index right in your memory.
+[00:31:24] Given a word, just look it up.
+[00:31:26] It's like create a hash map out of this in memory, given a word, check the hash map,
+[00:31:32] get the offset, go to this file, read the corresponding line from that offset and return
+[00:31:37] the meaning to the user.
+[00:31:39] life becomes so simple and this is why I wanted to show like this one simple number crunch that
+[00:31:47] we did it helped us make our system very better because what has happened is instead of over
+[00:31:54] complicating things we just keep it very simple that one level of indexing so first of all just
+[00:32:00] to uh converge on this discussion and give you a quick summary of it we started with storing this
+[00:32:08] in a simple CSV format that we had.
+[00:32:10] Then because now storage part is done.
+[00:32:13] Now, when you are trying to query it,
+[00:32:15] when you're trying to query it, what we found out,
+[00:32:17] hey, we have to do linear scan every time.
+[00:32:19] For every query, for every read request,
+[00:32:21] if I'm doing this linear scan, sequential scan in this file,
+[00:32:25] on an average, I would be reading 0.5 terabytes,
+[00:32:27] like half of it, 0.5 terabytes on every request, rough estimate.
+[00:32:31] Then for every read request, reading 0.5 terabytes is very slow.
+[00:32:35] 0.5 terabyte is 500 GB.
+[00:32:38] request it's going to be very slow so whenever our reads are slow the only thing that we can think of
+[00:32:44] is indexing and that's the good way to approach it reads were slow to make it first we create an
+[00:32:49] index in index what we store we store the key and the offset at which it is present in the file
+[00:32:55] right now we think of doing let's say let's keep it simple let's start to do linear scan on this
+[00:33:01] thing every time we get a request on this file if we do that every time that we get request we do a
+[00:33:08] figure out a key and then get to offset and then query it.
+[00:33:10] What would happen?
+[00:33:11] We think, hey, isn't this slow?
+[00:33:14] But in order to see if this linear scan is going to be slow or not,
+[00:33:19] we find the size of this index.
+[00:33:21] The size of this index is the number of entries that we would have,
+[00:33:25] which is equal to the number of words that we have multiplied
+[00:33:27] by the average record size, right?
+[00:33:30] It's English dictionary that we are building.
+[00:33:33] In English dictionary, the average length of a word is 4.3
+[00:33:38] either one of this, but it's not more than five.
+[00:33:40] Definitely. That's the average one.
+[00:33:42] I actually downloaded an entire dictionary and then computed the average length.
+[00:33:45] That's how I got to know.
+[00:33:46] So it's 4.3 as it's R4.4.
+[00:33:49] Something like that, but 4.3 plus 4 by to store this integer.
+[00:33:55] So 4.3 plus 4 plus 1 for combine 1 for new line.
+[00:33:58] So it became 8.3 plus 2 is 10.3,
+[00:34:01] 10.3 into 17,
+[00:34:05] which gives you just 1.75 MB.
+[00:34:09] Given this, we can very easily see,
+[00:34:11] we can literally store this index in memory.
+[00:34:13] Like we can load this index in memory
+[00:34:15] when my API server starts,
+[00:34:16] request comes in,
+[00:34:18] I check this in memory hash table
+[00:34:20] where this index is,
+[00:34:21] I get the key,
+[00:34:23] check the offset,
+[00:34:24] go to this file,
+[00:34:25] read the meaning
+[00:34:27] and send it back to the user.
+[00:34:29] And this makes,
+[00:34:31] this now makes
+[00:34:33] much faster because we are not doing linear scan over here.
+[00:34:37] We are directly doing a pointed read on this file with the help of this index.
+[00:34:44] Right.
+[00:34:45] Okay.
+[00:34:46] Okay.
+[00:34:47] This is the first part where we sorted out our storage and our querying side of things.
+[00:34:53] Right.
+[00:34:54] Okay.
+[00:34:54] Now let's talk about portability.
+[00:34:57] Now here you see we have now two files.
+[00:35:02] Data.dictionary.
+[00:35:03] We have the two files.
+[00:35:05] We have index.index.of dictionary and data.dictionary.
+[00:35:09] In index file, we have the index.
+[00:35:11] In data file, we have the data.
+[00:35:13] Now for us to ship this quote unquote, ship this dictionary to someone, anyone, I am having
+[00:35:20] two files at the moment.
+[00:35:22] This breaks the portability thing.
+[00:35:25] We want this to be just one file.
+[00:35:28] How can we go about this?
+[00:35:31] Anyone except Rahul and because these folks are quite active.
+[00:35:33] I'm just probing someone else to participate.
+[00:35:38] Anyone else who wants to do it.
+[00:35:41] We have two files.
+[00:35:42] We don't want two files.
+[00:35:43] We want one file.
+[00:35:45] Alok.
+[00:35:46] Do we need to create a file for the index?
+[00:35:49] I mean, on the system startup, can we just build it up in memory?
+[00:35:55] So which means on every startup you have to iterate through this entire
+[00:36:01] We can avoid it, right?
+[00:36:03] Because why do we do that?
+[00:36:04] Because this is not changing anyway.
+[00:36:07] Right?
+[00:36:08] This will change once every week, right?
+[00:36:10] This, this file.
+[00:36:13] I mean, then basically it is about merging these two files and having it in one file.
+[00:36:20] So having some kind of partition between, some kind of partition between using which
+[00:36:27] we know that till this line, this is the index and after this is the dictionary.
+[00:36:31] Okay.
+[00:36:32] So now what we do, we have this, so we merge it.
+[00:36:35] Okay.
+[00:36:36] But now that's now a new challenge would come in.
+[00:36:39] So now you are merging this two file into one gigantic file in which you have index.
+[00:36:48] You literally concatenate this file and you have this gigantic data that you have.
+[00:36:53] Okay.
+[00:36:53] Okay. But how would you know when your index ends and when your data begins?
+[00:36:59] There has to be some line or some, uh, some special information.
+[00:37:05] Yeah.
+[00:37:06] Okay.
+[00:37:11] Anmol, any other approach?
+[00:37:15] So, uh, I mean, we can pre allocate the space for index because the words are, uh, I mean,
+[00:37:21] We know the size of the words and only few words will be added.
+[00:37:25] What do you mean by pre-allocate?
+[00:37:27] Pre-allocate in the sense like we can fix the size for the index.
+[00:37:30] Okay. You are giving it a fixed size. So for example, that I know that my dictionary,
+[00:37:35] but what would be a fixed size? Right now it's 1.751 MD.
+[00:37:39] Yes. I would be giving more to the index more than this. That is currently there, but
+[00:37:47] because the new words will be added very less, right?
+[00:37:51] that, hey, instead of me worrying about to have a separate or a special line that denotes
+[00:37:56] that my index ended and now my data begins.
+[00:37:59] What you are doing is you are giving a fixed width to this index that when my application
+[00:38:05] starts, when it reads this gigantic file, it knows that the first two MB is going to
+[00:38:09] be my index.
+[00:38:10] Yes.
+[00:38:11] Right.
+[00:38:11] Okay.
+[00:38:12] That's a good approach.
+[00:38:13] That's a very nice hack, but it's not space.
+[00:38:15] Although you're wasting very little space, but let's be a little more frugal about it.
+[00:38:21] Sure.
+[00:38:25] Gaurav, what else can you do?
+[00:38:27] These are two good approaches.
+[00:38:28] What else can you do?
+[00:38:29] Building on top of it, we can have data is stored from top to bottom, bottom within the
+[00:38:35] file and index is stored from bottom to top within the file.
+[00:38:39] How would you know where one ends and another begins?
+[00:38:43] You still want to know, right?
+[00:38:47] Up until where should I read to load the index?
+[00:38:51] store index like this, how would you know when to stop reading the index?
+[00:38:55] Like when to stop so that you have built this in memory hash table.
+[00:39:03] Because imagine I'll just, I'll just give a quick example.
+[00:39:06] So let's say this is how you have concluded.
+[00:39:09] So first index and then data all in CSV format.
+[00:39:12] Right now, when you start reading this line by line, you created hash table,
+[00:39:16] hash table, hash table, hash table, hash table, you put it entry there and then
+[00:39:21] this first you had an hash table apple comma o1 and then when you start i did this you got apple
+[00:39:26] and then you replace it with a fruit or something right so you need to be a little more frugal about
+[00:39:31] it that you need to know when to stop so what i meant was that index can grow like a stack which
+[00:39:40] means from the nth byte to n minus one and minus two so on and data can start from zero zero so
+[00:39:47] So then you are wasting this much of space.
+[00:39:49] So this much of space might be unutilized.
+[00:39:52] Today it might be unutilized, but someday.
+[00:39:55] But the day when these two are right next to each other,
+[00:39:59] how would you know when one finished and other begins?
+[00:40:02] Yeah, having a separator probably.
+[00:40:05] So you are also going with separator, right?
+[00:40:07] Yes, yes, yes.
+[00:40:08] Okay.
+[00:40:10] Yes, Amrita?
+[00:40:13] So basically I was thinking that since the data is always going to grow, but we can choose
+[00:40:20] a specific index to store that information.
+[00:40:23] So maybe at the zero thing, they saw the first set we can choose to store that separate information
+[00:40:27] and then update it as the add on data.
+[00:40:31] Okay.
+[00:40:32] That's interesting.
+[00:40:33] So what you're saying is that add something in the beginning of this and specify what
+[00:40:41] is. Correct? Right. Okay. So now if you do this, your way to read this entire file would
+[00:40:53] be I first read the separator. Then I start reading the data until I find it separator
+[00:40:58] and that much becomes my index beyond which becomes my data. Correct. Now I'm saying,
+[00:41:04] can you change this to store something else?
+[00:41:09] That would be much more beneficial for you.
+[00:41:13] Instead of storing the separator,
+[00:41:15] can you not directly store the byte offset?
+[00:41:20] Yes, we can.
+[00:41:21] It eradicates the need of a separator.
+[00:41:23] And then the advantage of it is let's say you store
+[00:41:30] the byte offset
+[00:41:34] of data. So place where the data begins.
+[00:41:38] And if you store this information, you exactly know when your file loads or when you are trying to read this entire file.
+[00:41:45] The first step is to read this first chunk. And this is a classic way of having a header.
+[00:41:54] in any file format of the world png jpg mp3 avi everywhere the first few bytes it depends on the
+[00:42:05] protocol it depends on the format that the creator of that uh image format or whatever format
+[00:42:11] specifies what that should be that first few bytes denotes or contains the meta information
+[00:42:18] about everything else in the file.
+[00:42:20] So what you just spoke about Amrita
+[00:42:23] is to add this header
+[00:42:25] whose job would be
+[00:42:26] to store this meta information
+[00:42:28] about the file that you are creating,
+[00:42:30] the singular file that you are creating.
+[00:42:32] Because it contains multiple sections,
+[00:42:34] you are storing the information
+[00:42:35] about each of the sections in this header.
+[00:42:38] I'll give a small example.
+[00:42:39] So in this header,
+[00:42:40] we might just store
+[00:42:43] that this is our dictionary.
+[00:42:48] with some version number.
+[00:42:52] And now this has to be a fixed size header.
+[00:42:55] It cannot go beyond that.
+[00:42:57] And you have start offset of data.
+[00:43:02] Or rather you may insert store index size.
+[00:43:06] How big your index is.
+[00:43:10] So let's say this requires you
+[00:43:12] 1, 2, 3, 4, 5, 6, 7.
+[00:43:14] 7 or rather 8 bytes to store this.
+[00:43:18] Mixed 8th byte.
+[00:43:19] So first 8th byte would represent O-U-R-D-I-C-T.
+[00:43:22] For example, it's a name.
+[00:43:24] So in the PNG format, the first 3 bytes is P-N-N-G.
+[00:43:29] So that tells the decoder that this is a PNG file.
+[00:43:34] MP3 has some other bytes and then it is MP3 and so on and so forth.
+[00:43:39] So the first 8 bytes will denote that this is R dictionary.
+[00:43:44] Like whatever name you would want to give it, you can give it.
+[00:43:46] Let's say I build my own database.
+[00:43:48] to call it AODB, ARPIT's outstanding database for some reason.
+[00:43:52] So this would be my four first four bytes and it's my decoder who would understand it's
+[00:43:57] AODB file.
+[00:43:58] So I know the format.
+[00:44:00] I know what components would it hold.
+[00:44:02] Then a version number, maybe you might have multiple variants of this file.
+[00:44:06] You may want to specify if it's version one, you have index first and then data.
+[00:44:11] Maybe in version two, you have data first and then index.
+[00:44:13] So depending on that version, the decoder would understand what to do with it.
+[00:44:18] Then third, you might want to store the index file.
+[00:44:20] So depending on this, you are choosing that the next,
+[00:44:23] let's say version number is four bytes as an integer.
+[00:44:26] The next four bytes is index size.
+[00:44:28] That how big is the index?
+[00:44:31] When you do this, you store how big is the index?
+[00:44:34] In this one, what you will store?
+[00:44:35] You will store the value 1.7500.
+[00:44:40] This is the integer that you will store in this space as the index size.
+[00:44:44] So now your header is a fixed width header.
+[00:44:48] plus 4 plus 4 equal to 16 byte. So this becomes your header. So this is the header that you just
+[00:44:53] added which is 16 bytes. So the flow of our application would be when your application
+[00:45:01] server boots up assume it has this file. When it has this file it first reads the first 16 bytes
+[00:45:09] of this file. It sees the header. It sees that hey it is our dictionary first 8 byte it read.
+[00:45:18] it's our dictionary. Oh sorry, what first byte? We know that the header is fixed 16 bytes.
+[00:45:27] So it would read the first 16 bytes out of which it would find the first 8 bytes and
+[00:45:31] understood it is our dictionary. The next 4 bytes is version and the next 4 bytes is
+[00:45:36] the index size. Once it knows that this is the index size, it would read those many bytes
+[00:45:41] starting from this location, these many bytes and it would read it as index. Then it can
+[00:45:48] and create a hash table out of it.
+[00:45:50] And from there, everything is data.
+[00:45:53] And which is what this offsets would be storing over here.
+[00:45:58] So this makes your entire dictionary shippable.
+[00:46:02] And this is a classic way to build any custom file format
+[00:46:08] where you are storing a header
+[00:46:10] and information about different sections that you have.
+[00:46:13] Here the different sections are index and data.
+[00:46:16] In case of PNG, it is something.
+[00:46:18] In case of JPG, it's different frames that you have.
+[00:46:20] In case of MP4, it would be where is the video part?
+[00:46:23] Where is the audio part?
+[00:46:24] Right.
+[00:46:25] And in that video format, you would know that this is the first frame.
+[00:46:27] This is the second frame.
+[00:46:28] This is the third frame.
+[00:46:29] In audio part, you would have the waveform information.
+[00:46:32] Right.
+[00:46:33] This is literally creating compartments in the file that you have.
+[00:46:39] And having a header that tells you where which compartment lies.
+[00:46:44] and this is the one file that you can very easily ship across systems where you would want or give
+[00:46:51] it to your end user. Anyone having this decoder can read this file and this is the point that
+[00:46:58] I wanted to bring out. How this particular format becomes really important and it's very general
+[00:47:04] wherever you see anything. For example, tomorrow what Hemant bring out that word, if you are
+[00:47:11] exploring something around data engineering and you come across parquet format, right?
+[00:47:16] Parquet format also has some headers and information, right?
+[00:47:20] Jason does not have any, if you look carefully in the Jason file, Jason file that we all use.
+[00:47:25] It's a simple text file, right?
+[00:47:27] Because it does not have any headers.
+[00:47:29] You have to read the entire file.
+[00:47:32] It is in a specific format and then you have to decode.
+[00:47:35] So the Jason decoder decodes curly braces, codes, it's string.
+[00:47:41] and then converts it into it.
+[00:47:42] And then it creates a in-memory dictionary and gives it to you.
+[00:47:46] Because it doesn't have header, you have to read the entire file
+[00:47:48] to get the information out of it.
+[00:47:50] CSV in general does not have a header, right?
+[00:47:53] But TPT format, PDF format, everything else has an header.
+[00:47:58] And it depends.
+[00:47:59] You can define your own custom format.
+[00:48:00] I tried to write my own image format.
+[00:48:02] For some reason I did that, right?
+[00:48:04] So that's how I got to know this.
+[00:48:06] But this is again really important.
+[00:48:08] When you know, when you see a file,
+[00:48:11] whatever file, whichever file you are picking up,
+[00:48:13] it has its own encoder and decoder.
+[00:48:21] So encoder creates that file in that specific format
+[00:48:26] and decoder decodes it.
+[00:48:28] Image, video, audio, pick your favorite format.
+[00:48:31] Holds true for everyone.
+[00:48:32] So when we say, you might have seen this error
+[00:48:35] early days of internet to be honest,
+[00:48:38] this web browser does not support TIF format.
+[00:48:42] What does this mean when you say that this web browser does not support a
+[00:48:45] format, it implies that it does not have an encoder or decoder for this file format.
+[00:48:51] What does it mean?
+[00:48:52] It does not have a decoder for this file format.
+[00:48:54] And given this set of bytes, I don't know how to interpret it, but what we just wrote
+[00:48:59] is for our format, the decoder that our decoder, what our decoder would do.
+[00:49:05] it would know for 16 bytes is header
+[00:49:08] through which I would get the size of the index
+[00:49:10] and from which I'll get the data.
+[00:49:12] And the offset in this will contain the offset in this data part.
+[00:49:15] This is the decoder logic that we would write.
+[00:49:18] This holds true for every file format in the world.
+[00:49:22] But now because of that one constraint that I added,
+[00:49:25] quotability, you see that how we were able to create this
+[00:49:29] as just one file instead of shipping multiple files.
+[00:49:35] Okay.
+[00:49:36] So that does this.
+[00:49:37] Now we'll touch upon infrastructure side of things.
+[00:49:41] So now here what we build, we build an understanding of, we build an understanding of something
+[00:49:47] really interesting.
+[00:49:48] How a file format is importance of portability, headers, where they come in handy indexing
+[00:49:55] to make reads faster.
+[00:49:57] Now let's come to the next part.
+[00:49:59] How do you push it?
+[00:50:01] How do you serve the actual user request?
+[00:50:04] Right.
+[00:50:05] I'll lay the seed foundation and then we'll improve on the design.
+[00:50:08] So what we may think that our end user who will be querying on this, obviously we would
+[00:50:15] have a load balance or something where after which you get a bunch of, I had to create a
+[00:50:21] load balancer.
+[00:50:26] So let's say we create a load balancer, request from an end user comes to load balancer.
+[00:50:31] Behind the load balancer, we have bunch of API servers whose job is to serve the incoming
+[00:50:38] requests that are there.
+[00:50:40] So now what would be the request flow look like?
+[00:50:43] So this is a load balancer on which you got the request.
+[00:50:48] These are the API servers.
+[00:50:51] API server one.
+[00:50:56] API not a good place to write.
+[00:51:03] Okay.
+[00:51:04] A classic case.
+[00:51:05] A user, a load balancer and an API server.
+[00:51:09] This is a file that we have.
+[00:51:11] Now where would we store this file?
+[00:51:14] For us to serve this request or handle this request, we are exposing a get endpoint.
+[00:51:21] So slash word is we are exposing and we are doing a get on it and we get the meaning around it.
+[00:51:27] Right?
+[00:51:28] So this is the request that user fires and I want to get the meaning from this.
+[00:51:31] The request comes to a load balancer, load balancer forwards it to one of this instance.
+[00:51:36] Now, what would this instance do?
+[00:51:37] Where is this file?
+[00:51:39] Query.
+[00:51:40] Right?
+[00:51:41] We defined the file format.
+[00:51:42] to provide a way to query it or and way to fire http request on that how does that flow look like
+[00:51:50] anyone
+[00:51:56] kyanav
+[00:51:58] so can we have a shared disk storage for all the api servers that they can query to get the file
+[00:52:07] But why not store this one file on every server?
+[00:52:10] What's the harm in that?
+[00:52:13] That would make the update process a bit more tedious, but if we are fine with that, then
+[00:52:19] we can also do that.
+[00:52:21] Okay.
+[00:52:22] It would make update tedious.
+[00:52:24] Why?
+[00:52:25] So whenever there is a change in, let's say a few hundred words, we have to make that
+[00:52:31] change happen on each of the API servers.
+[00:52:32] some of the API servers might not be available at the time
+[00:52:36] when we are trying to make that update.
+[00:52:38] Then we have to wait for them to be available.
+[00:52:40] But updates are not real time.
+[00:52:42] Updates are weekly.
+[00:52:44] Is that still a problem?
+[00:52:46] Every Sunday you are making one update in bulk.
+[00:52:55] It's not a key value store where you are right
+[00:52:58] or you can update anytime you like.
+[00:52:59] Correct?
+[00:53:00] It's a weekly update.
+[00:53:02] Every Sunday you'll get a file from Oxford.
+[00:53:05] You would say, okay, these are the new words.
+[00:53:06] These are the new meanings.
+[00:53:07] Go and update your data.
+[00:53:09] Right?
+[00:53:12] Yes, that's correct.
+[00:53:13] But like what another angle that I'm thinking of is what if like the updates
+[00:53:19] fail for a particular set of a file, then we would have data inconsistency.
+[00:53:24] So let's say what drastic would change if there is data inconsistency because
+[00:53:29] meanings are not dramatically changing.
+[00:53:31] Right?
+[00:53:32] You may have inconsistency in data in case your update partially fails, but it's a meaning.
+[00:53:39] So apple, you might have a meaning which says a fruit.
+[00:53:42] Tomorrow you might have a meaning that says around fruit.
+[00:53:46] Is this an end of a word?
+[00:53:48] No, right?
+[00:53:51] But it's a valid point.
+[00:53:53] I'm not denying it, but just that I'm probing you more to think on those lines.
+[00:53:56] What else is wrong with this approach?
+[00:54:00] And why are you going?
+[00:54:01] Because what I'm trying to do is when you are, when you are proposing a solution, you
+[00:54:06] should have thought of other disadvantages, like, uh, sorry, you should have thought of
+[00:54:10] disadvantages of other part in depth, which is what I'm trying to prove.
+[00:54:15] Right.
+[00:54:15] What else could go wrong?
+[00:54:16] So you said update tedious, correct.
+[00:54:18] You said data inconsistency, but in both cases, both of them are not a problem yet.
+[00:54:24] What else is a problem?
+[00:54:32] If you store the files, the same dictionary file across all the three servers, what else
+[00:54:39] is a problem?
+[00:54:40] Like we are having a lot of duplicated costs of saving the file, one DB file on a lot of
+[00:54:46] servers.
+[00:54:46] So which we can optimize for.
+[00:54:51] Biggest pain, cost.
+[00:54:56] Biggest inconsistency is okay.
+[00:54:58] Updates, tedious, okay.
+[00:55:00] Cost.
+[00:55:01] A real world system design is all about doing things,
+[00:55:05] doing the bare minimum things at the bare minimum cost.
+[00:55:08] Always remember this.
+[00:55:10] If you are not thinking about cost, then you are not building good systems.
+[00:55:14] Because you cannot, because in order to make anything faster,
+[00:55:17] just throw a lot of money at a cloud provider, get a bunch of RAM,
+[00:55:21] store everything in memory, problem solved.
+[00:55:24] If I can have one terabyte RAM over here on each of this machine, I can just load the
+[00:55:30] entire dictionary in memory.
+[00:55:32] No need of creating index, nothing, just one hash table containing one terabyte of data.
+[00:55:36] But that's not a good solution.
+[00:55:38] Because it's not cost effective.
+[00:55:40] So cost is something that should come to your mind.
+[00:55:44] Like the first thing that is the solution that you're designing is this cost efficient
+[00:55:48] or not.
+[00:55:49] Okay.
+[00:55:50] Why is this cost inefficient?
+[00:55:53] duplicating the data that you have in external disks that you are storing and you would be
+[00:55:58] storing it in SSDs.
+[00:56:00] SSDs or any disk is very costly.
+[00:56:02] Cost of one terabyte SSD that you need and let's say if your dictionary is a huge disk
+[00:56:08] and you have 100 servers, so you are having 100 terabytes of redundant data.
+[00:56:14] Problem right?
+[00:56:15] So there has to be a better way to do it.
+[00:56:17] So this is why you can think of not going with storing over here and the thing that is on it with Anupak that have a central place where you are storing the dictionary.
+[00:56:35] Okay.
+[00:56:36] Now what this central place would be?
+[00:56:38] How will you access it?
+[00:56:39] Pankaj.
+[00:56:42] so can can we use something like amazon s3 in this case to store this file
+[00:56:50] okay why s3 so i mean it's very cheap and optimized for blob storage like blob files
+[00:56:58] so i'm thinking like since we have a single file we can just store it there
+[00:57:05] and probably like one more thing that I thought of was that since it's a big file
+[00:57:13] in S3 like I have seen that the get object query get object has some query params where we can
+[00:57:21] actually pass the bytes that we want to read so since we already know the index size we can just
+[00:57:28] pass that these many bytes I want to read and get that and finally get the offset and then
+[00:57:37] again get the same query with that particular offset byte and read that and give it to the user
+[00:57:42] back. Great, great, great, great, great. Okay. Subha. I'll just pull in in a minute. Okay.
+[00:57:49] So what Pankaj said is something very interesting. What he said is can we, because we, what we have
+[00:57:58] converge on S3 yet, right?
+[00:58:00] We still want to know what are the core properties we want from the system.
+[00:58:04] And then we would pick a particular technology, right?
+[00:58:08] So what we want, what first Anubhav said, let's put it in a shared storage.
+[00:58:14] Why do we want a shared storage?
+[00:58:15] Because we are not ready to oblique the data across.
+[00:58:18] Why?
+[00:58:18] Because it is cost inefficient and other problems come with that.
+[00:58:20] So that's okay.
+[00:58:22] So given that we cannot do it, we want it in a central place, but remember
+[00:58:29] What is common across multiple servers?
+[00:58:33] Network, which means you need a common place which is accessible over network.
+[00:58:41] And what is that one common place that is accessible over network?
+[00:58:44] Any block storage or any database, but we cannot use database.
+[00:58:48] So we have block storage and anywhere we are storing a gigantic file.
+[00:58:52] We can just store this file on S3, for example.
+[00:58:56] We are still not giving up our portability.
+[00:58:58] We still have this one file on SE.
+[00:59:01] But is this the best choice?
+[00:59:03] What is the feature that we want?
+[00:59:04] If this was a normal disk, assume it was a normal disk.
+[00:59:08] We were, we designed our entire approach thinking it's a normal file.
+[00:59:13] And I would read a set of bytes and then another set of bytes and then do a read at or do a
+[00:59:20] random read in the data section.
+[00:59:22] Right?
+[00:59:22] Because we are reading this header to understand how big the index is.
+[00:59:25] We're reading this entire thing to build an in-memory hash table and then doing random
+[00:59:30] reads on this data section.
+[00:59:33] So this should be supported by whatever we use over here.
+[00:59:38] So generic term for this is a network attached storage.
+[00:59:48] So what we were looking for is any storage that is accessible over network.
+[00:59:55] It gives file system semantics.
+[01:00:02] And the key things that we need is we need random reads.
+[01:00:07] That's a bare minimum we need over here that we should be able to read what I have given
+[01:00:12] my random read.
+[01:00:13] It means that I could provide a thing that say that from this file at this offset read
+[01:00:19] n bytes.
+[01:00:20] I need to have somewhere to fire this.
+[01:00:22] Right?
+[01:00:23] A normal disk gives you this.
+[01:00:25] seek to that location, read those many bytes.
+[01:00:29] Now this needs to be provided by any network attached storage that we are using.
+[01:00:33] So you can just use the network attached storage that gives you this thing.
+[01:00:38] S3 gives you all the file system level semantics
+[01:00:42] because of which it can be used as a distributed file system as well.
+[01:00:45] So what you get this feature on S3,
+[01:00:48] where on S3 you are not just there to read the entire file.
+[01:00:51] You can say that in this file, at this offset, read these many bytes.
+[01:00:56] It would give you exactly those many bytes that you are needing.
+[01:01:00] And you could choose.
+[01:01:02] It's not that I prefer S3.
+[01:01:03] It's just that you can replace S3 with any network attached storage.
+[01:01:08] For example, an HDFS.
+[01:01:13] HDFS gives you this exact same semantics.
+[01:01:14] Next, you can use a literal physical hard drive connected in your data center acting as this thing.
+[01:01:24] So literal network hard disks that you get like Dell network hard disks are very famous.
+[01:01:31] You'll get this.
+[01:01:33] You can use anything that gives you file system level semantics to do this.
+[01:01:36] S3 gives you that.
+[01:01:37] Everyone understands S3.
+[01:01:38] That's why I'm going with S3.
+[01:01:40] So now on S3, what we'll have is we'll put this file having header, index and data in
+[01:01:47] this one file and we store it on S3.
+[01:01:49] And now what our reads would look like.
+[01:01:52] Now the entire flow, end to end flow, what it would look like is when any of my API server
+[01:01:59] boots up, what it would do.
+[01:02:01] It would read the first 16 bytes of this file.
+[01:02:04] So first of all, now this comes one step back.
+[01:02:09] What each API server need to know is needs to know the file path on S3.
+[01:02:18] So that can be a static configuration that this is the dictionary that we are serving.
+[01:02:22] It can be a static, but I will go deeper into this because we still have to do deployment of this.
+[01:02:27] So all we want is we want a file path on S3 that where exactly is the dictionary stored on S3.
+[01:02:34] So let's say we pass it as a configuration.
+[01:02:37] This is a configuration.
+[01:02:38] This is the path where it is stored on S3.
+[01:02:40] Given that API server starts with that, what it would do it from this path, it would read
+[01:02:46] the first 16 bytes.
+[01:02:47] It would read the first 16 bytes, interpret it as header.
+[01:02:50] It would understand it is a dictionary file, like whatever our format is.
+[01:02:55] From where it would know the index size.
+[01:02:57] It would read, then it would make another S3 call to read those many bytes and create
+[01:03:01] a hash table in memory hash table over here.
+[01:03:04] what we would have we would have an in-memory hash table in-memory hash table in-memory
+[01:03:09] hash table over here then it would start serving the request whenever a get request comes in goes
+[01:03:16] to any api server it would refer to this in-memory hash table if the word exists good enough if it
+[01:03:20] does not exist 404 right if it exists in the in-memory hash table it would have that this
+[01:03:28] word is present at this offset so what it would do it would take this know the offset go to that
+[01:03:36] particular offset on s3 and read this file how would it go s3 api gives you that in the s3
+[01:03:43] documentation you can do a random read and it looks on this file at this offset read these many
+[01:03:50] bytes you can issue a command like this but in case you are replacing s3 with let's say hdfs
+[01:03:55] has the exact same semantics. Network hard disk has the exact same semantics.
+[01:03:59] Right? So you can seamlessly read the bytes that you are interested in and nothing before that,
+[01:04:05] nothing after that. So you're doing the bare minimum over here. And this is how your normal
+[01:04:10] gets would look like. But if you look the beauty of the system, the beauty of the system up right
+[01:04:19] now is what you were just being able to do was to have pointed reads on S3.
+[01:04:27] Very efficient reads.
+[01:04:29] If you look carefully, what we just built is we are now able to read on a specific record
+[01:04:38] from S3 just that much without reading the entire file.
+[01:04:42] So we are just built our database because what a database is?
+[01:04:48] Key value store, right?
+[01:04:49] We just build a key value store that supports huge amount of gets on S3.
+[01:04:56] So we got this ability to fire pointed queries on S3 without us having to read this entire
+[01:05:02] file.
+[01:05:03] And that is magical.
+[01:05:04] It has a ton of applications.
+[01:05:06] And we'll talk about them.
+[01:05:07] We'll talk about how to extend this part into building various applications out of it.
+[01:05:15] Now this is still not done.
+[01:05:17] There is still a big chunk remaining.
+[01:05:20] Updates.
+[01:05:21] Now for us to have seamless updates.
+[01:05:25] I'll just copy this diagram because we are still not discussed on updates.
+[01:05:32] So we discussed on storage, we discussed on query, we discussed on high level infra that
+[01:05:37] like but now what about updates? Now the updates that we are having they are weekly updates right?
+[01:05:46] Updates are weekly which means every week I'll get a file from Oxford which has the words that
+[01:05:54] have changed and the new meaning for that apple change let's say ball change and let's say zoo
+[01:05:59] change these three words changed right? Now what would we do? We have to apply these changes
+[01:06:06] to the file that we have on S3,
+[01:06:09] how would we go about it?
+[01:06:12] Vikram?
+[01:06:14] Yeah, so as this is a weekly update,
+[01:06:17] so we can have a batch job.
+[01:06:19] So what it will do is
+[01:06:21] it will add those newly words to the end.
+[01:06:24] Did you mean cron job, batch job?
+[01:06:27] Yeah, we can have a cron job also.
+[01:06:31] See, batch job is batch processing.
+[01:06:34] job is periodic updates.
+[01:06:36] Yeah, periodic periodic periodic periodic job.
+[01:06:38] Whenever there is update from Oxford, we can trigger that job or we can also have the job
+[01:06:44] also.
+[01:06:44] And what it will do is it will update the dictionary and at the same time it will update the index
+[01:06:49] and so it will repackage the whole file, upload it to the S3 and where, where, where, where
+[01:06:58] it would update what?
+[01:07:01] Yeah, so we can have on another machine.
+[01:07:06] Now we are talking.
+[01:07:08] Okay.
+[01:07:08] You're spinning up another server.
+[01:07:09] Yeah.
+[01:07:10] Now.
+[01:07:11] And in that file, whenever we receive a new update, so we can recompute this whole file.
+[01:07:18] Do you have change log on this server?
+[01:07:20] Correct.
+[01:07:21] I will add these change log files to the dictionary.
+[01:07:24] So where is dictionary?
+[01:07:27] Dictionary means we have to pull it from S3.
+[01:07:29] Correct.
+[01:07:29] You'll download it from S3.
+[01:07:31] Then update the version of it.
+[01:07:34] How?
+[01:07:36] Because we know that in the header file,
+[01:07:39] we have the version stored, right?
+[01:07:41] At the initial byte.
+[01:07:42] That's okay.
+[01:07:42] That's the last thing that we'll do.
+[01:07:44] But how are you updating the dictionary?
+[01:07:47] This file, how are you updating?
+[01:07:48] So are we getting only change log or the whole?
+[01:07:52] Only change log.
+[01:07:54] Only change log, right?
+[01:07:57] So we can append it at the end because our dictionary is not sorted.
+[01:08:04] But then in that case, what would happen is the dictionary would be ever increasing plus
+[01:08:10] it would have duplicate entries.
+[01:08:12] And I just added that you cannot have repetitive entries in the dictionary that you are serving.
+[01:08:18] Correct.
+[01:08:19] Okay.
+[01:08:19] So now, so we can iterate the whole dictionary once and check that if the file, if the change
+[01:08:28] log has duplicate, what else keep it.
+[01:08:30] Or if the meaning or the, if the meaning of the word is changed, then replace that thing
+[01:08:36] like that.
+[01:08:38] Is it really that simple?
+[01:08:41] Think of it.
+[01:08:42] Think, go into a little more details of it.
+[01:08:45] Yeah, we can also have a hash of it and compare the hash with two, the existing one and the
+[01:08:51] new one.
+[01:08:52] You are directly have them.
+[01:08:54] See change log, anything has what needs to be changed.
+[01:08:56] Simple.
+[01:08:57] So you don't need hash sort of comparison.
+[01:09:00] Like see, again, as I always say, it's easy to build complex systems.
+[01:09:03] It's very difficult to build simple systems.
+[01:09:06] Right?
+[01:09:06] Think all the things that you really need.
+[01:09:10] Hash, you don't need it because change log directly contains the changes that are, that
+[01:09:14] on the dictionary, right?
+[01:09:17] So how will you apply the changes that you have
+[01:09:21] with the changelog in this file?
+[01:09:23] What are the challenges that would come in?
+[01:09:27] Challenges is to generate the diff actually.
+[01:09:30] Why do you want to generate a diff?
+[01:09:32] Change log already has this, right?
+[01:09:34] You just want to apply this changes over here.
+[01:09:35] What do you mean when you say to apply these changes?
+[01:09:38] Yeah, so correct.
+[01:09:40] So we already have an index right here.
+[01:09:44] already had it.
+[01:09:45] Okay.
+[01:09:46] Correct.
+[01:09:47] And we have a change log.
+[01:09:49] So what we can do is, so let's say the change of meaning of apple.
+[01:09:53] Right?
+[01:09:54] So we can use that index file and use the index and apply those changes or replace that the
+[01:10:01] whole line of the PSV.
+[01:10:04] Okay.
+[01:10:05] You're saying that if I have this file and let's say I have the word apple over here and
+[01:10:15] and then let's say I have ball and I have a round object.
+[01:10:21] Right.
+[01:10:22] Okay.
+[01:10:23] Now let's say my change log contains.
+[01:10:27] I should have drawn it.
+[01:10:28] Let's say my change log contains that apple
+[01:10:31] and now the new meaning is a round fruit.
+[01:10:35] Now, how will these changes be applied over here?
+[01:10:38] You say that using index,
+[01:10:39] let's say you know the offset when it needs to be changed.
+[01:10:42] Now, what will you do?
+[01:10:44] by this? Yes.
+[01:10:47] Okay. What happens when you replace this by this?
+[01:10:50] Will this entry move down?
+[01:10:52] Yeah, we have to.
+[01:10:54] Yeah. Correct.
+[01:10:56] We have to do that happen in file IO.
+[01:10:59] No.
+[01:11:00] What happens in file IO?
+[01:11:02] Let's say if I write around fruit, what would happen?
+[01:11:07] It would look something like this.
+[01:11:10] So this is how this is the limitation of how disk works.
+[01:11:14] So when you go to a particular location and start writing,
+[01:11:18] it would blindfoldedly write the bytes.
+[01:11:21] Like in the IDE, when we add, we can hit enter and move other lines down.
+[01:11:26] Because it is in memory.
+[01:11:27] In memory, you can do that.
+[01:11:29] On disk, you cannot.
+[01:11:30] So when you go to this particular offset and start writing,
+[01:11:36] apple, round, fruit.
+[01:11:41] You are overriding the existing one.
+[01:11:45] So you cannot just say I would replace it because it's not as trivial.
+[01:11:52] So how do we go?
+[01:12:06] Thanks, but thanks for making this.
+[01:12:08] So this is, see, these are the details that I want all of you to focus on.
+[01:12:13] Right?
+[01:12:14] Because this is what makes us better engineers, because it's easy to just say, I would replace it.
+[01:12:20] But when you are going to write the code, that's what I always say.
+[01:12:23] An engineer, a good engineer or a senior engineer always wear three hats.
+[01:12:28] Product manager, architect, and an engineer.
+[01:12:31] This is what an engineer hat looks like.
+[01:12:33] You go because imagine you are the one implementing it.
+[01:12:36] What code will you write to implement it?
+[01:12:38] And when you think of implementation, you realize the things that would break.
+[01:12:43] Right.
+[01:12:44] Okay.
+[01:12:45] Let me pull in someone who has not spoken today.
+[01:12:49] Yeah.
+[01:12:50] Jodhinda, how would you solve this problem?
+[01:12:52] Can we have sort of like graveyard entries, which sort of replace the
+[01:12:56] currently existing entries there?
+[01:12:58] For example, if we have a new meaning for Apple, we append it to the end of
+[01:13:02] the file and the previous.
+[01:13:04] No repetitive entries.
+[01:13:06] Uh, okay.
+[01:13:08] Well, okay.
+[01:13:09] So I was thinking like you just, uh, sort of, uh, waste, waste, that space for some
+[01:13:14] time and, uh, later run some sort of compaction process after.
+[01:13:18] No, but we don't see it would work well when you are doing live updates.
+[01:13:22] This is an even weekly update.
+[01:13:24] So have it very clean up it directly.
+[01:13:26] Right.
+[01:13:27] Yeah.
+[01:13:29] Uh, Shreya.
+[01:13:33] Hello.
+[01:13:34] Yeah.
+[01:13:34] Um, yeah.
+[01:13:36] approach would be to just a very naive approach would be to look for every word.
+[01:13:47] Get the byte where we are supposed to like enter it. And then so we what we are doing is we are
+[01:13:54] creating a new file. Now, add that change in that file. And then append all the rest file to it.
+[01:14:03] and then I mean it would be a very naive approach no no it's not naive it's not naive it's kind of
+[01:14:08] like merge of merge sort correct yeah yeah and that's exactly why you should do it that's what
+[01:14:14] the best approach is I'm not even kidding it's not a naive approach to be honest it's not a
+[01:14:19] approach given the design that we have we're not using fancy b plus trees over here we're going
+[01:14:23] with very simple approach but that's how it works right you think of a simple approach and that's
+[01:14:29] what is going to be really efficient when you make things complex.
+[01:14:32] It has its own set of disadvantages.
+[01:14:34] Right.
+[01:14:34] Okay.
+[01:14:35] So this is why and the requirement to do that merge of merge sort to be to be efficient
+[01:14:42] is that your file needs to be sorted.
+[01:14:45] I'll just quickly walk you through on what this is all about.
+[01:14:48] So what we'll do is we'll create a new file out of the existing file.
+[01:14:53] How?
+[01:14:54] By merging the two files.
+[01:14:56] So we got a change log.
+[01:14:59] will be a very short file.
+[01:15:01] Assume it is sorted.
+[01:15:02] Even if it is not sorted,
+[01:15:03] you load it in memory,
+[01:15:04] sort it and dump it
+[01:15:05] because it's going to be very small.
+[01:15:06] It is changelog.
+[01:15:07] It's not going to be a gigantic file anyway.
+[01:15:09] So that becomes your changelog.
+[01:15:11] Then you have an entire dictionary
+[01:15:12] that you just downloaded
+[01:15:14] right now on that new server
+[01:15:16] that you spin up.
+[01:15:17] Now what do you do?
+[01:15:19] This is sorted.
+[01:15:20] This is sorted.
+[01:15:21] You create a new dictionary out of this,
+[01:15:23] a new file out of this
+[01:15:24] by iterating the two,
+[01:15:29] linked list problem, merge two linked list, merge two sorted linked list into third sorted,
+[01:15:33] sorry, merge two sorted arrays into third new sorted array.
+[01:15:37] This is that.
+[01:15:38] This is merge of merge sorted.
+[01:15:39] How you are merging two sorted arrays together is you have a pointer over here, you have
+[01:15:45] a pointer over here.
+[01:15:46] You iterate both files line by line.
+[01:15:49] You see the first entry is AA'.
+[01:15:51] So these are words and these are meanings.
+[01:15:53] I'm just simplifying it over here.
+[01:15:55] So these are not sections like A, B, C, D, but these are words.
+[01:15:58] A, B, C, D, F, J.
+[01:15:59] I just explain Karna, it's easy.
+[01:16:02] So these are words, these are meanings.
+[01:16:04] These are words, these are updated meanings.
+[01:16:06] So what we do, we have two pointers.
+[01:16:09] We iterate both the files line by line.
+[01:16:11] And then we say it's A, A dash, C, C dash, A is small.
+[01:16:15] I'll write A, A dash over here.
+[01:16:17] Then I move this pointer down.
+[01:16:19] B, B dash, C, C dash, B is small than C.
+[01:16:22] I add B, B dash over here.
+[01:16:23] I move this pointer over here.
+[01:16:25] CC dash CC double dash.
+[01:16:27] This is the updated one.
+[01:16:29] Both matches.
+[01:16:30] This is the updated one.
+[01:16:30] So I write CC double dash.
+[01:16:32] And I move both of them forward.
+[01:16:34] Then DD dash EE dash.
+[01:16:37] DD dash rotten over here.
+[01:16:38] Because that is small one.
+[01:16:40] Then FF dash EE dash.
+[01:16:42] E small one.
+[01:16:43] I write EE dash.
+[01:16:44] And then move forward.
+[01:16:46] FF dash FF double dash.
+[01:16:48] I pick the updated meaning.
+[01:16:49] Right over here.
+[01:16:50] I completed my.
+[01:16:51] I exhausted my change log.
+[01:16:53] So every entry after this.
+[01:16:55] A classic merge of merge sort.
+[01:16:58] Nothing like merging two sorted arrays into third big sorted array.
+[01:17:03] This is literally that.
+[01:17:05] But here, one point, you don't have to load this entire file in memory.
+[01:17:10] All them referring to merge of sorted array.
+[01:17:13] Here you don't have to load it in an array.
+[01:17:16] You are literally iterating file line by line and creating a third file out of it.
+[01:17:22] Given that the way file IO works is when you write it may start to override the next line
+[01:17:27] if you go beyond that range.
+[01:17:30] You have to always ensure that you are creating new entries over there.
+[01:17:34] So we created a new file from the existing dictionary plus the change law.
+[01:17:41] Now this puts a constraint on us that because this dictionary is one terabyte big, this
+[01:17:47] dictionary will also be one terabyte big.
+[01:17:49] the disk of that server that we just pin up to run this job should be at least two terabyte at
+[01:17:54] least two terabyte right but that is just one server that we are doing that right okay so this
+[01:18:00] is what we will do to create a third file over here okay so let's say in this server itself
+[01:18:10] Now we created the third file.
+[01:18:14] This is the new file that we have.
+[01:18:16] Now what?
+[01:18:18] Now how would the changes that are there in this server go to S3
+[01:18:24] and what could happen because of this?
+[01:18:26] Hey, man.
+[01:18:29] Okay.
+[01:18:30] So now we have to start from, we have the merged file available.
+[01:18:39] And now just a bit, which means that now that we have this, we also have headers,
+[01:18:44] headers, index, all sorted for this file.
+[01:18:46] So this is the new dictionary that we are ready to upload to S3.
+[01:18:51] So now the critical path, critical thing is that we have to tell the clients who are using this
+[01:19:00] thing that we have a new file from where they have to read it.
+[01:19:03] So it's like you have to swap the existing file, which was supporting to this new file,
+[01:19:12] considering this new file has previous data plus the data that came from change log.
+[01:19:18] Correct.
+[01:19:19] So what it means is we have to simply change the pointer.
+[01:19:25] What looks like it will have a downturn because the time and you will say, okay, this is the
+[01:19:31] URL that was available when you put a new S3 file, it will be a new URL.
+[01:19:40] So the API service which were hitting NAS or anything where we are doing this thing,
+[01:19:49] we have to figure it out a deployment process, how we have to upgrade.
+[01:19:56] Now, the deployment process, which we know is either you simply say, I will change everything in one go.
+[01:20:05] Or we have to say a rolling upgrade, we will say, okay, I will change few of the files in few places, but it is a single place.
+[01:20:14] So I don't think that that kind of a deployment will work.
+[01:20:20] what it looks like a completely A to B where you are there,
+[01:20:27] you can have the new file updated, having a new S3 URL created.
+[01:20:35] And once it is ready, this has to be given to the API servers
+[01:20:42] saying this is the new URL or new address you have to consume it.
+[01:20:50] Now, API server has to change that point and they can do the normal deployment either they
+[01:20:58] can do a first a canary where one server only does a change and sees everything working
+[01:21:03] fine and then only moves to others.
+[01:21:07] I think these are all things I am getting in my mind to solve it.
+[01:21:12] Okay.
+[01:21:12] Let me prove you on this one point.
+[01:21:14] Why do you want to upload it to a new S3 path?
+[01:21:16] What would happen if you upload to the same path?
+[01:21:18] Won't it simplify your solution?
+[01:21:23] Okay.
+[01:21:24] Then for the time when we are uploading,
+[01:21:28] I mean the short period of time,
+[01:21:30] maybe we are not able to serve it.
+[01:21:33] I do not know how S3 internally works.
+[01:21:36] So let's say you updated the file at the same location
+[01:21:39] because the things that were making your system complex
+[01:21:42] were where you were adding it to a new path.
+[01:21:45] Then you have to tell API servers to go and update a configuration
+[01:21:48] whatnot, right?
+[01:21:49] What if you have graduated to the same path?
+[01:21:51] What could go wrong?
+[01:21:54] Yeah.
+[01:21:54] So the first thing is always when you think about a deployment,
+[01:21:57] you need to think about the rollback part.
+[01:22:00] You are going ahead.
+[01:22:02] You need to worry about what will be the my process.
+[01:22:05] If let's say that deployment fails.
+[01:22:08] So if in a same path I'm changing and during the uploading of the file on network,
+[01:22:15] let's say the file got corrupted or something like this.
+[01:22:18] I have to proactively observe it using some observability monitoring and then immediately
+[01:22:23] will provide it. Okay, go to the previous file only.
+[01:22:28] And that can be one critical thing to take care.
+[01:22:34] Other than that, I'm not able to think anything that we have to worry about, but definitely making sure that the transition,
+[01:22:42] I mean, this file transfer goes properly.
+[01:22:46] and if it does not goes we have to roll back and provide the previous file is necessary so having
+[01:22:52] a temp file I mean having a temporary storage where you put this file and then upload it check
+[01:22:59] it it is working fine and then then mark it successful that's that's an important thing I
+[01:23:06] think required thanks thanks for adding all those points but now we see like you as it everyone now
+[01:23:12] everyone sees that again, as I said, drawing boxes is easy.
+[01:23:17] When you go into these details, this is where things become really interesting.
+[01:23:21] We need to solve this problem where you are, where it's, it's easy for us to say,
+[01:23:26] yeah, we'll just upload it on S3.
+[01:23:28] Right.
+[01:23:29] But where and how, and what challenges would be encounter, uh, will the
+[01:23:34] transition be smooth enough?
+[01:23:36] Are we serving garbage data to a user?
+[01:23:38] These all details are super critical.
+[01:23:42] an actual system which is i'm just proving you all to think on those lines it's already one and a half
+[01:23:48] but it's still not convergence such the problem statement looks very simple i'm sure when we
+[01:23:53] started with this is what kind of stupid problem statement is this but when we go into these
+[01:23:58] details and again as i say these are all building blocks you can apply to other systems that you
+[01:24:04] are designed it's not just it's just limited to this one system right so be very open to how you
+[01:24:12] what problem we had and how we solved it.
+[01:24:15] Okay, let me pull in.
+[01:24:17] Okay, so but before I pull in the next person,
+[01:24:22] let me just converge to what Heyman said in a simple order.
+[01:24:27] So uploading to the same path on S3 had a lot of problems.
+[01:24:33] First, what if upload fails?
+[01:24:35] What if there is file corruption?
+[01:24:37] When we are uploading to the same path on S3,
+[01:24:42] One more challenge that now that the file that was uploaded onto the same path.
+[01:24:47] Now we have to tell this server to reload the index.
+[01:24:51] Why?
+[01:24:52] Because offsets would be mismatched.
+[01:24:54] I'll give a quick example for that.
+[01:24:57] Where is it?
+[01:24:58] This.
+[01:24:59] So for example, if we upload it to the same path on S3, this is what is going to happen.
+[01:25:04] So let's say in the index index is loaded in memory on the API server, right?
+[01:25:12] first made call to S3 loaded the index already.
+[01:25:15] And then all the requests that are coming into that API server
+[01:25:18] is just from index.
+[01:25:20] It is checking the offset, going to that location,
+[01:25:22] reading the meeting and sending it back to the user.
+[01:25:24] Now here what would happen is the old data file,
+[01:25:27] it had that index.
+[01:25:29] Index was read from that particular thing.
+[01:25:32] API server has this loaded in memory.
+[01:25:35] So Apple is let's say offset 100 with byte 1024.
+[01:25:39] This is there.
+[01:25:42] You uploaded a new file, assuming everything went well,
+[01:25:45] uploaded a new file at the exact same location.
+[01:25:48] Now if someone queries Apple,
+[01:25:51] it will go to byte offset 100 and read 1024 bytes,
+[01:25:55] which might be some other random word,
+[01:25:58] like the word before Apple,
+[01:25:59] that too starting in the middle or somewhere.
+[01:26:01] So what user would see is some garbage.
+[01:26:05] Because the real offset of Apple in this new file,
+[01:26:09] which is uploaded at the same path, is different.
+[01:26:14] So when you upload it to the same path on S3, you have to immediately tell API servers
+[01:26:20] to reload their index.
+[01:26:21] But for that duration, your users will see garbage data.
+[01:26:28] Very poor user experience.
+[01:26:30] Right?
+[01:26:31] Okay.
+[01:26:31] So these are the things that I'm basically trying to prove you on.
+[01:26:35] Think of these lines.
+[01:26:37] So that is one problem.
+[01:26:39] Now you would think, hey, let me, so uploading to the same path on S3, this is one of the
+[01:26:46] problems.
+[01:26:46] So now it looks like it makes sense for us to upload it to a new path.
+[01:26:50] Now when we do it, when we upload it to a new path, what would happen?
+[01:26:54] I'm just going back to brainstorm.
+[01:26:56] So now let's say we uploaded to a new path on S3.
+[01:26:59] Let's say my path one on S3 was S3 colon slash slash word dictionary slash dictionary one dot dictionary something.
+[01:27:09] Right.
+[01:27:10] Let's say this was first path.
+[01:27:11] Now let's say when you upload this, you upload it to the new path.
+[01:27:15] S3 colon slash slash word dictionary.
+[01:27:17] And now it is dictionary two dot dictionary.
+[01:27:20] Now how do you tell API servers that this is the new path you should start serving?
+[01:27:24] How do you communicate this?
+[01:27:26] Got it?
+[01:27:30] Rather than this, what we can try for is rather than dict2.dict, we can have wd1.1 slash the
+[01:27:40] path.
+[01:27:41] I mean, we can have the IP address.
+[01:27:43] What difference does it mean?
+[01:27:44] And then the path has changed, right?
+[01:27:46] Yeah.
+[01:27:47] Right.
+[01:27:47] You have to convey this path, whatever path is, you have to convey this to the API server
+[01:27:52] that this is the new path that you need to reload.
+[01:27:55] Right.
+[01:27:56] How do you tell this to API servers?
+[01:27:59] their cache.
+[01:28:00] How?
+[01:28:03] An interrupt or let's say a command which invalidates the cache.
+[01:28:07] Everyone would have to tell API servers to do this.
+[01:28:10] Like for ping all API servers to invalidate the cache.
+[01:28:13] Sounds too complex.
+[01:28:15] Isn't it?
+[01:28:17] So, uh, since we know what time our job will be running, can't we have
+[01:28:23] That's unreliable.
+[01:28:24] What if upload fails?
+[01:28:27] And what if you're not able to successfully do that?
+[01:28:30] Right?
+[01:28:31] No.
+[01:28:32] So what?
+[01:28:32] What's the harm in that?
+[01:28:33] Because API servers won't be taking the index from the cache.
+[01:28:36] It would be going to S3.
+[01:28:38] It's simply adding the latency, but not at the harm of anything else.
+[01:28:44] Why not?
+[01:28:45] What if your upload failed completely?
+[01:28:47] What if your file was corrupt?
+[01:28:49] You didn't check a lot of stuff there.
+[01:28:51] Right?
+[01:28:51] Because if you do a cron job, no matter what, Sunday at 1 PM, everyone update.
+[01:28:57] What if your job ran beyond 1 PM?
+[01:29:00] The upload was not handy.
+[01:29:01] Now what?
+[01:29:03] What if the file that was uploaded was corrupt?
+[01:29:05] What if you didn't get time to validate?
+[01:29:07] Because now this is an independent mind over here.
+[01:29:10] And no matter what, that would run and update it.
+[01:29:12] That's wrong.
+[01:29:15] Yeah.
+[01:29:19] No idea beyond that.
+[01:29:20] Yeah.
+[01:29:21] Okay.
+[01:29:22] Uh, yes, Abdur, what will you do?
+[01:29:24] Um, well, I, I came, uh, in the middle where we, uh, were already set up the
+[01:29:31] API servers, but, um, I had an idea.
+[01:29:35] What if we had the each word in, in one file?
+[01:29:39] No, we, then we kill portability.
+[01:29:41] That's why we are not having each word in one file.
+[01:29:44] Okay.
+[01:29:44] Okay.
+[01:29:45] So I, that was.
+[01:29:46] Yeah.
+[01:29:46] Yeah.
+[01:29:48] That was a constraint that we're playing with.
+[01:29:49] We want portability.
+[01:29:51] having everything okay i don't have anything okay uh pankaj
+[01:30:00] yeah so i was thinking that we can have some extra file which will have like a matter data
+[01:30:09] uh yes that that's the same file again like it will be in s3 again
+[01:30:15] a new file and file let's say once we know that we have updated our index
+[01:30:23] updated the new file and uploaded it to s3 like the put request which will make in the success
+[01:30:29] callback of that we can update this metadata perfect what our api servers will do is like
+[01:30:36] they will keep on pulling this metadata let's say at some frequency like 5-10 minutes
+[01:30:42] and they will see that my index path has updated.
+[01:30:45] So they will start fetching it from the new file
+[01:30:47] and update their in-memory index also.
+[01:30:51] Okay.
+[01:30:51] First question, will this path be static or will it be versioned?
+[01:30:56] So the path of the metadata file will always be static.
+[01:31:00] Perfect.
+[01:31:01] Okay.
+[01:31:01] So that everyone knows that this is the only path where we have to go.
+[01:31:04] Okay.
+[01:31:04] Perfect.
+[01:31:05] Okay.
+[01:31:06] Then you are saying that you pull the meta file at let's say 5 minutes, 10 minutes.
+[01:31:10] Yeah.
+[01:31:11] why would you do that given that your job runs weekly
+[01:31:18] again the same issue right it's running weekly but we don't know like when it will
+[01:31:24] get updated and when it is getting you know uploaded to s3 i mean it might happen that
+[01:31:30] we received updates on sunday but because s3 was down we were not able to update it to the s3
+[01:31:36] and we uploaded it on Monday.
+[01:31:38] So then basically API server will not know
+[01:31:43] that now I have to fetch it on Monday.
+[01:31:45] So it needs to continuously poll to find out.
+[01:31:48] Now my index is updated.
+[01:31:50] So yeah.
+[01:31:50] But we studied second week, third week
+[01:31:53] that we can make things wherever we have poll,
+[01:31:57] we can make things reactive.
+[01:32:00] Right?
+[01:32:01] So instead of polling,
+[01:32:02] we can make things reactive
+[01:32:06] Hey, go pull.
+[01:32:07] Something has changed.
+[01:32:09] Yeah.
+[01:32:10] How do we go about it?
+[01:32:13] Remember Redis Pubsub?
+[01:32:16] Yeah.
+[01:32:17] So we can use that Redis Pubsub.
+[01:32:21] So all API servers subscribe to this.
+[01:32:25] All API servers subscribe to Redis Pubsub and the new server that, sorry, I should have
+[01:32:33] used a phone.
+[01:32:36] And the new server that would be there, it would push an event into this Redis PubSub
+[01:32:42] whenever it is done uploading.
+[01:32:44] And now all servers can receive the updates.
+[01:32:47] That makes things reactive instead of you polling it.
+[01:32:50] So your update is happening once every week.
+[01:32:52] Why would you poll 5,000 times before that?
+[01:32:56] Unnecessary.
+[01:32:57] Right?
+[01:32:58] So we can make things reactive.
+[01:32:59] But this seems too complex having another infrastructure component running
+[01:33:03] and every API server is listening to this.
+[01:33:06] this. Can we be smart about it? So I had one more thought. So that was to basically I was
+[01:33:20] initially thinking that in the initial file we can upload in the header itself. We can
+[01:33:24] have one key like let's say whether it's a latest one or not zero or one. And how would
+[01:33:29] you know the latest one? You would never know it's the latest one or not. No. So when we
+[01:33:36] file we can make the old files header to be latest equal to zero.
+[01:33:40] But again, that required the API server to pull it and see that.
+[01:33:47] So we had polling with changes with reactive. Can we do better than this? Because this requires
+[01:33:52] another infra component and persistent connections over here to tell them something changed.
+[01:33:57] It, I'll pull in.
+[01:33:59] Yes, Amrita.
+[01:34:02] So in the header, we were keeping a version.
+[01:34:05] So maybe by indexing, we hold a reference to version and we see if the version is updated.
+[01:34:11] We invalidate.
+[01:34:11] But you're still polling for that.
+[01:34:15] Like not exactly while polling, but when we receive a request and we hit on the indexing
+[01:34:21] and then we check with the backend when we receive a request.
+[01:34:26] but how would you know that something changed unless you poll it?
+[01:34:32] Okay.
+[01:34:37] This is very interesting, right?
+[01:34:39] This is, this is what I want all of you to think about.
+[01:34:41] Like, can we make it simpler, even more simpler than this?
+[01:34:44] Because polling is good.
+[01:34:45] I'm not against polling.
+[01:34:46] It's just that why to waste, but like why to make 5,000 requests when you can, when you
+[01:34:51] but someone can tell you or even someone can trigger something.
+[01:34:55] That's a hit.
+[01:34:56] Sidesh.
+[01:34:59] Hey, Arpit.
+[01:35:00] I would either expose a rest endpoint.
+[01:35:04] That's like this.
+[01:35:06] You're making it reactor.
+[01:35:07] Same thing.
+[01:35:08] You expose a rest endpoint and this server calls that.
+[01:35:11] Yeah, basically because we'll have to do one server at a time, right?
+[01:35:14] Like basically we are upgrading.
+[01:35:17] So if we are upgrading, what we will do is,
+[01:35:21] Like let's choose a API server, ask it, either send an event to it, which you can anyways
+[01:35:30] do.
+[01:35:30] Like basically whenever you have a job, first let all the servers register with you, like
+[01:35:37] basically all the API servers.
+[01:35:38] So you have a close connectivity with them and send an event.
+[01:35:42] Like you may have during upgrade, you may have to send them multiple events, tightly
+[01:35:45] connect.
+[01:35:46] Now you send the first event wherever you're doing with an API server.
+[01:35:51] Now, once you send that, that server is going to, so I have two ideas.
+[01:35:55] Let's go with a simple idea.
+[01:35:56] First, you have to collect the index, give it the path and create, read that path, create
+[01:36:02] the index.
+[01:36:02] You have meta JSON all now.
+[01:36:04] Why would you want to create a path and tell it to the server?
+[01:36:08] Yeah, that's fine.
+[01:36:09] Yeah.
+[01:36:09] You have a meta JSON, just read the path.
+[01:36:11] But the point is you'll have to first create indexes in memory.
+[01:36:15] Okay.
+[01:36:16] So the API servers would need to load it.
+[01:36:17] Yeah.
+[01:36:18] That's a normal stage.
+[01:36:19] Yeah.
+[01:36:20] Now you will create it.
+[01:36:21] You will test the API server and everything is fine.
+[01:36:24] And then you will basically tell your load balancer that this,
+[01:36:29] like basically if you either give a new port to it
+[01:36:33] so that that API server changes the port
+[01:36:35] and the load balancer knows it.
+[01:36:37] So basically...
+[01:36:38] Complex, complex, complex, complex, complex, complex.
+[01:36:41] You are trying to change port of the servers and this and that.
+[01:36:45] This can be done in a very simple way.
+[01:36:47] Very simple way.
+[01:36:50] I'm see, I'm not against your approach.
+[01:36:53] I'm not, I'm just trying to make it utter simple, like something that
+[01:36:59] anyone would be able to understand.
+[01:37:01] And because that's where the simplicity, like that's where the
+[01:37:03] beauty of system design lies.
+[01:37:05] Right.
+[01:37:05] Okay.
+[01:37:06] Let me give a hint so that we can converge a little faster.
+[01:37:08] The hint is that given that we now have a static file, meta.json, which contains the
+[01:37:16] path of the dictionary that needs to be served, we want all of the servers to read this new
+[01:37:23] meta.json file.
+[01:37:25] But if you think about it, what happens when this API server boots up?
+[01:37:29] When this API server boots up, it by default reads this meta.json file, sees the path,
+[01:37:38] reads the dictionary, builds the index and starts serving it.
+[01:37:42] So this is literally like a boot up of this API server,
+[01:37:46] because that's exactly what it would do.
+[01:37:48] So what you're doing is when you're updating this and updating this path,
+[01:37:52] you have to trigger a reload of this API server.
+[01:37:58] This is the hint.
+[01:38:00] Can we do something about it?
+[01:38:02] Rahul?
+[01:38:04] So basically what I was thinking was basically like we can upload to our same path.
+[01:38:10] Posting.
+[01:38:10] No, you cannot upload to the same path.
+[01:38:12] That's the wrong thing.
+[01:38:13] That we conversion.
+[01:38:15] Just a second.
+[01:38:16] Just a second.
+[01:38:17] Okay.
+[01:38:18] We can upload to our same path and like there needs to be versioning enabled.
+[01:38:23] You are going into S3 specific, right?
+[01:38:26] That versioning enabled and whatnot.
+[01:38:28] Any back, like anything that supports backup.
+[01:38:32] will support versioning.
+[01:38:34] Like that's exactly what we did with creating two files separate.
+[01:38:37] Yeah.
+[01:38:38] That's like,
+[01:38:38] right.
+[01:38:39] So I'm what I'm,
+[01:38:40] I am saying this so that other don't get confused.
+[01:38:43] That's fine.
+[01:38:44] Right.
+[01:38:44] Yeah.
+[01:38:45] Okay.
+[01:38:45] Let's just say like there is a matter dot Jason.
+[01:38:47] Okay.
+[01:38:48] So whenever like there is a update,
+[01:38:51] we can just update matter dot Jason.
+[01:38:53] Okay.
+[01:38:55] And not only the parts we can also have,
+[01:38:58] like a,
+[01:38:58] we can also check matter dot Jason attributes,
+[01:39:01] like a updated at,
+[01:39:03] That is still polling.
+[01:39:05] That is still polling.
+[01:39:08] We are doing it on like any request that we are like that we are having.
+[01:39:13] Okay.
+[01:39:14] But on every request made making a meta call to meta Jason file expensive.
+[01:39:18] Why, why would you want to do that?
+[01:39:19] That's still polling.
+[01:39:20] Okay.
+[01:39:21] Let's just say, okay, not meta.json.
+[01:39:24] We can talk about like that, our dictionary file, the dictionary file that we are having,
+[01:39:30] which shall, which is having all the entries.
+[01:39:32] Okay. We can check like anyway, we are reading that file and whenever any request is coming.
+[01:39:38] Okay. Before that we can just check updated at or anything like that tag.
+[01:39:44] Like, no, you can't. That's what I said. That's what I said. Right. Because when you are reading
+[01:39:49] that you would get garbage data, then you would make another read, reload the index and whatnot.
+[01:39:53] Right. No, like not the garbage data I am talking about, like before, like reading the file itself
+[01:40:01] before reading a file itself we are just checking like we have like any any file has like metadata
+[01:40:08] like updated at created at and all of those things where is that stored so like
+[01:40:17] like those in informations are stored at the top of the file i think like no for the text file for
+[01:40:24] the text file no that are not stored there that's hard that's what okay let me convert this this
+[01:40:30] to go into crazy directions.
+[01:40:31] So let me converge it.
+[01:40:33] Let me converge faster.
+[01:40:34] Otherwise, we would spend till 11.30 on this.
+[01:40:37] Right.
+[01:40:37] But it's good that you folks are thinking.
+[01:40:39] Why are we making certain decisions?
+[01:40:42] Now we understand.
+[01:40:43] Right.
+[01:40:43] The what you're talking about this Rahul on bursting and all.
+[01:40:47] This is exactly that where you're uploading it.
+[01:40:49] Different files.
+[01:40:50] Having a meta file.
+[01:40:51] Meta file contains which one is the active one.
+[01:40:53] Right.
+[01:40:53] That's the latest version.
+[01:40:55] Internally, S3 can abstract it out for us.
+[01:40:57] Right.
+[01:40:58] But I'm laying out in a very simple terms.
+[01:41:00] Okay, now if you look carefully, this is exactly what would you do when you reboot a server.
+[01:41:07] Because when a server reboots, it would root the meta.json file, understand what path it is,
+[01:41:11] go to this path, read the file, read the index, build this hash map and start serving the request.
+[01:41:16] So what we are effectively trying to do is when we are done uploading this file to this path,
+[01:41:21] updating the meta.json file, we just want to trigger a server reload,
+[01:41:26] which is equivalent to doing a deployment.
+[01:41:31] do you don't need this you just include your AWS SDK and trigger a deployment using a deployment
+[01:41:42] pipeline and bot not it would do rolling upgrade you just automatically when you trigger a deployment
+[01:41:48] when you have a rolling deployment configured it would take down one server spin up another machine
+[01:41:53] when this new machine spins up it would read the meta to the simple because that's what you have
+[01:41:57] return when the server boots up and your API server boots up that's what you are doing.
+[01:42:01] You are reading this metadata file now it would get the new path. It would read it and serve it.
+[01:42:08] The problem is with inconsistency but you are still not serving garbage. You would have a time
+[01:42:12] while this deployment is happening that sometimes the request goes to one server that has already
+[01:42:17] built index on that old data while other server that is new server that is the new data but
+[01:42:23] meanings does not drastically change.
+[01:42:25] You are at least not serving garbage data.
+[01:42:28] You are serving eventually consistent
+[01:42:29] data, but that's fine because meanings
+[01:42:31] anyway does not change
+[01:42:33] drastically.
+[01:42:35] So you avoid surveying
+[01:42:38] garbage data because
+[01:42:40] you are reading from another
+[01:42:42] file now and you are just triggering
+[01:42:43] a rolling deployment. Any deployment strategy is fine.
+[01:42:46] You are just triggering your deployment
+[01:42:47] using the cloud provider that you are using
+[01:42:49] and it would seamlessly take its effect.
+[01:42:52] This
+[01:42:53] is how you don't need anything.
+[01:42:55] When you see just one deployment invocation call,
+[01:42:58] whatever cloud provider you are using, Jenkins job,
+[01:43:00] whatever you are doing, just you got a simple deployment.
+[01:43:02] Because when any API server boot up,
+[01:43:05] it would read the metadata JSON file.
+[01:43:06] In the metadata JSON file, now the path is the new path.
+[01:43:09] Load the file and serve it.
+[01:43:10] Simple.
+[01:43:11] Right?
+[01:43:12] So instead of exposing API endpoints, reactive,
+[01:43:16] Redis, PubSub, all of that, throw it out of the window.
+[01:43:19] Trigger a simple deployment and a job is done.
+[01:43:21] Right?
+[01:43:23] that's exactly what I have written in this part. This entire thing that I've done,
+[01:43:30] this thing is exactly that. I've just been a little more elaborative on what we just covered.
+[01:43:37] This is exactly that. Change log, how it would happen, merge that we just discussed,
+[01:43:41] uploading it to the same path, transition, reactive pops up, parallel setup. This is what we are doing
+[01:43:47] as parallel setup. Portability by adding header and this is what would happen behind this.
+[01:43:54] That's exactly what I have covered.
+[01:43:56] We went very in depth when you are brainstorming it.
+[01:43:59] But now why did we discuss it?
+[01:44:01] Let's first understand that.
+[01:44:02] What we just see with this is we are now able to seamlessly fire your get request on S3.
+[01:44:13] Not put request, get request on S3.
+[01:44:16] Pointed reads, reading the bare minimum amount of data that you have to.
+[01:44:20] This has huge applications.
+[01:44:23] storage because of this. So let's say you have gigantic amount of data in your database on which
+[01:44:29] let's say historical data is not even queried. I'll give an example, Amazon orders. Amazon orders,
+[01:44:34] how likely are you to access orders that you made six months back? Highly unlikely, right? Highly
+[01:44:40] unlikely you would do that. So what if you take the six months old order and push them to S3?
+[01:44:46] But this does not mean user would never do that. User can still go back in time and check,
+[01:44:51] what was the order that I made.
+[01:44:52] So if your order is reset,
+[01:44:55] you go to your hot database,
+[01:44:56] let's say MySQL.
+[01:44:57] And if it is your old order,
+[01:45:00] you go to S3 and read it.
+[01:45:02] But how do you know?
+[01:45:04] On S3,
+[01:45:05] you cannot just dump everything in a JSON file.
+[01:45:07] You need an ability to make pointed queries on S3.
+[01:45:10] This is how you are doing it.
+[01:45:12] This gives you an ability
+[01:45:14] to fire pointed queries on S3.
+[01:45:18] Because now literally,
+[01:45:21] order ID, you're getting order details from S3.
+[01:45:23] Dead simple.
+[01:45:25] And this is the beauty.
+[01:45:27] This one system that we just discussed as example,
+[01:45:30] as simple as word dictionary on S3,
+[01:45:32] it solves a ton of problems.
+[01:45:34] It helps us, it lays the foundation for multi-tiered storages
+[01:45:38] because we are not losing an ability to query the data
+[01:45:42] that we dump on S3.
+[01:45:43] In most places, you think that, hey, when I dump on S3, it's archival.
+[01:45:47] Here, it's a cheap storage for us.
+[01:45:51] We reduce the cost of our main database by keeping the data that is very infrequently accessed on S3.
+[01:45:57] By trading off the time because in hot database you can get it very fast.
+[01:46:03] But on S3 you would get it relatively relatively very slow.
+[01:46:06] But that's okay because that's very infrequently accessed data.
+[01:46:09] But because you move data out of your hot database into your cold storage.
+[01:46:14] You are reducing the cost of your hot database which is significant save.
+[01:46:18] Significant.
+[01:46:21] lays the foundation for that.
+[01:46:22] Another example, Athena.
+[01:46:25] Athena does exactly this.
+[01:46:27] On Athena, you can load a CSV file and fire queries on this.
+[01:46:30] This is exactly what Athena is doing behind the scenes.
+[01:46:33] It is creating an index, keeping it handy,
+[01:46:35] along with that file.
+[01:46:37] When you fire the request, it goes to that file,
+[01:46:39] reads the records and serves it back.
+[01:46:40] Athena internally does exactly this.
+[01:46:43] So having an ability.
+[01:46:45] So what we just built is we built an ability to query data.
+[01:46:49] Simple key value format.
+[01:46:51] more complex but to start with let's start simple to fire a simple get key request on s3 without
+[01:46:58] without having to read this entire file we just built it it has a ton of applications around it
+[01:47:04] right aws s3 athena entire data lake if you have heard of data lake data engineering folks would
+[01:47:10] definitely know it but data lakes are where you're storing huge amount of data in a very cheap storage
+[01:47:17] but having an ability to query it.
+[01:47:18] Apache Hudi does exactly this behind the scenes.
+[01:47:22] The format that Hudi table format is exactly this index
+[01:47:24] that we are storing.
+[01:47:26] Hive partitions, exactly this.
+[01:47:28] This is the foundation for having an ability to query
+[01:47:33] huge amount of data on a very cheap storage.
+[01:47:37] And this is what I wanted to cover.
+[01:47:39] It comes to building a word dictionary on S3,
+[01:47:42] considering from deciding to development to deployment seamless transitions and everything
+[01:47:50] and keeping things really simple rather than over complicated right okay any questions on this
+[01:47:56] i'll take questions till 55 and then we go on a break till 11. yeah maybe few things i'm not able
+[01:48:04] to make sense. I'm just asking what we are trying to say at the time of when we created the merged
+[01:48:12] file, which is the current file plus the change. Now we have a new file. Now once we create the
+[01:48:19] new file, this new file has to go and create a new path in S3 and that has to be known to the
+[01:48:25] API servers. That's what we are trying to achieve.
+[01:48:29] Now, if we are sending, so let's say, but I understood the solution is we send a request
+[01:48:37] to S3 that, okay, this is the new file and we go and update in a new path, which is being
+[01:48:46] mentioned in the meta file.
+[01:48:48] Meta.json file.
+[01:48:49] Meta.json.
+[01:48:50] And on that call itself,
+[01:48:54] we are sending API servers
+[01:48:55] to go and do the redeployment.
+[01:48:57] Correct?
+[01:48:58] No, no, no.
+[01:48:59] Once that file is...
+[01:49:00] Correct, correct, correct.
+[01:49:00] So in that new server,
+[01:49:01] when this meta.json file is updated,
+[01:49:04] we are just triggering a deployment
+[01:49:05] of our API servers.
+[01:49:07] Okay.
+[01:49:07] So we are making sure first
+[01:49:09] the meta.json is updated.
+[01:49:12] Yes.
+[01:49:13] So in the deployment of my...
+[01:49:16] in the change log process, I'm making sure file is created, then meta is updated,
+[01:49:21] then only I'm sending this thing to the deployment server. Yes. Yes. Okay.
+[01:49:28] Just I'm thinking about, can we do a bit better in place of creating a new VM whole deployment,
+[01:49:36] It's a redeployment and it is just like a process that was reloaded at the startup.
+[01:49:46] Yeah.
+[01:49:47] Can we create something which is invoked?
+[01:49:51] The whole thing is like going, heading from meta, creating the index and start serving
+[01:49:57] of the hash table from server.
+[01:49:58] This is the whole thing in place of doing the whole redeployment can be a wide of.
+[01:50:07] creating a new VM, doing the whole redeployment.
+[01:50:09] Is there a better way we can do it?
+[01:50:12] I, maybe I am like, no, there are, there are,
+[01:50:15] I can imagine three ways to do it,
+[01:50:16] but it's just, just make things little more complicated.
+[01:50:18] For example, I'll give an example.
+[01:50:20] Sure.
+[01:50:21] What you can do is instead of doing redeployment of it,
+[01:50:25] have like what I think Sitesh mentioned that just have API endpoints
+[01:50:30] that would trigger reload of the API servers or trigger API servers,
+[01:50:33] make it reactive instead of doing redeployment.
+[01:50:36] seems big enough, just have API inputs experts that you invoke,
+[01:50:40] which tells them to now go and pick the new file from S3.
+[01:50:43] That's right.
+[01:50:43] That is one way to do it.
+[01:50:45] But I'm just making things simple because this is an out of the box approach.
+[01:50:50] Thinking of triggering a deployment as part of an all server reload
+[01:50:54] is an out of the box approach, which a lot of engineers just don't think about.
+[01:50:59] So it's just that I'm proving you all to think in that direction
+[01:51:03] that can we come up with something as simple
+[01:51:06] I just triggered a problem because it's anyway, the cost remains exactly the same, but not
+[01:51:11] having to have pull the metadata and file or do reactive or have reactive pubs up again.
+[01:51:17] Now those sorts of complexities you can totally avoid.
+[01:51:19] Right.
+[01:51:20] And just that I chose this to prove you in the direction that we can, we control our
+[01:51:25] own infrastructure so we can do something with it if we want.
+[01:51:29] That's it.
+[01:51:30] That's the only thing.
+[01:51:31] Okay.
+[01:51:32] But, but it can be done in a hundred percent.
+[01:51:35] I'll tell you one more thing.
+[01:51:36] Why should API servers read index from S3?
+[01:51:40] What if in the updates that we are sending to API servers,
+[01:51:42] what if we send the actual index data?
+[01:51:43] It's just 1.7 MB, right?
+[01:51:46] No need to reload the problem solved.
+[01:51:50] You can change a lot of stuff.
+[01:51:52] It's just that I pick one so that I can make a point on utilizing
+[01:51:57] our infrastructure calls to get something done.
+[01:52:00] Okay.
+[01:52:01] Got it.
+[01:52:01] Thank you.
+[01:52:02] Now I'm clear.
+[01:52:03] Yeah.
+[01:52:03] Okay.
+[01:52:04] Let's folks, we'll go on a break.
+[01:52:06] break till 11 it's 10 52 already we'll take a break till 11 and then we come back we'll discuss
+[01:52:14] super fast db again very similar to what we discussed on word dictionary but we'll build
+[01:52:21] a super fast db a very practical example everyone uses it unknowingly uh and we'll make order one
+[01:52:28] reads order one writes order one deletes with persistence right and this is where we'll go a
+[01:52:33] little more deeper into what the file format should be because right now we just work with
+[01:52:38] simple csvs but that's not how this is actually stored right we'll go deeper into it and build
+[01:52:43] another database which is lightning pass database that gets the max performance out of your hard
+[01:52:49] disk and that's the highlight of it and we all are using it unknowingly right so we'll talk about
+[01:52:56] it in depth when we come back from the break we'll resume at uh 11 of now right seven minutes
+[01:53:01] from them right thanks folks see you folks at 11.
+[01:53:31] Thank you.
+[01:54:01] Thank you.
+[01:54:31] Thank you.
+[01:55:01] Thank you.
+[01:55:31] Thank you.
+[01:56:01] Thank you.
+[01:56:31] Thank you.
+[01:57:01] Thank you.
+[01:57:31] Thank you.
+[01:58:01] Thank you.
+[01:58:31] Thank you.
+[01:59:03] Thank you.
+[01:59:52] okay let's start with the second half for second second part for today is we'll now talk about
+[01:59:58] building a super fast key value store on top of very commodity hardware cheap magnetic hard disk
+[02:00:06] right we want best of everything read write upgrade delete persistence everything we want
+[02:00:12] so first before we start our brainstorming uh what we what i would want to talk about is how
+[02:00:18] magnetic disk works so first of all if you were to use we are all we all are so used to using ssds
+[02:00:28] fast and all but they are very costly so if i were to put cache like your cpu cache your l1 cache
+[02:00:37] your ssds your magnetic disk storage your tape storage right so if this is your memory
+[02:00:45] this is your magnetic disk storage this is where your ssd lies so ssds are more closer to memory
+[02:00:54] as compared to hard disk with respect to speed and with respect to cost.
+[02:00:59] So getting an SSD is very costly as compared to getting a magnetic disk storage.
+[02:01:07] So which is where you are storing huge amount of data.
+[02:01:10] You don't store it on SSDs.
+[02:01:13] You store it on magnetic disk storage.
+[02:01:16] Now magnetic disk storage, what are they?
+[02:01:19] It's that classic disk based storage where you have a head
+[02:01:24] head rotates like this in this motion while your disc spins.
+[02:01:31] So when you issue a read of something like read of a particular byte offset, that thing
+[02:01:38] gets translated to a particular disc on that particular disc, a particular sector in that
+[02:01:48] particular sector, a possible offset.
+[02:01:50] right so you say on this file at this byte this exists it then translates into on this disk in
+[02:01:59] this sector at this offset it lies in right so this is how it works so now when your disk is
+[02:02:07] moving and you are issuing a read command let's say read from this from this sector from this
+[02:02:13] right from this particular thing what happens is your magnetic head movement so this moves
+[02:02:19] to that location magnetic head comes to that point read that particular part and sends it to
+[02:02:25] the device driver and then it goes to the user space and you consume it so there is this actual
+[02:02:30] physical movement which is happening for you to read this part over there right so the head needs
+[02:02:37] to be moved the disc needs to rotate you read that then some other read comes in so it moves
+[02:02:44] mechanical movement that happens on the disk is the most time-consuming process right so this is
+[02:02:52] how magnetic disk works now we are building a super fast key value store that works on these
+[02:02:59] cheap magnetic disk storage right so now how would you build it right let's start with and
+[02:03:08] Given what we want to do is we want to support operations like put, get, delete.
+[02:03:16] That's it.
+[02:03:17] Right.
+[02:03:17] But the key thing is we don't want to miss out on persistence.
+[02:03:20] So we have to persist everything.
+[02:03:23] So how would a put look like?
+[02:03:25] Amen.
+[02:03:27] Okay.
+[02:03:29] I mean, whatever the requirement you have given, it looks like fitting in the way that
+[02:03:38] structure of a mem table or SS table works, you have something in memory as a sorted map.
+[02:03:47] No, no, immediately. I want to persist immediately. When I say put it, it is to immediately flush to the disk.
+[02:03:54] Oh, okay. Then if you have to immediately plus it.
+[02:04:05] Okay.
+[02:04:07] So let me understand.
+[02:04:09] Maybe we are saying that as soon as the request comes,
+[02:04:13] we will be able to persist it on the disk.
+[02:04:18] Persist it at the disk for each put call.
+[02:04:23] Yeah.
+[02:04:25] Okay.
+[02:04:26] I mean, then the best thing is like you create a ledger,
+[02:04:33] where you start adding each and every,
+[02:04:36] but it has its own challenge in terms of when you have to delete.
+[02:04:42] Wait, wait, let's stop.
+[02:04:44] Let's stop.
+[02:04:45] Step by step.
+[02:04:45] You're saying right ahead.
+[02:04:46] What is right ahead?
+[02:04:47] Like you have a file which has like each and every change that you are doing,
+[02:04:55] you are like inserting as like appending in the,
+[02:04:58] in place of going to figure it out where it has to go.
+[02:05:02] adding at the end so that the magnet is discard best for that.
+[02:05:07] I'm thinking why, why, why, why magnet is discard best for append only thing?
+[02:05:13] Because you are, you, you, so when, when, when you know on this sector where your head was last,
+[02:05:20] okay, you have to add more blocks on top of it.
+[02:05:24] So you have not to look for your cylinder.
+[02:05:28] I mean, your heads to go and seek it.
+[02:05:32] a seek time, neither you need that your cylinder has to spin and reach to the right sector.
+[02:05:39] So both the movement of like moving your
+[02:05:45] all is gone. I'm at the right exact point where I have to add more blocks.
+[02:05:53] That's the best I can do to get the benefit out of the characteristic of the disk.
+[02:06:00] Perfect.
+[02:06:02] So, so, so that is, and now what I'm worried about is the cons of it.
+[02:06:10] When I have to delete it.
+[02:06:12] No, no.
+[02:06:12] I mean, first let's convert on put, what happens when you put something to this?
+[02:06:18] So let's say this is that append only file.
+[02:06:19] So this is the file that you opened up.
+[02:06:21] Right now let's say I got a request.
+[02:06:23] It says put K1 V1.
+[02:06:26] What will happen?
+[02:06:27] What, what, what, what will you do?
+[02:06:29] So put K1 B1, K1 is a key, which is I need to add it.
+[02:06:36] So I will add that key and corresponding value.
+[02:06:40] I will add.
+[02:06:41] So that much data is written in the disk and I need to have K1 and wherever the K1 is started,
+[02:06:51] that sector address in somewhere in my memory table or somewhere else.
+[02:06:59] So then we'll basically come to that.
+[02:07:01] We'll come to that.
+[02:07:02] Let's first get the max performance out of it.
+[02:07:04] When we hit get, right?
+[02:07:06] First, let's focus on put, right?
+[02:07:07] Are we doing the best when we are putting?
+[02:07:09] Then we come to get and then we come to delete, right?
+[02:07:12] So you'll cover the entire thing around put.
+[02:07:14] Then I'll move to the next one.
+[02:07:15] Then we'll cover get.
+[02:07:16] Then we'll cover delete and then we'll cover get.
+[02:07:17] Okay.
+[02:07:18] So to cover the put part, you said that every time I'm issuing or I'm getting a put operation.
+[02:07:23] Yes.
+[02:07:24] I will just create new entries into this file.
+[02:07:29] K2 V2 and then K3 V3.
+[02:07:32] And then let's say if I get another request,
+[02:07:34] let's say now one changes.
+[02:07:37] Someone issued a put on K1 with V1 dash.
+[02:07:40] Now, I'm coming to that.
+[02:07:42] So that's the next thing where we have to think about
+[02:07:45] because we cannot go and figure it out
+[02:07:48] where K1 was and change the value.
+[02:07:50] So we will append it.
+[02:07:55] We will continue append it only.
+[02:07:59] We need to figure out another process which goals and market is like obsolete data
+[02:08:06] or market for deletion or something like what they say,
+[02:08:10] a stone process or whatever to stone process.
+[02:08:14] We have to do it.
+[02:08:16] But idea is always any foot comes, you go and add no matter what.
+[02:08:23] No matter what.
+[02:08:24] That's the best way.
+[02:08:26] Perfect.
+[02:08:26] So this is how you get the max performance out of put operation on a cheap magnetic disk storage.
+[02:08:32] So put operation is started.
+[02:08:37] You had your hands raised.
+[02:08:38] I was going to pull you in.
+[02:08:39] But let me go to Pankaj.
+[02:08:40] Pankaj, how will you do deletes?
+[02:08:44] Let's say I got a delete request and I want to delete a particular key.
+[02:08:48] How will you delete?
+[02:08:49] Let's say I say delete K2.
+[02:08:51] What will you do now?
+[02:08:53] Yeah. So, I mean, what I was thinking is somewhere from our previous discussion, again, that we can go to this key and set the value to be something which will never occur. Like if all the values are always positive, we can set it to minus one.
+[02:09:09] So you are going back to that key.
+[02:09:13] You're going over here and then deleting this and basically setting this to 0000 some special value.
+[02:09:19] Yeah.
+[02:09:20] But this is append only file.
+[02:09:21] You cannot write to any other location.
+[02:09:24] Because it's append only file.
+[02:09:26] You cannot go back and do something.
+[02:09:28] Like you can only read from the previous stuff, but you cannot write to a previous stuff.
+[02:09:33] That's what append only file does.
+[02:09:36] so you're not allowed to go back and write anything over here
+[02:09:44] so uh okay i mean in that case we will have to maintain some version sort of thing saying
+[02:09:51] that k2 has been deleted now so what can you do
+[02:10:02] So which means now, now let's think from the first principles, we know how put works for
+[02:10:08] us to delete.
+[02:10:08] It's an append only file, but we have to write something that tells that K2 is deleted.
+[02:10:13] So all we can do is append.
+[02:10:16] Yes.
+[02:10:17] Correct.
+[02:10:17] So I mean, we can append something like K2 with minus one that, that shows it's been
+[02:10:23] deleted.
+[02:10:25] So effectively your delete operation is equal to put operation with some special value.
+[02:10:34] Correct?
+[02:10:35] Yes.
+[02:10:35] Because put was order one like bare minimum, delete also becomes super efficient.
+[02:10:41] Yes.
+[02:10:42] Correct?
+[02:10:43] So this is sorted.
+[02:10:44] So we get the max out of our put, we get the best out of our delete.
+[02:10:49] These two are sorted.
+[02:10:51] Right?
+[02:10:51] Okay.
+[02:10:52] Now comes the next part.
+[02:10:55] How would you power get now that in this file structure that we have,
+[02:11:00] we have multiple entries of the same key.
+[02:11:03] Now for us to perform get, what is the naive way of doing it?
+[02:11:08] Just start looking at all the entries and return the latest one.
+[02:11:12] Return the latest one that seems very poor, but you want the best
+[02:11:16] performance out of get as well.
+[02:11:18] So what will you do when your reads are slow?
+[02:11:20] You make.
+[02:11:26] okay so let's do that
+[02:11:31] so how will you make it faster then how will it get work
+[02:11:37] yeah so my mind like overall is still going towards what hey man had mentioned earlier
+[02:11:43] like around having an sstable sort of structure here
+[02:11:47] simple hash table right ss table is very different hash table is very different right
+[02:11:51] yeah so for a hash table like we can like once we have put something into a write ahead log
+[02:11:57] we maintain a hash table on the like as soon as it's appended to the
+[02:12:01] well we update the hash table as well so the offset of it correct not the actual value
+[02:12:07] Yeah.
+[02:12:08] Uh, and, uh, whenever a read comes, we simply go to the offset in the well.
+[02:12:16] And return that value.
+[02:12:17] Read it because in up and only file you're allowed to do random reads, but you're not
+[02:12:21] allowed to do random rates.
+[02:12:22] Yeah.
+[02:12:23] Okay.
+[02:12:23] So just to cover it end to end, what would happen is let's say I got put K1 B1.
+[02:12:29] I first write it to the disc over here and note with the offset.
+[02:12:35] and then I update my in-memory hash table such that k1 points at o1. Then I received k2 v2.
+[02:12:42] I update my in-memory with k2 o2 over here and let's say k3 goes to o3 over here and then let's
+[02:12:50] say I got put k1 v1 dash. Now what will I do? I'll first write k1 v1 dash over here then go to my
+[02:12:57] hash table and I update it k4 over here. So it goes over here and the first metric removes over
+[02:13:02] here. Now let's say K2 is deleted.
+[02:13:05] Now how, what, what deletes would look like?
+[02:13:08] If I delete K2, I'll not point it over here.
+[02:13:11] I just remove the entry from my memory hashtag.
+[02:13:16] If the entry does not exist, it does not exist.
+[02:13:19] Yeah.
+[02:13:20] Now it's really simple.
+[02:13:21] Now what if given that we have the structure first, let's look at how get
+[02:13:26] works, if you'd want to converge or if you just want to consult on how gets
+[02:13:32] What would be the flow?
+[02:13:34] You get the request then.
+[02:13:34] So you get the request.
+[02:13:36] You look it up in the in-memory hash table.
+[02:13:38] If the entry is not there, you simply return 404 or something.
+[02:13:44] If it is present, you go to the val and you go to the offset and read that value.
+[02:13:50] Perfect.
+[02:13:51] Right?
+[02:13:51] Okay.
+[02:13:52] Now what if your machine died and because this is in-memory, it is gone.
+[02:13:56] Now what?
+[02:13:57] So you'll probably have to rebuild the indexes when you restart the server,
+[02:14:02] video for a very long time.
+[02:14:03] That's fine.
+[02:14:04] When you restart, you just go through this entire file and rebuild this index.
+[02:14:09] Yeah.
+[02:14:11] Straight forward.
+[02:14:11] So get order one, you are doing the bare minimum in get, you are doing bare minimum
+[02:14:16] input.
+[02:14:17] You are doing bare minimum in delete.
+[02:14:19] Yeah.
+[02:14:19] So it's the max that we could get out of this on a cheap magnetic disk storage.
+[02:14:26] Right.
+[02:14:26] So we just did read, write, update, read, write, update, delete, everything with full persistence.
+[02:14:34] Right.
+[02:14:34] But what else?
+[02:14:36] What could go wrong over here, Siddesh?
+[02:14:38] We have this one pile.
+[02:14:39] We're putting these entries.
+[02:14:41] What could go wrong?
+[02:14:49] I mean, availability is less because when you come back again, it takes a lot of time.
+[02:14:55] That's fine.
+[02:14:56] we're still okay with that. There are ways to make it better, but at least we have a naive approach to
+[02:15:00] get started with. Another assumption is we can hold on to all the indexes in memory.
+[02:15:08] That's an assumption that because you now you are limited by the amount of data you can fit in RAM.
+[02:15:17] amount of index fit in RAM.
+[02:15:21] It's not the values, but the keys.
+[02:15:25] So you can add only as many keys as many you can keep in memory.
+[02:15:31] Correct?
+[02:15:31] So that's a limitation.
+[02:15:33] Okay.
+[02:15:33] But what else can go wrong?
+[02:15:36] Another one is we are just appending to a file.
+[02:15:40] So there is no disk garbage that we are collecting.
+[02:15:43] We'll have to also figure that out.
+[02:15:45] Like eventually our system will go out of space because we are not collecting anything from the disk.
+[02:15:50] Correct.
+[02:15:51] So file grows out to be huge.
+[02:15:53] What could go wrong when file grows to be huge?
+[02:15:55] How do you solve it?
+[02:15:57] Yeah.
+[02:15:57] So basically our disk space will be out.
+[02:16:01] So how do I solve it is basically what do I do is,
+[02:16:10] idea is don't just have one file on the disk.
+[02:16:13] So we'll have to create multiple files and indexes we can maintain to multiple files.
+[02:16:20] Now, whenever you change a file, you'll have to start a process to like we did last time
+[02:16:29] to scrub, like consider a file, a partition that we are not actively appending to, but we are just still reading.
+[02:16:36] you start reading from that file and create a new file out of that partition
+[02:16:40] to remove the deleted keys and just write the keys which still are required in the system.
+[02:16:45] Got it.
+[02:16:45] So at any point in time, write will only go to one file.
+[02:16:49] Yes.
+[02:16:49] Other file becomes immutable.
+[02:16:51] Okay.
+[02:16:51] But when will you make the switch?
+[02:16:53] When will you make, hey, now I'm done writing to this file.
+[02:16:55] Now start writing to this file.
+[02:16:57] How will you do it?
+[02:16:57] Now this depends.
+[02:16:58] Yeah.
+[02:16:58] Now this depends on the disk space because how many files we want to keep in the disk,
+[02:17:03] right?
+[02:17:04] at max at any given time
+[02:17:06] I think we would need
+[02:17:08] a space of three files
+[02:17:10] one that we are writing to
+[02:17:11] one that we are reading from and one that
+[02:17:14] we are going to create. No, reading and writing are from the same
+[02:17:16] file, right?
+[02:17:18] No, like anytime
+[02:17:20] reading and writing won't go to the same file
+[02:17:23] because
+[02:17:23] whichever file my key is
+[02:17:25] right, it will go to that file
+[02:17:29] yeah, but what you have to do is
+[02:17:31] the file that you are reading
+[02:17:33] a lot of offsets, right? Like which are deleted. I won't like if our disks are serially better
+[02:17:41] performant, I would just read one file, right? To create a completely new file out of it by just
+[02:17:47] picking up the keys that are still available. That's unnecessary. That's unnecessary, right?
+[02:17:53] Just, just maintaining it for that one read, then you can just club it in a different process that
+[02:17:58] That we'll talk about, but first let's decide what's the criteria of making the switch to
+[02:18:04] a new file.
+[02:18:05] What's the criteria?
+[02:18:06] In disk space, it will be either divided by two or three based on the approach that we
+[02:18:10] have.
+[02:18:10] So if your disk space is let's say a hundred terabytes, you'll have files worth of 10 terabytes
+[02:18:17] each, 10 files.
+[02:18:20] In this naive approach.
+[02:18:21] Yes.
+[02:18:21] Now there are more problems to this.
+[02:18:23] What's the problem with that?
+[02:18:24] The problems are basically the way you are scanning.
+[02:18:28] indexes one, if you're just scanning a single file, you can't concurrently
+[02:18:33] build indexes in memory.
+[02:18:35] So that's one problem.
+[02:18:36] So that's an motivation to create more partitions.
+[02:18:38] Number two is also the garbage collection that you are doing.
+[02:18:40] Right.
+[02:18:40] So if in smaller partitions, you can be more consistent, like just
+[02:18:44] scrubbing the biggest one of all, biggest one of all file system limitation.
+[02:18:49] It is very much possible that your file system does not support more
+[02:18:52] than one terabyte file.
+[02:18:53] Yeah.
+[02:18:54] Quite possible.
+[02:18:55] Right.
+[02:18:55] Yeah.
+[02:18:56] Also consider that.
+[02:18:57] Right.
+[02:18:59] PTRFS has its limitation, NTFS has its limitation, right?
+[02:19:02] Plus waiting for that huge file to pile up, then writing to the next one versus keep smaller files.
+[02:19:09] Let's say 100 MB files or let's say 1 GB files.
+[02:19:13] As soon as that threshold checks off, you move forward, right?
+[02:19:17] You start writing to the new file.
+[02:19:19] So the idea being that let's say this is file 001, then it is file 002, then it is file 003,
+[02:19:25] is 004 and you keep on writing. Now at any given point in time only one file will be active. So
+[02:19:34] let's say this is the active file. So at any given point in time one file will be active where all
+[02:19:40] the writes are going. Everything else becomes read only. Right. So you are still allowed to
+[02:19:49] read this. Now given this in the in-memory structure that we had we were just storing offset.
+[02:19:55] want to store that this key is present in this file.
+[02:20:01] In this offset.
+[02:20:04] So now when the read comes in, get comes in, we get the key, we find and this file and
+[02:20:10] this offset is there.
+[02:20:11] You go to that read the content and send it back.
+[02:20:14] And every time your file crosses that limit, you create a new file and start writing.
+[02:20:19] Start writing.
+[02:20:20] Start writing.
+[02:20:20] So this is typically called as file rotation.
+[02:20:26] Once you are done with that, it's very evident that out of all of this file, there are a
+[02:20:33] lot of stale entries, a lot of deleted entries.
+[02:20:37] So this K1 got overwritten over here.
+[02:20:39] So this is stale.
+[02:20:40] Why do you want to waste that much of space?
+[02:20:42] This K2 was deleted over here.
+[02:20:43] So we can anyway delete it.
+[02:20:45] So what do you want to do is when you have multiple of these files, read only files,
+[02:20:50] active and let it continue to support it.
+[02:20:52] You would run a process called merge and compaction.
+[02:20:58] Where what will you do is you will take these parts, take these files, iterate through them,
+[02:21:07] remove or torque and basically create a new file.
+[02:21:10] So it would be like you have these three files.
+[02:21:13] Using these three files you create a fourth file which is a combination of these three
+[02:21:20] in which you are not copying the stale entries, you are not copying the related entries and
+[02:21:26] once this file is written, you delete these three files forever.
+[02:21:31] And then these two becomes your active file.
+[02:21:33] Like this becomes an active file.
+[02:21:34] This is where the read comes in.
+[02:21:35] But when you do this, you have to also update your in-memory index because now the offsets
+[02:21:40] would have changed.
+[02:21:41] Right?
+[02:21:42] Earlier you would have used stored that this is present or rather this key is present in
+[02:21:47] this file, this offset.
+[02:21:48] Now when these three files get merged into this fourth file, what you have to do is you
+[02:21:52] also have to update this in-memory index for the entries that are just moved to this new
+[02:21:55] file.
+[02:21:57] This is a classic way to do merge and compaction.
+[02:22:00] You can very clearly see how you can do merge and compaction.
+[02:22:03] Just iterate through this file, keep keeping track of data that you are having.
+[02:22:08] Okay.
+[02:22:08] This is the key that I saw.
+[02:22:09] All this gets replaced periodically flush it to the disk.
+[02:22:12] Basically do the simple merge and compaction.
+[02:22:14] where you are merging all this file into one.
+[02:22:18] So if you look carefully at your disk utilization,
+[02:22:22] this is how it would look like.
+[02:22:24] Periodically, or rather your file, your disk usage will go high, high, high.
+[02:22:29] When merger compaction kicks in, it would suddenly drop.
+[02:22:34] And then it would grow high, high, high, and then it would suddenly drop.
+[02:22:37] It would grow and then suddenly drop.
+[02:22:39] So this pattern that you are seeing,
+[02:22:44] When the writes are coming in, your disk would grow like the disk utilization would grow.
+[02:22:49] More data you are adding.
+[02:22:51] When your Merger Compaction runs, your rate would suddenly decline.
+[02:22:55] Then it would grow back again.
+[02:22:57] Then the next runs, then the next runs, and then the next runs.
+[02:22:59] You'll see this sawtooth pattern in your disk consumption.
+[02:23:03] Now why I'm talking about this?
+[02:23:05] Because this would help you configure what needs to be there.
+[02:23:11] like what should be the flush frequency or rather merge and compaction frequency because
+[02:23:17] if this is your disk utilization this shows this line this line would tell you this is your max
+[02:23:25] this line would tell you the maximum capacity of disk so if your disk is let's say one terabyte big
+[02:23:32] you cannot let this grow beyond one terabyte right so this pattern like how you would want
+[02:23:38] this sawtooth would determine how your performance your this database would be right then how
+[02:23:45] frequently you would want to dump if you let's say dump too frequently it would have too much
+[02:23:49] of garbage collection happening too much of things that you're worrying about running too frequently
+[02:23:53] your cpu not getting cpu to do actual work right if you do it less frequently then lot of work gets
+[02:23:58] accumulated so your flush frequency that you are having should be smooth enough for you to not
+[02:24:05] drop down on your performance.
+[02:24:07] These two factors you would be considering in order to configure.
+[02:24:10] You only have two configurable parameters over here.
+[02:24:13] First is merge and compaction frequency.
+[02:24:16] And second is disk rotation threshold.
+[02:24:20] Oh sorry, file rotation threshold.
+[02:24:22] Like how big you want your file to be.
+[02:24:29] How big you want your file to be and how frequently you would
+[02:24:32] want to merge it.
+[02:24:35] configurable parameters and how do you configure it?
+[02:24:37] Looking at the sort of pattern that you are seeing.
+[02:24:39] So configure this when you are writing, when you are building this part, have these things
+[02:24:43] in check, monitor them and then take a call that, Hey, what should be this frequency?
+[02:24:48] And this, when you are designing this database, you provide this as a configurable parameters
+[02:24:51] to your folks, right?
+[02:24:53] To whoever you are shipping.
+[02:24:55] But this is how you get the best read, write, update, delete, along with best or most efficient
+[02:25:05] disk utilization not wasting memory having this merge and compaction this is a pretty standard
+[02:25:10] approach and this is the best we can do on disk on a cheap magnetic disk storage right on ssd you
+[02:25:18] will still get benefits but not as significant because ssds don't go with disk based approach to
+[02:25:23] or rather the circular disk approach to write it they have their flash memories and whatnot it does
+[02:25:29] very optimally there but on a cheap magnetic disk storage this gives you wonderful experience
+[02:25:35] most as fast as SSDs.
+[02:25:37] So the cheap storage,
+[02:25:39] you get the max performance
+[02:25:40] out of the system.
+[02:25:42] But it's still not done.
+[02:25:44] I want to go into a bit more granularity
+[02:25:46] onto how exactly.
+[02:25:48] Because here we just casually said
+[02:25:50] I'll write key value over here.
+[02:25:53] No, no.
+[02:25:54] It's much more than that.
+[02:25:56] Let me go into details of it.
+[02:25:59] Like how will you actually represent
+[02:26:02] and how should you actually represent
+[02:26:05] a disk based structure right that this is my key this is my value how do you define that even in
+[02:26:11] dictionary problem we just wrote word comma meaning and i'll read file line by line but that's not
+[02:26:17] how files are read files are read by blocks so how do you actually define a format a record format
+[02:26:25] this is how all database work right any database mysql postgres mongodb redis fedis pick any
+[02:26:31] database whenever they're serializing things to disk they have their own format in which they write
+[02:26:37] it so that it becomes very efficient to read we'll walk you through that right so how one entry in
+[02:26:46] the file looks like we always say that in this file the entry is looking like a key value pair
+[02:26:51] will store key will store value right that's what we are thinking i'll just store key here and value
+[02:26:57] over here. But now imagine when you are doing this, you cannot just read until new line because
+[02:27:04] every time you are doing a disk IO, let's say you read one byte at a time until you hit a slash n.
+[02:27:11] How many disk IOs are you making? That would make things so slow for you. You should exactly know
+[02:27:18] if I'm at this offset, how many bytes do I have to read to complete my entire key value,
+[02:27:23] right which is what you do you don't just say i'll read until new light that is literally 11
+[02:27:31] standard kids would write code like that right read until new light no you have to read the exact
+[02:27:38] number of bytes you are supposed to so that you get that entire data in one shot so that's what
+[02:27:45] you do you instead of just write key and value you'll write key size and value size as well
+[02:27:50] So first you write key size which tells you how many bytes is key.
+[02:27:56] Then you write value size which tells how many bytes is value.
+[02:28:00] When you read it, you read these 8 bytes over here.
+[02:28:05] These 8 bytes, 4 byte integer.
+[02:28:08] These 8 bytes you interpret the first 4 bytes as key size, interpret second 4 bytes as value
+[02:28:13] size.
+[02:28:13] Then you read these many bytes in total, you get key and value both.
+[02:28:20] bytes that becomes key and these very bytes becomes value. It gives you the much
+[02:28:27] read predictability so that in one disk I.O. you ask in first disk I.O. you get this part
+[02:28:34] the metadata kind of header that we discussed in the previous product kind of header.
+[02:28:39] You read this eight bytes interpret first four bytes as this second four bytes as value size
+[02:28:44] then you sum it up and you read one more disk I.O. to read this entire thing together
+[02:28:50] And then you process this as key and this as value.
+[02:28:52] Right.
+[02:28:53] Because from this you would know exactly how much key takes and how much value.
+[02:28:56] Right.
+[02:28:57] So this is what you would store on the disk.
+[02:28:59] This is similar what you will do in even in word dictionary also.
+[02:29:03] Word size, meaning size.
+[02:29:05] Right.
+[02:29:06] Same thing.
+[02:29:07] We just wrote it in CSV because it's easy, but now we go into details of it.
+[02:29:10] So now you can update that system design with respect to this approach.
+[02:29:13] That this is how every entry in your file would look like.
+[02:29:17] Very predictable.
+[02:29:18] Right.
+[02:29:19] Okay.
+[02:29:20] A lot of people just stop here.
+[02:29:23] But always remember your database needs to be fault tolerant.
+[02:29:27] What if you are writing a gigantic value and while writing the value, the machine crashed.
+[02:29:33] You're just writing 110 and then machine crashed.
+[02:29:38] Now, how will you know?
+[02:29:39] You cannot fix it.
+[02:29:41] Your write has failed.
+[02:29:42] Your data is corrupt.
+[02:29:43] How will you know that an entry that you return is corrupt?
+[02:29:48] That's what you have to know.
+[02:29:50] entry that you because first you have to know that it is corrupt.
+[02:29:53] Then you fix it.
+[02:29:54] There is no way to fix it because the data is gone, but you cannot just
+[02:29:58] serve it because after this point, let's say you wrote this entry and then
+[02:30:01] let's say another entry is written.
+[02:30:02] If you read value size number of bytes over here, it would penetrate into
+[02:30:06] other entry that you have.
+[02:30:07] And that's very bad.
+[02:30:09] You need to know that whatever you wrote has lost its integrity.
+[02:30:15] The only way to do it is you put CRCs, you put checksums, cyclic redundancy checks.
+[02:30:23] And that will be the first thing that you would write to the desk.
+[02:30:26] Now what are CRCs?
+[02:30:28] Simple hash of all the values, key size, value size, key value, everything.
+[02:30:33] You would have key and value in memory.
+[02:30:35] You create this record format in memory, compute the hash of it and store that checksum or
+[02:30:41] hash or whatever you'd want to use as the first thing over here.
+[02:30:46] Similar to how in distributed ID generators, you saw timestamp on the leftmost side of it.
+[02:30:53] In any good format of the world, in good record format of the world, that is persistence,
+[02:30:58] you would always say CRC as the leftmost side. Postgres commit log file CRC on the leftmost side.
+[02:31:06] MySQL bin log CRC on the leftmost side. Why? You are first,
+[02:31:11] first thing that you write that you ensure that is at least flushed is CRC because that
+[02:31:16] is the bare minimum thing you need to know that something is corrupted.
+[02:31:19] You cannot write CRC in the end.
+[02:31:21] You write CRC in the beginning, pick any network format.
+[02:31:24] You'd always say CRC at the first because that's the first bite or the first set of
+[02:31:29] bytes that you should receive because that is what would tell you that the data that
+[02:31:32] you're receiving is not corrupted by any means.
+[02:31:35] So this is what your final structure would look like.
+[02:31:40] CRC time stamp just for conflicts key size value size key and value.
+[02:31:45] First this guy you will write this much then in one disk you write key and then another
+[02:31:51] disk you write a gigantic value that you have.
+[02:31:54] So in case the first disk write itself fails this entry itself is not there problem solved.
+[02:32:01] But if let's say this succeeds and while writing key it failed when you read the data you check
+[02:32:06] the CRC and you see the CRC doesn't matter because there is some corruption over here.
+[02:32:12] So you tell the user that the entry is corrupted.
+[02:32:14] Right?
+[02:32:15] You are not serving corrupted data to your users ever.
+[02:32:19] And then you can have your own recovery mechanism to recover from it.
+[02:32:22] That's heuristics mostly.
+[02:32:23] You ignore that entry in margin complexion and whatnot.
+[02:32:26] You assume that the right never came your way because corrupted data, you cannot recover
+[02:32:30] from it anyway.
+[02:32:32] This is what I want all of you to think about whenever you're testing.
+[02:32:37] CSV. Is that the best way to do it? And have a record for better. This is where you need to think,
+[02:32:42] let's say saying that I read only until new, like until new line, not good. Key size, value,
+[02:32:48] size, key value, all of this with CRCs, integrity checks, durability, fault tolerance. Very important
+[02:32:54] when we're designing a storage check. Okay. For the get, this is what we discussed. Key value,
+[02:33:01] you store it in your in-memory hash table, which points to the corresponding entries in the file.
+[02:33:06] given that we are having append only file all the operations are key value pairs in this format are
+[02:33:11] getting appended one after another now what would happen because of this our one file will grow out
+[02:33:17] to be very big that's why we have to do file rotation which means whenever a file reaches a
+[02:33:23] certain threshold we start writing it to the new file then a new file then a new file then a new
+[02:33:30] point in time only one file would be active everything else would be just available for reads
+[02:33:36] this means that in the in-memory hash table what we were storing we were storing just key and offset
+[02:33:41] now we need to store that this key is present in this file the entire record size is this
+[02:33:47] add this offset and timestamp for conflicts and meta information right this way your entries can
+[02:33:55] point to any file but the writes will always happen to the most to the active file that you have
+[02:34:01] This is how your in-memory index would look like.
+[02:34:05] Okay.
+[02:34:06] Now we have a lot of files.
+[02:34:08] Can we optimize?
+[02:34:09] Given that we have a lot of files having a lot of stale and deleted entries.
+[02:34:13] Let's merge and compact.
+[02:34:15] So what we write?
+[02:34:16] We write very simple merger compact.
+[02:34:18] We add it through all the files.
+[02:34:21] They are not sorted.
+[02:34:22] It's not similar to merge of merge sort.
+[02:34:24] Because here the order can be anything.
+[02:34:26] It's not sorted.
+[02:34:27] So to load it in a temporary structure.
+[02:34:30] Merge them, replace the entries that you are seeing like the further presence of those
+[02:34:37] entries, you are replacing it in a hash table and then flushing it to the disk.
+[02:34:41] Simple.
+[02:34:41] Try writing a code.
+[02:34:42] It's not really that difficult.
+[02:34:43] So read entries from this file, open it in a hash table and then flush it periodically
+[02:34:49] to the disk by not writing the stale entries or the deleted entries there.
+[02:34:54] right but now you would see this sort of pattern emerging and this pattern would help you determine
+[02:35:02] the maximum disk size or the maximum size of a file and the flush frequency that you need
+[02:35:07] so that it stays within the limit this is the max size of the disk that you have this is what you
+[02:35:14] would get doing very frequent merges also we're doing very frequent mergers and compaction not a
+[02:35:19] good option very infrequent you would breach past this right so keep it to a bare to keep it at
+[02:35:25] optimal state where no matter what this never breaches right this should never cross the cap
+[02:35:31] of it as soon as it crosses the cap of it your system would crash right okay now the limitation
+[02:35:39] of this whatever we designed sounds very fancy he gave me order one put order one delete everything
+[02:35:43] order by but what is the limitation the limitation of the system is all the keys must fit in memory
+[02:35:49] because in the in-memory structure that we have we are storing keys and basic information so it is
+[02:35:55] bounded by the number of keys i can fit in values are flushed on the disk but keys are there in
+[02:36:00] memory so on this there are keys and values as well but in memory you have keys and offset so
+[02:36:05] the size of the index how big the number of keys that you can fit in memory determines how big your
+[02:36:13] How many keys you can store in this particular database, right?
+[02:36:18] But the strengths of this DB is it gives me order one reads, writes and reads.
+[02:36:23] When I say order one, it's a bare minimum that your disk has to do when it is there
+[02:36:28] to write, when you request it to write something.
+[02:36:31] You get very high write throughput.
+[02:36:33] You get very low latency, write very low latency.
+[02:36:37] You are doing the bare minimum disk IO.
+[02:36:38] reads one memory lookup one random read get a data send it back and move it back to continue
+[02:36:45] writing bare minimum that you are doing that so bare minimum to write bare minimum to read
+[02:36:51] you get very high write throughput you actually get io saturation your your physical device io
+[02:36:58] will be saturated and that's a good thing because in most cases it's not that you are waiting for
+[02:37:03] IO to happen. You're doing the bare minimum to read and write and whatnot.
+[02:37:07] So you saturate your network call, your saturated network,
+[02:37:11] you saturate your disk IO. You're getting the max out of an underlying
+[02:37:15] hardware and a very simple thing. Backups are easy.
+[02:37:20] Control C, control V, these files and you have backup. It's normal file that you
+[02:37:23] are just storing there, right? You can literally do that.
+[02:37:27] The database that we just designed is called BitCask.
+[02:37:31] It's an embedded database.
+[02:37:33] In previous I shared the video embedded, what embedded databases are.
+[02:37:36] This is embedded database where it is not a central server that is doing it.
+[02:37:43] BitCask is not like a MySQL server that was spinning up and everyone connects to that.
+[02:37:47] BitCask is an embedded database, which is kind of a library, right?
+[02:37:51] Like SQLite is an embedded database.
+[02:37:53] BitCask is an embedded database S-FM.
+[02:37:55] So Bitcask is used by Uber in production for their main ride-hailing service.
+[02:38:01] For their main service, they use Bitcask.
+[02:38:03] But because Bitcask is embedded database, it does not have a separate server server.
+[02:38:10] So what Uber does is Uber uses React as their main database.
+[02:38:16] React is a simple key value store and React uses Bitcask as a back-end.
+[02:38:21] So like how Elasticsearch is an HTTP wrapper over Lucene.
+[02:38:28] Similarly, React is a wrapper over BitCask.
+[02:38:33] So React's responsibility is to make BitCask distributed.
+[02:38:38] You'd still have like this is mutually exclusive set of data.
+[02:38:42] But React gives you this additional thing.
+[02:38:45] Master, slave, architecture, distributedness, consensus, whatnot.
+[02:38:51] It gives you all these features to connect.
+[02:38:54] So it gives you proxy to seamlessly connect and route the request,
+[02:38:57] hash paste, consistent hashing, data movement, whatnot.
+[02:38:59] That is responsibility of React.
+[02:39:02] But in the backend, what it uses, it uses BitCask
+[02:39:05] to get the maximum out of when you are storing
+[02:39:07] and retrieving the data from the disk.
+[02:39:09] That's the best you can do over there.
+[02:39:11] This is what Uber uses in production.
+[02:39:14] If you look carefully, the BitCask, the way we design,
+[02:39:17] the append-only file that we see is the magic
+[02:39:21] behind getting the max out of cheap commodity hardware.
+[02:39:25] So whenever you see anything that says we are high throughput,
+[02:39:31] it means they are using append only file.
+[02:39:33] If they are not using append only file,
+[02:39:35] they are append only file or something similar.
+[02:39:38] They are not high throughput at all.
+[02:39:39] Not at all.
+[02:39:40] I devoid that claim.
+[02:39:42] Because it's not high throughput.
+[02:39:44] You can go beyond that as well.
+[02:39:46] So that is not very performant.
+[02:39:49] Whenever you are seeing very high throughput service,
+[02:39:51] has to be high throughput and persistence.
+[02:39:53] It has to be done in append only file.
+[02:39:55] And this is where you see it in IT.
+[02:39:58] And this is what this very fabulous database BitCask is all about.
+[02:40:03] It's really simple for everyone, but it covers those very intricate details.
+[02:40:09] Data integrity checks, record format, merge and compaction,
+[02:40:14] getting the max out of cheap commodity hardware.
+[02:40:17] And it's very heavily used in production by React.
+[02:40:21] react most of them have bitcast as their backend so we design bitcast and react just makes it
+[02:40:29] distributed nothing but just like what elastic search did to lucene react does it with bitcast
+[02:40:35] right and this is what i wanted to cover as part of building the super fast key value store
+[02:40:41] right there is a paper on bitcast which you can refer just a google search away but what i would
+[02:40:48] personally recommend implement bitcask and you know how how much how big of a promoter i am of
+[02:40:56] implementation i would highly recommend you to implement bitcask it's not really difficult but
+[02:41:00] when you build it you have much deeper understanding of file ios how to get max out of performance and
+[02:41:06] whatnot i did a personal benchmark bitcask versus key value store bitcask versus on desk key value
+[02:41:12] store in memory key value store and try to get a performance on backlit disk ssds and whatnot
+[02:41:18] That's why I'm so sure on how we could get the max performance of it,
+[02:41:21] how IOS saturates and all of that.
+[02:41:23] Set it up.
+[02:41:24] It's not difficult.
+[02:41:25] You just need the Prometheus on a machine continuously monitoring it,
+[02:41:28] run your bitcars, key value, which is why I'll just focus on key values.
+[02:41:32] There's nothing fancy on that, right?
+[02:41:34] Just keep it in your case, but build it.
+[02:41:36] Spend two weeks, two weeks period, one week of your time.
+[02:41:39] Implement it.
+[02:41:40] You'll have a time of your life.
+[02:41:42] Trust me on that.
+[02:41:43] When I first ran it, my God, my feeling was all over the room.
+[02:41:48] Six years it has been.
+[02:41:50] Six years.
+[02:41:51] Just yeah.
+[02:41:51] No.
+[02:41:52] Five years it has been.
+[02:41:53] And I implemented BitCast.
+[02:41:55] Right.
+[02:41:55] But do that.
+[02:41:56] Do that.
+[02:41:56] That's where the fun lies.
+[02:41:57] Right.
+[02:41:58] Okay.
+[02:41:58] That's all what I wanted to cover.
+[02:41:59] Folks who may want to drop off.
+[02:42:00] Will be to drop off.
+[02:42:01] I'll upload the recording by evening.
+[02:42:04] And yeah.
+[02:42:05] Next week is all about high throughput.
+[02:42:09] Yeah.
+[02:42:09] Next week is all about high throughput systems.
+[02:42:11] We'll extend the storage week.
+[02:42:14] We'll cover S3.
+[02:42:15] Video encoding.
+[02:42:17] YouTube views counting and whatnot.
+[02:42:19] And one more database we'll cover.
+[02:42:21] But those will form the core of
+[02:42:23] how high throughput systems are built
+[02:42:25] and why are we doing some things in a certain way.
+[02:42:29] This is where we got high throughput on storage side.
+[02:42:31] There we'll get high throughput on compute side.
+[02:42:34] But before that,
+[02:42:35] next week Saturday we'll first discuss
+[02:42:37] huge discussion on S3.
+[02:42:39] We'll go into those nitty gritties of S3
+[02:42:41] and how to think about it.
+[02:42:42] Everything that we studied
+[02:42:43] will come in handy when we design S3.
+[02:42:46] come in handy in the next one so it's all string together right okay so see you folks next week
+[02:42:51] uh any questions on bitcast before i take other questions
+[02:43:00] no no questions on bitcast
+[02:43:05] right it was that simple super go on heaven
+[02:43:11] just want to understand the in general what they say lsm trees and bitcast is like
+[02:43:21] completely this process only or or something extra is there when people talk about saying
+[02:43:29] sstable mem table it looks like whatever we have built on bitcast it's similar to that or is there
+[02:43:37] In SS table in memory, we'll be touching about SS table next week.
+[02:43:40] But in SS table, you also store values in memory.
+[02:43:43] Here we are not storing values in memory.
+[02:43:44] That's the one difference.
+[02:43:46] That's the big difference.
+[02:43:47] And the sorting of those values.
+[02:43:50] In SS table, we sorted because we are leveraging something else.
+[02:43:53] Right.
+[02:43:53] We'll go in depth of SS table next week.
+[02:43:56] And why are we doing something that we are doing?
+[02:43:58] But beyond that, that's a big difference.
+[02:44:01] Yes.
+[02:44:01] Other than that, it looks same other beyond that, because we have that
+[02:44:06] Flow wise, you have a file where we have the content and that is used by our merging and
+[02:44:12] compacts and to create.
+[02:44:14] And similarly for deletion, we go and do the same thing.
+[02:44:20] So beyond that, whatever is there in the MAM table as a sorted key values, that's the only
+[02:44:26] difference.
+[02:44:26] Correct.
+[02:44:27] That's the only difference.
+[02:44:28] But with that, but here we get persistence.
+[02:44:31] There, there is still loss of data.
+[02:44:32] If our memory goes down, there is still loss of data.
+[02:44:36] Seeing immediate persistence on the disk.
+[02:44:39] That's a big difference.
+[02:44:41] Memetable has to be saved,
+[02:44:42] maybe a local on the system or something.
+[02:44:44] Then every time on every right.
+[02:44:46] Every day, every day.
+[02:44:48] Here it's exactly here.
+[02:44:49] You get it by default, right?
+[02:44:50] Because you are prioritizing persistence.
+[02:44:54] Right? So you're getting the max out of
+[02:44:56] the underlying disk by prioritizing persistence.
+[02:44:59] In Memetable, you buffer and then you write.
+[02:45:02] I think then it makes sense.
+[02:45:06] understand this and then go towards that.
+[02:45:09] That becomes simpler to understand.
+[02:45:11] So which is why this particular order I've taken.
+[02:45:13] Next week we'll be touching upon SS table, mem table, that part, LSM trees,
+[02:45:18] high throughput systems when you do counting and all.
+[02:45:20] We'll touch upon that.
+[02:45:22] But this becomes the foundation for that.
+[02:45:25] I got about BitCask in the storage chapter from Martin Kleppman book.
+[02:45:30] And I think today most of the things we covered were understood
+[02:45:36] He tried to cover the bitcast and it was the first thing which I understood.
+[02:45:41] If you go bitcast, then it is easy to understand other things.
+[02:45:45] Yeah, it is easy to understand other things.
+[02:45:48] And he covered that bitcast only in his book.
+[02:45:54] I had this in my college paper reading.
+[02:45:57] I took a course on storage readings and it was part of a paper reading thing.
+[02:46:01] And that's what I stumbled over.
+[02:46:02] Like, my God, this is such a simple thing.
+[02:46:06] it's so beautiful okay then i understood that because maybe that's good but i do do read the
+[02:46:14] paper in case you have it that's a fabulous paper i read it a little bit but not completed
+[02:46:21] some part i but reading from what the martin book give me that summary so i skipped that
+[02:46:31] that's what happens so yeah thanks mohit yeah a bit like my question may sound naive to you but
+[02:46:40] like on the append only files like generally what's the way of creating those files like
+[02:46:46] i've never done this so uh that's why uh my knowledge what do you mean when you say what
+[02:46:52] like creating a file yes let's say you want to create a 1gb append only file so like uh would
+[02:47:01] you kind of create a file and up front grab 1gb space in that and so that that file is maybe
+[02:47:09] contiguous on the file system and later on like you keep on uh checking that how much data out of
+[02:47:17] that one GB you have written and then you, once the one GB has completed,
+[02:47:21] then you basically switched the new file or is it more incremental in nature that
+[02:47:26] you would grab, uh, like you would, um, keep on doing just say simple file
+[02:47:34] APIs, like write to a file, these many bytes.
+[02:47:39] Okay.
+[02:47:40] So this is what is abstracted by the, uh, file system.
+[02:47:44] what you do when you open a file you can specify file options read like r w r plus w plus
+[02:47:52] there is an option called a a is an append only option okay so when you do that the underlying
+[02:48:01] file system so when you do file io what happens the file system system call gets involved right
+[02:48:10] that takes care of structuring this file moving it here and there broking it into pieces in case
+[02:48:15] that's how it is implemented you don't have to on upfront reserve one gb of file you just open a file
+[02:48:21] and start writing to it without thinking without worrying about it that's what is abstracted by the
+[02:48:26] file system right now it does not mean that they would have done it very poorly in most cases when
+[02:48:32] a file is allocated, it's allocated like a huge chunk is marked as blocked and it's responsibility
+[02:48:40] of the file system, BTRFS, NTFS, EXT234, whichever you are using, that when you are creating
+[02:48:46] new files, it finds a decent enough free space for it to be there.
+[02:48:52] So it's not a sequential allocation of multiple files, but it just spaced out a bit.
+[02:48:59] This way, even if your file grows out slightly larger,
+[02:49:03] there is no, there is no problem.
+[02:49:05] Right.
+[02:49:06] So when you are, when you'd want to create an append only file,
+[02:49:09] when you write, when you open a file,
+[02:49:11] just pass in an option A for append only mode.
+[02:49:13] And you have now just created an append only file.
+[02:49:17] Okay.
+[02:49:18] Right.
+[02:49:20] Thanks.
+[02:49:21] Yeah.
+[02:49:23] So my question is regarding the delete, deletion of the keys.
+[02:49:29] putting some default value for deletion, but then how are we handling it in the merge?
+[02:49:33] In merge and compact, when you're merging the two active, when you're merging the two
+[02:49:37] immutable files, you skip the deleted entries.
+[02:49:40] That is the file that you're writing.
+[02:49:42] So let's say you are having three files, one active and two read only.
+[02:49:46] Those two read only you will merge while you're merging and creating a third file.
+[02:49:51] You skip the stale entries and the deleted entries.
+[02:49:53] So that would never be copied on the disk.
+[02:49:57] So basically for the entries which have for which we have that default value, we'll avoid
+[02:50:02] the first entry and the, uh, because as soon as you detect it, you would not just store
+[02:50:09] that anyway.
+[02:50:11] Okay.
+[02:50:12] Right.
+[02:50:12] Because see, you are having three files in total.
+[02:50:14] One is the active file and all the rights are happening and having two historical files,
+[02:50:19] which were rotated.
+[02:50:20] Right.
+[02:50:21] Now you will be merging and compacting these two files.
+[02:50:23] Right.
+[02:50:25] you would skip the stale entries,
+[02:50:28] which means let's say I've written key K1 twice.
+[02:50:31] I'll skip the first entry.
+[02:50:32] So I'll append when I'm writing to the new file,
+[02:50:35] what I'm doing is I'm first buffering the key value pair in memory.
+[02:50:41] And I'm just replacing whatever I find it there.
+[02:50:44] If I get something new out of it,
+[02:50:46] I'm sorry, if I get a key, which is deleted,
+[02:50:48] I would just remove the entry from the in-memory hash table.
+[02:50:51] And then I flush this entire hash table as this new file.
+[02:50:55] This hash table is different from the index that we spoke about.
+[02:50:58] Index is separate.
+[02:50:59] This is a separate process that you are running, which is all about merging this.
+[02:51:03] Right.
+[02:51:05] Got it.
+[02:51:06] Yeah.
+[02:51:07] So, uh, that's what I'm, uh, highly recommending to write this very small bit
+[02:51:12] custom repetition, very nice.
+[02:51:14] Right.
+[02:51:15] You'll get like how then, then you'll start summing up on this, like, hi, how would you
+[02:51:19] merge?
+[02:51:19] How do you merge this two file in the same process in different process?
+[02:51:23] How will you update in memory index that you have, right?
+[02:51:26] All those nitty gritties, those devils that lies in the details,
+[02:51:31] you would explore that.
+[02:51:34] And it's not, to be honest, it's not really difficult.
+[02:51:37] Just start writing code one week of time, spare that one week of time,
+[02:51:42] but build this stuff.
+[02:51:44] Right.
+[02:51:44] But in case any difficulty, drop me a note, I'm more than happy to help you.
+[02:51:49] Sure.
+[02:51:50] Sitesh.
+[02:51:53] So I have an implementation specific question.
+[02:51:56] Can you go back a slide?
+[02:51:57] I am wondering on the checksum thing,
+[02:52:01] the checksum that we added on the value.
+[02:52:07] So like what we are saying here is
+[02:52:11] writing the whole value is not atomic,
+[02:52:14] but writing the checksum and the header is.
+[02:52:17] Yes.
+[02:52:19] Writing this is atomic.
+[02:52:23] Yeah, my question is coming from, so like one is what, so different file systems and kernels
+[02:52:30] now will give you different guarantees, right?
+[02:52:32] I just want to understand a pattern here.
+[02:52:34] So is the pattern that like let us suppose we are assuming that this is under the block size.
+[02:52:41] So it is guaranteed by the kernel to us.
+[02:52:44] So we write that first and then write the rest of the things later.
+[02:52:47] Because this value can be 1 mbp.
+[02:52:49] Now, your kernel might not give that guarantee.
+[02:52:53] Right.
+[02:52:54] That's right.
+[02:52:54] Yeah.
+[02:52:55] That is what I was trying to understand because now when you try to install this software
+[02:52:59] on different kernels, behaviors may be different, but we have to be, and that's how this whole
+[02:53:05] wall thing goes.
+[02:53:05] Right.
+[02:53:06] So, but in any case, if you look carefully, this is eight bytes, four bytes, four bytes,
+[02:53:12] four bytes, which means roughly four, four, five or 20, 20 bytes, 20 bytes, no matter.
+[02:53:19] It will definitely be there.
+[02:53:21] Got it.
+[02:53:22] Because see, generally there are also more paranoid systems where kernels don't guarantee
+[02:53:29] this.
+[02:53:30] So you do have a separate wall system, but I get the design.
+[02:53:34] That's why I was trying to understand the pattern here.
+[02:53:36] This seems to be a very interesting pattern because this is more performant.
+[02:53:42] But this is exactly where these interesting nitty gritty come in.
+[02:53:47] Right?
+[02:53:47] Like we just tend to say, I will write it in a wall file, but how exactly.
+[02:53:51] Right.
+[02:53:52] This is what makes us better every day because a lot of people just skip this.
+[02:53:57] No one in almost any system design you pick up or any system, any overview
+[02:54:02] will be covered.
+[02:54:03] That's why they are called overview.
+[02:54:04] No one talks about integrity at all.
+[02:54:06] No one talks about security and integrity.
+[02:54:08] These are like lone wolves out there.
+[02:54:10] Just someone, one passionate engineer thinks about integrity, right?
+[02:54:15] Otherwise it's all gone for a toss.
+[02:54:17] work just fine.
+[02:54:18] But in reality, it does not.
+[02:54:20] But when you go into databases details, you would see all this.
+[02:54:23] And by the way, folks, Hussain Nasir is on fire.
+[02:54:27] He is posting Postgres internals like anything, like going into record level
+[02:54:32] format and whatnot.
+[02:54:34] My God, I don't know what happened to him.
+[02:54:35] He is just going through the Postgres source code.
+[02:54:39] So go through his Medium blogs.
+[02:54:41] They are very fascinating.
+[02:54:43] And you understand the things that we just discussed, integrity and all.
+[02:54:47] that this is a Postgres record format.
+[02:54:51] This is how page is there.
+[02:54:52] He found that one very interesting comment
+[02:54:54] and that blew my mind.
+[02:54:57] The number of pages Postgres takes up
+[02:55:01] to store meta information versus actual data.
+[02:55:06] That just blew my mind.
+[02:55:08] So read that.
+[02:55:09] He's on fire for some reason.
+[02:55:10] He's very obsessed with Postgres now.
+[02:55:12] Diving really deep into it.
+[02:55:14] Every day he's putting out videos
+[02:55:17] not sure he gave up on job or what he is on fire.
+[02:55:21] So once you have a bit of understanding,
+[02:55:24] like implementing BitCast,
+[02:55:25] once you have this bit of understanding of how file IO works,
+[02:55:29] highly recommend you to check out Hussain Nasir.
+[02:55:31] He's not created videos on it,
+[02:55:33] but on medium blog post,
+[02:55:34] he has posted a ton of amazing stuff on Postgres internals,
+[02:55:40] right?
+[02:55:40] But very into implementation detail,
+[02:55:44] like actual source code snippet.
+[02:55:45] This is where this is happening.
+[02:55:47] page is getting created.
+[02:55:48] The artist is getting flushed.
+[02:55:49] This is what the format is.
+[02:55:51] Those part, right.
+[02:55:52] It's really deep into Postgres.
+[02:55:54] So highly recommended to check that out.
+[02:55:57] Once you have this understanding, if you have this understanding already, what's
+[02:56:00] that, uh, read that fascinating stuff is doing then.
+[02:56:05] Thanks for that.
+[02:56:06] So one, one more question.
+[02:56:07] Uh, can we go back to the initial design of the S3 thing?
+[02:56:12] So there is one question that I have.
+[02:56:14] Maybe I'm not, I'm not aware of that.
+[02:56:17] Yeah.
+[02:56:17] So this S3 thing, right?
+[02:56:18] So, uh, well, one is the calculation part.
+[02:56:23] I am still not able to get how come, even if you get 200 K words, right.
+[02:56:28] Uh, this one terabyte to me, like sound.
+[02:56:34] Yeah, because I was checking per entry.
+[02:56:36] It is like an MBS of record.
+[02:56:38] I, I was blown by that.
+[02:56:39] So I don't know what's going on there, but.
+[02:56:41] You know, great.
+[02:56:43] Like you should ask this critical question.
+[02:56:44] So I just added one terabyte,
+[02:56:47] but now I'll just justify this size, right?
+[02:56:50] Okay, yeah.
+[02:56:52] So this one terabyte I added so that it becomes impossible,
+[02:56:56] like so that I bring up this point of cost
+[02:56:58] that you cannot just copy this dictionary on every API server, right?
+[02:57:03] That's why I wanted to add it.
+[02:57:04] Otherwise, like you'd say,
+[02:57:05] it's so small, I can just copy it over all the things.
+[02:57:08] That's what I was going to say.
+[02:57:09] I wanted to do that so that I touch upon network attached storage,
+[02:57:14] this, I touch upon portability, right.
+[02:57:17] But now in order to justify it, now this meaning, assume it's multimedia baked in
+[02:57:24] audio, video visualization of it.
+[02:57:27] Right.
+[02:57:27] That's why I just wanted to enforce that, but that you cannot possibly copy it on
+[02:57:35] every API server.
+[02:57:36] So that's why my team.
+[02:57:38] Right.
+[02:57:38] No, no.
+[02:57:39] Yeah.
+[02:57:39] Thanks.
+[02:57:39] No, no, no.
+[02:57:40] Just like wondering what happened there, because I was thinking I'll just
+[02:57:44] And that's what I was thinking, oh man, like this per MB records, maybe I'm missing something.
+[02:57:50] But the question that I had was, so the way what we have designed here, let us suppose I actually want to expose it.
+[02:57:57] Okay.
+[02:57:58] Now per API, I am doing one S3 call.
+[02:58:01] So how costly is it?
+[02:58:02] That is what I wanted to understand from you.
+[02:58:04] Like a point call.
+[02:58:06] And okay, I understand I can add caching and then my, all of those stuff will come down.
+[02:58:12] but then when I was thinking alternatively,
+[02:58:15] I was trying to think that,
+[02:58:16] okay, I can have some kind of frequency
+[02:58:18] and then eventually what will happen is
+[02:58:19] I will store my frequency-based words and all of that.
+[02:58:22] But I just wanted to understand
+[02:58:23] is that over-optimization
+[02:58:25] if I'm hosting a real service or is like how costly is S3?
+[02:58:28] In real world, you have to do that.
+[02:58:30] This is where I'm like directly querying the S3 to get it.
+[02:58:33] So my intention for that was
+[02:58:35] I wanted to point out that it is possible
+[02:58:37] to make pointed reads on S3.
+[02:58:39] Got it.
+[02:58:40] This way you can build a lot of others
+[02:58:42] AWS S3 Athena will build a multi-tiered storage,
+[02:58:46] a cost efficient auto solution for Amazon next week.
+[02:58:48] All of that would fall into place there because we are able to now literally
+[02:58:53] do a pointed read on S3 of a particular order ID.
+[02:58:57] You can now move your partial cold, like this is a classic cold storage mechanism.
+[02:59:02] They're moving data from hot tier to cold tier to save cost.
+[02:59:06] But when you move to cold tier, you're not just archiving, but still giving
+[02:59:09] a seamless ability to query the data on S3.
+[02:59:12] This enables us to do that.
+[02:59:15] And given it is infrequent, it's okay to have higher latency.
+[02:59:19] Cost would be there, right?
+[02:59:21] S3 is not cheap.
+[02:59:22] Network IO is not cheap.
+[02:59:23] S3 will take its own sweet time.
+[02:59:25] It's not very performant as well, but it is very cheap.
+[02:59:28] So if you're having infrequent reads, you can make it on S3.
+[02:59:31] I use word dictionary as an example because it's easy to understand.
+[02:59:35] If I say key values will be filled with key values.
+[02:59:37] I just use word dictionary so that I can pinpoint this.
+[02:59:42] how small the indexes can be and not get overwhelmed by this number.
+[02:59:46] So 170,000 seems a huge word, like a huge set of words, but in reality, when you
+[02:59:53] multiply it by your index size, like the per index entry turns out to be MP.
+[02:59:57] So we take MPs very lightly, but M stands for a million, a million bytes.
+[03:00:02] Right.
+[03:00:02] So we just take million and billion for like, we'll take it very lightly.
+[03:00:06] They are not very lightweight.
+[03:00:08] And it is still contain a huge amount of information.
+[03:00:11] those were my motivations to do it
+[03:00:13] so that I set it up
+[03:00:14] for other parts
+[03:00:16] which becomes very easy to understand
+[03:00:19] and last question on the
+[03:00:21] like the same
+[03:00:23] part where we said that we will just
+[03:00:25] trigger redeployment
+[03:00:26] just want to understand one detail there
+[03:00:28] so when you say redeployment
+[03:00:31] basically you are spinning up new machines
+[03:00:33] the load balancer will be intact
+[03:00:35] you will just add API servers
+[03:00:37] you remove one
+[03:00:40] By default, Cloud Prodder gives you this out of the box.
+[03:00:42] Rolling deployment is out of the box.
+[03:00:43] Yeah, this is a super one.
+[03:00:46] I think this is coming from more experience
+[03:00:47] because as engineers, we would write some code,
+[03:00:50] but there is already a way
+[03:00:51] without even writing a single line of code.
+[03:00:53] So this is what I actually did
+[03:00:55] for a couple of my services.
+[03:00:58] I thought of adding Radis PubSub and whatnot
+[03:01:02] and have APIs Expos and whatnot.
+[03:01:04] We are so accustomed to write code to solve a problem.
+[03:01:10] the box. I wanted to just cover this part that infrastructure is ours. We can do whatever
+[03:01:15] we want with it. So just make a call, trigger a deployment.
+[03:01:18] This was a great idea. I mean, uh, like without writing a code and then you don't have all
+[03:01:23] those have a call then maintaining and all that stuff. You just use what you have done.
+[03:01:27] Thanks sir. Superb. Anyone else? Any other question? No, Dan, no pop-up allowed.
+[03:01:38] So just a basic one. So we are storing the offsets. So offsets are the line numbers or
+[03:01:46] the actual byte byte byte byte from where that, you know, record is starting that offset.
+[03:01:52] Right. Okay. Sure. And what was the other question? I actually forgot. One was offset.
+[03:02:04] Offset.
+[03:02:05] Sorry, can you please go to that page?
+[03:02:07] We were discussing about the offset and the, uh, the word dictionary.
+[03:02:13] Sorry.
+[03:02:14] Offset.
+[03:02:15] We're discussing offsets over here.
+[03:02:17] Yeah.
+[03:02:19] Yeah.
+[03:02:20] So here the, the, the index where you are mentioning the index.
+[03:02:24] So initially you are storing the header where, you know, by, by offset of the data, basically
+[03:02:29] the, uh, bytes or the versions or all that information.
+[03:02:34] The size of the index is basically the complete index file,
+[03:02:38] which we are storing in this file, right?
+[03:02:40] Correct.
+[03:02:41] This is the size of the index.
+[03:02:43] Yes, the size of the index.
+[03:02:44] Initially, my understanding was,
+[03:02:45] it is just the location of that file stored
+[03:02:49] and not the actual file stored.
+[03:02:51] This is the actual size of the number of bytes
+[03:02:53] that you are storing in the index that gets stored there.
+[03:02:57] Right, right.
+[03:02:58] So you first read the header, you get the index size.
+[03:03:01] Then you read these many bytes here, you get the index.
+[03:03:04] then you start serving this data.
+[03:03:06] But Arpet now, whenever, whenever,
+[03:03:10] so let's say whenever we are doing any updates,
+[03:03:13] so this size might be, you know, changing every time.
+[03:03:16] So every time we are updating this header, right?
+[03:03:18] Yeah.
+[03:03:18] We are recreating this header.
+[03:03:19] So when you're doing this merge and compaction,
+[03:03:22] where did it go?
+[03:03:23] We're doing this merger,
+[03:03:24] you're creating this dictionary,
+[03:03:25] you're creating index also,
+[03:03:26] you're creating header also.
+[03:03:27] This new file, this entire new file that you are creating.
+[03:03:30] Right.
+[03:03:31] Right.
+[03:03:31] Now the question is,
+[03:03:34] Because initially we have never discussed this thing that you know, this file has to be sorted
+[03:03:37] only when we started discussion discussion about the merger, then only we discussed that,
+[03:03:43] you know, it has to be sorted.
+[03:03:44] So what is the idea of sorting there?
+[03:03:45] Because we never discussed that file.
+[03:03:51] Yeah, we are not.
+[03:03:54] We did not touch upon that because we did not have a need when we went into intricate
+[03:03:59] details.
+[03:04:00] We realized that keeping it sorted makes our merging very easy.
+[03:04:04] Like merging change lock into actual dictionary, the original dictionary becomes very easy,
+[03:04:08] very efficient.
+[03:04:10] But, but, but the thing is that now keeping the file is sorted in, I mean, keeping this
+[03:04:18] file sorted will, would create another level of complexity.
+[03:04:22] So how would we approach that?
+[03:04:23] Why is that complex?
+[03:04:25] Because he's storing 170,000 records.
+[03:04:28] And now you're trying to insert into every time you have to do what, what, what, what
+[03:04:34] binary search or a linear search, but you don't have to search anything.
+[03:04:37] Right.
+[03:04:37] It's direct lookup.
+[03:04:38] You have index index has offset to directly go to this offset reader.
+[03:04:42] Like, right.
+[03:04:44] But inserting a new entry, how would you decide that?
+[03:04:46] Where do I need to insert?
+[03:04:47] So let's say, right.
+[03:04:51] Here it is.
+[03:04:54] This is what, how you're creating this new dictionary, right?
+[03:04:58] Change.
+[03:04:58] Okay.
+[03:04:58] Got it.
+[03:04:59] Got it.
+[03:04:59] Got it.
+[03:05:00] Okay.
+[03:05:00] So this idea only will keep on the keeper.
+[03:05:02] Keep this thing sorted every time.
+[03:05:04] Correct.
+[03:05:04] This is sorted.
+[03:05:05] This is sorted.
+[03:05:05] This is sorted.
+[03:05:06] This is sorted.
+[03:05:07] Right, right.
+[03:05:07] Got it, got it, got it.
+[03:05:08] I thought that it should be sorted before.
+[03:05:10] Now, change lock.
+[03:05:12] So, we are just ensuring that original dictionary is sorted.
+[03:05:15] Change lock is sorted.
+[03:05:16] The new one would be sorted.
+[03:05:17] Now, this would become the old for the next updates.
+[03:05:20] Next week updates.
+[03:05:22] Right, right.
+[03:05:22] It will always be sorted.
+[03:05:23] But because of the sortedness of the words that we have, merging of dictionary and change
+[03:05:29] lock becomes order and operation.
+[03:05:31] That's it.
+[03:05:31] just one iteration over this file
+[03:05:33] or both the files and you have this
+[03:05:35] new file created. You don't have to do n square complexity.
+[03:05:38] Actually, I started looking into this complete
+[03:05:39] record but I forgot that from the very first record
+[03:05:41] we are sorting this thing. So yeah.
+[03:05:44] So yeah, that's good.
+[03:05:46] These are the details
+[03:05:48] I want. Thanks for asking this question. These are
+[03:05:49] the things that, you know, brings that clarity
+[03:05:52] like sparks that interest.
+[03:05:53] This is the optimization that we were talking about.
+[03:05:55] Like why things needs to be sorted and
+[03:05:57] which is why the entire domain of
+[03:05:59] computer science is obsessed with sorted
+[03:06:01] data. This is why it just makes life so simple. It makes processes so simple. Right. Thanks.
+[03:06:08] Thanks. Great. Any other question? Anyone? No? Done? That's it? No for what? Okay. That's
+[03:06:18] it. Thanks folks for tuning in. I'll upload the recordings by end of the day. See you
+[03:06:22] folks next week. We'll also share the pre-read. So do both. Thanks folks. See you next week.
+[03:06:27] Bye-bye.
+[03:06:31] Thank you.

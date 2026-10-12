@@ -1,0 +1,18 @@
+---
+// Lecture header: kicker, H1, dek, meta line, then the lecture contents (slot or `contents` prop).
+import LectureContents, { type TocItem } from './LectureContents.astro';
+interface Props { kicker: string; title: string; dek?: string; meta?: (string | { label: string; href: string })[]; contents?: TocItem[] }
+const { kicker, title, dek, meta = [], contents } = Astro.props;
+---
+<div class="col lecture">
+  <p class="kicker hand">{kicker}</p>
+  <h1>{title}</h1>
+  {dek && <p class="dek">{dek}</p>}
+  {meta.length > 0 && (
+    <ul class="meta hand">
+      {meta.map((m) => <li>{typeof m === 'string' ? m : <a href={m.href}>{m.label}</a>}</li>)}
+    </ul>
+  )}
+  {contents && <LectureContents items={contents} />}
+  <slot />
+</div>

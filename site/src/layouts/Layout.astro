@@ -1,0 +1,269 @@
+---
+// Page shell of the Whiteboard Notebook: sticky bar (breadcrumb, section progress, theme toggle),
+// the section rail on wide screens, and the theme bootstrap. Pages put their content in the default slot.
+import '../styles/notebook.css';
+
+export interface Crumb { label: string; href?: string; opt?: boolean }
+interface Props {
+  title: string;
+  description?: string;
+  /** breadcrumb trail before the current item; `opt` crumbs hide on phones */
+  crumbs?: Crumb[];
+  /** current item; on lecture pages it follows the section in view */
+  here?: string;
+  /** show the section progress label + rail (lecture pages) */
+  sections?: boolean;
+  skip?: { href: string; label: string };
+}
+const { title, description, crumbs = [], here, sections = false, skip = { href: '#main', label: 'Skip to content' } } = Astro.props;
+---
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+{description && <meta name="description" content={description}>}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..600&family=Recursive:slnt,wght,CASL,CRSV,MONO@-15..0,300..800,0..1,0..1,0..1&display=swap" rel="stylesheet">
+<script is:inline>
+  document.documentElement.classList.replace('no-js','js');
+  try { var t = localStorage.getItem('wb-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href={skip.href}>{skip.label}</a>
+
+<header class="bar">
+  <div class="bar-in">
+    <nav class="crumb hand" aria-label="Breadcrumb">
+      {crumbs.map((c) => (
+        <Fragment>
+          {c.href ? <a href={c.href} class:list={[c.opt && 'opt']}>{c.label}</a> : <span class:list={[c.opt && 'opt']}>{c.label}</span>}
+          <span class:list={['sep', c.opt && 'opt']}>/</span>
+        </Fragment>
+      ))}
+      {sections && <Fragment><a class="crumb-ch" id="crumb-ch" href="#" hidden></a><span class="sep crumb-ch-sep" id="crumb-ch-sep" hidden>/</span></Fragment>}
+      <span class="here" aria-current="page" id="crumb-here">{here ?? title}</span>
+    </nav>
+    <span class="spacer"></span>
+    {sections && (
+      <a class="prog-label hand" id="prog-label" href="#toc" aria-haspopup="dialog" aria-controls="navsheet">
+        <svg class="prog-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.5 4.2h11M2.5 8h11M2.5 11.8h7" /></svg>
+        <span id="prog-text">Contents</span>
+      </a>
+    )}
+    <button class="btn ghost" id="theme" type="button" aria-label="Switch colour theme"><span id="theme-label">Blackboard</span></button>
+  </div>
+  <div class="progress" aria-hidden="true"><i id="prog"></i></div>
+</header>
+
+{sections && (
+  <nav class="rail hand" aria-label="In this chapter" id="rail">
+    <p class="rail-title" id="rail-title"></p>
+    <ol id="rail-list"></ol>
+  </nav>
+)}
+
+{sections && (
+  <dialog class="navsheet hand" id="navsheet" aria-labelledby="navsheet-h">
+    <div class="navsheet-top">
+      <div class="navsheet-head">
+        <p id="navsheet-h" class="navsheet-title">Contents of this lecture</p>
+        <button class="btn ghost" type="button" data-close-nav>Close</button>
+      </div>
+      <div class="navsheet-prog">
+        <p id="navsheet-where"></p>
+        <div class="navsheet-bar" aria-hidden="true"><i id="navsheet-bar"></i></div>
+      </div>
+    </div>
+    <div class="toc navtoc" id="navsheet-toc"></div>
+  </dialog>
+)}
+
+<main id="main">
+  <slot />
+</main>
+
+<script is:inline>
+(function(){
+  var root = document.documentElement;
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var label = document.getElementById('theme-label');
+  function effective(){ return root.dataset.theme || (mq.matches ? 'dark' : 'light'); }
+  function sync(){ label.textContent = effective() === 'dark' ? 'Paper' : 'Blackboard'; }
+  document.getElementById('theme').addEventListener('click', function(){
+    var next = effective() === 'dark' ? 'light' : 'dark';
+    root.dataset.theme = next;
+    try { localStorage.setItem('wb-theme', next); } catch (e) {}
+    sync();
+  });
+  if (mq.addEventListener) mq.addEventListener('change', sync);
+  sync();
+
+  // collapse the lecture contents on small screens (the bar's contents sheet replaces it there)
+  var toc = document.getElementById('toc');
+  if (toc && window.matchMedia('(max-width: 640px)').matches) toc.removeAttribute('open');
+
+  var pl = document.getElementById('prog-label');
+  if (!pl) return;
+  if (!toc || !toc.querySelector('ol')) { pl.hidden = true; return; }
+
+  // ---- the outline, read from the lecture contents (#toc): chapters > sections, each with its element on the page
+  function readList(ol, parent){
+    var out = [];
+    Array.prototype.forEach.call(ol.children, function(li){
+      var a = li.querySelector(':scope > a, :scope > span > a');
+      if (!a) return;
+      var noEl = li.querySelector(':scope > .no');
+      var href = a.getAttribute('href') || '';
+      var el = href.length > 1 && href.charAt(0) === '#' ? document.getElementById(href.slice(1)) : null;
+      var e = { no: noEl ? noEl.textContent.trim() : '', title: a.textContent.trim(), href: href, el: el, parent: parent, children: [], heads: [] };
+      var sub = li.querySelector(':scope > ol');
+      if (sub) e.children = readList(sub, e);
+      out.push(e);
+    });
+    return out;
+  }
+  var chapters = readList(toc.querySelector('ol'), null);
+  var flat = [];
+  chapters.forEach(function(c){ if (c.el) flat.push(c); c.children.forEach(function(s){ if (s.el) flat.push(s); }); });
+  if (!flat.length) return;
+  function before(a, b){ return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); }
+  flat.sort(function(a, b){ return a.el === b.el ? 0 : before(a.el, b.el) ? -1 : 1; });
+  // each h3 belongs to the last outline entry before it (h3s that are entries themselves are skipped)
+  var entryEls = flat.map(function(e){ return e.el; });
+  var heads = Array.prototype.filter.call(document.querySelectorAll('main h3[id]'), function(h){ return entryEls.indexOf(h) < 0 && !h.closest('dialog'); });
+  heads.forEach(function(h){
+    var owner = null;
+    for (var i = 0; i < flat.length; i++) { if (before(flat[i].el, h)) owner = flat[i]; else break; }
+    if (owner) owner.heads.push(h);
+  });
+  function headLabel(h){ var c = h.cloneNode(true); var an = c.querySelector('.anchor'); if (an) an.remove(); return h.dataset.rail || c.textContent.trim(); }
+  function chapterOf(e){ return e.parent || e; }
+  function crumbOf(e){ return (e.el.dataset && e.el.dataset.crumb) || (e.no + ' ' + e.title); }
+
+  var bar = document.getElementById('prog'), ptext = document.getElementById('prog-text');
+  var here = document.getElementById('crumb-here');
+  var chA = document.getElementById('crumb-ch'), chSep = document.getElementById('crumb-ch-sep');
+  var railT = document.getElementById('rail-title'), railL = document.getElementById('rail-list');
+  var sheet = document.getElementById('navsheet'), sheetToc = document.getElementById('navsheet-toc');
+  var cur = null, railLinks = [], railHeads = [];
+
+  function link(href, no, text){
+    var a = document.createElement('a'); a.href = href;
+    if (no) { var n = document.createElement('span'); n.className = 'r-no'; n.textContent = no; a.appendChild(n); }
+    a.appendChild(document.createTextNode(text));
+    return a;
+  }
+  function buildRail(e){
+    var ch = chapterOf(e);
+    railT.textContent = '';
+    railL.textContent = '';
+    railLinks = []; railHeads = [];
+    var secs = ch.children.filter(function(s){ return s.el; });
+    var single = secs.length === 1 && !ch.el; // a one-section page (the demo): "§2.4 on this page", as in the sample
+    if (single) railT.textContent = '§' + secs[0].no + ' on this page';
+    else railT.appendChild(link(ch.href, '§' + ch.no, ch.title));
+    function addHeads(list, owner){
+      owner.heads.forEach(function(h){
+        var li = document.createElement('li'), a = link('#' + h.id, '', headLabel(h));
+        li.appendChild(a); list.appendChild(li); railLinks.push(a); railHeads.push(h);
+      });
+    }
+    if (single) { addHeads(railL, secs[0]); return; }
+    if (!secs.length) { addHeads(railL, ch); return; }
+    secs.forEach(function(s){
+      var li = document.createElement('li'), a = link(s.href, s.no, s.title);
+      a.dataset.entry = '1';
+      if (s === e) { a.setAttribute('aria-current', 'location'); li.className = 'cur'; }
+      li.appendChild(a); railL.appendChild(li);
+      if (s === e && s.heads.length) { var sub = document.createElement('ol'); addHeads(sub, s); li.appendChild(sub); }
+    });
+  }
+
+  // the contents sheet: the full outline, "you are here", progress
+  var sheetBuilt = false;
+  function buildSheet(){
+    var ol = toc.querySelector('ol').cloneNode(true);
+    ol.querySelectorAll('.you').forEach(function(y){ y.remove(); });
+    ol.querySelectorAll('[aria-current]').forEach(function(a){ a.removeAttribute('aria-current'); });
+    sheetToc.textContent = ''; sheetToc.appendChild(ol); sheetBuilt = true;
+  }
+  function markSheet(){
+    if (!sheetBuilt) buildSheet();
+    sheetToc.querySelectorAll('li.now').forEach(function(li){ li.classList.remove('now'); });
+    sheetToc.querySelectorAll('.you').forEach(function(y){ y.remove(); });
+    sheetToc.querySelectorAll('a[aria-current]').forEach(function(a){ a.removeAttribute('aria-current'); });
+    if (!cur) return null;
+    var a = sheetToc.querySelector('a[href="' + cur.href + '"]');
+    if (!a) return null;
+    a.setAttribute('aria-current', 'location');
+    a.closest('li').classList.add('now');
+    var you = document.createElement('span'); you.className = 'you scribble'; you.textContent = 'you are here';
+    if (a.parentNode.tagName !== 'SPAN') { var w = document.createElement('span'); a.replaceWith(w); w.appendChild(a); }
+    a.insertAdjacentElement('afterend', you);
+    return a;
+  }
+  function openSheet(ev){
+    if (ev) ev.preventDefault();
+    if (!sheet || typeof sheet.showModal !== 'function') { toc.setAttribute('open', ''); toc.scrollIntoView(); return; }
+    var a = markSheet();
+    sheet.showModal();
+    if (a) a.scrollIntoView({ block: 'center' });
+  }
+  pl.addEventListener('click', openSheet);
+  document.addEventListener('click', function(ev){
+    var t = ev.target.closest && ev.target.closest('[data-open-nav]');
+    if (t) openSheet(ev);
+  });
+  if (sheet) {
+    sheet.addEventListener('click', function(ev){
+      if (ev.target === sheet || ev.target.closest('[data-close-nav]') || ev.target.closest('a[href^="#"]')) sheet.close();
+    });
+  }
+
+  var ticking = false;
+  function update(){
+    ticking = false;
+    var line = window.innerHeight * .3, e = null;
+    for (var i = 0; i < flat.length; i++) { if (flat[i].el.getBoundingClientRect().top < line) e = flat[i]; else break; }
+    var docH = document.documentElement.scrollHeight - window.innerHeight;
+    var whole = docH > 0 ? Math.max(0, Math.min(1, window.scrollY / docH)) : 0;
+    if (e !== cur) {
+      cur = e;
+      if (e) {
+        buildRail(e);
+        if (here) here.textContent = crumbOf(e);
+        var ch = chapterOf(e);
+        var hasCh = !!(chA && ch.el && e !== ch);
+        if (chA) { chA.hidden = !hasCh; chSep.hidden = !hasCh; if (hasCh) { chA.textContent = crumbOf(ch); chA.href = ch.href; } }
+        if (chA) chA.parentNode.classList.toggle('has-ch', hasCh);
+      } else { railT.textContent = ''; railL.textContent = ''; railLinks = []; railHeads = []; }
+    }
+    var p = 0;
+    if (e) {
+      var idx = flat.indexOf(e), top = e.el.getBoundingClientRect().top;
+      var next = flat[idx + 1];
+      var end = next ? next.el.getBoundingClientRect().top : document.getElementById('main').getBoundingClientRect().bottom - window.innerHeight * .7;
+      p = Math.max(0, Math.min(1, (line - top) / Math.max(1, end - top)));
+    }
+    bar.style.width = (p * 100).toFixed(1) + '%';
+    var txt = e ? '§' + e.no + ' · ' + Math.round(p * 100) + '%' : 'Contents';
+    ptext.textContent = txt;
+    pl.setAttribute('aria-label', (e ? 'Section ' + e.no + ', ' + Math.round(p * 100) + '% read. ' : '') + 'Open the lecture contents');
+    var hi = -1;
+    railHeads.forEach(function(h, i){ if (h.getBoundingClientRect().top < line) hi = i; });
+    railLinks.forEach(function(a, i){ if (i === hi) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+    var w = document.getElementById('navsheet-where');
+    if (w) w.textContent = (e ? 'You are in §' + e.no + ' ' + e.title + ' · ' + Math.round(p * 100) + '% through it. ' : '') + Math.round(whole * 100) + '% of the lecture read.';
+    var nb = document.getElementById('navsheet-bar'); if (nb) nb.style.width = (whole * 100).toFixed(1) + '%';
+  }
+  window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+})();
+</script>
+</body>
+</html>
