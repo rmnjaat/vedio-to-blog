@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-// Coverage gate: does the built lecture page teach every ledger item?
+// Coverage gate: do the built pages of a lecture teach every ledger item?
 //
 //   node scripts/coverage.mjs <lecture-id> [--ledger <path>] [--html <path>] [--ignore-type t1,t2] [--strict] [--json]
 //
-//   <lecture-id>   e.g. lec01. Page defaults to dist/lectures/<id>/index.html (run `npm run build` first).
+//   <lecture-id>   e.g. lec01. A lecture is several pages: the overview dist/lectures/<id>/index.html and one page per
+//                  chapter, dist/lectures/<id>/<chapter>/index.html. All of them are read together
+//                  (run `npm run build` first). --html <file or directory> reads other built pages instead.
 //   --ledger       ledger JSONL. Default: ../lectures/<id>/ledger/ledger.jsonl, then ../learn/<id>/ledger/ledger.jsonl
 //                  (paths are relative to the repo root, i.e. the parent of site/).
 //   --ignore-type  ledger types that need not appear on the page (e.g. admin_reference).
@@ -31,13 +33,21 @@ const resolveFromRepo = (p) => (path.isAbsolute(p) ? p : path.resolve(repo, p));
 const ledgerPath = opt('--ledger')
   ? (fs.existsSync(path.resolve(opt('--ledger'))) ? path.resolve(opt('--ledger')) : resolveFromRepo(opt('--ledger')))
   : [`lectures/${id}/ledger/ledger.jsonl`, `learn/${id}/ledger/ledger.jsonl`].map(resolveFromRepo).find((p) => fs.existsSync(p));
-const htmlPath = opt('--html') ? path.resolve(opt('--html')) : path.join(site, 'dist', 'lectures', id, 'index.html');
+const htmlPath = opt('--html') ? path.resolve(opt('--html')) : path.join(site, 'dist', 'lectures', id);
 if (!ledgerPath || !fs.existsSync(ledgerPath)) { console.error(`ledger not found for ${id} (try --ledger <path>)`); process.exit(2); }
 if (!fs.existsSync(htmlPath)) { console.error(`page not found: ${htmlPath} (run npm run build, or pass --html)`); process.exit(2); }
 
 const ignore = new Set((opt('--ignore-type') ?? '').split(',').filter(Boolean));
 const ledger = fs.readFileSync(ledgerPath, 'utf8').split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
-const html = fs.readFileSync(htmlPath, 'utf8');
+// every page of the lecture: the overview and each chapter page (any index.html under the lecture's directory)
+const pages = [];
+(function walk(p) {
+  if (fs.statSync(p).isDirectory()) { for (const f of fs.readdirSync(p).sort()) walk(path.join(p, f)); }
+  else if (p.endsWith('.html')) pages.push(p);
+})(htmlPath);
+if (!pages.length) { console.error(`no built pages under ${htmlPath} (run npm run build)`); process.exit(2); }
+const htmlOf = new Map(pages.map((p) => [p, fs.readFileSync(p, 'utf8')]));
+const html = [...htmlOf.values()].join('\n');
 
 // every data-k on the page (attribute values are plain ids; no entities expected)
 const onPage = new Map(); // id -> count
@@ -53,6 +63,10 @@ missing.sort((a, b) => (order[a.importance] ?? 9) - (order[b.importance] ?? 9) |
 
 const report = {
   lecture: id, ledger: path.relative(repo, ledgerPath), page: path.relative(repo, htmlPath),
+  pages: pages.map((p) => {
+    const ids = new Set([...htmlOf.get(p).matchAll(/data-k="([^"]*)"/g)].flatMap((m) => m[1].split(/[\s,]+/).filter(Boolean)));
+    return { page: path.relative(repo, p), ids: ids.size };
+  }),
   required: required.length, covered: required.length - missing.length,
   missing: missing.map((x) => ({ id: x.id, importance: x.importance, type: x.type, topic: x.topic, statement: x.statement })),
   unknown, unconvertedMarkers: stray,
@@ -62,7 +76,8 @@ if (flag('--json')) console.log(JSON.stringify(report, null, 2));
 else {
   const pct = required.length ? ((100 * report.covered) / required.length).toFixed(1) : '100';
   console.log(`coverage ${id}: ${report.covered}/${required.length} ledger items on the page (${pct}%)${ignore.size ? `, ignoring ${[...ignore].join(', ')}` : ''}`);
-  console.log(`  ledger ${report.ledger}\n  page   ${report.page}`);
+  console.log(`  ledger ${report.ledger}\n  pages  ${report.page} (${pages.length})`);
+  for (const p of report.pages) console.log(`         ${p.page}  ${p.ids} ids`);
   for (const imp of ['core', 'supporting', 'aside']) {
     const g = missing.filter((x) => x.importance === imp);
     if (!g.length) continue;

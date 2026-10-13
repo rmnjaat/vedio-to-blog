@@ -4,7 +4,11 @@ import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
 
 export default defineConfig({
-  site: 'https://example.invalid', // set the real origin before publishing
+  // GitHub Pages project site: https://rmnjaat.github.io/vedio-to-blog/
+  // Every internal link goes through src/lib/url.ts (import.meta.env.BASE_URL), so the base can change in one place.
+  // Dev and preview serve under the same base: http://localhost:4321/vedio-to-blog/
+  site: 'https://rmnjaat.github.io',
+  base: '/vedio-to-blog/',
   trailingSlash: 'ignore',
   integrations: [mdx(), react()],
   // code uses the sample's three colours through CSS variables (see notebook.css, "code")

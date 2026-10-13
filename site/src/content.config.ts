@@ -22,6 +22,15 @@ const lectures = defineCollection({
     status: z.enum(['draft', 'published']).default('draft'),
     contents: z.array(toc), // the lecture contents block; hrefs point at section ids (#s2-4)
     ledger: z.string().optional(), // path to the ledger, relative to the repo root (for coverage)
+    // One page per chapter: /lectures/<id>/<slug>/. `no` matches a top-level `contents` item (its title is used);
+    // `parts` are MDX files in src/content/lectures/<id>/ (without .mdx), rendered in order; `summary` is the
+    // one-line summary on the lecture overview. Without `chapters`, the whole lecture body is one page.
+    chapters: z.array(z.object({
+      no: z.string(),
+      slug: z.string().regex(/^[a-z0-9-]+$/),
+      parts: z.array(z.string()).min(1),
+      summary: z.string(),
+    })).optional(),
   }),
 });
 

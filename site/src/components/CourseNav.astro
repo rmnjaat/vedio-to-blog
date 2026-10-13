@@ -1,0 +1,34 @@
+---
+// The course navigation (left rail on desktop, the drawer on tablets and phones): Lecture 1 … Lecture 10.
+// Written lectures link to their overview; the current lecture opens to its chapters, the current page marked.
+// Lectures without content yet are listed as "coming soon", not links.
+import { pad } from '../data/course';
+import { url } from '../lib/url';
+import type { NavLecture } from '../lib/lecture';
+interface Props { nav: NavLecture[]; lecture?: string; href?: string }
+const { nav, lecture, href } = Astro.props;
+---
+<a class="cn-home" href={url('')}>System design</a>
+<p class="cn-label">Lectures</p>
+<ol class="cn-list">
+  {nav.map((l) => l.href ? (
+    <li class:list={['cn-lec', l.id === lecture && 'open']}>
+      <a href={l.href} aria-current={href === l.href ? 'page' : undefined} class:list={[href === l.href && 'cur']}>
+        <span class="cn-no">{pad(l.number)}</span><span class="cn-t">{l.title}</span>
+      </a>
+      {l.id === lecture && l.chapters && l.chapters.length > 0 && (
+        <ol class="cn-ch" aria-label={`${l.label} chapters`}>
+          {l.chapters.map((c) => (
+            <li><a href={c.href} aria-current={href === c.href ? 'page' : undefined} class:list={[href === c.href && 'cur']}>
+              <span class="cn-no">{c.no}</span><span class="cn-t">{c.title}</span>
+            </a></li>
+          ))}
+        </ol>
+      )}
+    </li>
+  ) : (
+    <li class="cn-lec soon" aria-disabled="true">
+      <span class="cn-row"><span class="cn-no">{pad(l.number)}</span><span class="cn-t">{l.label} <span class="cn-soon">coming soon</span></span></span>
+    </li>
+  ))}
+</ol>

@@ -1,0 +1,18 @@
+---
+// "On this page": the current page's sections (h2) and their subheads (h3), with scrollspy (DocsShell's script).
+// Rendered twice: the right rail (wide screens) and the dropdown at the top of the content (narrower screens).
+import type { TocEntry, TocHead } from '../lib/prose';
+interface Props { sections: TocEntry[]; lead?: TocHead[] }
+const { sections, lead = [] } = Astro.props;
+---
+<ol class="otp-list">
+  {lead.map((h) => <li class="otp-sec"><a href={'#' + h.id} data-spy={h.id}>{h.label}</a></li>)}
+  {sections.map((s) => (
+    <li class="otp-sec" data-sec={s.id}>
+      <a href={'#' + s.id} data-spy={s.id}>{s.no && <span class="r-no">{s.no}</span>}{s.title}</a>
+      {s.heads.length > 0 && (
+        <ol>{s.heads.map((h) => <li><a href={'#' + h.id} data-spy={h.id}>{h.label}</a></li>)}</ol>
+      )}
+    </li>
+  ))}
+</ol>

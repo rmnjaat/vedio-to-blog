@@ -1,6 +1,8 @@
 # System design notebook: the lecture site
 
-This is a static site with one page per lecture, built in the Whiteboard Notebook design (`learn/design/B-whiteboard-notebook/`, followed exactly).
+This is a static site, built in the Whiteboard Notebook design (`learn/design/B-whiteboard-notebook/`, followed exactly). Each lecture is an overview page plus one page per chapter, in a three-column layout: the course navigation (Lecture 1 … 10) on the left, the page in the middle, and "On this page" (its sections and subheads, with scrollspy) on the right. Below 1024px the course navigation is a drawer behind the bar's menu button; below 1280px "On this page" is a sticky dropdown at the top of the content.
+
+It is published on GitHub Pages as a project site, https://rmnjaat.github.io/vedio-to-blog/, so it lives under the base path `/vedio-to-blog/` (`site` and `base` in `astro.config.mjs`). Every internal link and asset goes through `url()` in `src/lib/url.ts` (built on `import.meta.env.BASE_URL`); never write a root-relative `/path` in a component. `.github/workflows/pages.yml` (repo root) builds `site/` on every push to `main` and deploys `site/dist`. One-time setup: Settings → Pages → Source: GitHub Actions.
 
 The stack is pinned: Astro 7.3.8 with `@astrojs/mdx` 8.0.3 and `@astrojs/react` 7.0.1, React 19.3.0, and Remotion plus `@remotion/player` plus `@remotion/paths` 4.0.535.
 
@@ -8,18 +10,22 @@ The only external requests at runtime are to Google Fonts (Literata and Recursiv
 
 ```
 npm install
-npm run dev        # http://localhost:4321  (Astro 7 runs dev as a daemon: stop it with `npx astro dev stop`)
+npm run dev        # http://localhost:4321/vedio-to-blog/  (Astro 7 runs dev as a daemon: stop it with `npx astro dev stop`)
 npm run build      # static site in dist/
-npm run preview    # serve dist/
+npm run preview    # serve dist/ at http://localhost:4321/vedio-to-blog/
+npm run links      # every internal link, asset and #fragment in dist/ resolves under the base
 npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type admin_reference
 ```
 
 ## Pages
 
+(All URLs are under the base, `/vedio-to-blog/`.)
+
 | URL | source |
 |---|---|
 | `/` | `src/pages/index.astro`: the course home, with the 10 lectures from `src/data/course.ts` (no MDX yet means "in preparation") |
-| `/lectures/<id>/` | `src/pages/lectures/[id].astro`, driven by `src/content/lectures/<id>.mdx` |
+| `/lectures/<id>/` | `src/pages/lectures/[id]/index.astro`: the lecture overview (title, dek, meta, the chapter list with one-line summaries, then the body of `src/content/lectures/<id>.mdx`) |
+| `/lectures/<id>/<chapter>/` | `src/pages/lectures/[id]/[chapter].astro`: one chapter, built from the MDX parts listed under `chapters` in the lecture's frontmatter; previous / next at the bottom (the last chapter points to the next lecture) |
 | `/demo/` | the sample's §2.4 rebuilt from the components (`src/content/samples/scaling-the-database.mdx`), for comparison with the sample |
 | `/demo/animation/` | Remotion clips embedded with `<AnimationClip>` |
 
@@ -43,8 +49,14 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
        title: Scaling
        children:
          - { no: "2.1", title: What scaling means, href: "#s2-1" }
+   chapters:                # one page per chapter; `no` matches a top-level contents item (its title is used)
+     - { no: "1", slug: 1-caching, parts: [s1-caching], summary: <one line for the overview> }
+     - { no: "2", slug: 2-scaling, parts: [s2-scaling], summary: … }
    ---
    ```
+
+   The body of `lecNN.mdx` is the overview page (e.g. "About this class", "Medium so far"). Chapter parts live in `src/content/lectures/lecNN/<part>.mdx`. Without `chapters`, the body is the whole lecture on one page.
+   Links between sections are plain `#s2-4` hrefs, wherever the target is: the page template sends a link whose id is on another chapter page to that page (ids are read from the parts' `id="…"` attributes; `#toc` goes to the overview's chapter list). `npm run links` proves none is broken.
 
 2. Import the components and figures at the top of the body. Copy the import block from `src/content/samples/scaling-the-database.mdx`.
 3. Write the lecture as a sequence of `<Section id="s2-1" no="2.1" title="…" dek="…" meta="About 8 min · class 00:12–00:20" crumb="2.1 Scaling">` blocks. Inside each section:
@@ -55,7 +67,7 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
 4. **Coverage.** Every element that teaches a ledger item carries its ids:
    - **Prose:** end the paragraph, list item, heading or table cell with `[[L-0012 L-0013]]`. The marker is removed and the ids become `data-k` on that element. This happens in `components/Prose.astro`, which wraps the MDX on lecture pages.
    - **Components:** pass `k="L-0012 L-0013"`. For per-step coverage, `StepThrough` also takes `stepK={[…]}`.
-   - **Check:** run `npm run build`, then `node scripts/coverage.mjs lecNN [--ledger path] [--ignore-type admin_reference] [--strict] [--json]`. It lists the missing ids, grouped by importance, and any ids on the page that are not in the ledger. It exits 1 if a core item is missing, or any item with `--strict`.
+   - **Check:** run `npm run build`, then `node scripts/coverage.mjs lecNN [--ledger path] [--ignore-type admin_reference] [--strict] [--json]`. It reads every page of the lecture together (the overview and each chapter page), lists the missing ids, grouped by importance, and any ids on the pages that are not in the ledger. It exits 1 if a core item is missing, or any item with `--strict`.
 5. **Figures.** Build them from the kit in `src/figures/lecNN/*.tsx`, following the rules in `FIGURES.md`. A large figure needs a phone layout. Run `scripts/check-figures.mjs`.
 6. **Clips.** Register the clip in `src/animations/registry.ts`, then embed it with `<AnimationClip clip="…">`. See `src/animations/README.md`.
 
@@ -63,7 +75,12 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
 
 | component | props / children | notes |
 |---|---|---|
-| `Layout` (layouts/) | `title description crumbs here sections skip` | sticky bar: breadcrumb (follows the section in view), `§n · %` progress, Blackboard/Paper toggle (localStorage `wb-theme`); section rail with scrollspy at ≥ 1420px |
+| `Layout` (layouts/) | `title description crumbs here sections docs skip` | sticky bar: breadcrumb (follows the section in view), progress line, Blackboard/Paper toggle (localStorage `wb-theme`). `docs` (lecture pages): menu button for the course drawer; the page brings its own `<main>` (DocsShell). `sections` (demo only): `§n · %` label, contents sheet, section rail at ≥ 1420px |
+| `DocsShell` | `nav lecture href resolve lead dropNextLinks`; slots `head`, default (MDX, processed like `Prose`), `foot` | the three columns: `CourseNav` (left rail ≥ 1024px, else the drawer), the page, `OnThisPage` (right rail ≥ 1280px, else the sticky dropdown); scrollspy, crumb and progress; rewrites `#id` links to the chapter page that has the id |
+| `CourseNav` | `nav lecture href` | Lecture 01 … 10; the current lecture opens to its chapters, current page marked in blue; unwritten lectures say "coming soon" and are not links |
+| `OnThisPage` | `sections lead` | the page's sections (h2) and subheads (h3); the rail opens the subheads of the section in view |
+| `ChapterList` | `chapters` | the overview's chapter list (`#toc`): number, title, one-line summary, section range |
+| `Pager` | `prev next` | previous / next page; a next lecture without content shows "coming soon" |
 | `LectureHeader` | `kicker title dek meta contents` | kicker, H1, dek, meta line, contents |
 | `LectureContents` | `items [{no,title,href,dim,now,children}] open` | "Contents of this lecture", "you are here"; collapsed on phones |
 | `Section` | `id no title dek meta crumb k`; children | `article.col.section`; body column; `.wide` children go wide |
@@ -80,7 +97,7 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
 | `Cite`, `Term tone`, `Nb`, `Hl` | inline | source link ↗, coloured term, no-break, highlight |
 | `AnimationClip` | `clip no lead caption k` (or pending: `id duration chapters` + poster child) | Remotion island: poster, Play, scrub, 0.5×, chapters, text version, reduced-motion fallback |
 | `ForwardChip` | `when label block k`; children = topic | “coming later · week 3: topic”, for a topic deferred in class; inline in a paragraph, or `block` on its own line |
-| `SectionEnd` | `next {title, href} concepts` | next-chapter link |
+| `SectionEnd` | `next {title, href} concepts` | next-chapter link (on chapter pages the Pager replaces it) |
 | `Prose` | wraps rendered MDX | h3 anchors, `[[rail: …]]`, `[[L-…]]` → `data-k` |
 
 ## Differences from the sample (intentional fixes)

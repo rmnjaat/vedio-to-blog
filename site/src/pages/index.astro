@@ -3,6 +3,7 @@
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import { COURSE, LECTURES, pad } from '../data/course';
+import { url } from '../lib/url';
 
 const written = new Map((await getCollection('lectures')).map((e) => [e.id, e]));
 ---
@@ -19,7 +20,7 @@ const written = new Map((await getCollection('lectures')).map((e) => [e.id, e]))
             <span class="no hand">{pad(l.number)}</span>
             {e ? (
               <span>
-                <a href={`/lectures/${l.id}/`}>{e.data.title}</a>
+                <a href={url(`lectures/${l.id}/`)}>{e.data.title}</a>
                 {e.data.status === 'draft' && <span class="tag hand"> draft</span>}
                 <span class="lec-dek">{e.data.dek}</span>
               </span>
@@ -30,6 +31,6 @@ const written = new Map((await getCollection('lectures')).map((e) => [e.id, e]))
         );
       })}
     </ol>
-    <p class="hand demo-links">Design check: <a href="/demo/">§2.4 rebuilt from the components</a> · <a href="/demo/animation/">clip demo</a></p>
+    <p class="hand demo-links">Design check: <a href={url('demo/')}>§2.4 rebuilt from the components</a> · <a href={url('demo/animation/')}>clip demo</a></p>
   </div>
 </Layout>

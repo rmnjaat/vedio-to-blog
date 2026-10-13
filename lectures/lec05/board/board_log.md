@@ -328,7 +328,7 @@ Text (right column, top to bottom):
 - Yellow `BG Job` added above the `{ Delete store where expired_at <= now }` block
 - `Soft delete` with, in yellow, `update str set` / `expired_at =` [cut off] ("str" = store)
 - Yellow `BG Job` then `{` / `Delete store where` / `is_del = True` / `}`
-Emphasis at 00:48:30 (01:48:30): red loops around the empty fourth column of D-06 (the column that would hold an `is_del` flag).
+Emphasis at 01:48:30: red loops around the empty fourth column of D-06 (the column that would hold an `is_del` flag).
 Diagram D-06: example row added in yellow at 01:49: `key` = `a`, `value` = `—` (01:49:12), `expired_at` = `-1` (01:49:00).
 Change: live writing.
 
@@ -372,4 +372,122 @@ Change: live writing.
 
 ## S63 - 02:00:30-02:02:30 (b_020100.jpg, b_020115.jpg, b_020230.jpg)
 b_020115.jpg: zoomed-out overview of the whole KV-store page with GET. b_020100.jpg / b_020230.jpg: zoomed back in. No new content.
+
+## S64 - 02:02:39-02:02:42 (b_020239.jpg, b_020242.jpg)
+Same KV-store page (scrolled to the top part). No new content.
+
+## S65 - 02:02:45-02:03:15 - Prepared notes: storage and schema (b_020245.jpg, b_020300.jpg, b_020303.jpg, b_020315.jpg)
+Topic: summary page of the KV store (prepared notes, revealed by scrolling).
+Text:
+- `Storage:` `MySQL` (yellow) + pink `start with single node` / `& then scale as the system demands`
+- `Schema:` `store` (yellow)
+- Column names `key` `value` `ttl` `is_deleted` (written `is_deleted` with te-ligature); a brace under `key value` labelled `key & value`; `ttl` ↓ `absolute expiration time`; `is_deleted` ↓ `soft delete` (labels yellow)
+- `Saving storage:` (written `sterage`) + pink `why have another column for is_deleted ?`
+- `key` `value` `ttl` → pink `-1 special value` / `marking deletion`; brace `key & value`; `ttl` ↓ `absolute expiration time`
+Emphasis at 02:03:15: red loops around `key` and `value` of the first schema.
+Change: new page section.
+
+## S66 - 02:03:30-02:04:30 - Hard delete (b_020415.jpg, b_020430.jpg)
+Text:
+- Yellow `How to hard delete?` then `Batch & periodic cleanup`
+- `- Run a separate cleanup process to hard delete` / `the soft deleted rows`
+- Arrow down to yellow `minimize I/O & rebalancing`
+Change: scrolled down.
+
+## S67 - 02:04:45-02:06:15 - Inserting, upserts, concurrent puts (b_020445.jpg, b_020515.jpg, b_020615.jpg)
+Topic: PUT semantics and locking.
+Text:
+- Yellow heading `Inserting new key/value`
+- `1. key exist → update` / `2. key does not exist → insert`
+- Pink `* Instead of applying GET & INSERT/UPDATE` / `↳ we use` + yellow box `UPSERTS`
+- `REPLACE INTO 'store' VALUES ( k, v, ttl )` with a small arrow to purple `MySQL`
+- Purple `postgreSQL` → `UPSERT statement`
+- Yellow `Multiple PUT requests?` then `locks` (double underline) → `protects data integrity`; `locks` ↓ `when one is updating` / `other waits`
+- `SELECT * from Store...` + green `FOR UPDATE NO WAIT ;`
+- Pink `UPDATE store SET value = v₂` / `WHERE key = k₁`
+Emphasis at 02:04:45: red loop around `UPSERTS`.
+Change: scrolled down.
+
+## S68 - 02:06:30-02:11:00 - Implementing TTL (b_020630.jpg, b_020645.jpg, b_020700.jpg, b_020709.jpg, b_020715.jpg, b_020724.jpg, b_020745.jpg, b_020800.jpg, b_020815.jpg, b_020827.jpg, b_021030.jpg, b_021100.jpg)
+Topic: two approaches to expiring keys.
+Text and diagram (D-07):
+- Yellow heading `Implementing TTL`
+- `Approach 1:` pink `Batch deletion with CRON Job`
+- A yellow horizontal timeline with six tick marks; a brace under one interval labelled `t minutes`; an arrow up to one tick labelled `Hard delete`
+- `* What about expired keys before they are hard delet` [cut off; "hard deleted"]
+- `- filter out`; right: `select * from store` / `where key = k` / `and ttl > now();`
+- Diagram: stick-figure user — line — rectangle `KV Store` — line — cylinder `MySQL`
+- `Approach 2:` pink `Lazy deletion` yellow `[in-mem]`
+- `Do hard delete when an expired key is fetched`
+- `* what if the key is never fetched ?` / `- key is never deleted` / `- CRON to delete expired key` ← `Small Pause`
+Emphasis at 02:06:45: red loops around `select * from store` and `where key = k`.
+Change: new page section; the frames scroll up and down this page during the explanation.
+
+## S69 - 02:11:15-02:19:39 - Approach 3: random sampling (Redis) (b_021115.jpg, b_021118.jpg, b_021130.jpg, b_021200.jpg, b_021230.jpg, b_021315.jpg, b_021330.jpg, b_021345.jpg, b_021354.jpg, b_021415.jpg, b_021530.jpg, b_021545.jpg, b_021715.jpg, b_021730.jpg, b_021742.jpg, b_021745.jpg, b_021815.jpg, b_021900.jpg, b_021915.jpg, b_021930.jpg, b_021939.jpg)
+Topic: Redis-style probabilistic expiry.
+Text:
+- `Approach 3 :` pink `Random Sampling & Deletion`
+- Yellow `* Not suitable for disk backed DBs`
+- `- Randomly sample 20 keys having expiration set`
+- `- Delete all the keys that are expired from the sample`
+- `- If deleted key > 25% , repeat the process`
+- Yellow `Idea: if sample has < 25% of expired keys ,` / `population will have < 25% of expired keys` / `(not deleted)`
+- Pink `* This approach is used by Redis &` / `the number ( sample size ) 20 comes from the` / yellow `Central limit Theorem`
+Emphasis: 02:13:54 a small red tick near the CRON timeline; 02:15:45 a red brace beside the whole Approach 2 block.
+Change: scrolled down; frames alternate between Approach 1/2 and Approach 3 while questions are answered.
+
+## S70 - 02:19:45-02:22:33 - Implementing delete, batch cleanup and get (b_022145.jpg, b_022157.jpg, b_022200.jpg, b_022215.jpg, b_022224.jpg, b_022227.jpg, b_022230.jpg, b_022233.jpg)
+Topic: final queries.
+Text:
+- Yellow `Implementing Delete` / `UPDATE store SET` pink `ttl = -1` / `WHERE key = k₁ AND ttl > NOW();` with a brace under `ttl > NOW()` labelled `reducing the load` / pink `on disk`
+- Yellow `Implementing Batch cleanup delete` / `DELETE FROM store WHERE ttl <= now();` with an arrow up to pink `expired` / `and soft deleted`
+- Yellow `Implementing Get` / `SELECT * FROM store` / `WHERE key = k₁ AND ttl > NOW()` with a pink brace under `ttl > NOW()`
+Change: scrolled down; b_022230.jpg is a horizontally shifted view of the Approach 3 page (no new content).
+
+## S71 - 02:22:45-02:25:00 (b_022330.jpg, b_022345.jpg, b_022430.jpg, b_022445.jpg, b_022448.jpg, b_022500.jpg)
+Same `Implementing Delete` / `Batch cleanup delete` / `Get` page during Q&A on TTL and delete. No new content.
+
+## S72 - 02:25:15-02:27:30 (b_022515.jpg, b_022530.jpg, b_022545.jpg, b_022548.jpg, b_022554.jpg, b_022557.jpg, b_022615.jpg, b_022630.jpg, b_022715.jpg)
+`Implementing Batch cleanup delete` / `Implementing Get` (scrolled) during Q&A. No new content.
+
+## S73 - 02:27:45-02:29:03 - High level architecture (b_022730.jpg, b_022830.jpg, b_022845.jpg, b_022900.jpg, b_022903.jpg)
+Topic: single-master architecture of the KV store.
+Text and diagram (D-08, first form):
+- Yellow heading `High level Architecture` (written `Archikchure`, te-ligature)
+- Stick-figure user — line — tall vertical rectangle labelled vertically `L O A D B` (load balancer); three lines fan out to three rectangles `KV - API`; a line from each `KV - API` to a cylinder `MySQL`
+- Below `MySQL`, a vertical line to a yellow box `Batch Cleanup` with a circular arrow at its right (periodic job)
+- Yellow `* We add as many KV API servers to support the load` with an arrow down from "support" to pink `assuming MySQL is handling` / `the incoming load`
+- `If we have a 99:1 read requests and one DB is not able` / `to handle it,` pink `we add read replicas`
+Change: new page.
+
+## S74 - 02:29:15-02:31:00 - Read replicas (b_023030.jpg, b_023048.jpg)
+Diagram (D-09): same user / `L O A D B` / three `KV - API` boxes, now connected to a cylinder `Master`; `Master` connects to two cylinders `Replica` (top one cut off as `Repli`); a yellow dotted arc from the top `KV - API` over to the top `Replica` (reads going to a replica); `Master` ↓ yellow `Batch Cleanup` with circular arrow.
+Change: scrolled down.
+
+## S75 - 02:30:45 - When to add replicas, partitioning (b_023045.jpg)
+Text:
+- Yellow `We add replicas only when` / `- reading stale data is okay` / `- read : write = 99:1`
+- Yellow `If Master is now seeing a lot of writes` / `- we first` pink `vertically scale-up` / `- if it is still not able to handle the load , we` pink `partition`
+- Bottom: yellow `Batch Cleanup` box (top of D-10)
+Change: scrolled down.
+
+## S76 - 02:30:54-02:37:09 - Partitioned masters (b_023054.jpg, b_023057.jpg, b_023430.jpg, b_023445.jpg, b_023545.jpg, b_023600.jpg, b_023603.jpg, b_023645.jpg, b_023700.jpg, b_023703.jpg, b_023709.jpg)
+Diagram (D-10): user / `L O A D B` / three `KV - API`. Each `KV - API` connects to both masters: yellow lines to cylinder `Master 1` labelled `[a-m]`, pink lines to cylinder `Master 2` labelled `[n-z]`. Each master has a `Replica` cylinder to its right and its own yellow `Batch Cleanup` box with a circular arrow (above Master 1, below Master 2).
+Text: pink `Each Master node owns an` grey-highlighted `exclusive` / `fragment of the data`.
+Change: scrolled down; frames 02:31-02:37 only change by scroll and the participant column (Q&A on sharding by range).
+
+## S77 - 02:37:12 (b_023712.jpg)
+Scrolled back up to `Implementing Delete` / `Implementing Batch cleanup delete`. No new content.
+
+## S78 - 02:37:15-02:40:39 (b_023845.jpg, b_023900.jpg, b_023903.jpg, b_023915.jpg, b_024015.jpg, b_024030.jpg, b_024033.jpg, b_024039.jpg)
+Q&A over the `Implementing Delete` / `Batch cleanup delete` / `Get` page. Emphasis: 02:38:45 red circle around `ttl` in `AND ttl > NOW()` of the delete query; 02:39:00 red loop around `Batch cleanup delete` / `DELETE FROM store`. No new content.
+
+## S79 - 02:40:45-02:44:00 (b_024045.jpg, b_024054.jpg, b_024200.jpg, b_024215.jpg, b_024315.jpg, b_024330.jpg, b_024345.jpg, b_024357.jpg, b_024400.jpg)
+Q&A scrolling through D-09 (read replicas, b_024045.jpg, b_024054.jpg), D-08 (b_024200.jpg), D-10 (b_024215.jpg-b_024345.jpg) and Approach 3 (b_024357.jpg, b_024400.jpg). Emphasis at 02:43:30: red loop around the top `KV - API` box in D-10. No new content.
+
+## S80 - 02:44:15-03:06:18 (b_024530.jpg, b_024730.jpg, b_024830.jpg, b_025345.jpg, b_025515.jpg, b_030600.jpg, b_030615.jpg, b_030618.jpg)
+Approach 3 (random sampling, Redis) page stays on screen during the long Q&A (ORMs, Java vs Go, upsert vs select, lock wait timeout, soft delete). No new content.
+
+## S81 - 03:06:30-03:21:30 (b_030830.jpg, b_031845.jpg, b_031900.jpg, b_032015.jpg, b_032130.jpg)
+`Implementing Delete` / `Implementing Batch cleanup delete` page on screen for the rest of the Q&A and close (B+ tree rebalancing, Redis expiry, online indicator, real KV stores, tomorrow's topic). No new content.
 

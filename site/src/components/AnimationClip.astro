@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ClipPlayer from './ClipPlayer';
 import { loadMeta } from '../animations/registry';
+import { url } from '../lib/url';
 
 //
 // A clip that is storyboarded but not built yet: omit `clip`, pass `id`, `duration` ("0:24"), `chapters`
@@ -22,7 +23,7 @@ const fmt = (fr: number) => { const s = Math.round(fr / (meta?.fps ?? 30)); retu
 const posters: Record<string, string> = {};
 if (clip) for (const t of ['paper', 'blackboard', 'paper-phone', 'blackboard-phone']) {
   const rel = `clips/${clip}/poster-${t}.png`;
-  if (fs.existsSync(path.join(process.cwd(), 'public', rel))) posters[t] = '/' + rel;
+  if (fs.existsSync(path.join(process.cwd(), 'public', rel))) posters[t] = url(rel);
 }
 const pid = id ?? 'clip-pending';
 ---

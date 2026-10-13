@@ -1,0 +1,21 @@
+---
+// Lecture overview: the chapters, each a page, with its one-line summary and its sections.
+import type { Chapter } from '../lib/lecture';
+interface Props { chapters: Chapter[]; label?: string }
+const { chapters, label = 'Chapters of this lecture' } = Astro.props;
+---
+<section class="chapters" id="toc" aria-labelledby="toc-h">
+  <p class="chapters-h hand" id="toc-h">{label}</p>
+  <ol>
+    {chapters.map((c) => (
+      <li>
+        <span class="no hand">{c.no}</span>
+        <span>
+          <a href={c.href}>{c.title}</a>
+          <span class="ch-sum">{c.summary}</span>
+          {c.sections.length > 0 && <span class="ch-secs hand">{c.sections.length} sections · §{c.sections[0].no}–{c.sections[c.sections.length - 1].no}</span>}
+        </span>
+      </li>
+    ))}
+  </ol>
+</section>

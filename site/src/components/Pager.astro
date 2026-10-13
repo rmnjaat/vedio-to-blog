@@ -1,0 +1,17 @@
+---
+// Previous / next page at the bottom of a lecture page (chapter → chapter, last chapter → next lecture).
+// A next lecture that has no content yet shows as "coming soon", not as a link.
+interface Stop { href?: string; label: string; title: string }
+interface Props { prev?: Stop; next?: Stop }
+const { prev, next } = Astro.props;
+---
+{(prev || next) && (
+  <div class="col">
+    <nav class="pager" aria-label="Previous and next">
+      {prev ? <a class="pg pg-prev" href={prev.href} rel="prev"><span class="lbl hand">← {prev.label}</span><span class="pg-t">{prev.title}</span></a> : <span></span>}
+      {next && (next.href
+        ? <a class="pg pg-next" href={next.href} rel="next"><span class="lbl hand">{next.label} →</span><span class="pg-t">{next.title}</span></a>
+        : <span class="pg pg-next soon" aria-disabled="true"><span class="lbl hand">{next.label}</span><span class="pg-t">{next.title}</span></span>)}
+    </nav>
+  </div>
+)}

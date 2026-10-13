@@ -1,0 +1,147 @@
+---
+// Three-column lecture layout (inside Layout with `docs`):
+//   left  = course navigation (CourseNav), sticky; a drawer behind the bar's menu button below 1024px
+//   centre= the page: `head` slot, then the default slot (rendered MDX, processed like <Prose>), then `foot`
+//   right = "On this page" (sections and subheads of this page) with scrollspy, sticky; below 1280px it becomes
+//           a compact dropdown at the top of the content
+// Links to ids that live on another chapter page are rewritten with `resolve` (see src/lib/prose.ts).
+import CourseNav from './CourseNav.astro';
+import OnThisPage from './OnThisPage.astro';
+import { processProse, extractToc, rewriteHashLinks, type TocHead } from '../lib/prose';
+import type { NavLecture } from '../lib/lecture';
+
+interface Props {
+  nav: NavLecture[]; lecture?: string; href?: string;
+  resolve?: (id: string) => string | null;
+  /** entries before the page's sections in "On this page" (e.g. the overview's chapter list) */
+  lead?: TocHead[];
+  /** remove the content's own "next chapter" links (the pager replaces them) */
+  dropNextLinks?: boolean;
+}
+const { nav, lecture, href, resolve, lead = [], dropNextLinks = false } = Astro.props;
+let html = processProse(Astro.slots.has('default') ? await Astro.slots.render('default') : '');
+if (dropNextLinks) html = html.replace(/<a class="next" href="[^"]*">[\s\S]*?<\/a>/g, '');
+const head = Astro.slots.has('head') ? await Astro.slots.render('head') : '';
+if (resolve) html = rewriteHashLinks(html, (id) => (head.includes(`id="${id}"`) ? null : resolve(id)));
+const toc = extractToc(html);
+const leadAll = [...lead, ...toc.lead];
+const hasToc = toc.sections.length + leadAll.length > 0;
+const first = toc.sections[0];
+---
+<div class:list={['docs', !hasToc && 'no-otp']}>
+  <aside class="docs-nav hand" aria-label="Course">
+    <nav aria-label="Lectures"><CourseNav nav={nav} lecture={lecture} href={href} /></nav>
+  </aside>
+
+  <main id="main" class="docs-main">
+    {hasToc && (
+      <div class="otp-bar col">
+        <details class="otp-drop hand" id="otp-drop">
+          <summary><span class="otp-drop-l">On this page</span><span class="otp-cur" id="otp-cur">{first ? `${first.no} ${first.title}` : leadAll[0]?.label}</span><svg class="otp-chev" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 6.2l4 4 4-4" /></svg></summary>
+          <div class="otp-drop-body"><OnThisPage sections={toc.sections} lead={leadAll} /></div>
+        </details>
+      </div>
+    )}
+    <Fragment set:html={head} />
+    <Fragment set:html={html} />
+    <slot name="foot" />
+  </main>
+
+  {hasToc && (
+    <aside class="docs-otp hand" aria-labelledby="otp-h">
+      <p class="otp-title" id="otp-h">On this page</p>
+      <OnThisPage sections={toc.sections} lead={leadAll} />
+    </aside>
+  )}
+</div>
+
+<dialog class="docs-drawer hand" id="drawer" aria-label="Course navigation">
+  <div class="drawer-head">
+    <span class="drawer-title">Course</span>
+    <button class="btn ghost" type="button" data-close-drawer>Close</button>
+  </div>
+  <nav aria-label="Lectures"><CourseNav nav={nav} lecture={lecture} href={href} /></nav>
+</dialog>
+
+<script is:inline>
+(function(){
+  var root = document.documentElement;
+  var bar = document.querySelector('.bar');
+  // sticky offsets follow the real bar height
+  function barH(){ if (bar) root.style.setProperty('--bar-h', Math.round(bar.getBoundingClientRect().height) + 'px'); }
+  barH(); window.addEventListener('resize', barH);
+
+  // ---- drawer (course navigation below 1024px)
+  var drawer = document.getElementById('drawer'), menu = document.getElementById('menu-btn');
+  if (drawer && menu && typeof drawer.showModal === 'function') {
+    menu.hidden = false;
+    menu.addEventListener('click', function(){
+      drawer.showModal(); menu.setAttribute('aria-expanded', 'true');
+      var cur = drawer.querySelector('a.cur'); if (cur) cur.scrollIntoView({ block: 'center' });
+    });
+    drawer.addEventListener('close', function(){ menu.setAttribute('aria-expanded', 'false'); });
+    drawer.addEventListener('click', function(ev){
+      if (ev.target === drawer || ev.target.closest('[data-close-drawer]')) drawer.close();
+    });
+    window.matchMedia('(min-width: 1024px)').addEventListener('change', function(e){ if (e.matches && drawer.open) drawer.close(); });
+  }
+
+  // ---- "On this page": scrollspy for the rail and the dropdown; crumb + progress follow the page
+  var drop = document.getElementById('otp-drop'), curLbl = document.getElementById('otp-cur');
+  var here = document.getElementById('crumb-here'), prog = document.getElementById('prog');
+  var links = Array.prototype.slice.call(document.querySelectorAll('.otp-list a[data-spy]'));
+  var ids = [], seen = {};
+  links.forEach(function(a){ var id = a.dataset.spy; if (!seen[id] && document.getElementById(id)) { seen[id] = 1; ids.push(id); } });
+  var targets = ids.map(function(id){ return document.getElementById(id); });
+  var rail = document.querySelector('.docs-otp');
+  var cur = null, base = here ? here.textContent : '';
+
+  if (drop) {
+    drop.addEventListener('click', function(ev){ if (ev.target.closest('a')) drop.open = false; });
+    document.addEventListener('click', function(ev){ if (drop.open && !drop.contains(ev.target)) drop.open = false; });
+    document.addEventListener('keydown', function(ev){ if (ev.key === 'Escape' && drop.open) { drop.open = false; drop.querySelector('summary').focus(); } });
+  }
+
+  function labelOf(id){
+    var a = document.querySelector('.docs-otp a[data-spy="' + id + '"]') || document.querySelector('.otp-list a[data-spy="' + id + '"]');
+    if (!a) return '';
+    var no = a.querySelector('.r-no'), t = a.textContent;
+    return ((no ? no.textContent + ' ' + t.slice(no.textContent.length) : t)).replace(/\s+/g, ' ').trim();
+  }
+  var ticking = false;
+  function update(){
+    ticking = false;
+    var line = (bar ? bar.getBoundingClientRect().bottom : 0) + window.innerHeight * .22, id = null, secId = null;
+    for (var i = 0; i < targets.length; i++) {
+      if (targets[i].getBoundingClientRect().top < line) { id = ids[i]; if (targets[i].tagName === 'ARTICLE') secId = ids[i]; }
+      else break;
+    }
+    var docH = root.scrollHeight - window.innerHeight;
+    if (prog) prog.style.width = (docH > 0 ? Math.max(0, Math.min(1, window.scrollY / docH)) * 100 : 0).toFixed(1) + '%';
+    if (id === cur) return;
+    cur = id;
+    links.forEach(function(a){
+      var on = a.dataset.spy === id;
+      if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('.otp-list li[data-sec]').forEach(function(li){
+      li.classList.toggle('cur', li.dataset.sec === secId);
+    });
+    var sec = secId ? document.getElementById(secId) : null;
+    if (here) here.textContent = sec && sec.dataset.crumb ? sec.dataset.crumb : base;
+    if (curLbl) curLbl.textContent = id ? labelOf(id) : labelOf(ids[0] || '');
+    // keep the highlighted entry visible inside the rail without moving the page
+    if (rail && id) {
+      var a = rail.querySelector('a[data-spy="' + id + '"]');
+      if (a) {
+        var r = a.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+        if (r.top < rr.top + 24) rail.scrollTop -= (rr.top + 24 - r.top);
+        else if (r.bottom > rr.bottom - 24) rail.scrollTop += (r.bottom - rr.bottom + 24);
+      }
+    }
+  }
+  window.addEventListener('scroll', function(){ if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+})();
+</script>

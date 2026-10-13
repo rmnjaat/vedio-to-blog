@@ -1,0 +1,44 @@
+---
+// One chapter of a lecture: /lectures/<id>/<chapter-slug>/, built from the chapter's MDX parts
+// (src/content/lectures/<id>/<part>.mdx, listed under `chapters` in the lecture's frontmatter).
+import { getCollection } from 'astro:content';
+import Layout from '../../../layouts/Layout.astro';
+import DocsShell from '../../../components/DocsShell.astro';
+import Pager from '../../../components/Pager.astro';
+import { COURSE, pad } from '../../../data/course';
+import { chaptersOf, courseNav, lectureHref, loadPart, partIds, resolver, around } from '../../../lib/lecture';
+
+export async function getStaticPaths() {
+  const lectures = await getCollection('lectures');
+  return lectures.flatMap((entry) => chaptersOf(entry).map((chapter, i) => ({
+    params: { id: entry.id, chapter: chapter.slug }, props: { entry, chapter, index: i },
+  })));
+}
+const { entry, chapter, index } = Astro.props;
+const d = entry.data;
+const chapters = chaptersOf(entry);
+const parts = await Promise.all(chapter.parts.map((p: string) => loadPart(entry.id, p)));
+const nav = await courseNav();
+const { prev, next } = around(nav, chapter.href);
+// the chapter's own anchor (#s4) when its first section is a subsection (#s4-1)
+const anchor = `s${chapter.no}`;
+const needAnchor = !partIds(entry.id, chapter.parts).includes(anchor);
+---
+<Layout title={`${chapter.no} ${chapter.title} · Lecture ${pad(d.number)}: ${d.title}`} description={chapter.summary} docs
+  crumbs={[{ label: COURSE.title, href: '/', opt: true }, { label: `Lecture ${pad(d.number)}`, href: lectureHref(entry.id) }]}
+  here={`${chapter.no} ${chapter.title}`}>
+  <DocsShell nav={nav} lecture={entry.id} href={chapter.href} resolve={resolver(entry)} dropNextLinks>
+    <Fragment slot="head">
+      <div class="col chapter-top">
+        <h1 class="sr">{d.title}, chapter {chapter.no}: {chapter.title}</h1>
+        <p class="kicker hand"><a href={lectureHref(entry.id)}>Lecture {pad(d.number)} · {d.title}</a> <span class="ch-of">· chapter {index + 1} of {chapters.length}</span></p>
+      </div>
+    </Fragment>
+    {needAnchor && <div id={anchor} class="sec-anchor" aria-hidden="true"></div>}
+    {parts.map((Part) => <Part />)}
+    <Fragment slot="foot">
+      <Pager prev={prev} next={next} />
+      <div class="col"><footer class="page hand">Lecture {pad(d.number)}, chapter {chapter.no} · written from the class recording and board, with sources linked where a fact comes from outside the class.</footer></div>
+    </Fragment>
+  </DocsShell>
+</Layout>

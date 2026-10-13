@@ -465,3 +465,116 @@ dialog.navsheet::backdrop{background:rgba(20,20,18,.34)}
 .clip-player .clip-box{max-width:540px;margin-inline:auto}
 @media (max-width:640px){ .clip-player .clip-box{max-width:440px} }
 .no-js .clip-player .play{display:none}
+
+/* =====================================================================  ++ site: lecture pages (docs layout)
+   course nav | content | on this page. Left rail from 1024px, right rail from 1280px; below that the course nav
+   is a drawer (bar's menu button) and "On this page" is a sticky dropdown at the top of the content. */
+:root{--bar-h:59px}
+.docs-page{--otp-h:46px}
+html.docs-page{scroll-padding-top:calc(var(--bar-h) + var(--otp-h) + 16px)}
+.docs-page h3{scroll-margin-top:calc(var(--bar-h) + var(--otp-h) + 16px)}
+.bar-in.bar-docs{max-width:1480px}
+.menu-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;flex:none;color:var(--ink-2)}
+.menu-btn:hover{color:var(--ink)}
+.menu-btn[hidden]{display:none}
+.docs{display:grid;grid-template-columns:minmax(0,1fr);max-width:1480px;margin:0 auto}
+.docs-main{min-width:0}
+.docs-nav,.docs-otp{display:none}
+.sec-anchor{display:block;height:0}
+
+/* course nav (left rail and drawer): the old section rail's hand, rule and blue current marker */
+.cn-home{display:inline-block;color:var(--ink-2);text-decoration:none;margin:0 0 var(--s4)}
+.cn-home:hover{color:var(--ink);text-decoration:underline}
+.cn-label{color:var(--ink-3);margin:0 0 8px}
+.cn-list,.cn-ch{list-style:none;margin:0;padding:0}
+.cn-list{border-left:1px solid var(--rule)}
+.cn-lec>a,.cn-row{display:grid;grid-template-columns:2em 1fr;padding:6px 0 6px 12px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--ink-2)}
+.cn-ch a{display:grid;grid-template-columns:1.5em 1fr;padding:4px 0 4px 26px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--ink-2)}
+.cn-lec>a:hover,.cn-ch a:hover{color:var(--ink)}
+.cn-no{color:var(--ink-3);font-variant-numeric:lining-nums tabular-nums}
+.cn-lec.open>a{color:var(--ink);font-weight:600}
+.cn-ch{margin:2px 0 8px}
+.cn-list a.cur{color:var(--ink);font-weight:600;border-left-color:var(--blue)}
+.cn-lec.soon .cn-row{color:var(--ink-3);cursor:default}
+.cn-soon{font-size:.86em;color:var(--ink-3);white-space:nowrap;margin-left:.3em}
+
+/* on this page (right rail and dropdown) */
+.otp-title{color:var(--ink-3);margin:0 0 8px}
+.otp-list,.otp-list ol{list-style:none;margin:0;padding:0}
+.otp-list{border-left:1px solid var(--rule)}
+.otp-list ol{margin:0 0 6px}
+.otp-list a{display:block;padding:5px 0 5px 12px;margin-left:-1px;border-left:2px solid transparent;text-decoration:none;color:var(--ink-2)}
+.otp-list a:has(.r-no){display:grid;grid-template-columns:2.3em 1fr}
+.otp-list a:hover{color:var(--ink)}
+.otp-list a[aria-current="true"]{color:var(--ink);border-left-color:var(--blue)}
+.otp-list .r-no{color:var(--ink-3);font-variant-numeric:lining-nums tabular-nums}
+.otp-list li.cur>a{color:var(--ink);font-weight:600}
+.otp-list ol a{padding:3px 0 3px calc(12px + 2.3em);font-size:.95em}
+.js .docs-otp .otp-list li[data-sec]:not(.cur)>ol{display:none}
+
+.otp-bar{position:sticky;top:var(--bar-h);z-index:15;background:var(--paper);border-bottom:1px solid var(--rule-2)}
+.otp-drop{position:relative;font-size:var(--step--1)}
+.otp-drop summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:45px;cursor:pointer;color:var(--ink-2)}
+.otp-drop summary::-webkit-details-marker{display:none}
+.otp-drop-l{flex:none;color:var(--ink-3)}
+.otp-cur{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.otp-chev{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.otp-drop[open] .otp-chev{transform:rotate(180deg)}
+.otp-drop-body{position:absolute;left:-16px;right:-16px;top:100%;background:var(--paper);border-top:1px solid var(--rule-2);border-bottom:1.5px solid var(--ink);
+  max-height:min(68vh,560px);overflow-y:auto;overscroll-behavior:contain;padding:var(--s3) 16px var(--s4);line-height:1.4}
+.otp-drop .otp-list a{padding-top:7px;padding-bottom:7px}
+
+/* drawer (course nav below 1024px) */
+dialog.docs-drawer{margin:0;padding:0 0 var(--s6);border:0;border-right:1px solid var(--rule);background:var(--paper);color:var(--ink);
+  position:fixed;inset:0 auto 0 0;width:min(330px,86vw);height:100dvh;max-width:none;max-height:none;overflow-y:auto;overscroll-behavior:contain;
+  font-size:.95rem;line-height:1.4}
+dialog.docs-drawer::backdrop{background:rgba(20,20,18,.34)}
+.drawer-head{position:sticky;top:0;z-index:1;background:var(--paper);display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  padding:10px 16px;border-bottom:1px solid var(--rule-2)}
+.drawer-title{font-weight:600;font-size:var(--step--1)}
+.docs-drawer nav{padding:var(--s4) 16px 0}
+.docs-drawer .cn-lec>a,.docs-drawer .cn-row,.docs-drawer .cn-ch a{min-height:40px;align-content:center}
+
+@media (min-width:1024px){
+  .docs{grid-template-columns:240px minmax(0,1fr)}
+  .docs-nav{display:block;position:sticky;top:var(--bar-h);align-self:start;height:calc(100vh - var(--bar-h));overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;padding:var(--s6) var(--s4) var(--s6) var(--s5);font-size:.86rem;line-height:1.4;border-right:1px solid var(--rule-2)}
+  .menu-btn{display:none!important}
+}
+@media (min-width:1280px){
+  .docs-page{--otp-h:0px}
+  .docs{grid-template-columns:248px minmax(0,1fr) 232px}
+  .docs.no-otp{grid-template-columns:248px minmax(0,1fr)}
+  .docs-otp{display:block;position:sticky;top:var(--bar-h);align-self:start;max-height:calc(100vh - var(--bar-h));overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:thin;padding:var(--s7) var(--s4) var(--s6) var(--s2);font-size:.86rem;line-height:1.4}
+  .otp-bar{display:none}
+}
+@media (min-width:861px){ .docs-page .steps-panel{top:calc(var(--bar-h) + var(--otp-h) + 24px)} }
+@media (max-width:640px){
+  .menu-btn{padding:5px 8px}
+  .menu-btn .menu-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}
+
+/* chapter page top, lecture overview chapter list, previous / next */
+.chapter-top{padding-top:var(--s7)}
+.chapter-top .kicker{margin:0 0 var(--s5)}
+.chapter-top .kicker a{text-decoration:none}
+.chapter-top .kicker a:hover{text-decoration:underline}
+.chapter-top .ch-of{color:var(--ink-3)}
+.chapters{border-top:1.5px solid var(--ink);border-bottom:1px solid var(--rule);padding:var(--s3) 0 var(--s2);margin-bottom:var(--s8)}
+.chapters-h{font-size:var(--step--1);color:var(--ink-2);margin:0;padding:4px 0}
+.chapters ol{list-style:none;margin:var(--s2) 0 0;padding:0}
+.chapters li{display:grid;grid-template-columns:2.2em 1fr;gap:4px;padding:var(--s4) 0;border-top:1px dashed var(--rule)}
+.chapters .no{color:var(--ink-3);font-size:var(--step--1);padding-top:.4em}
+.chapters a{font-size:var(--step-1);font-weight:620;text-decoration:none;line-height:1.3}
+.chapters a:hover{text-decoration:underline}
+.ch-sum{display:block;color:var(--ink-2);font-size:1rem;line-height:1.5;margin-top:4px}
+.ch-secs{display:block;font-size:.8rem;color:var(--ink-3);margin-top:4px}
+.pager{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);margin:0;padding-top:var(--s5);border-top:1px solid var(--rule)}
+.pg{display:flex;flex-direction:column;gap:2px;text-decoration:none;font-size:var(--step-1);font-weight:620;line-height:1.3}
+.pg .lbl{font-size:var(--step--1);font-weight:400;color:var(--ink-2)}
+.pg-next{grid-column:2;text-align:right;align-items:flex-end}
+.pg:hover .pg-t{color:var(--blue)}
+.pg.soon{color:var(--ink-2);font-weight:500}
+@media (max-width:560px){ .pager{grid-template-columns:1fr} .pg-next{grid-column:1;text-align:left;align-items:flex-start} }
+@media print{ .docs-nav,.docs-otp,.otp-bar,.docs-drawer,.menu-btn,.pager{display:none!important} .docs{display:block} }

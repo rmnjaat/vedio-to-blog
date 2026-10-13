@@ -1,7 +1,10 @@
 ---
 // Page shell of the Whiteboard Notebook: sticky bar (breadcrumb, section progress, theme toggle),
 // the section rail on wide screens, and the theme bootstrap. Pages put their content in the default slot.
+// `docs`: lecture pages. The page brings its own <main> (DocsShell: course nav | content | on this page), and the
+// bar gets the menu button that opens the course drawer below 1024px.
 import '../styles/notebook.css';
+import { url, base } from '../lib/url';
 
 export interface Crumb { label: string; href?: string; opt?: boolean }
 interface Props {
@@ -14,11 +17,14 @@ interface Props {
   /** show the section progress label + rail (lecture pages) */
   sections?: boolean;
   skip?: { href: string; label: string };
+  docs?: boolean;
 }
-const { title, description, crumbs = [], here, sections = false, skip = { href: '#main', label: 'Skip to content' } } = Astro.props;
+const { title, description, crumbs = [], here, sections = false, docs = false, skip = { href: '#main', label: 'Skip to content' } } = Astro.props;
+// internal crumb links are site paths ('/', '/lectures/lec01/'): make them base-aware; '#…' stays
+const href = (h?: string) => (h && h.startsWith('/') && !h.startsWith(base) ? url(h) : h);
 ---
 <!doctype html>
-<html lang="en" class="no-js">
+<html lang="en" class:list={['no-js', docs && 'docs-page']}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -36,11 +42,17 @@ const { title, description, crumbs = [], here, sections = false, skip = { href: 
 <a class="skip" href={skip.href}>{skip.label}</a>
 
 <header class="bar">
-  <div class="bar-in">
+  <div class:list={['bar-in', docs && 'bar-docs']}>
+    {docs && (
+      <button class="btn ghost menu-btn" id="menu-btn" type="button" aria-controls="drawer" aria-expanded="false" aria-haspopup="dialog" hidden>
+        <svg class="prog-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M2.5 4.2h11M2.5 8h11M2.5 11.8h11" /></svg>
+        <span class="menu-lbl">Lectures</span>
+      </button>
+    )}
     <nav class="crumb hand" aria-label="Breadcrumb">
       {crumbs.map((c) => (
         <Fragment>
-          {c.href ? <a href={c.href} class:list={[c.opt && 'opt']}>{c.label}</a> : <span class:list={[c.opt && 'opt']}>{c.label}</span>}
+          {c.href ? <a href={href(c.href)} class:list={[c.opt && 'opt']}>{c.label}</a> : <span class:list={[c.opt && 'opt']}>{c.label}</span>}
           <span class:list={['sep', c.opt && 'opt']}>/</span>
         </Fragment>
       ))}
@@ -82,9 +94,7 @@ const { title, description, crumbs = [], here, sections = false, skip = { href: 
   </dialog>
 )}
 
-<main id="main">
-  <slot />
-</main>
+{docs ? <slot /> : <main id="main"><slot /></main>}
 
 <script is:inline>
 (function(){
