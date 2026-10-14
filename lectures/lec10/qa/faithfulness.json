@@ -1,0 +1,134 @@
+{
+ "lecture": "lec10",
+ "coverage": {
+  "s0-header": "5/5",
+  "s1-dictionary-no-database": "32/32",
+  "s2-finding-one-word": "29/29",
+  "s3-one-file": "36/36",
+  "s4-serving-from-s3": "33/33",
+  "s5-weekly-update": "36/36",
+  "s6a-switching-servers": "39/39",
+  "s6b-switching-servers": "25/25",
+  "s7-fast-writes": "38/38",
+  "s8-files-that-grow": "37/37",
+  "s9-record-format": "34/34",
+  "s10-bitcask": "31/31",
+  "s11-keep": "5/5",
+  "sourcenotes": "10/10",
+  "inline_clarifications": "18/18",
+  "figures": "45/45",
+  "clips": "5/5"
+ },
+ "issues": [
+  {
+   "id": "F-001",
+   "severity": "medium",
+   "kind": "voice",
+   "file": "site/src/content/lectures/lec10/s10-bitcask.mdx",
+   "line": 136,
+   "quote": "That order matches Martin Kleppmann’s book, which covers Bitcask in its storage chapter: understand Bitcask first, and the other storage engines become easy to understand. [[L-0291]]",
+   "problem": "A student's remark and opinion is stated as the page's own fact. The teacher did not say this: a student said they read about Bitcask in Kleppmann's storage chapter and that understanding Bitcask first made the other engines easy for them. The page also says the book's 'order' matches the lecture, which nobody claimed.",
+   "evidence": "transcript 02:45:25 Student 1: 'I got about Bitcask in the storage chapter from Martin Kleppmann book ... If you go Bitcask, then it is easy to understand other things.' / L-0291 speaker=student (question)",
+   "fix": "A learner in the class pointed out that Martin Kleppmann’s book also covers Bitcask in its storage chapter, and found that understanding Bitcask first made the other storage engines easy to follow. [[L-0291]]"
+  },
+  {
+   "id": "F-002",
+   "severity": "medium",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec10/s5-weekly-update.mdx",
+   "line": 93,
+   "quote": "Graveyards belong with live updates; this is a weekly one. [[L-0135]]",
+   "problem": "This sets up a rule that graveyard entries are the right tool for live updates. The class did not say that. The transcript reads 'we don't see it would work well when you are doing live updates' (the ASR is unclear), and the teacher's actual reason for rejecting it is 'No repetitive entries' plus 'this is a weekly update, so clean it up directly'. The page has turned an unclear clause into a firm, positive claim.",
+   "evidence": "transcript 01:13:19 'No, but we don't see it would work well when you are doing live updates. This is an even weekly update. So have it very clean up it directly.' / L-0135",
+   "fix": "Delete 'Graveyards belong with live updates; this is a weekly one.' Keep: 'Here it’s out. The served dictionary must not contain repeated entries, and this is a weekly update, so build the clean file directly. [[L-0135]]' The forward reference to 8.3 can stay as an editorial pointer: 'Append-then-compact does come back in the second engine, which takes live writes (8.3).'"
+  },
+  {
+   "id": "F-003",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec10/s6b-switching-servers.mdx",
+   "line": 67,
+   "quote": "the instructor first thought of adding Redis Pub/Sub, and exposed APIs to reload the data. Then he just triggered a deployment instead.",
+   "problem": "'exposed APIs' reads as though he built them. The transcript says he thought of adding Pub/Sub 'and have APIs exposed', so both were ideas he considered before deciding to trigger a deployment instead.",
+   "evidence": "transcript 03:00:54 'I thought of adding Redis Pub/Sub and whatnot and have APIs exposed and whatnot.' / L-0308",
+   "fix": "For a couple of his own services, the instructor first thought of adding Redis Pub/Sub and exposing APIs to reload the data; then he just triggered a deployment instead. [[L-0308]]"
+  },
+  {
+   "id": "F-004",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec10/s11-keep.mdx",
+   "line": 37,
+   "quote": "'Why files at all', cells: ['Cost: one copy on S3 instead of a database', …]",
+   "problem": "The dictionary does not use files because they are cheaper than a database. The brief ruled databases out from the start. In class, cost was the reason for one shared copy on S3 instead of a copy on every server.",
+   "evidence": "L-0003 (no traditional database: the constraint) / L-0099, L-0102, L-0103 (cost argues against per-server copies) / transcript 00:00:49, 00:54:41",
+   "fix": "label 'Why files at all' → cells: ['The brief rules out any database; cost puts one shared copy on S3, not one per server (4.1)', 'Cost: full speed from a cheap magnetic disk (7.1)']"
+  },
+  {
+   "id": "F-005",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec10/s9-record-format.mdx",
+   "line": 143,
+   "quote": "In any case, the header is tiny: an 8-byte field and a few 4-byte ones, roughly 20 bytes. In practice it will be written. [[L-0299]]",
+   "problem": "L-0299 is simplified-low, which means 'left as taught'. The teacher said 'It will definitely be there', and the page has quietly softened that to 'In practice'. The correction already sits in the L-0297 inline note just above, so the teacher's claim should stay as he made it.",
+   "evidence": "transcript 02:53:06 '…roughly 20 bytes, no matter. It will definitely be there.' / factcheck_applied §3 L-0299 (left as taught)",
+   "fix": "In any case, the header is tiny: an 8-byte field and a few 4-byte ones, roughly 20 bytes, so in the instructor’s words it will definitely be written. [[L-0299]]"
+  },
+  {
+   "id": "F-006",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec10/s2-finding-one-word.mdx",
+   "line": 51,
+   "quote": "It is a classroom rule of thumb rather than the only tool (1.1 already named caching and batching), but for this dictionary it is the one that settles the design.",
+   "problem": "L-0046 is simplified-low, which means 'left as taught'. The policy keeps the checker's note out of the page, but here it appears as an unsourced hedge that weakens the rule placed right below it ('the only thing that should come to your mind is indexing').",
+   "evidence": "factcheck_applied §3 L-0046 ('The checker's note is for the writer's awareness; the page states the teacher's point unchanged') / transcript 00:23:00",
+   "fix": "Drop the sentence 'It is a classroom rule of thumb … settles the design.' Keep 'And before you design the index, do the number crunch: how big will it be, and does it fit in memory? [[L-0052]]'"
+  },
+  {
+   "id": "F-007",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/content/lectures/lec10/s3-one-file.mdx",
+   "line": 90,
+   "quote": "its first bytes would spell its name, AODB on the board",
+   "problem": "The board shows 'AOBB'. 'AODB' comes from the audio. The page credits the spelling to the board, and Fig 3·b (s3-one-file-figs.tsx:91) draws AODB as if redrawn from the board.",
+   "evidence": "board/diagrams.md D-04: 'To the right: AOBB (example magic-bytes name; audio \"AODB\")' / L-0079 / transcript 00:43:11",
+   "fix": "…its first bytes would spell its name, AODB (said in class; the board’s scrawl reads AOBB) … [[L-0079]]. Or just drop 'on the board'. The figure label can stay AODB."
+  },
+  {
+   "id": "F-008",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec10/s8-files-that-grow.mdx",
+   "line": 24,
+   "quote": "The store from chapter 7 has been running for a month. Its one file is 900 GB on a 1 TB disk",
+   "problem": "The opening scenario uses specific numbers (one month, 900 GB) that were not taught, and it is not marked as illustrative. The class only said that the file grows huge and the system eventually runs out of disk.",
+   "evidence": "L-0229 / transcript 02:15:37–02:15:51",
+   "fix": "Say, for illustration, the store from chapter 7 has been running for a month and its one file has filled most of the disk; most of what is in it is old values and deleted keys. [[L-0229]]"
+  },
+  {
+   "id": "F-009",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec10/s1-dictionary-no-database.mdx",
+   "line": 101,
+   "quote": "A good idea, and complex enough to come back to later. [[L-0032]]",
+   "problem": "The page overstates the endorsement. The teacher thanked the student, called it 'still a complex enough solution that we'll touch upon later', and chose a simpler direction. He did not call it a good idea. The ledger status is open.",
+   "evidence": "transcript 00:17:05 '…that is still a complex enough solution that we'll touch upon later.' / L-0032 status=open",
+   "fix": "Complex enough, in class, to set aside and touch upon later. [[L-0032]]"
+  },
+  {
+   "id": "F-010",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec10/s6a-switching-servers.mdx",
+   "line": 54,
+   "quote": "Of the three, the last is the one that bites on S3. A failed or interrupted upload doesn’t damage the object already there…",
+   "problem": "L-0157 is simplified-low, so its addition (A-D-05) should be woven in as a separate sourced sentence, not as a correction. 'Of the three, the last is the one that bites' ranks the teacher's list and demotes two of his three points. The atomic-overwrite fact is already given in the L-0153 inline note two paragraphs earlier, so this repeats it.",
+   "evidence": "factcheck_applied §3 L-0157 + §5 A-D-05 ('Sourced sentence') / transcript 01:24:27",
+   "fix": "Keep the teacher's list as taught, then add: 'On S3 specifically, a failed upload leaves the old object intact, because single-key updates are atomic, so the stale offsets are what bite first (aws link).' [[L-0157]]"
+  }
+ ]
+}

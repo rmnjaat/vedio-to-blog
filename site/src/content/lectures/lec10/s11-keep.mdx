@@ -1,0 +1,68 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import { TwoEngines } from '../../../figures/lec10/s11-keep-figs';
+
+{/* §11 What to keep (recap). Chapter page /lectures/lec10/11-what-to-keep/.
+    Class 02:41–02:42 (wrap-up). New placements: L-0286, L-0287 (ForwardChips). The table, the figure and the
+    heuristics restate ids placed in §1–§10; L-0290 is restated from 10.3. */}
+
+<Section id="s11" no="11" title="What to keep" crumb="11 What to keep"
+  dek="The same few ideas built both engines. Here they are side by side, with the heuristics that kept coming back, and where the course goes next."
+  meta="About 2 min · class 02:41–02:42">
+
+Two problem statements, two storage engines, and no database server in either. The dictionary is read-mostly, lives in one file on S3 and changes once a week. The key-value store takes writes as fast as a cheap disk allows and never loses one. They look nothing alike from the outside, yet they are built from the same handful of ideas.
+
+<Figure id="fig-11a" no="Fig 11·a"
+  caption="Left, the dictionary: API servers with a word → offset map, one indexed file on S3, a weekly job that merges into a new path. Right, the key-value store: a key → file + offset map, append-only files, merge and compaction. The letters mark the ideas they share, the rows of the table below.">
+  <Desk><TwoEngines /></Desk>
+  <Phone><TwoEngines layout="phone" /></Phone>
+</Figure>
+
+### Same idea, twice [[rail: Side by side]]
+
+<TradeoffTable caption="The dictionary and the key-value store, idea by idea"
+  k="L-0061 L-0221 L-0146 L-0213 L-0256"
+  columns={[{ label: 'The dictionary (§1–§6)' }, { label: 'The key-value store (§7–§10)' }]}
+  rows={[
+    { label: 'a · In-memory index', cells: ['word → offset, loaded at boot (2.3)', 'key → file + offset, updated on every write (7.4, 8.2)'], k: 'L-0061 L-0221' },
+    { label: 'b · How many bytes to read', cells: ['The 16-byte header says where each part lies (3.2)', 'The KSZ + VSZ prefix on every record (9.1)'], k: 'L-0256' },
+    { label: 'c · Writes in place?', cells: [{ text: 'Never: it overwrites the next entry, so build a new file (5.2)', bad: true }, 'Never: append, no matter what (7.3)'], k: 'L-0146 L-0213' },
+    { label: 'The merge', cells: ['Sorted two-pointer merge, as in merge sort (5.3)', 'Hash-table merge and compaction (8.3)'] },
+    { label: 'After a change', cells: ['Upload to a new path, then trigger a deployment (6.4)', 'Repoint the map to the merged file (8.3)'] },
+    { label: 'Why files at all', cells: ['The brief rules out any database; cost puts one shared copy on S3, not one per server (4.1)', 'Cost: full speed from a cheap magnetic disk (7.1)'] },
+  ]} />
+
+### Heuristics to keep [[rail: Heuristics]]
+
+The same rules of thumb came back again and again, whichever engine was on the board:
+
+1. Keep it simple: that is where you see the power and the beauty of a system, and simple systems are the hard ones to build ([2.1](#s2-1), [5.1](#s5-1)). [[L-0040 L-0127]]
+2. Reads slow? Think indexing ([2.1](#s2-1)). [[L-0046]]
+3. Do the number crunch: what looks huge, a terabyte file of 170,000 words, needed an index of only a few megabytes ([2.3](#s2-3)). [[L-0060]]
+4. Build a file format from compartments plus a header that says where each one lies ([3.3](#s3-3)). [[L-0083]]
+5. Think about cost first: the bare minimum things, at the bare minimum cost ([4.1](#s4-1)). [[L-0100]]
+6. Pin down the properties you need before you pick a technology ([4.2](#s4-2)). [[L-0106]]
+7. Never write in place; write a new file or a new entry ([5.3](#s5-3)). [[L-0146]]
+8. We control our own infrastructure: a routine deployment can do the reload ([6.4](#s6-4)). [[L-0198]]
+9. Append, no matter what ([7.2](#s7-2)). [[L-0213]]
+10. Keep the sawtooth under the disk cap ([8.4](#s8-4)). [[L-0245]]
+11. Know exactly how many bytes to read, and check the CRC before you trust them ([9.1](#s9-1), [9.2](#s9-2)). [[L-0254 L-0267]]
+12. High throughput with persistence means an append-only file somewhere: look for it ([10.2](#s10-2)). [[L-0280]]
+
+### Where this lecture stops [[rail: Stops here]]
+
+This week got high throughput on the storage side. Next week is all about high-throughput systems, and extends the storage week to the compute side:
+
+- <ForwardChip when="week 6" k="L-0286" /> High-throughput systems: S3, video encoding, counting YouTube views, and one more database. Together they form the core of how high-throughput systems are built, and why some things are done the way they are. [[L-0286]]
+- <ForwardChip when="week 6" k="L-0287" /> Next Saturday opens with a long discussion of S3 and its nitty-gritty. Everything studied so far comes in handy when designing S3. [[L-0287]]
+- <ForwardChip when="week 6" k="L-0290" /> SSTables, memtables and LSM trees, with Bitcask as the foundation ([10.3](#s10-3)). [[L-0290]]
+
+<SectionEnd
+  concepts={[{ label: 'the dictionary', href: '#s1' }, { label: 'index', href: '#s2-2' }, { label: 'header', href: '#s3-2' }, { label: 'S3', href: '#s4-3' }, { label: 'merge', href: '#s5-3' }, { label: 'deployment', href: '#s6-4' }, { label: 'append-only', href: '#s7-2' }, { label: 'merge and compaction', href: '#s8-3' }, { label: 'CRC', href: '#s9-2' }, { label: 'Bitcask', href: '#s10-2' }]} />
+
+</Section>

@@ -5,10 +5,11 @@ import { TH_GLYPHS } from '../figures/glyphs';
 interface Col { label: string; glyph?: string }
 type Cell = string | { text: string; bad?: boolean };
 interface Row { label: string; cells: Cell[]; k?: string }
-interface Props { caption: string; columns: Col[]; rows: Row[]; k?: string }
-const { caption, columns, rows, k } = Astro.props;
+// `stack`: a table with many option columns stacks into labelled rows below 1100px instead of 700px.
+interface Props { caption: string; columns: Col[]; rows: Row[]; k?: string; stack?: boolean }
+const { caption, columns, rows, k, stack = false } = Astro.props;
 ---
-<table class="trade wide" data-k={k}>
+<table class:list={['trade wide', stack && 'stack-md']} data-k={k}>
   <caption class="sr">{caption}</caption>
   <thead>
     <tr><td></td>{columns.map((c) => { const G = c.glyph ? TH_GLYPHS[c.glyph] : null; return <th scope="col">{G && <G />}{c.label}</th>; })}</tr>

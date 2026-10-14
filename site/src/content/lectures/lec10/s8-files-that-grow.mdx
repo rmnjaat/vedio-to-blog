@@ -1,0 +1,194 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { FileRotation, MergeCompact, Sawtooth, SawtoothRule } from '../../../figures/lec10/s8-files-that-grow-figs';
+
+{/* §8 Files that never stop growing (8.1–8.4). Chapter page /lectures/lec10/8-files-that-grow/.
+    Class 02:14–02:25, recap 02:34–02:35, Q&A 02:49–02:51 folded into 8.3. Fact-check: L-0235, L-0249, L-0250 inline
+    clarifications; L-0247 left as taught with A-SSE-04 as a separate sentence; A-SSE-01 (8.1), A-SSE-03 (8.2),
+    A-SSE-17 (8.4). Board slip K3 → f2 redrawn as f1 (factcheck_applied §6). */}
+
+<Section id="s8" no="8" title="Files that never stop growing" crumb="8 Files that grow"
+  dek="The store never deletes anything from disk, so it fills up. Split it into small files with one active writer, merge and compact the old ones, and watch disk usage draw a sawtooth."
+  meta="About 11 min · class 02:14–02:25, Q&A 02:49–02:51">
+
+Say, for illustration, the store from chapter 7 has been running for a month, and its one file has filled most of the disk. Most of what is in it is old values that were overwritten and keys that were deleted. Nothing ever leaves the file, because the only thing the store knows how to do is append.
+
+This chapter keeps the append and fixes the growth: several files instead of one, a background job that rewrites the old ones without their dead entries, and a way to see whether the disk is keeping up.
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="What could go wrong?" crumb="8.1 What goes wrong"
+  dek="Three weaknesses of the one-file design: slow restarts, keys bounded by RAM, and a file that only grows."
+  meta="About 2 min · class 02:14–02:16">
+
+Put, get and delete are all O(1) with full persistence. So what could go wrong?
+
+The first answer is availability. The map lives in memory, so after a crash the store has to read the whole file to rebuild it, and while it does that it isn’t answering. Coming back takes a lot of time. For this naive design that is accepted; there are ways to make it better. [[L-0227]] Real Bitcask is one of them: next to each data file it writes a small **hint file** holding just the keys and their positions, and on startup it rebuilds the map from those hint files instead of scanning the full data files <Cite href="https://docs.riak.com/riak/kv/latest/setup/planning/backend/bitcask/index.html">docs.riak.com</Cite>.
+
+The second is an assumption hiding in the map: every key has to fit in memory. Not the values, which stay on disk, but the keys. So you can store only as many keys as you can keep in RAM. That is a real limit of this design, and it comes back when the design gets its name in [chapter 10](#s10-1). [[L-0228]]
+
+The third is the disk. The store only appends and never collects anything, so the file grows huge and, eventually, the system runs out of disk space. [[L-0229]]
+
+That one needs fixing now. The idea proposed in class is the right start: don’t keep just one file on the disk. Use several, and when a file is no longer being appended to, scrub it: read it and write a new file holding only the keys still needed, leaving the deleted ones out. Several files come next; the scrubbing becomes its own process, **merge and compaction**, in [8.3](#s8-3). [[L-0230]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="File rotation" crumb="8.2 File rotation"
+  dek="Write to one small file at a time, and start a new one when it crosses a threshold."
+  meta="About 4 min · class 02:16–02:20, 02:33">
+
+With several files, a write goes to only one of them at any point in time. The other files become immutable: nothing is ever written to them again. [[L-0231]]
+
+It is tempting to think the disk then needs room for three files at most: one being written, one being read, and one being built from an old one. In fact reads and writes go to the same files. A get goes to whichever file holds its key, which may be the file being written or any older one; rebuilding an old file is a separate process, and it comes in [8.3](#s8-3). [[L-0232]]
+
+So the real question is when to switch: when do you say “done with this file, start writing the next”?
+
+<PauseAndThink k="L-0233 L-0234 L-0235 L-0236 L-0238"
+  q="The append-only file grows forever, so you’ll split it into several files with one active writer. How big should each file get before you start the next?"
+  choices={[{ label: 'Big: split the disk into two or three huge files, then rotate' }, { label: 'Small: around 100 MB to 1 GB, then rotate', correct: true }]}
+  right="Right. Small files stay under any file-system limit, and merge, compaction and index rebuilds can work one file at a time."
+  wrong="On a 100 TB disk that’s files of tens of terabytes. File systems may not support files that large, a huge file can’t be indexed in parallel, and every merge or rebuild has to chew through it whole.">
+
+Small, with rotation: each time the active file crosses a threshold, a new one starts and the old one becomes read-only. Riak’s Bitcask rotates at 2 GB by default.
+
+</PauseAndThink>
+
+A natural first answer is to divide the disk space by two or three. On a 100 TB disk that means files of 10 TB each, ten of them, and there are more problems with that. [[L-0233]]
+
+Two show up quickly. If the store is scanning one single huge file, it can’t build the in-memory index concurrently; more, smaller pieces let it do that. And cleaning up smaller pieces can be more even than chewing through one enormous one. [[L-0234]]
+
+The biggest reason of all is the file system. It is quite possible that your file system does not support files of more than a terabyte; BTRFS has its limits, NTFS has its limits. [[L-0235]] Some file systems really do cap file size low (FAT32 at 4 GB), but modern ones allow many terabytes <Cite href="https://www.kernel.org/doc/html/latest/filesystems/ext4/blocks.html">kernel.org</Cite> <Cite href="https://learn.microsoft.com/en-us/windows-server/storage/file-server/ntfs-overview">learn.microsoft.com</Cite>, so the stronger reason for small files is the one above: merge, compaction and index rebuilds work file by file <Cite href="https://btrfs.readthedocs.io/en/latest/btrfs-man5.html">btrfs.readthedocs.io</Cite>.
+
+So instead of waiting for one huge file to pile up, keep smaller files: say 100 MB, or 1 GB. As soon as the active file crosses that threshold, start writing to a new one. [[L-0236]] Real Bitcask does exactly this: Riak’s Bitcask closes the active file and opens a new one when a write would push it past `max_file_size`, 2 GB by default <Cite href="https://docs.riak.com/riak/kv/latest/setup/planning/backend/bitcask/index.html">docs.riak.com</Cite>.
+
+The files are numbered in sequence: file 001, then 002, 003, 004, and so on. At any point in time exactly one file is **active**, and all writes go to it. Every other file is read-only, but it can still be read. [[L-0237]]
+
+<Figure id="fig-8a" no="Fig 8·a" k="L-0228 L-0231 L-0237 L-0238 L-0239"
+  caption="Files 001–003 are read-only; 004 is active and takes every write. When 004 crosses the threshold, rotation starts 005. The map now stores a file and an offset per key. Redrawn from the class board at 02:25, with the board’s K3 → f2 corrected to f1: K3 V3 sits in file 001.">
+  <Desk><FileRotation /></Desk>
+  <Phone><FileRotation layout="phone" /></Phone>
+</Figure>
+
+Every time the active file crosses its limit, a new file is created and writes continue there. This is called **file rotation**. [[L-0238]]
+
+One thing has to change in memory. The map stored only an offset, which was enough when there was one file. Now it has to say which file the key is in, and at which offset: `K1 → f1, O4`. A get finds the key in the map, goes to that file and that offset, reads the entry and sends it back. [[L-0239]]
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Merge and compaction" crumb="8.3 Merge and compaction"
+  dek="Rewrite the read-only files without their dead entries, then point the map at the new file."
+  meta="About 3 min · class 02:20–02:22, 02:34, Q&A 02:49–02:51">
+
+The read-only files are full of dead entries. Look at file 001: K1 was overwritten later, so its first entry is **stale**; K2 was deleted, so both its entries are dead. Why waste that much space? [[L-0240]]
+
+So, while the active file keeps taking writes, run a separate process called **merge and compaction**. It iterates through the read-only files and writes one new file that combines them, without copying the stale entries or the deleted ones. Three read-only files become a fourth. Once that new file is written, the old files are deleted forever. [[L-0241]]
+
+Deleted keys need no special case. When the two read-only files (with a third one active) are merged into a new file, the stale entries and the deleted entries are simply skipped, so they are never copied to disk again. [[L-0295]]
+
+There is a catch. The entries that moved now live in a different file, at different offsets, so the in-memory map must be updated for every entry that moved into the new file. [[L-0242]] The prepared notes add one word: update it *atomically*.
+
+How do you do the merge itself? It is not like the merge step of merge sort, because these entries are not sorted; they can be in any order. Instead, load the entries into a temporary hash table, replacing a key whenever a later entry for it turns up, and periodically flush that table to disk, leaving out the stale and deleted entries. It isn’t really difficult: try writing the code. [[L-0243]] That is the difference from the dictionary’s weekly update in [5.3](#s5-3): there both files were sorted, so a two-pointer merge worked; here the files are in write order, so a hash table does the work.
+
+<StepThrough id="fig-8b" no="Fig 8·b" label="Merge and compact"
+  k="L-0240 L-0241 L-0242 L-0243 L-0295 L-0296"
+  stepK={['L-0240', 'L-0243 L-0296 L-0295', 'L-0241', 'L-0242 L-0241']}
+  caption="Two read-only files, the active file, and the in-memory map. Grey entries are stale; ringed in red, a deleted key. K4 and V1″ are illustrative entries added so the merge has two files to combine. Redrawn from the class board at 02:35."
+  steps={[
+    'The read-only files are full of dead entries: <span class="term">stale</span> old values of K1, and K2 with its <span class="term red">delete marker</span>.',
+    'Read them into a temporary hash table: a newer entry <em>replaces</em> a key, a delete <em>removes</em> it. This table is separate from the index.',
+    'Flush it as one <span class="term green">new file</span> with only live entries. The active file keeps taking writes meanwhile.',
+    'Offsets changed, so update the map for every moved key, then delete the old files.',
+  ]}>
+  <Desk><MergeCompact /></Desk>
+  <Phone><MergeCompact layout="phone" /></Phone>
+</StepThrough>
+
+In code, the merge buffers key-value pairs in an in-memory hash table and replaces whatever it finds there: if K1 was written twice, the first entry is overwritten and never reaches the new file. When it meets a key that was deleted, it removes that key from the hash table. Then it flushes the whole table as the new file. This hash table is different from the index the store serves gets from; that one is separate, and this is a separate process that is all about merging. [[L-0296]]
+
+```python
+tmp = {}                                 # a temporary table, not the index
+for rec in records(read_only_files):     # oldest file first, in write order
+    if rec.is_delete:
+        tmp.pop(rec.key, None)           # a delete removes the key
+    else:
+        tmp[rec.key] = rec               # a newer entry replaces the older one
+write(merged_file, tmp.values())         # only live entries reach the disk
+repoint_index(merged_file)               # offsets changed: update the map
+delete(read_only_files)
+```
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="The sawtooth and its two knobs" crumb="8.4 The sawtooth"
+  dek="Disk usage climbs with writes and drops at each merge. Its shape tells you how to tune the store."
+  meta="About 3 min · class 02:22–02:25, 02:34–02:35">
+
+Plot disk usage over a week. As writes come in, usage grows: high, higher, higher. When merge and compaction kicks in, it suddenly drops. Then it grows again, and drops again at the next run. You will see this **sawtooth** pattern in your disk consumption. [[L-0244]]
+
+<AnimationClip clip="l10-sawtooth" no="Clip 8·1" k="L-0244 L-0245 L-0246 L-0247 L-0248"
+  lead="Halve the merge frequency. Does the peak go up or down, and what is the line it must never cross?"
+  caption="Disk usage climbs with writes and drops at each merge and compaction: a sawtooth under the 1 TB cap. Merge too often and the CPU is busy merging; too rarely and a peak hits the cap and the store crashes." />
+
+Why does the shape matter? Because the disk has a maximum capacity. If the disk is 1 TB, you cannot let usage grow beyond 1 TB. How you want this sawtooth to look decides how often merge and compaction must run, and it determines how your database performs. Keep it at the optimum where it never breaches the cap: as soon as usage crosses the disk’s capacity, the system crashes. [[L-0245]]
+
+<RuleBox rule="==Keep the sawtooth under the disk cap==." k="L-0245">
+
+Two knobs shape it: how often merge and compaction runs, and how big a file may grow before rotation.
+
+<Desk><SawtoothRule /></Desk>
+<Phone><SawtoothRule layout="phone" /></Phone>
+
+</RuleBox>
+
+Neither extreme works. Merge too often and there is too much garbage collection going on: the CPU isn’t free to do the actual work. Merge too rarely and a lot of work piles up. The frequency should be smooth enough that performance doesn’t drop. [[L-0246]]
+
+<Figure id="fig-8c" no="Fig 8·c" k="L-0244 L-0245 L-0247"
+  caption="Disk usage over time: it climbs in small steps as writes arrive and drops at each merge and compaction, always under the 1 TB cap. Beside it, the board’s two knobs. Redrawn from the class board at 02:25 and 02:35.">
+  <Desk><Sawtooth /></Desk>
+  <Phone><Sawtooth layout="phone" /></Phone>
+</Figure>
+
+So this design has two configurable parameters. The first is the merge and compaction frequency. The second is the file rotation threshold: how big you let a file grow. [[L-0247]] Real Bitcask goes further on the first knob: rather than running on a fixed clock, it triggers a merge by how much garbage exists, by default when a file has 60% dead keys or 512 MB of dead bytes (files join a merge at 40% or 128 MB), and a merge window can keep merges to off-peak hours <Cite href="https://docs.riak.com/riak/kv/latest/setup/planning/backend/bitcask/index.html">docs.riak.com</Cite>.
+
+How do you set them? By looking at the sawtooth. While you build the store, monitor it, keep both in check, and then decide what the frequency and the size should be. And when you design a database like this, expose both as configurable parameters to whoever you ship it to. [[L-0248]]
+
+That is the whole engine so far: the best reads, writes, updates and deletes, with efficient disk usage and no wasted space thanks to merge and compaction. It is a pretty standard approach and the best you can do on a cheap magnetic disk, almost as fast as SSDs. [[L-0249]] That holds for writes: appends approach the disk’s sequential speed, but every get still costs one random seek on a magnetic disk (Bitcask promises never more than one), so random reads stay far behind an SSD <Cite href="https://docs.riak.com/riak/kv/latest/setup/planning/backend/bitcask/index.html">docs.riak.com</Cite>.
+
+On SSDs you still get benefits, but not as significant, because SSDs don’t use a rotating disk; they use flash memory, which handles writes very well on its own. [[L-0250]] Flash does have its own catch: it can’t be overwritten in place, only erased and rewritten, so random in-place updates cause internal garbage collection, and append-only writes stay the flash-friendly pattern. Zoned SSDs go as far as requiring each zone to be written sequentially <Cite href="https://zonedstorage.io/docs/introduction/zoned-storage">zonedstorage.io</Cite>, which an append-only layout fits naturally.
+
+<h3 id="s8-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0231 L-0241" q="Why are only the non-active files merged?">
+
+Because the active file is still taking every write, while the others are immutable: nothing will ever be appended to them again. The merge can read them at leisure and write one new file from them, and the active file keeps working while it does.
+
+  </RecallItem>
+  <RecallItem k="L-0242 L-0239" q="What must happen to the in-memory map after a merge, and why?">
+
+Every key whose entry moved must be repointed to the new file and its new offset, because the old files are about to be deleted and the old offsets mean nothing in the new file. The prepared notes say to do it atomically.
+
+  </RecallItem>
+  <RecallItem k="L-0247 L-0246 L-0245" q="Name the two knobs and what goes wrong at each extreme of the first.">
+
+Merge and compaction frequency, and the file rotation threshold. Merge too often and garbage collection takes the CPU away from real work; merge too rarely and work piles up, and the sawtooth can climb past the disk’s capacity, which crashes the system.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '9 · Record format and integrity', href: '#s9' }}
+  concepts={[{ label: 'hint files', href: '#s8-1' }, { label: 'file rotation', href: '#s8-2' }, { label: 'active file', href: '#s8-2' }, { label: 'merge and compaction', href: '#s8-3' }, { label: 'sawtooth', href: '#s8-4' }, { label: 'two knobs', href: '#s8-4' }]} />
+
+</Section>

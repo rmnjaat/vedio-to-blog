@@ -1,0 +1,159 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { NaiveScan, ReadsSlowIndex, OneLevelIndex, NumberCrunch } from '../../../figures/lec10/s2-finding-one-word-figs';
+
+{/* §2 Finding one word fast (2.1–2.3). Running case: the 1 TB dictionary file from chapter 1.
+    Byte offsets in the example are real (apple 0, amazon 14, book 34), not the spoken line-like numbers (factcheck_applied §6).
+    Wide figures pass Figure's `max`; below 640px the <Phone> layout takes over. */}
+
+<Section id="s2" no="2" title="Finding one word fast" crumb="2 Finding a word"
+  dek="The naive lookup reads half a terabyte per request. One small index, and one multiplication, turn it into a single pointed read."
+  meta="About 15 min · class 00:20–00:35, Q&A 02:59 and 03:01">
+
+A user asks for “apple”. The 1 TB dictionary sits on disk as plain lines, one word per line, in no particular order. Where is apple, and how much of the file do you have to read to find it?
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="Start naive: scan the file" crumb="2.1 Scan the file"
+  dek="Before reaching for B+ trees, look at what the simplest lookup costs."
+  meta="About 4 min · class 00:20–00:24">
+
+How would you search this file? A tempting answer reaches for all the machinery at once: binary search, offsets stored as indexes, B+ tree pages, 8 KB blocks, and 1,000 keys kept in memory. [[L-0038]] Those numbers come from real databases: PostgreSQL stores every table and index as fixed-size pages, usually 8 kB <Cite href="https://www.postgresql.org/docs/current/storage-page-layout.html">postgresql.org</Cite>, and page-based B+ trees matter when an index is too big for RAM. As 2.3 shows, that is not the case here. One piece of the idea does survive, the offset, in 2.2. [[L-0038]]
+
+And why only 1,000 keys in memory? Far more fit. [[L-0039]] For a very simple word dictionary all of this is over-engineering: no B+ trees, nothing fancy. Keep it very simple, because that is where you see the power and the beauty of the system. [[L-0040]]
+
+So start with the naive design. No traditional database is allowed, so store the dictionary in a simple text file in CSV format: first the key, then the gigantic meaning for that key. [[L-0041]] The naive lookup opens the file, reads it line by line until it finds the key, stops, reads the meaning and returns it. [[L-0042]]
+
+<Figure id="fig-2a" max={660} no="Fig 2·a" k="L-0041 L-0042 L-0043 L-0044" caption="The naive lookup. The read itself is the scan (blue): line by line from the top until the word turns up. Redrawn from the class board at 00:22, where the scan was the red arrow down the file’s edge.">
+<Desk><NaiveScan /></Desk>
+<Phone><NaiveScan layout="phone" /></Phone>
+</Figure>
+
+Doing that for every single read is very expensive, and a dictionary is a very read-heavy application. [[L-0043]] In the worst case every request reads the whole 1 TB file; on average it reads half of it, 0.5 TB, which is 500 GB per request. [[L-0044]]
+
+That makes reads very slow, degrades the disk’s performance, and wears the disk out: its sectors go bad from being so heavily overused. It is a hardware problem, a software problem and a time problem at once. [[L-0045]] Put precisely, scanning half a terabyte per request wastes the disk’s throughput and pushes drives past their rated workload, which reduces their reliability <Cite href="https://www.seagate.com/support/kb/annualized-workload-rate-005902en/">seagate.com</Cite>. [[L-0045]]
+
+Whenever reads are slow, the thing that should come to mind is indexing. [[L-0046]]
+
+<RuleBox rule="Whenever reads are slow, the only thing that should come to your mind is ==indexing==." k="L-0046 L-0060">
+
+And before you design the index, do the number crunch: how big will it be, and does it fit in memory?
+
+<Desk><ReadsSlowIndex /></Desk>
+<Phone><ReadsSlowIndex layout="phone" /></Phone>
+
+</RuleBox>
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="A one-level index" crumb="2.2 One-level index"
+  dek="A small file that says exactly where each word’s line starts."
+  meta="About 4 min · class 00:23–00:27, Q&A 03:01">
+
+What if a small file told you exactly where apple starts? Create one small, simple index on top of the data file, one level only, so that no lookup has to scan the data file hunting for its key. [[L-0047]] Each index entry holds two things: the key and its offset in the data file. [[L-0048]]
+
+The offset is the byte position where that word’s line starts: the nth byte from the beginning of the file. It is a count of bytes, not a line number. `apple,a fruit` plus its newline is 14 bytes, so apple starts at byte 0 and amazon at byte 14; `amazon,a rainforest` and its newline take 20 more, so book starts at byte 34. [[L-0049]]
+
+<Figure id="fig-2b" max={640} no="Fig 2·b" k="L-0047 L-0048 L-0049 L-0050" caption="The index file lists each word with the byte where its line starts in the data file; a lookup reads the index, then jumps straight to that byte. The board wrote the offsets as o1, o2, o3; here they are real byte counts. Redrawn from the class board at 00:26 and 00:35.">
+<Desk><OneLevelIndex /></Desk>
+<Phone><OneLevelIndex layout="phone" /></Phone>
+</Figure>
+
+With the index in its own file, a read goes like this: open the index file, read it line by line until you reach the key, apple say, take its offset, go to the data file, read that one line, get the meaning and send it to the user. [[L-0050]]
+
+That is still a linear scan, so how is it better? A scan of the data file wades through every huge meaning on the way. The index holds only keys and small offsets, 4 bytes each as taught (2.3 corrects the width), so you are not iterating over megabytes of meanings, and the small index file is very fast to read sequentially, even in the worst case. File IO always goes sequentially anyway. [[L-0051]]
+
+<AnimationClip clip="l10-scan-vs-index" no="Clip 2·1" k="L-0042 L-0043 L-0044 L-0047 L-0048 L-0050 L-0051 L-0063"
+  lead="Before you play it: both lookups find ball, a word halfway down the file. How much does each one read?"
+  caption="The scan reads about 500 GB to reach a word halfway down the file, and every request pays it again. The index is a short scan of words and offsets, then one pointed read of one line." />
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Will the index fit in memory?" crumb="2.3 Fits in memory?"
+  dek="Do the arithmetic before the engineering: the index for a terabyte of meanings is a couple of megabytes."
+  meta="About 7 min · class 00:26–00:35, Q&A 02:59; prepared notes 01:43">
+
+Should you scan the index at all? Before deciding how to read it, estimate its size with some basic arithmetic: can the whole index fit in memory? [[L-0052]]
+
+A tempting shortcut is an index of just 26 entries, A to Z, each with its location. In fact you would still have to go through every word under that letter to find the one you want, while a per-word offset takes you straight to its line. And as the estimate below shows, the full per-word index fits in memory anyway, so splitting it by letter buys nothing. [[L-0053]]
+
+<PauseAndThink k="L-0052 L-0054 L-0055 L-0056 L-0057 L-0058 L-0059 L-0060 L-0061"
+  q="The dictionary is 1 TB and holds 170,000 words. An index entry is the word (about 4.3 characters on average), a 4-byte offset, plus a comma and a newline. Before designing anything clever: will the whole index fit in an API server’s memory?"
+  choices={[{ label: 'No: a 1 TB file needs an index too big for RAM, so page it like a B+ tree' }, { label: 'Yes: it’s only a couple of megabytes', correct: true }]}
+  right="Right. 170,000 × (4.3 + 4 + 2) B = 1,751,000 B, about 1.75 MB. Even with the 8-byte offsets a 1 TB file really needs (see the “More precisely” note below), it’s about 2.4 MB."
+  wrong="The index’s size depends on the number of words and the size of one entry, not on the size of the meanings. 170,000 small entries can’t add up to anything near a terabyte.">
+
+Yes, easily. 1.75 MB is “peanuts” beside 1 TB, so load the index into an in-memory hash map when the server starts, and every lookup becomes one pointed read. The number crunch, not a cleverer structure, settled the design.
+
+</PauseAndThink>
+
+The size of each index entry is the length of the key plus the length of the offset. [[L-0054]] The key is the word, and the average English word is about 4.3 characters, definitely not more than five: the instructor downloaded an entire dictionary and computed it. [[L-0055]] What you count matters here. In running text the average is about 4.8 letters, because short words like “the” repeat; across distinct words it is about 7.6 <Cite href="https://norvig.com/mayzner.html">norvig.com</Cite>, and a dictionary index stores distinct words, so the larger figure is the one that applies. [[L-0055]]
+
+The offset is an integer, and an integer takes 4 bytes. [[L-0056]]
+
+<SourceNote href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html" site="docs.oracle.com" k="L-0056">
+
+A 1 TB file holds 10¹² bytes, but a 4-byte integer reaches only about 2.1 billion (signed) or 4.3 billion (unsigned), so byte offsets into it must be 64-bit (8-byte) integers. With 8-byte offsets the 170,000-word index is 170,000 × (4.3 + 8 + 2) B ≈ 2.4 MB: still tiny, so the design stands.
+
+</SourceNote>
+
+Storing one entry per line adds two more characters, one for the comma and one for the newline. So an entry is about 4.3 + 4 + 2 = 10.3 bytes. [[L-0057]]
+
+<Figure id="fig-2c" max={700} no="Fig 2·c" k="L-0054 L-0055 L-0056 L-0057 L-0058 L-0059" caption="The number crunch. Top row as taught on the board at 00:30; bottom row with the 8-byte offsets a 1 TB file needs (the note above). Either way the index is a couple of megabytes and fits in RAM.">
+<Desk><NumberCrunch /></Desk>
+<Phone><NumberCrunch layout="phone" /></Phone>
+</Figure>
+
+Multiply by the number of words: 170,000 × 10.3 B = 1,751,000 B, which is 1,751 KB, or about 1.75 MB. [[L-0058]] (MB here means 10⁶ bytes. A MiB is 2²⁰ = 1,048,576 bytes, and memory sizes often use the binary reading, so the two differ by about 5% <Cite href="https://physics.nist.gov/cuu/Units/binary.html">physics.nist.gov</Cite>.) [[L-0058 L-0307]]
+
+An index of 1.75 MB fits in RAM very easily. Next to a 1 TB data file it is peanuts. [[L-0059]]
+
+This is why number crunching matters when you design any system. What looked huge, a 1 TB file and 170,000 words, needs an index of under two megabytes. [[L-0060]] And don’t take megabytes lightly either: M stands for a million, and a million bytes is not lightweight; it still holds a huge amount of information. The dictionary is simply an easy example of how small an index can be next to its data. [[L-0307]]
+
+So load it once. Keep the index stored on disk, and when the API server starts, load it into an in-memory hash map. A request checks the map for the word, gets the offset, goes to the data file, reads the line at that offset and returns the meaning. [[L-0061]]
+
+One simple number crunch made the system much better: instead of over-complicating things, one level of indexing. [[L-0062]] No linear scan is left. Every lookup is a direct, pointed read on the data file at the offset the index gives, which makes reads much faster. That settles two of the four axes, storage and query. [[L-0063]]
+
+<MarginNote title="The prepared notes’ number" why="skip unless you want a second estimate" k="L-0187">
+
+The instructor’s prepared notes size the index a little differently: 171,476 words, and an entry of 4.7 (average word) + 3 (separator and newline) + 2 × 4, so 15.7 B × 171,476 = 2,692,173.2 B, about 2.6 MB. The arithmetic checks out, and 171,476 is the count of words in current use in the second edition of the Oxford English Dictionary. The same caveats apply: 4.7 is a running-text average, and if the 2 × 4 is two 4-byte integers, the offset needs 8 bytes for a 1 TB file (the note above). The order of magnitude, a few MB, is right.
+
+</MarginNote>
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Scanning a 2 MB index file line by line is linear, and so is scanning the data file. Why is the first still far cheaper?">
+
+The index holds only keys and small offsets, while a scan of the data file wades through every huge meaning on the way. The worst case is a couple of megabytes read sequentially against a whole terabyte. And in the end there is no scan at all: the index is loaded into an in-memory hash map, and each lookup becomes one pointed read.
+
+  </RecallItem>
+  <RecallItem q="Redo the index estimate with 8-byte offsets and 7.6-letter words. Does the design change?">
+
+7.6 + 8 + 2 = 17.6 bytes per entry, and 170,000 × 17.6 B = 2,992,000 B, about 3 MB. That still fits in an API server’s memory with room to spare, so nothing changes: load it into a hash map at startup and do one pointed read per lookup.
+
+  </RecallItem>
+  <RecallItem q="Why is an A–Z index of 26 entries worse than a full per-word index here?">
+
+With 26 entries you only know where a letter starts, so you still scan every word under that letter to find one. A per-word index gives the exact byte where the word’s line starts. And the full index is only about 1.75 MB, so it fits in memory anyway: there is nothing to save by making it smaller.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '3 · One file you can ship', href: '#s3' }}
+  concepts={[{ label: 'linear scan', href: '#s2-1' }, { label: 'one-level index', href: '#s2-2' }, { label: 'byte offset', href: '#s2-2' }, { label: 'number crunch', href: '#s2-3' }, { label: 'in-memory hash map', href: '#s2-3' }]} />
+
+</Section>

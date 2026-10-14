@@ -1,0 +1,510 @@
+{
+ "lecture": "lec10",
+ "count": 126,
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "What two problems were on the agenda for this session?"
+  },
+  {
+   "id": "Q002",
+   "q": "In the word-dictionary problem, which kinds of systems were ruled out, and what two non-functional requirements were set (one relaxed, one demanded)?"
+  },
+  {
+   "id": "Q003",
+   "q": "How do words and meanings get updated in the dictionary problem?"
+  },
+  {
+   "id": "Q004",
+   "q": "What is the lookup contract of the dictionary, and what are its size numbers?"
+  },
+  {
+   "id": "Q005",
+   "q": "What four axes did the teacher list to brainstorm the dictionary on?"
+  },
+  {
+   "id": "Q006",
+   "q": "Why was a single JSON file containing all words and meanings rejected?"
+  },
+  {
+   "id": "Q007",
+   "q": "What was the first text-file format drawn for the dictionary?"
+  },
+  {
+   "id": "Q008",
+   "q": "What constraint did the teacher add about duplicates, and why?"
+  },
+  {
+   "id": "Q009",
+   "q": "When first asked whether the text file should be kept sorted, what did the student answer and why?"
+  },
+  {
+   "id": "Q010",
+   "q": "How read-heavy did the class agree the dictionary is?"
+  },
+  {
+   "id": "Q011",
+   "q": "A student said each single-word update must not be costly. How did the teacher qualify this given the weekly updates?"
+  },
+  {
+   "id": "Q012",
+   "q": "Why did the teacher reject splitting the dictionary into many partitioned files (even when bundled into one zip)?"
+  },
+  {
+   "id": "Q013",
+   "q": "What real AWS feature was the dictionary design trying to simulate, and why keep it simple instead of Parquet/Avro/Lucene?"
+  },
+  {
+   "id": "Q014",
+   "q": "When a student started on B+ trees, blocks and pages, what did the teacher say?"
+  },
+  {
+   "id": "Q015",
+   "q": "Describe the naive lookup on the CSV file and its cost per request."
+  },
+  {
+   "id": "Q016",
+   "q": "Besides slowness, what other problems did the teacher name for linear scanning a 1 TB file on every read?"
+  },
+  {
+   "id": "Q017",
+   "q": "What did the teacher say should always come to mind when reads are slow?"
+  },
+  {
+   "id": "Q018",
+   "q": "What does each entry of the one-level index contain, and what exactly is the offset?"
+  },
+  {
+   "id": "Q019",
+   "q": "Even if you scan the index file linearly, why is that much better than scanning the data file?"
+  },
+  {
+   "id": "Q020",
+   "q": "A student proposed an index of just 26 entries (one per letter A-Z). What was wrong with it?"
+  },
+  {
+   "id": "Q021",
+   "q": "What formula and components were used to estimate the size of one index record?"
+  },
+  {
+   "id": "Q022",
+   "q": "What did the index size come out to, and what was the conclusion?"
+  },
+  {
+   "id": "Q023",
+   "q": "What general lesson did the teacher draw from the index-size calculation?"
+  },
+  {
+   "id": "Q024",
+   "q": "With the index in memory, what is the lookup flow on the API server?"
+  },
+  {
+   "id": "Q025",
+   "q": "After indexing, what two files existed and why was that a problem?"
+  },
+  {
+   "id": "Q026",
+   "q": "Why not drop the index file and rebuild the index in memory at every startup?"
+  },
+  {
+   "id": "Q027",
+   "q": "When the index and data are concatenated into one file, what question arises, and what were the first two options proposed?"
+  },
+  {
+   "id": "Q028",
+   "q": "What did the teacher think of the fixed-size (2 MB) index region?"
+  },
+  {
+   "id": "Q029",
+   "q": "A student proposed growing data from the top and the index from the bottom of the file like a stack. What objection was raised?"
+  },
+  {
+   "id": "Q030",
+   "q": "What improvement over a separator did the teacher suggest storing at the start of the file, and what is the general name of this idea?"
+  },
+  {
+   "id": "Q031",
+   "q": "List the fields of the dictionary file header in order, with their sizes and the total."
+  },
+  {
+   "id": "Q032",
+   "q": "What is the purpose of the magic-name bytes and of the version field in the header?"
+  },
+  {
+   "id": "Q033",
+   "q": "Describe how the server reads the single-file dictionary at boot, step by step."
+  },
+  {
+   "id": "Q034",
+   "q": "How did the teacher relate the header/sections idea to formats like MP4?"
+  },
+  {
+   "id": "Q035",
+   "q": "Why must a JSON file be read in full, while a format like Parquet need not?"
+  },
+  {
+   "id": "Q036",
+   "q": "What does an encoder and a decoder do for a file format, and what does 'this browser does not support TIF' mean?"
+  },
+  {
+   "id": "Q037",
+   "q": "Draw the final layout of the portable dictionary file from left to right."
+  },
+  {
+   "id": "Q038",
+   "q": "What is the request path for serving the dictionary as first drawn?"
+  },
+  {
+   "id": "Q039",
+   "q": "What three objections were raised to keeping a copy of the dictionary file on every API server, and which one did the teacher call the biggest?"
+  },
+  {
+   "id": "Q040",
+   "q": "What principle about cost did the teacher state, using the 'put everything in RAM' example?"
+  },
+  {
+   "id": "Q041",
+   "q": "Why must the shared dictionary storage be something accessible over the network?"
+  },
+  {
+   "id": "Q042",
+   "q": "What S3 feature did a student point out that makes the design work?"
+  },
+  {
+   "id": "Q043",
+   "q": "What is the minimum capability the central storage must provide, and how was it written on the board?"
+  },
+  {
+   "id": "Q044",
+   "q": "Name alternatives to S3 that satisfy the requirement, and why S3 was chosen in class."
+  },
+  {
+   "id": "Q045",
+   "q": "What does each API server need to know at startup, and what S3 calls does it make before serving?"
+  },
+  {
+   "id": "Q046",
+   "q": "How is a GET for a word served once the server is up?"
+  },
+  {
+   "id": "Q047",
+   "q": "What did the teacher call 'magical' about what had been built by this point?"
+  },
+  {
+   "id": "Q048",
+   "q": "Where does the weekly update job run and what does it start with?"
+  },
+  {
+   "id": "Q049",
+   "q": "Why was 'append the changelog entries at the end of the dictionary' rejected?"
+  },
+  {
+   "id": "Q050",
+   "q": "Why did the teacher say hashing/diffing the old and new entries was unnecessary?"
+  },
+  {
+   "id": "Q051",
+   "q": "What happens if you use the index offset to overwrite 'apple, a fruit' in place with 'apple, a round fruit'?"
+  },
+  {
+   "id": "Q052",
+   "q": "What three hats did the teacher say a good engineer wears, and which one exposes the overwrite problem?"
+  },
+  {
+   "id": "Q053",
+   "q": "Why was 'append a new version and compact later' (tombstone-style) rejected for the dictionary?"
+  },
+  {
+   "id": "Q054",
+   "q": "What approach to applying the changelog did the teacher endorse, and what classic algorithm is it?"
+  },
+  {
+   "id": "Q055",
+   "q": "What precondition makes the merge efficient, and what if the changelog is not sorted?"
+  },
+  {
+   "id": "Q056",
+   "q": "In the board's merge example, the dictionary holds a-a', b-b', c-c', d-d', f-f', g-g', h-h' and the changelog holds c-c'', e-e', f-f''. What is the new dictionary?"
+  },
+  {
+   "id": "Q057",
+   "q": "How does this merge differ from merging two arrays in memory?"
+  },
+  {
+   "id": "Q058",
+   "q": "What disk-size constraint does the merge job impose on the update server?"
+  },
+  {
+   "id": "Q059",
+   "q": "What concern about deployment did a student raise if the new file is uploaded to the same S3 path?"
+  },
+  {
+   "id": "Q060",
+   "q": "Using the board's example 'apple: 100, 1024', explain why uploading the new file to the same S3 path serves garbage."
+  },
+  {
+   "id": "Q061",
+   "q": "Besides garbage reads, what other problems did same-path upload have?"
+  },
+  {
+   "id": "Q062",
+   "q": "What upload scheme was chosen instead, and what question does it leave?"
+  },
+  {
+   "id": "Q063",
+   "q": "Why were 'ping every API server to invalidate its cache' and 'have servers switch at the known job time' rejected?"
+  },
+  {
+   "id": "Q064",
+   "q": "What was wrong with storing one file per word on S3 (a folder per first letter)?"
+  },
+  {
+   "id": "Q065",
+   "q": "Describe the metadata-file proposal. Must the meta file's own path be static or versioned?"
+  },
+  {
+   "id": "Q066",
+   "q": "Why would you poll every few minutes if the job runs weekly, according to the student?"
+  },
+  {
+   "id": "Q067",
+   "q": "How can polling be replaced reactively, and what drawback did the teacher see in that?"
+  },
+  {
+   "id": "Q068",
+   "q": "Why were 'a latest flag in the header' and 'check the version on each request' rejected?"
+  },
+  {
+   "id": "Q069",
+   "q": "Was the teacher against polling in principle?"
+  },
+  {
+   "id": "Q070",
+   "q": "In the prepared 'Transitions' notes, what three transition strategies were listed, and what does the periodic-refresh timeline show?"
+  },
+  {
+   "id": "Q071",
+   "q": "What hint did the teacher give to converge on the simplest reload mechanism?"
+  },
+  {
+   "id": "Q072",
+   "q": "How did the teacher relate S3 object versioning to the meta-file design?"
+  },
+  {
+   "id": "Q073",
+   "q": "What was the final mechanism to make API servers serve the new dictionary?"
+  },
+  {
+   "id": "Q074",
+   "q": "What inconsistency occurs during the rolling deployment, and why is it acceptable?"
+  },
+  {
+   "id": "Q075",
+   "q": "On the board's update diagram, what does the purple 'Deploy' arrow connect?"
+  },
+  {
+   "id": "Q076",
+   "q": "In what order must the update job do its final steps?"
+  },
+  {
+   "id": "Q077",
+   "q": "What does the prepared 'Updating the dictionary' procedure list, step by step?"
+  },
+  {
+   "id": "Q078",
+   "q": "Using Amazon orders, explain multi-tiered storage enabled by pointed reads on S3."
+  },
+  {
+   "id": "Q079",
+   "q": "What is the trade-off of moving data to S3 cold storage, and why is it worth it?"
+  },
+  {
+   "id": "Q080",
+   "q": "Which real systems did the teacher say do essentially the same thing as the S3 dictionary?"
+  },
+  {
+   "id": "Q081",
+   "q": "What alternatives to redeployment did the teacher acknowledge, and why did he still prefer triggering a deployment?"
+  },
+  {
+   "id": "Q082",
+   "q": "What did the teacher promise the second half (after the break) would deliver?"
+  },
+  {
+   "id": "Q083",
+   "q": "What are the requirements of the super fast KV store and on what hardware?"
+  },
+  {
+   "id": "Q084",
+   "q": "Where do SSD and magnetic HDD sit relative to memory on the speed/cost scale, and where is bulk data stored?"
+  },
+  {
+   "id": "Q085",
+   "q": "How does a read on a magnetic disk physically happen, and what is the most time-consuming part?"
+  },
+  {
+   "id": "Q086",
+   "q": "When a student suggested a memtable/SSTable, what requirement did the teacher clarify?"
+  },
+  {
+   "id": "Q087",
+   "q": "How are PUTs done, and why is that the best one can do on a magnetic disk?"
+  },
+  {
+   "id": "Q088",
+   "q": "After PUT K1 V1, K2 V2, K3 V3, a PUT K1 V1' arrives. What happens in the file?"
+  },
+  {
+   "id": "Q089",
+   "q": "Why can't a delete just overwrite the key's old value with a special value?"
+  },
+  {
+   "id": "Q090",
+   "q": "How is DEL K2 implemented, and what does that give?"
+  },
+  {
+   "id": "Q091",
+   "q": "What is the naive GET on the append-only file and how is it made fast?"
+  },
+  {
+   "id": "Q092",
+   "q": "Which kind of access does an append-only file allow and forbid?"
+  },
+  {
+   "id": "Q093",
+   "q": "Walk through the in-memory hash table for PUT K1 V1, PUT K2 V2, PUT K3 V3, PUT K1 V1', DEL K2."
+  },
+  {
+   "id": "Q094",
+   "q": "What is the GET flow, and what happens after a machine crash wipes the in-memory hash table?"
+  },
+  {
+   "id": "Q095",
+   "q": "What limitation comes from keeping the index in memory?"
+  },
+  {
+   "id": "Q096",
+   "q": "Why can't the single append-only file just grow forever? Give the reasons discussed, including the one the teacher called biggest."
+  },
+  {
+   "id": "Q097",
+   "q": "A student proposed splitting a 100 TB disk into 10 TB files. What did the teacher suggest instead?"
+  },
+  {
+   "id": "Q098",
+   "q": "With file rotation, which files take writes and reads, and what must the in-memory index now store?"
+  },
+  {
+   "id": "Q099",
+   "q": "What does merge and compaction do, and what must happen afterwards?"
+  },
+  {
+   "id": "Q100",
+   "q": "What shape does disk usage take over time with merge and compaction, and what line bounds it?"
+  },
+  {
+   "id": "Q101",
+   "q": "What two configuration parameters does the store expose, how do you tune them, and what goes wrong at either extreme?"
+  },
+  {
+   "id": "Q102",
+   "q": "Does this append-only design give the same benefit on SSDs?"
+  },
+  {
+   "id": "Q103",
+   "q": "Why is 'read until newline' a bad way to read a record from disk?"
+  },
+  {
+   "id": "Q104",
+   "q": "How do key size and value size fields make reads predictable? Give the field sizes and the number of disk I/Os."
+  },
+  {
+   "id": "Q105",
+   "q": "What failure motivates integrity checks in the record, and why is reading such a record dangerous?"
+  },
+  {
+   "id": "Q106",
+   "q": "What is the CRC, what does it cover, and why is it placed first (leftmost)? Give the real examples cited."
+  },
+  {
+   "id": "Q107",
+   "q": "Give the final record layout, left to right, and what the TS field is for."
+  },
+  {
+   "id": "Q108",
+   "q": "How are partial writes handled when reading a record or compacting?"
+  },
+  {
+   "id": "Q109",
+   "q": "With multiple files, what does an in-memory index entry hold (prepared notes), and what three steps make a GET?"
+  },
+  {
+   "id": "Q110",
+   "q": "Why is merging Bitcask's files different from merging the dictionary with its changelog?"
+  },
+  {
+   "id": "Q111",
+   "q": "List the limitation and the strengths of the designed DB as given."
+  },
+  {
+   "id": "Q112",
+   "q": "What is the database just designed called, and what kind of database is it?"
+  },
+  {
+   "id": "Q113",
+   "q": "How is Bitcask used in production according to the lecture, and what analogy was given?"
+  },
+  {
+   "id": "Q114",
+   "q": "What claim did the teacher make about any system advertising high throughput with persistence?"
+  },
+  {
+   "id": "Q115",
+   "q": "What did the teacher recommend doing with Bitcask, and how should it be benchmarked?"
+  },
+  {
+   "id": "Q116",
+   "q": "How does Bitcask differ from SSTables/memtables (LSM trees), per the Q&A?"
+  },
+  {
+   "id": "Q117",
+   "q": "How do you create an append-only file in practice - do you preallocate e.g. 1 GB?"
+  },
+  {
+   "id": "Q118",
+   "q": "How are tombstoned (deleted) keys handled during merge and compaction?"
+  },
+  {
+   "id": "Q119",
+   "q": "A student asked whether writing the CRC/header is atomic while the large value is not, given kernels differ. What was the answer?"
+  },
+  {
+   "id": "Q120",
+   "q": "Why did the teacher choose a 1 TB size for a 170,000-word dictionary?"
+  },
+  {
+   "id": "Q121",
+   "q": "Is one S3 read per API request expensive? What did the teacher say about S3's cost and latency for this pattern?"
+  },
+  {
+   "id": "Q122",
+   "q": "What point did the teacher make about 'MB' when reflecting on the index size?"
+  },
+  {
+   "id": "Q123",
+   "q": "In a rolling redeployment, does the load balancer change, and do you have to write code for it?"
+  },
+  {
+   "id": "Q124",
+   "q": "Are index offsets line numbers, and what exactly does the header's index-size field store?"
+  },
+  {
+   "id": "Q125",
+   "q": "Since the index size changes with updates, how does the header stay correct?"
+  },
+  {
+   "id": "Q126",
+   "q": "Why keep the dictionary sorted, and what is the merge complexity as a result?"
+  }
+ ]
+}

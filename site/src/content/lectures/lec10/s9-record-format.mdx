@@ -1,0 +1,184 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { RecordRule, SizesFirst, DictRecord, TornRecord } from '../../../figures/lec10/s9-record-format-figs';
+
+{/* §9 Record format and integrity (9.1–9.3). Chapter page /lectures/lec10/9-record-format/.
+    Class 02:25–02:32, Q&A 02:51–02:56 folded into 9.3. Fact-check: SN-05 (L-0261, L-0262), SN-06 (L-0263);
+    L-0253, L-0297 inline clarifications; L-0260, L-0299 left as taught; A-SSE-05, -06, -09, -15 as sourced
+    sentences; L-0301, L-0302, L-0304 attributed as the instructor's view. */}
+
+<Section id="s9" no="9" title="Record format and integrity" crumb="9 Record format"
+  dek="“Write key, value” is too casual. Prefix every record with its sizes so one read gets it all, and lead with a CRC so a half-written record is caught, not served."
+  meta="About 8 min · class 02:25–02:32, Q&A 02:51–02:56">
+
+The machine loses power halfway through appending a 1 MB value. Later, more records are appended after it. Then a get for that key arrives. What does the store return?
+
+So far every chapter has written “K1 V1” into the file as if that settled how an entry looks on disk. It doesn’t. This chapter gives each record a format: sizes first, so a reader knows exactly how much to read, and a checksum, so a broken record is caught instead of served.
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="Don’t read until the newline" crumb="9.1 Sizes first"
+  dek="Files are read in blocks, not lines. Put the sizes in front and a record takes two reads."
+  meta="About 3 min · class 02:25–02:29">
+
+Here we casually said: write the key and the value into the file. It is much more than that. Even the dictionary was simplified to “word, comma, meaning”, read line by line. But that is not how files are read. Files are read by blocks, so a store on disk needs a defined **record format** for each entry. [[L-0251]]
+
+That is how every database works. Pick any of them, MySQL, Postgres, MongoDB, Redis: whenever they serialize data to disk, they have their own format in which they write it, designed so that reading it back is efficient. [[L-0252]]
+
+<Figure id="fig-9a" no="Fig 9·a" k="L-0251 L-0253 L-0255 L-0256"
+  caption="Top: reading until a newline goes one byte at a time. Bottom: with the key size and value size up front, a record is two reads, the 8 bytes of sizes and then exactly the key and value. Redrawn from the class board at 02:27.">
+  <Desk><SizesFirst /></Desk>
+  <Phone><SizesFirst layout="phone" /></Phone>
+</Figure>
+
+So what does one entry look like? The easy idea is to store the key, then the value, and read until a newline. But think about what that costs: if you read one byte at a time until you hit `\n`, you make one disk I/O per byte, and that makes things very slow. Reading until a newline is the kind of code a school kid would write. [[L-0253]] To be exact, it is one read call per byte: the operating system’s page cache keeps recently read file data in memory, so most of those calls don’t reach the disk <Cite href="https://www.kernel.org/doc/html/latest/admin-guide/mm/concepts.html">kernel.org</Cite>. It is still slow, and a length-prefixed format lets you read the whole record in one go.
+
+Instead, at any offset you should know exactly how many bytes to read to get the complete key-value entry, so the whole entry comes in one shot. [[L-0254]]
+
+<RuleBox rule="At any offset, ==know exactly how many bytes to read==." k="L-0254">
+
+Sizes first, so a record is read in one shot; a CRC on the record, so a broken one is never served.
+
+<Desk><RecordRule /></Desk>
+<Phone><RecordRule layout="phone" /></Phone>
+
+</RuleBox>
+
+So instead of writing just the key and the value, also write their sizes. First the **key size**, which says how many bytes the key takes; then the **value size**, which says how many bytes the value takes. Each is a 4-byte integer, 8 bytes together, and they sit before the key and the value. [[L-0255]]
+
+Reading a record is now two disk I/Os. The first reads those 8 bytes: the first 4 are the key size, the next 4 the value size. Add them up, and the second I/O reads exactly that many bytes, which you split into the key and the value. That gives read predictability, and it is the same idea as the metadata header of the dictionary in [3.2](#s3-2). [[L-0256]]
+
+The dictionary should store its entries this way too: word size, meaning size, then the word and the meaning. It was written as CSV earlier only because that is easy; with this record format, its design can now be updated. [[L-0257]]
+
+<Figure id="fig-9b" no="Fig 9·b" k="L-0257"
+  caption="The dictionary’s apple entry in the same record format: a 4-byte word size of 5, a 4-byte meaning size of 13, then the word and the meaning. Cells drawn in proportion to their bytes.">
+  <Desk><DictRecord /></Desk>
+  <Phone><DictRecord layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="Detecting a torn write: CRC first" crumb="9.2 CRC first"
+  dek="A crash can cut a record in half. A checksum is how a reader finds out."
+  meta="About 3 min · class 02:29–02:32">
+
+A lot of people stop at key size and value size. Don’t. A database must be fault tolerant. Say you are writing a gigantic value and the machine crashes halfway: you had written `110` and then the power went. The write failed and the entry is corrupt. You can’t fix it, because the data is gone, but you must at least know that the entry lost its integrity, and not serve it. [[L-0258]]
+
+A partial entry is dangerous for a second reason. Once the machine is back, the next entry is appended right after the broken one. If you then read “value size” bytes from the broken entry, the read runs into the entry after it. [[L-0259]]
+
+<PauseAndThink k="L-0258 L-0259 L-0260 L-0261 L-0264 L-0265"
+  q="Records are key size | value size | key | value. The machine loses power halfway through writing a 1 MB value; after restart, more records are appended. A get for that key arrives. Can the store tell the record is broken from the sizes alone?"
+  choices={[{ label: 'No: it needs a checksum over the record', correct: true }, { label: 'Yes: the value size says how many bytes to read' }]}
+  right="Right. A CRC computed over sizes, key and value and stored with the record won’t match the torn bytes, so the store reports the entry as corrupt instead of serving it."
+  wrong="The size was written before the crash, so the reader trusts it and reads 1 MB, which runs into the next record’s bytes. It returns garbage with no error.">
+
+No; add a CRC. The design below puts it first in the record and flushes it first; real formats differ on placement (see the note further down), but every one checks it before trusting the data. Corrupt records are skipped, for example during merge.
+
+</PauseAndThink>
+
+The only way to detect it is a **CRC**, a cyclic redundancy check: a checksum. It is a simple hash over everything in the record: key size, value size, key and value. You build the record in memory, compute the hash of it, and store that checksum with the record. [[L-0260]]
+
+The CRC goes on the leftmost side of the record. It is the first thing you write, the first thing you make sure is flushed, because it is the bare minimum you need to know that something is corrupted. You cannot write the CRC at the end; you write it at the beginning. [[L-0261]] It is the same instinct as the distributed ID generators, which put the timestamp on the leftmost side.
+
+<ForwardChip block label="back in" when="Lecture 6" lec="lec03" sec="s6-1" k="L-0261">the timestamp on the leftmost side of an ID</ForwardChip>
+
+Good persistent record formats do this: the Postgres commit log puts the CRC on the leftmost side, and so does the MySQL binlog. [[L-0262]]
+
+<SourceNote href="https://raw.githubusercontent.com/basho/bitcask/develop/src/bitcask_fileops.erl" site="Bitcask source" k="L-0261 L-0262">
+
+Putting the CRC first is a convention, not a rule. Bitcask and LevelDB <Cite href="https://github.com/google/leveldb/blob/main/doc/log_format.md">LevelDB log format</Cite> put it at the start of each record, and Bitcask writes the whole record, CRC included, in one write, so the CRC is not flushed separately. The Postgres WAL and the MySQL binlog also protect every record with a CRC, CRC-32C per WAL record <Cite href="https://www.postgresql.org/docs/current/wal-reliability.html">postgresql.org</Cite> and CRC32 per binlog event by default <Cite href="https://dev.mysql.com/doc/refman/8.4/en/replication-options-binary-log.html">dev.mysql.com</Cite>, but they place it elsewhere: Postgres at the end of the record header <Cite href="https://raw.githubusercontent.com/postgres/postgres/master/src/include/access/xlogrecord.h">xlogrecord.h</Cite>, MySQL in the last 4 bytes of each event <Cite href="https://dev.mysql.com/doc/dev/mysql-server/latest/classmysql_1_1binlog_1_1event_1_1Log__event__footer.html">dev.mysql.com</Cite>. Either works as long as the reader knows the record length and checks the CRC before trusting the data.
+
+</SourceNote>
+
+The same goes for network formats: pick any of them and the CRC comes first, because those are the first bytes you receive and they tell you whether the data coming in is corrupted. [[L-0263]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc1662" site="RFC 1662 (PPP)" k="L-0263">
+
+Network frames carry checksums so the receiver can detect corruption, but often not first: the PPP frame check sequence comes after the data, and the TCP checksum sits in the middle of the header <Cite href="https://www.rfc-editor.org/rfc/rfc9293#section-3.1">RFC 9293</Cite>.
+
+</SourceNote>
+
+So the final record is: **CRC, timestamp** (just for conflicts), **key size, value size, key, value**. [[L-0264]] Real Bitcask writes exactly this order: CRC32, timestamp, key size, value size, key, value, with the CRC32 computed over everything after it; the reader decodes the same order and re-checks the CRC <Cite href="https://raw.githubusercontent.com/basho/bitcask/develop/src/bitcask_fileops.erl">Bitcask source</Cite>.
+
+<StepThrough id="fig-9c" no="Fig 9·c" label="A torn record"
+  k="L-0258 L-0259 L-0260 L-0261 L-0264 L-0265 L-0266"
+  stepK={['L-0258', 'L-0259', 'L-0259', 'L-0260 L-0261 L-0264 L-0265 L-0266']}
+  caption="One record per line; in the file, the second record starts right where the first one breaks off. Blue is the read; red, the torn bytes and the overrun; green, a CRC that checks. Redrawn from the class board at 02:29 and 02:32."
+  steps={[
+    'The machine <span class="term red">crashes</span> while writing a big value. The record is cut short.',
+    'After restart, new records are appended right after the broken one.',
+    'Trusting VSZ, a reader runs <span class="term red">into the next record</span> and serves garbage.',
+    'With a CRC first, the reader computes the checksum, sees it <span class="term red">fails</span>, and skips the record instead of serving it. The next record <span class="term green">checks out</span>.',
+  ]}>
+  <Desk><TornRecord /></Desk>
+  <Phone><TornRecord layout="phone" /></Phone>
+</StepThrough>
+
+The writes happen in order. First the header part, then the key in one disk write, then the possibly gigantic value in another. If the first write itself fails, the entry doesn’t exist: problem solved. If it succeeds and a later write fails, then on read you check the CRC, see it doesn’t match because something is corrupt, and tell the user the entry is corrupted. You never serve corrupted data to your users. [[L-0265]]
+
+What then? Recovery is mostly heuristics. You ignore that entry, in merge and compaction and elsewhere, and assume the write never came your way, because corrupted data can’t be recovered anyway. [[L-0266]] LevelDB’s log does the same: each record starts with a CRC32C, and when the reader finds corrupted data it skips it and resynchronises at the next block boundary rather than trying to repair it <Cite href="https://github.com/google/leveldb/blob/main/doc/log_format.md">LevelDB log format</Cite>.
+
+So whenever you design storage, question the defaults. Is CSV the best way? Is reading until a newline good enough? It isn’t. Key size, value size, key and value, all of it with CRCs: integrity checks, durability, fault tolerance. [[L-0267]]
+
+</Section>
+
+<Section id="s9-3" no="9.3" title="Is the header write atomic?" crumb="9.3 Atomic header?"
+  dek="The pattern quietly assumes the small header is written whole. Kernels don’t all promise that."
+  meta="About 3 min · Q&A 02:51–02:56">
+
+A sharp question follows from this design. It assumes that writing the whole value is not atomic, a crash can tear it, but that writing the checksum and the header is. The answer given in class was yes: writing the header is atomic. [[L-0297]] Neither POSIX nor disks actually promise that a small header write survives a crash whole: a power loss can leave some 512-byte sectors written and others not, and an unaligned header can straddle a sector <Cite href="https://www.postgresql.org/docs/current/wal-reliability.html">postgresql.org</Cite>. The CRC design doesn’t need atomic headers anyway: a torn header fails the CRC check just as a torn value does.
+
+Different file systems and kernels give different guarantees. The pattern assumes that a header smaller than the block size is written whole by the kernel; but your kernel might not give that guarantee, so the behaviour can differ when the same software runs on different kernels. [[L-0298]] Postgres takes this seriously: it writes 8 KB pages, 16 sectors of 512 bytes, and since a power loss can leave some sectors written and others not, it logs full page images to its WAL (`full_page_writes`), which can be turned off on file systems such as ZFS that prevent partial page writes <Cite href="https://www.postgresql.org/docs/current/wal-reliability.html">postgresql.org</Cite>.
+
+In any case, the header is tiny: an 8-byte field and a few 4-byte ones, roughly 20 bytes, so in the instructor’s words it will definitely be written. [[L-0299]]
+
+More paranoid systems, where the kernel doesn’t guarantee this, keep a separate WAL. That point was raised in class, with the observation that the pattern here is more performant; it was left open, as exactly the kind of nitty-gritty worth digging into. [[L-0300]]
+
+This is the part most designs skip. In the instructor’s view, almost no system design overview covers integrity: people say “write it to a WAL” without saying how, and hardly anyone talks about security and integrity, though database internals deal with it all the time. [[L-0301]] Ignore it, and systems only seem to work fine. In reality they don’t, and without the occasional engineer who thinks about integrity, everything goes for a toss. [[L-0302]]
+
+<MarginNote title="Go deeper: Postgres internals" why="skip unless you like engine internals" k="L-0303 L-0304">
+
+Hussein Nasser has been publishing Medium posts on Postgres internals: record-level formats, pages, snippets of the source. Blog posts rather than videos, and best read once you understand file I/O, for example after implementing Bitcask yourself. [[L-0303]]
+
+Look for how many pages Postgres takes up to store meta information compared with actual data: that was the surprising part of those posts, as reported in class. [[L-0304]]
+
+</MarginNote>
+
+<h3 id="s9-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0255 L-0256" q="Why does a key-size/value-size prefix turn a record read into exactly two I/Os?">
+
+The first read takes the fixed 8 bytes: 4 for the key size, 4 for the value size. Their sum is exactly how many bytes the key and value take, so the second read fetches all of them at once. No scanning for a newline, no byte-at-a-time loop.
+
+  </RecallItem>
+  <RecallItem k="L-0259 L-0265" q="A record’s value was cut short by a crash. Without a CRC, what goes wrong on the next read? With one?">
+
+Without a CRC the reader trusts the value size, reads that many bytes, runs into the next record and returns garbage with no error. With a CRC it recomputes the checksum over sizes, key and value, sees it doesn’t match, reports the entry as corrupt and skips it.
+
+  </RecallItem>
+  <RecallItem k="L-0262 L-0261" q="Name two real formats that put the CRC first and two that put it elsewhere.">
+
+First: Bitcask and LevelDB’s log, at the start of each record. Elsewhere: the Postgres WAL, at the end of the record header, and the MySQL binlog, in the last 4 bytes of each event. All four check every record; the position is a convention.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '10 · It’s called Bitcask', href: '#s10' }}
+  concepts={[{ label: 'record format', href: '#s9-1' }, { label: 'key size, value size', href: '#s9-1' }, { label: 'torn write', href: '#s9-2' }, { label: 'CRC', href: '#s9-2' }, { label: 'atomic header', href: '#s9-3' }]} />
+
+</Section>

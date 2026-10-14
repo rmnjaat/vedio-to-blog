@@ -1,0 +1,165 @@
+import Section from '../../../components/Section.astro';
+import NotationKey from '../../../components/NotationKey.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { LectureMarks, TheBrief, PlainTextFile, OneFileNotFolder, OneStepAtATime } from '../../../figures/lec10/s1-dictionary-no-database-figs';
+
+{/* §1 A dictionary with no database (1.1–1.3). Running case: a 1 TB English dictionary served with no database.
+    Wide figures pass Figure's `max` so they show at about 1:1; below 640px the <Phone> layout takes over.
+    The hand-lettered `one file` tag marks each proposal rejected because it breaks portability (outline voice rule). */}
+
+<Section id="s1" no="1" title="A dictionary with no database" crumb="1 No database"
+  dek="Serve every English word and its meaning with no database at all: one portable file, read-mostly, updated every Sunday. First the requirements, then the format, then the clever ideas set aside."
+  meta="About 14 min · class 00:00–00:20, Q&A 02:56">
+
+<NotationKey />
+
+<Figure id="fig-l10-key" max={700} caption="This lecture’s own marks, on top of the course notation above. The file bar, the offset caret and the in-memory map appear from chapter 2; S3 from chapter 4; the disk, the append arrow, the active file and the record from chapter 7.">
+<Desk><LectureMarks /></Desk>
+<Phone><LectureMarks layout="phone" /></Phone>
+</Figure>
+
+A publisher hands you a dictionary: 170,000 English words with their meanings, 1 TB in all, and promises a changelog every Sunday. Users will ask for one word at a time. The catch is that you may not use MySQL, Postgres, MongoDB, Redis, Elasticsearch or any other database. Whatever you build lives in plain files.
+
+This chapter pins down the requirements, picks the file format, and sets aside a handful of clever ideas, each for a reason that matters later.
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="The problem: a dictionary, no database" crumb="1.1 The problem"
+  dek="Four axes, one portable file, and a dictionary deliberately too big to copy."
+  meta="About 5 min · class 00:00–00:05 and 00:09–00:12, Q&A 02:56">
+
+Build a word dictionary without any traditional database: no MySQL, no Postgres, no MongoDB, no Redis, no Elasticsearch, no Memcache, nothing. Every off-the-shelf store is ruled out, so you have to be creative about where the words live and how you find one. [[L-0003]]
+
+Any system design splits into two halves, storage and compute. Compute is the API servers; storage is where the data lives, normally a database. [[L-0005]] Here the storage half has no database, and the dictionary still has to be “quote-unquote” scalable on both sides, storage and API servers. You shouldn’t have to worry about scale, though some obvious constraints will remain. [[L-0004]]
+
+Performance is not today’s problem. A high response time is acceptable: there are hundreds of known ways to make a system faster, caching and batching among them, and earlier sessions covered them. The focus here is the constraint itself, no database. [[L-0006]]
+
+What is required is **portability**. Keep an eye on it: every design in these chapters that breaks portability is flagged, with a small <span class="fwd hand">one file</span> tag where it is rejected, and why it matters so much becomes clear in the next system and next week. <ForwardChip when="week 6">why one portable file matters</ForwardChip> [[L-0007]]
+
+It is a standard English dictionary: English words and their meanings. Serving it is mostly read-only; think how rarely the Oxford dictionary changes. [[L-0009]] There are no live, pointed updates. Once a week, say every Sunday, a changelog file arrives by email holding only the words that changed and their new meanings, and you apply it to whatever store you have built. [[L-0010]]
+
+A lookup is always a single word. There is no autocomplete: given a word, return its meaning; if the word does not exist, return 404. [[L-0011]] The whole dictionary is 1 TB, and it holds 170,000 words. [[L-0012]]
+
+<Figure id="fig-1a" max={700} no="Fig 1·a" k="L-0003 L-0004 L-0006 L-0007 L-0009 L-0010 L-0011 L-0012 L-0013 L-0024 L-0025 L-0305" caption="The brief, as a card the later chapters refer back to. The four tabs are the axes every design is judged on; the struck-out row is the one rule with no exceptions. Requirement words from the class board at 00:22.">
+<Desk><TheBrief /></Desk>
+<Phone><TheBrief layout="phone" /></Phone>
+</Figure>
+
+That works out to several megabytes per word, far more than any definition needs. The size is on purpose. At 1 TB, copying the dictionary onto every API server costs too much, and that is what forces the storage and portability decisions of [chapter 4](#s4); with a small file you would simply copy it everywhere. To make the number honest, imagine every meaning with multimedia baked in: audio, video, a visualisation. [[L-0305]]
+
+Three more requirements make the brief precise. The dictionary must be **searchable by key**: it is a key-value store, where the key is the word and the value a two- or three-line meaning. [[L-0024]] It is **very read-heavy**: a thousand reads to one write would understate it, and the real ratio is much more skewed than that. [[L-0025]] And adding or changing one word should not “boil the ocean”, with heavy IO or a scan of every file for one small change. A single-word update indeed cannot be very costly. But updates arrive as one weekly batch, so one huge processing pass a week is acceptable. [[L-0026]]
+
+Every design that follows is judged on four axes: **storage, query, portability and seamless updates**. They are the four tabs on the card. [[L-0013]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="JSON, or a plain text file?" crumb="1.2 JSON or text"
+  dek="The first decision is what the file looks like. One format lets you read one line; the other makes you read everything."
+  meta="About 4 min · class 00:05–00:10">
+
+The first proposal was a choice between two formats: a text file or a JSON file. [[L-0014]] Querying JSON means unmarshalling it, which is a very expensive process, and that alone tilts the choice towards the text file. [[L-0015]]
+
+The deeper problem is the format itself. A lot of people put a lot of data in JSON files, and in this use case it hurts most: to check whether one word exists, you read the entire JSON file, deserialize it, build an in-memory object such as a hash map, and only then check. With a 1 TB dictionary that is really costly, and the format gives you no direct way to reach one entry without reading the whole file. [[L-0016]] The usual fix when JSON must hold many records is JSON Lines, one JSON value per line, which “may be processed one record at a time” <Cite href="https://jsonlines.org/">jsonlines.org</Cite>, so a reader streams it instead of parsing one giant document. It still has no index, so finding one word is still a scan. [[L-0016]]
+
+So pick a simple text file. [[L-0017]]
+
+<Figure id="fig-1b" max={600} no="Fig 1·b" k="L-0016 L-0017 L-0019 L-0021" caption="The dictionary as one plain text file: one line per word, the word, a comma, its meaning. JSON is struck out because checking one word means reading and parsing all of it. Redrawn from the class board at 00:20–00:22.">
+<Desk><PlainTextFile /></Desk>
+<Phone><PlainTextFile layout="phone" /></Phone>
+</Figure>
+
+What goes on each line? One idea was to write the file like a write-ahead log, with entries saying “this word was updated with this meaning”. That idea was not taken up; the format settled on the word and its meaning. [[L-0018]] It is CSV-like, one line per word: `apple,a fruit`, a newline, then `amazon` and its meaning, and so on. [[L-0019]]
+
+It is tempting to allow the same word twice, so that an update could simply be written as another line. In fact the dictionary must not contain the same word twice. There are no columns here, only words and meanings; imagine the file opened in any text editor with repeats in it, and remember that a portable file can’t carry duplicates. [[L-0020]] That becomes a requirement of its own: **no repetitive entries**. [[L-0021]]
+
+Will you keep the file sorted? The first answer was no: response time isn’t a constraint, so sorting brings nothing yet, and words can sit in any order. For starters, that is accepted. Keep the question in mind, though: [we come back to it in 5.3](#s5-3), when the weekly update needs it. [[L-0022]]
+
+B-trees came up at this point too, and were deferred on purpose. It is more fun to discover the design step by step, and discovering it yourself is what makes it stick. [[L-0023]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Clever ideas, set aside, and what “portable” means" crumb="1.3 Ideas set aside"
+  dek="Several sharper ideas arrived at once. Each is good somewhere; each is set aside here for a reason."
+  meta="About 5 min · class 00:12–00:20">
+
+With the requirements settled, the proposals got sharper. Every one below is a real technique, and the reason each was set aside is part of the lesson.
+
+### Ideas set aside
+
+- **Sort by key.** Without sorting, the argument went, there is no efficient way to search. It was not ruled out: the design simply goes a simpler way first, an unsorted file plus an index ([chapter 2](#s2)), and sorting returns in [5.3](#s5-3). [[L-0027]]
+- **Shard into many sorted files.** Split the dictionary into, say, a hundred sorted files and route each word to the file responsible for it, the routing pattern of the previous session, so disk seeks stay minimal. <span class="fwd hand">one file</span> Rejected: with multiple files you kill portability. <ForwardChip label="back in" when="Lecture 9" lec="lec07" sec="s5">routing a key to its node</ForwardChip> [[L-0028]]
+- **One zip of many folders.** Call a single zip holding hundreds of folders “the file”. <span class="fwd hand">one file</span> Rejected: you would still have to extract it to use it. It is still many logical files, often compressed, so there is no direct byte-offset read into the dictionary’s data. The ZIP format does carry its own small index: a central directory near the end of the archive records, for every member, the offset of its local header, so a reader can seek straight to one member without unpacking the rest <Cite href="https://pkwaredownloads.blob.core.windows.net/pkware-general/Documentation/APPNOTE-6.3.9.TXT">PKWARE APPNOTE</Cite>. [[L-0030]]
+- **Logical partitions inside one sorted file**, with a header-like section saying which region of the file holds which range of keys. Complex enough, in class, to set aside and touch upon later. [[L-0032]]
+- **Encode the records in Parquet** (or Avro and similar formats): a key plus a variable-size value, accepting some decoding cost. Not today. Not many people know these formats, and the aim is to keep it really simple; the points behind the idea will all be used, just not through Parquet. [[L-0033]]
+
+### What portable means
+
+**Portability means literally one file**, in some format, holding everything needed to read it and write to it. You copy it and you ship it. Not tens or hundreds of files that only one specific piece of software can read. [[L-0029]] SQLite is a real-world example: “A database in SQLite is a single disk file”, and the format is cross-platform, so a database created on one machine can be copied to another architecture and used there <Cite href="https://www.sqlite.org/onefile.html">sqlite.org</Cite>. [[L-0029]]
+
+<Figure id="fig-1c" max={690} no="Fig 1·c" k="L-0028 L-0029 L-0030" caption="Two ways to get “many files” in through the back door, both rejected, and the one thing that counts as portable: a single file you can copy and ship.">
+<Desk><OneFileNotFolder /></Desk>
+<Phone><OneFileNotFolder layout="phone" /></Phone>
+</Figure>
+
+The one-file rule can look like a random constraint. It isn’t: it is the foundation for hundreds of systems, and the reason becomes clear by the end of the solution. [[L-0031]]
+
+Why go simpler when sharper ideas are on the table? On purpose: the simple direction makes the base concepts you need to build anything queryable come clear. [[L-0034]]
+
+<RuleBox rule="Keep it simple, and ==discover the design one step at a time==." k="L-0040 L-0034">
+
+Start from the simplest thing that meets the constraints, a text file, and add structure only when a number or a requirement forces it. That is where the power and the beauty of a system show. The next chapter takes the first step.
+
+<Desk><OneStepAtATime /></Desk>
+<Phone><OneStepAtATime layout="phone" /></Phone>
+
+</RuleBox>
+
+### What this simulates
+
+On AWS you can upload any plain CSV file to S3 and still query it seamlessly with a service called Athena. In the lecture’s telling, Athena creates an index that it keeps handy with the file, and on a request goes to the file, reads the records and serves them. [[L-0035]]
+
+<SourceNote href="https://aws.amazon.com/athena/pricing/" site="aws.amazon.com" k="L-0035">
+
+Athena does not keep a per-key index for a CSV file: it runs SQL by scanning the files a query touches and bills per TB scanned. Partitioning <Cite href="https://docs.aws.amazon.com/athena/latest/ug/partitions.html">docs.aws.amazon.com</Cite>, compression and columnar formats such as Parquet <Cite href="https://docs.aws.amazon.com/athena/latest/ug/columnar-storage.html">docs.aws.amazon.com</Cite> cut how much it reads. The dictionary shares the idea of querying plain files on S3 without a database server, but its design (an in-memory key index plus ranged reads) is a point-lookup store, not how Athena works inside.
+
+</SourceNote>
+
+The dictionary simulates that kind of compute engine: not at that scale, but how its builders would have thought about querying simple files, and how they might have implemented it. The same ideas have a ton of other applications. (The note above says where the comparison with Athena stops.) [[L-0036]]
+
+Lucene came up as a comparison. It tokenizes text and stores document IDs against keys, and one Lucene index is a single file that can be very large; here the value would be the two- or three-line meaning instead. More precisely, a Lucene index is made of segments, each “a fully independent index”, plus a `segments_N` commit file, and the optional compound format packs one segment’s files into a single `.cfs` file <Cite href="https://lucene.apache.org/core/10_5_2/core/org/apache/lucene/codecs/lucene104/package-summary.html">lucene.apache.org</Cite>. Good parts, kept one level down for now: the simple version first, then the next level. [[L-0037]]
+
+<h3 id="s1-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Name the four axes the design is judged on, and the one constraint that rules out sharding the dictionary into many files.">
+
+Storage, query, portability and seamless updates. Portability rules sharding out: portable means literally one file holding everything needed to read and write it, easy to copy and ship. A hundred sharded files, or a zip of many folders, breaks that.
+
+  </RecallItem>
+  <RecallItem q="Why is a 1 TB JSON file a poor store for single-word lookups, even if you have a fast parser?">
+
+The format gives no direct way to one entry. To check one word you read the whole file, deserialize it and build an in-memory object before you can look, and at 1 TB that is really costly on every lookup. JSON Lines streams record by record, but it has no index either, so a lookup is still a scan.
+
+  </RecallItem>
+  <RecallItem q="Updates arrive once a week as a changelog. What does that relax, and what does it not?">
+
+It relaxes the cost of applying updates: there are no live, pointed updates, and since the changes come as one weekly batch, one huge processing pass is acceptable. It does not relax “no repetitive entries”: an updated word can’t simply be appended as a second line, because the portable file must never hold the same word twice.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '2 · Finding one word fast', href: '#s2' }}
+  concepts={[{ label: 'storage vs compute', href: '#s1-1' }, { label: 'key-value store', href: '#s1-1' }, { label: 'four axes', href: '#s1-1' }, { label: 'no repetitive entries', href: '#s1-2' }, { label: 'portability = one file', href: '#s1-3' }]} />
+
+</Section>

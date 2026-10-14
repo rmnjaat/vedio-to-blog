@@ -1,0 +1,113 @@
+# Storyboard — clip l10-garbage-vs-rolling   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l10-garbage-vs-rolling
+title: Same path vs a rolling deployment
+lecture: 10
+section: "6.4 A reload is a boot: trigger a deployment"
+status: reviewed
+why_motion: >
+  A window in time against a gradual handover. At the same path the harm is a window: it opens at the swap and closes
+  only when the last server reloads, and every answer inside it is garbage. With a new path and a rolling deployment
+  the inconsistency is also temporal (old and new answers side by side for a while) but never wrong. Two stills of the
+  end states look alike (every server on the new file); only time shows the red window and its absence.
+static_twin: >
+  StepThrough Fig 6·a (same path, D-09 b_012615.jpg) and Fig 6·d (the update end to end, D-06 b_014315.jpg); the
+  index-version tags on the api boxes come from D-10 panel 2 (b_012642.jpg, purple hatched tag = index version).
+ledger:
+  taught: [L-0157, L-0158, L-0159, L-0161, L-0177, L-0178, L-0183, L-0184, L-0196]
+  context_only: [L-0153, L-0160, L-0166, L-0129]
+fidelity_notes:
+  - "S3 overwrites are atomic (L-0153 inline clarification, A-D-05): the top lane swaps the file's content in one move (the v2 tag lands, v1 is replaced); no half-uploaded file is drawn. The garbage comes only from stale offsets (L-0158), the danger the lecture names. Upload failure / corruption (L-0157's other problems) are left to the prose."
+  - "v1 / v2 are illustrative tags for last week's and this week's file and for the index built from each (L-0158 'last week's offsets'; the board's D-10 draws an index-version tag on every API box). No version numbering is claimed for the real system."
+  - "File names dict1 / dict2 follow Fig 6·c panel 2 and board D-06 (s3://wd/dict1.dict, dict2.dict, L-0161). The top lane keeps the name dict1 for the new content: that IS the same path."
+  - "Each answer bar is the stream of answers one server gives to GET apple over time (L-0158 example). Old answers 'a fruit' and new 'a round fruit' are the board's meanings (L-0129); the garbage answer is drawn as a red bar with a ✕ and the word 'garbage', not a real byte string. The caption carries 'land in another word' (L-0158)."
+  - "Reload / replacement times are staggered and unnumbered (each server's next reload, L-0159/L-0160; one server at a time in the roll, L-0183). The two lanes use the same time scale and the same three moments, so the posters compare directly. No poll interval, no seconds, no request counts."
+  - "The time track starts at the switch (the upload for the top lane, the deploy trigger for the bottom lane) and is labelled 'time →' (no room for '(not to scale)' beside the lane labels; the page says it). Time is not to scale and is not numbered; the playhead pauses at a beat boundary (no claim)."
+  - "Old servers in the bottom lane answer 'a fruit' in graphite, not red: their index matches dict1, which is still there (L-0184). Stale index tags in the top lane are re-inked red at the swap (figures.md: red = stale offsets)."
+  - "The rolling deployment replaces one server at a time with the LB in place (L-0183). Whether the platform launches the new server before terminating the old (A-D-14) is in the prose, not drawn; the clip draws only 'old box out, new box in'."
+  - "The update job's merge step is not drawn (Fig 6·d step ①); the clip shows the order upload → meta.json → deploy (L-0196) as three successive events with the caption naming them in order."
+  - "'Eventually consistent' is L-0184's word, used in the last caption only. NOT claimed: the S3 ETag/If-Match guard (A-D-04), Pub/Sub, reload endpoints, how long a deployment takes."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1050}
+duration_frames: 1072
+start_frame_equals: >
+  Two lanes on one sheet. Each: an s3 cloud with its listing (top: dict1 · v1; bottom: dict1 · v1 and meta.json: dict1),
+  a job box holding the new file (dashed chip v2), three api boxes each tagged v1, empty answer tracks; lane titles
+  'same path' / 'new path', 'GET apple' over the top tracks.
+poster_frame: 1071
+reduced_motion_stills: [100, 286, 474, 678, 960, 1071]
+glyphs:
+  lanes: {top_y0: {wide: 12, phone: 8}, bottom_y0: {wide: 334, phone: 474}, titles: "hand 'same path' / 'new path' (wide: right end of the title row; phone: left)"}
+  cloud: {shape: "kit Cloud (scallops round an ellipse)", label: "mono s3", pos_wide: "centre (96, y0+34), rx 62, ry 23", pos_phone: "centre (78, y0+69), rx 52, ry 19"}
+  listing: {shape: "thin bracket line from the cloud + mono rows", rows_top: ["dict1 · v1"], rows_bottom: ["dict1 · v1", "dict2 · v2 (arrives B3)", "meta.json: dict1 → dict2"], pos_wide: "x 34, baselines y0+100/150/200", pos_phone: "x 40, baselines y0+130/172/214"}
+  job: {shape: server-box, label: "mono job + chip v2 (the new file)", pos_wide: "x 236, y0+6, 180×56, chip at its right", pos_phone: "x 520, y0+44, 180×50, chip at its left (its upload trail stays clear of the deploy line at the right edge)"}
+  servers: {shape: "3 × server-box", label: "mono api + tag chip v1/v2", pos_wide: "x 432–600, tops y0+74/134/194, h 52", pos_phone: "x 20–170, tops y0+252/304/356, h 44"}
+  tracks: {shape: "answer bars, one per server, grow with a thin ink-2 playhead", pos_wide: "x 612–1176", pos_phone: "x 186–704", colours: "red + ✕ = garbage, green + ✓ = a round fruit, graphite = a fruit"}
+  get_apple: {shape: "mono ink2 'GET apple'", pos_wide: "x 612 on the top lane's title row", pos_phone: "right-anchored at x 704 on the 'reload' row, over the top tracks"}
+  time_label: {shape: "hand ink2 'time →', static from frame 0", pos_wide: "right-anchored at x 1176 under each lane's tracks", pos_phone: "top lane only (the bottom row is full; one shared scale)"}
+  window: {shape: "thick red span under the top tracks from the switch to the last reload", label: "red hand 'until each reloads'"}
+  arrows:
+    - {route: "job chip → s3 row (upload)", style: dashed, head: none, note: "the chip rides its own dashed trail"}
+    - {route: "job → api column (deploy)", style: dashed, head: "api (initiator: job)", label: "hand deploy"}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Same new file, two ways to switch. Watch the answers."
+    on_screen: [static figure]
+    motion: none
+    ledger: []
+  - id: B1
+    from: 105
+    to: 292
+    caption: "Same path: last week's offsets now land in another word. Garbage."
+    events:
+      - {at: 115, dur: 35, what: "top lane: the v2 chip leaves the job along a dashed trail and lands on dict1's tag slot"}
+      - {at: 150, dur: 12, what: "dict1's v1 tag is replaced (fade 10 f): same name, new content"}
+      - {at: 162, dur: 10, what: "the three servers' v1 tags re-ink red (stale offsets)", colour: red}
+      - {at: 172, dur: 84, what: "playhead 0 → 0.40 (linear); three red answer bars grow; ✕ at each bar start (176)", colour: red}
+      - {at: 236, dur: 24, what: "write 'garbage' in row 1's red bar", colour: red}
+      - {at: 172, dur: 84, what: "red window span grows under the tracks (secondary, the caption's subject)", colour: red}
+    ledger: [L-0157, L-0158]
+  - id: B2
+    from: 292
+    to: 480
+    caption: "Garbage until each server reloads its index."
+    events:
+      - {at: 300, dur: 126, what: "playhead 0.40 → 1.0 (same speed)"}
+      - {at: 304, dur: 24, what: "server 1 reloads: red v1 → v2; its bar turns green ✓; hand 'reload' over the column", colour: green}
+      - {at: 346, dur: 24, what: "server 2 reloads", colour: green}
+      - {at: 388, dur: 24, what: "server 3 reloads; the red span stops", colour: green}
+      - {at: 392, dur: 26, what: "red hand 'until each reloads' under the span", colour: red}
+      - {at: 420, dur: 24, what: "write 'a round fruit' in row 1's green bar", colour: green}
+    ledger: [L-0159, L-0157]
+  - id: B3
+    from: 480
+    to: 684
+    caption: "Bottom: upload to a new path, point meta.json at it, then deploy."
+    events:
+      - {at: 480, dur: 12, what: "top lane ghosts to 38%"}
+      - {at: 490, dur: 35, what: "bottom lane: v2 chip rides a dashed trail from the job to a new row; 'dict2 ·' written (525)"}
+      - {at: 556, dur: 30, what: "meta.json: dict1 → dict2 (old value fades, new written)"}
+      - {at: 600, dur: 35, what: "dashed deploy arrow job → api column, chevron at the servers; hand 'deploy' (630)"}
+    ledger: [L-0161, L-0196, L-0178]
+  - id: B4
+    from: 684
+    to: 966
+    caption: "During the roll, some answers are old and some new. None is garbage."
+    events:
+      - {at: 694, dur: 210, what: "playhead 0 → 1.0 (same speed as the top lane); graphite bars grow ('a fruit' written in row 1 at 748)"}
+      - {at: 782, dur: 28, what: "server 1 replaced: old box fades, new box inked with v2; its bar turns green ✓; hand 'boots: reads meta.json' (792)", colour: green}
+      - {at: 824, dur: 28, what: "server 2 replaced", colour: green}
+      - {at: 866, dur: 28, what: "server 3 replaced", colour: green}
+      - {at: 898, dur: 24, what: "write 'a round fruit' in row 1's green bar", colour: green}
+      - {at: 908, dur: 26, what: "green hand 'never garbage' under the tracks", colour: green}
+    ledger: [L-0183, L-0177, L-0184]
+  - id: B5
+    from: 966
+    to: 1072
+    caption: "Mixed for a while, never garbage: eventually consistent."
+    events:
+      - {at: 966, dur: 14, what: "top lane returns to full ink: red window above, graphite → green handover below"}
+    on_screen: [end state = poster]
+    ledger: [L-0184]

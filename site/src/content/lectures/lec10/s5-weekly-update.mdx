@@ -1,0 +1,198 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { JobServer, RunsIntoBall, MergeColumns, NeverInPlaceRule } from '../../../figures/lec10/s5-weekly-update-figs';
+
+{/* §5 The weekly update (5.1–5.3). Chapter page /lectures/lec10/5-weekly-update/. Class 01:05:16–01:18:52, Q&A
+    03:03:07–03:06:09 folded into 5.3 (header rebuilt; why sorting came in late; keeping it sorted is free).
+    Fact-check: inline L-0121 (cron job, Kubernetes source); left as taught L-0139, L-0310. Closes the sorting
+    question planted in 1.2 (L-0022). The graveyard idea (L-0135) points ahead to 8.3. */}
+
+<Section id="s5" no="5" title="The weekly update" crumb="5 Weekly update"
+  dek="Sunday’s changelog changes apple’s meaning. You can’t edit a file in place, so build a new one, and keeping the file sorted makes that a single merge pass."
+  meta="About 13 min · class 01:05–01:19, Q&A 03:03–03:06">
+
+Sunday's changelog has arrived: apple now means “a round fruit”, and ball and zoo changed too. The live dictionary is one file on S3, and every API server reads it by byte offset. How does the change get in?
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="A job on its own server" crumb="5.1 The update job"
+  dek="A periodic job on a server of its own downloads the dictionary and holds the changelog. What it must not do is append."
+  meta="About 4 min · class 01:05–01:10">
+
+Storage is settled, so is the query, and so is the high-level serving infrastructure. One big chunk of the design remains: seamless updates. [[L-0119]]
+
+Recall the input. There are no live updates. Every week, say on Sunday, the publisher sends a changelog file containing only the words that changed and their new meanings: apple, ball and zoo, for example. Only the changelog arrives, not the whole dictionary, and it has to be applied to the file on S3. [[L-0010]]
+
+The natural place to do the work is a periodic job, triggered whenever an update arrives, that updates the dictionary and its index, repackages the whole file and uploads it to S3. It runs on a separate machine, not on the API servers. [[L-0120]] A note on the words: a batch job is batch processing; what is needed here is a job that does periodic updates. In practice that is a batch job triggered on a schedule, which is what a cron job is (<Cite href="https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/">Kubernetes CronJob</Cite>). [[L-0121]]
+
+So the update job runs on a newly spun-up server. That server holds the changelog, and it downloads the current dictionary from S3. [[L-0122]]
+
+<Figure id="fig-5a" no="Fig 5·a" wide={false} k="L-0120 L-0122 L-0124 L-0010"
+  caption="The weekly job runs on its own server, which downloads today’s dictionary and holds the changelog. Appending the changelog at the end was set aside. Redrawn from the class board at 01:07–01:43.">
+  <JobServer />
+</Figure>
+
+Should the job bump the version in the file's header? That's the last thing to do, and it isn't the point: the version from [3.2](#s3-2) describes the file's format, its layout variant, not the data. The real question is how the dictionary file itself gets updated. [[L-0123]]
+
+The first idea is to append the changelog entries at the end of the dictionary, since the dictionary isn't sorted anyway. Then the dictionary keeps growing forever, and it holds duplicate entries, and the dictionary being served can't have repeated entries. [[L-0124]]
+
+The second is to iterate the whole dictionary once and, wherever a changelog word's meaning changed, replace that entry. Is it really that simple? Think it through in a little more detail; [5.2](#s5-2) does. [[L-0125]]
+
+Two more ideas came up: compare a hash of each existing entry with the new one, or generate a diff. Neither is needed, because the changelog already states exactly what has to change. [[L-0126]] It's easy to build complex systems and very difficult to build simple ones. Think only about the things you really need. [[L-0127]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Why you can't edit in place" crumb="5.2 No edits in place"
+  dek="The index says where apple is, so overwrite its line. Then look at what happens to ball."
+  meta="About 4 min · class 01:10–01:13">
+
+Here is the replace idea made precise: the index already knows where every word is. Use it to find the offset of a changed word, apple, and replace that whole CSV line in the dictionary file. [[L-0128]]
+
+Take the two lines on the board. The file holds `apple, a fruit` followed by `ball, a round object`. The changelog says apple's new meaning is “a round fruit”. You know apple's offset from the index, and you write the new line there. Does the next entry, ball, move down? [[L-0129]]
+
+<PauseAndThink k="L-0128 L-0129 L-0130 L-0131 L-0132"
+  q="The file has <code>apple, a fruit</code> followed by <code>ball, a round object</code>. The changelog says apple now means “a round fruit”. You know apple’s offset from the index, so you write the new line there. What happens to ball’s line?"
+  choices={[{ label: 'Its first bytes are overwritten by apple’s longer line', correct: true }, { label: 'It moves down to make room, as in an editor' }]}
+  right="Right: the bytes are written blindly at that offset, so the longer meaning runs into the start of ball’s line and corrupts it."
+  wrong="That’s what an IDE does, because the text is in memory. A file on disk doesn’t shift its bytes:">
+
+It gets overwritten. You can't simply “replace the entry” in a file on disk. So the update writes a whole new file instead, and if both files are sorted, that's one merge pass ([5.3](#s5-3)).
+
+</PauseAndThink>
+
+It doesn't move. This is a limitation of how disks work: when you go to a location in a file and start writing, the bytes are written blindly over whatever is there. A longer replacement doesn't push the next entry down; it overwrites it. [[L-0130]]
+
+<StepThrough id="fig-5b" no="Fig 5·b" label="Apple runs into ball" grow k="L-0128 L-0129 L-0130 L-0131 L-0132"
+  caption="The file byte by byte, one cell per byte (· is a space, ⏎ the end of a line). Numbers on the left are byte offsets. Small grey letters show what a cell held before the write. Redrawn from the class board at 01:11."
+  stepK={['L-0129', 'L-0128', 'L-0130 L-0131', 'L-0132']}
+  steps={[
+    'The file holds apple, then ball, byte after byte: <code>apple,a fruit⏎</code> is bytes 0–13 and <code>ball,a round object⏎</code> is bytes 14–33.',
+    'The index says apple starts at byte 0.',
+    'Write <code>apple,a round fruit⏎</code> there. It is 20 bytes, six more than the old line, so its last six bytes, <code>fruit⏎</code>, land on bytes 14–19.',
+    'Ball didn’t move down. Bytes 14–19 held <code>ball,a</code>; read as text, the file now says <code>apple,a round fruit⏎</code> and then <code>&nbsp;round object⏎</code>. <span class="term red">The word ball is lost.</span>',
+  ]}>
+  <Desk><RunsIntoBall /></Desk>
+  <Phone><RunsIntoBall layout="phone" /></Phone>
+</StepThrough>
+
+The intuition that fails here comes from editors. In an IDE you can hit enter and the other lines move down, because the text is in memory. In memory you can do that; on disk you can't. [[L-0131]] So you can't just say “I'll replace the entry”: writing apple's new meaning at its offset overrides the data that was there. [[L-0132]]
+
+This is the kind of detail worth focusing on. It's easy to say “I would replace it”. Imagine you are the one implementing it: what code will you write? When you think of the implementation, you see the things that would break, and that is what makes better engineers. [[L-0133]] A good engineer, a senior engineer, always wears three hats: product manager, architect and engineer. Thinking through the code is what the engineer hat looks like. [[L-0134]]
+
+One more proposal tries to dodge the overwrite: **graveyard entries**. Append apple's new meaning at the end of the file, let the old entry waste its space for a while, and run a compaction process later. Here it's out. The served dictionary must not contain repeated entries, and this is a weekly update, so build the clean file directly. [[L-0135]] Append-then-compact does come back in the second engine of this lecture, which takes live writes ([8.3](#s8-3)).
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Merge, as in merge sort" crumb="5.3 Merge"
+  dek="Write a new file instead. If the dictionary and the changelog are both sorted, building it is one pass over each."
+  meta="About 8 min · class 01:13–01:19, Q&A 03:03–03:06">
+
+So write a new file. One proposal, offered as “a very naive approach”: go through the words, find the place where the change belongs, write the change into a new file there, and append the rest of the old file after it. [[L-0136]]
+
+It isn't naive. It is the merge step of merge sort, and given this design it is the best approach. [[L-0137]] Notice what isn't here: no fancy B+ trees. Think of a simple approach and it will be really efficient; making things complex brings its own set of disadvantages. [[L-0138]]
+
+There is one requirement for that merge to be efficient: the dictionary file needs to be sorted. [[L-0139]]
+
+That closes the question left open in [1.2](#s1-2): will you keep the file sorted? For starters the answer was no, because nothing needed it; response time wasn't a constraint, so words could sit in any order. [[L-0022]] Sorting came in only once the update was worked out in detail, because keeping the dictionary sorted makes merging the changelog into it very easy and very efficient. [[L-0139]]
+
+So the job creates the new dictionary by merging two files: the existing, sorted dictionary it downloaded onto the new server, and the changelog. [[L-0140]] The changelog is a very short file. If it isn't sorted, load it in memory, sort it and write it back out; it is small enough. [[L-0141]] What remains is a classic problem: merge two sorted lists, or two sorted arrays, into a third sorted one. It is literally the merge of merge sort. [[L-0142]]
+
+Keep one pointer in each file and iterate both line by line. Compare the two words: write the entry with the smaller word to the new file and move that pointer down. When the words match, write the changelog's updated meaning and move both pointers. [[L-0143]]
+
+```python
+d, c = dictionary.readline(), changelog.readline()
+while d and c:
+    if d.word < c.word:      # the smaller word goes out
+        new.write(d); d = dictionary.readline()
+    elif d.word > c.word:    # a word the dictionary didn't have
+        new.write(c); c = changelog.readline()
+    else:                    # same word: the changelog's meaning wins
+        new.write(c); d = dictionary.readline(); c = changelog.readline()
+while d:                     # changelog exhausted: the rest follows
+    new.write(d); d = dictionary.readline()
+while c:
+    new.write(c); c = changelog.readline()
+```
+
+Walk it on the board's example, where letters stand for words and primes for meanings. The dictionary holds a, b, c, d, f, g, h; the changelog holds c″, e′ and f″. a is smaller than c, so a – a′ goes out and the dictionary pointer moves; the same for b. Then c meets c: a match, so c – c″, the updated meaning, goes out and both pointers move. d goes out. Then f meets e: e is smaller, so e – e′, a word the dictionary didn't have, is written in its place. Then f meets f, and f – f″ wins. The changelog is exhausted, so every remaining dictionary entry, g and h, follows. The new file reads a, b, c″, d, e′, f″, g, h. [[L-0144]]
+
+<Figure id="fig-5c" no="Fig 5·c" k="L-0140 L-0143 L-0144 L-0145"
+  caption="Two sorted inputs, one sorted output. The merge is finished: both blue pointers are past their last entry. Ticks mark the three entries that came from the changelog. Redrawn from the class board at 01:15.">
+  <Desk><MergeColumns /></Desk>
+  <Phone><MergeColumns layout="phone" /></Phone>
+</Figure>
+
+One difference from merging arrays: you never load the file into memory. You iterate the files line by line and write a third file. [[L-0145]]
+
+<AnimationClip clip="l10-sorted-merge" no="Clip 5·1" k="L-0140 L-0142 L-0143 L-0144 L-0145 L-0310"
+  lead="The dictionary has seven words and the changelog three. How many times does each pointer move, and does either ever go back?"
+  caption="The smaller word is written and its pointer moves; on a match the changelog’s meaning wins and both move. Each pointer moves once per entry, so one pass builds a sorted new file." />
+
+Why go to the trouble of a third file? Because of how file IO works: a write that goes beyond a line's range overwrites the next line. Always create new entries, in a new file, rather than writing in place. [[L-0146]]
+
+<RuleBox rule="==Never write in place== on disk: always write the change into a ==new file==." k="L-0146">
+
+A write that runs past a line's range overwrites the next one. Merging two sorted files into a third is the clean way to apply a change.
+
+<Desk><NeverInPlaceRule /></Desk>
+<Phone><NeverInPlaceRule layout="phone" /></Phone>
+
+</RuleBox>
+
+That has a cost you can compute. The dictionary is one terabyte, so the merged file is about one terabyte too, and the disk of the server spun up for the job must hold at least two terabytes. That's acceptable: it is just one server. [[L-0147]]
+
+The merged file is a complete new dictionary. It has its header and its index, all sorted, and it is ready to upload to S3. [[L-0148]] The header is rebuilt every time, since the index size changes with every update: the merge produces a whole new file, with a new dictionary, a new index and a new header. [[L-0148]]
+
+Doesn't keeping 170,000 records sorted add complexity, since every new word has to be inserted in the right place? It looks that way only if you picture inserting into the existing file. Nothing is inserted in place: lookups still go straight to the offset in the index, and the sorted new dictionary is simply what the merge writes out. [[L-0309]]
+
+And it stays sorted for free. The original dictionary is sorted and the changelog is sorted, so the new file comes out sorted, and it becomes the old file for next week's update. Thanks to that sortedness, merging is O(n), one iteration over both files, instead of O(n²). [[L-0310]]
+
+This is why the whole domain of computer science is obsessed with sorted data: it makes processes so simple. [[L-0311]]
+
+<TradeoffTable caption="Applying the weekly changelog: four ways from class" k="L-0124 L-0128 L-0130 L-0135 L-0137"
+  columns={[{ label: 'Append at end' }, { label: 'Replace in place' }, { label: 'Graveyard + compaction' }, { label: 'New file by merge' }]}
+  rows={[
+    { label: 'Duplicates?', k: 'L-0124 L-0135', cells: ['Yes: old and new entries both stay', 'No', 'Yes, until compaction runs', 'No'] },
+    { label: 'Writes over existing bytes?', k: 'L-0130', cells: ['No: only at the end', { text: 'Yes: overwrites the next entry', bad: true }, 'No: only at the end', 'No: writes a third file'] },
+    { label: 'Needs sorted input?', k: 'L-0139', cells: ['No', 'No', 'No', 'Yes: both files'] },
+    { label: 'Fits a weekly batch?', cells: ['The file grows forever', 'Breaks on any longer meaning', 'Suits live updates; weekly, build it clean', 'One pass a week'] },
+    { label: 'Verdict in class', k: 'L-0137', cells: ['Rejected: ever-growing, duplicates', '“Is it really that simple?” No', 'Rejected: no repetitive entries', 'Not naive: the best approach here'] },
+  ]} />
+
+<h3 id="s5-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0130 L-0131" q="Why does writing “a round fruit” at apple’s offset damage ball?">
+
+A disk write puts bytes blindly at the position you give it; nothing shifts down as it would in an editor’s memory. `apple,a round fruit⏎` is 20 bytes where the old line had 14, so its last six bytes land on the first six bytes of ball’s line, and `ball,a` is gone.
+
+  </RecallItem>
+  <RecallItem k="L-0139 L-0310" q="What does the merge need from its two inputs, and what does it give next week’s job for free?">
+
+Both inputs sorted: the dictionary and the changelog (which is small, so sort it in memory if it isn’t). The output then comes out sorted, so next week the new file is already a sorted input, and each update stays one O(n) pass over both files.
+
+  </RecallItem>
+  <RecallItem k="L-0147" q="Why does the job server need 2 TB of disk for a 1 TB dictionary?">
+
+The merge never edits the old file: it reads the 1 TB dictionary line by line and writes a complete new one of about the same size. Both have to sit on the job server’s disk at once.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '6 · Switching every server to the new file', href: '#s6' }}
+  concepts={[{ label: 'periodic (cron) job', href: '#s5-1' }, { label: 'no writes in place', href: '#s5-2' }, { label: 'three hats', href: '#s5-2' }, { label: 'merge of merge sort', href: '#s5-3' }, { label: 'sorted data', href: '#s5-3' }]} />
+
+</Section>

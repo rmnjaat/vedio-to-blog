@@ -1,0 +1,47 @@
+[
+ {
+  "id": "l10-scan-vs-index",
+  "section": "2.2",
+  "title": "Half a terabyte, or one line",
+  "seconds": 26,
+  "ledger": ["L-0042", "L-0043", "L-0044", "L-0047", "L-0048", "L-0050", "L-0051", "L-0063"],
+  "predict": "Both lookups find ball, a word halfway down the file. How much does each one read?",
+  "caption": "The scan reads about 500 GB to reach a word halfway down the file, and every request pays it again. The index is a short scan of words and offsets, then one pointed read of one line."
+ },
+ {
+  "id": "l10-sorted-merge",
+  "section": "5.3",
+  "title": "Two pointers, one pass",
+  "seconds": 29,
+  "ledger": ["L-0140", "L-0142", "L-0143", "L-0144", "L-0145", "L-0310"],
+  "predict": "The dictionary has seven words and the changelog three. How many times does each pointer move, and does either ever go back?",
+  "caption": "The smaller word is written and its pointer moves; on a match the changelog's meaning wins and both move. Each pointer moves once per entry, so one pass builds a sorted new file."
+ },
+ {
+  "id": "l10-garbage-vs-rolling",
+  "section": "6.4",
+  "title": "Same path vs a rolling deployment",
+  "seconds": 33,
+  "ledger": ["L-0157", "L-0158", "L-0159", "L-0161", "L-0177", "L-0178", "L-0183", "L-0184", "L-0196"],
+  "predict": "Same new file, two ways to switch. In which one does a user ever get bytes from the middle of another word?",
+  "caption": "At the same path, servers read the new file with last week's offsets and serve garbage until each reloads. With a new path, meta.json and a rolling deployment, answers are briefly mixed but never garbage."
+ },
+ {
+  "id": "l10-append-only-log",
+  "section": "7.4",
+  "title": "One file, one map",
+  "seconds": 30,
+  "ledger": ["L-0211", "L-0213", "L-0216", "L-0217", "L-0221", "L-0222", "L-0223", "L-0224", "L-0226"],
+  "predict": "Four puts and a delete. Which offset does K1 point to at the end, and where is K2?",
+  "caption": "Every put, update and delete is appended at the end, then the map points the key at its latest entry: K1 moves to O4 and K2 leaves the map. A get is one lookup and one read."
+ },
+ {
+  "id": "l10-sawtooth",
+  "section": "8.4",
+  "title": "Keep it under the cap",
+  "seconds": 33,
+  "ledger": ["L-0244", "L-0245", "L-0246", "L-0247", "L-0248"],
+  "predict": "Halve the merge frequency. Does the peak go up or down, and what is the line it must never cross?",
+  "caption": "Disk usage climbs with writes and drops at each merge. Merge too often and the CPU is busy collecting garbage; too rarely and a peak hits the 1 TB cap. Tune merge frequency and file size by watching the sawtooth."
+ }
+]

@@ -1,0 +1,111 @@
+# Storyboard — clip l10-sorted-merge   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l10-sorted-merge
+title: Two pointers, one pass
+lecture: 10
+section: "5.3 Merge, as in merge sort"
+status: reviewed
+why_motion: >
+  Ordering / position over time. "One pass, never backwards" is a property of how the two pointers move: each one
+  steps forward exactly once per entry and never goes back, so the merge is a single linear pass and holds only the
+  two current lines. Fig 5·c shows the merged result; only motion shows the walk.
+static_twin: "Fig 5·c (D-08 redraw, b_011745.jpg): ① dictionary, ② changelog, new dictionary, pointer carets left of the columns"
+ledger:
+  taught: [L-0140, L-0142, L-0143, L-0144, L-0145, L-0310]
+  context_only: [L-0139, L-0141, L-0147]
+fidelity_notes:
+  - "Letters and primes are the board's (a′, c″): letters stand for words, primes for meanings (L-0144 detail). The dictionary has SEVEN entries (a b c d f g h, no e), the changelog three (c″, e′, f″), the new file eight."
+  - "e – e′ has no match in the dictionary: it is a new word and the merge writes it in its sorted place (L-0144)."
+  - "On a match the dictionary's old line (c – c′, f – f′) is struck through in red and ghosted: its meaning is stale and is not copied (L-0143: the changelog's meaning is written)."
+  - "Complexity: the poster writes 'one pass · O(n + m)'. The teacher said O(n) for 'one iteration over both files' (L-0310); factcheck_applied (L-0310) states it as linear, O(n + m), and notes the O(n²) alternative is only the naive approach. The clip uses O(n + m) and does NOT show or claim the O(n²) comparison."
+  - "Sortedness is assumed, not argued (L-0139 is context: the page's SourceNote says a hashed changelog would also be linear). The clip claims only that this merge needs sorted inputs to walk forward and that its output is sorted."
+  - "'in memory: 2 lines' = the two blue-outlined current lines (L-0145: iterate line by line, do not load the file). The 1 TB size and the 2 TB job disk (L-0147) are not drawn."
+  - "Pointer moves are counted on screen (dictionary 7, changelog 3, new file 8 lines). These follow from the board's example, not a number the class stated."
+  - "A mono readout under 'in memory: 2 lines' shows the comparison of the two current words (a < c, b < c, c = c, d < e, e < f, f = f), one at a time, replaced in place (L-0143: compare, write the smaller; the plan's beat notation). It is hidden once the changelog is used up: g and h have no rival."
+  - "The dictionary gets a dashed empty slot after h (mirroring the board's empty changelog arrow) so its pointer's last move lands on a visible end, not on blank paper. No label is written in it."
+  - "Changelog-sourced rows get a thin graphite connector from the changelog row to the new row (as in Fig 5·c) and a green ✓; dictionary rows are simply written. Rows are not to scale: each stands for one line of a 1 TB file."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 980}
+duration_frames: 960
+start_frame_equals: "Fig 5·c before the merge: ① dictionary (a – a′ … h – h′, 7 rows), ② changelog (c – c″, e – e′, f – f″ + a dashed empty slot), new dictionary (8 empty rows); blue pointer carets at a – a′ and c – c″."
+poster_frame: 959
+reduced_motion_stills: [110, 265, 397, 559, 779, 959]
+glyphs:
+  compare: {shape: "mono readout", pos_wide: [450, 524], pos_phone: [270, 516], text: "a < c … f = f, one at a time"}
+  dictionary: {shape: "RowFile + dashed empty end slot", label: "① dictionary (mono header)", pos_wide: [96, 92, 230, 350], pos_phone: [26, 84, 180, 392], rows: ["a – a′", "b – b′", "c – c′", "d – d′", "f – f′", "g – g′", "h – h′"]}
+  changelog: {shape: RowFile + dashed empty slot, label: "② changelog", pos_wide: [450, 92, 230, 200], pos_phone: [270, 84, 180, 224], rows: ["c – c″", "e – e′", "f – f″", "(empty slot: 'done')"]}
+  new_file: {shape: RowFile, label: "new dictionary (wide) / new (phone)", pos_wide: [850, 92, 230, 400], pos_phone: [526, 84, 180, 448], rows: 8, end_mark: "// (wide: right of h's row, as on the board; phone: under the file)"}
+  pointers: {shape: "open chevron caret, left of each input column", colour: blue, note: "move down one row per step, never up"}
+  current_lines: {shape: "blue outlined row band on each pointer's row", colour: blue, label: "in memory: 2 lines (blue, under the changelog)"}
+  connectors: {route: "changelog row → new-file row (c″, e′, f″)", line: "thin graphite, solid, no head (as Fig 5·c)", packet: blue}
+  marks: {tick: "green ✓ on the three changelog-sourced rows", strike: "red strike + ghost on c – c′ and f – f′"}
+  counters: {wide: "moves: n under each input column; lines: n under the new file", phone: "same, under each column"}
+  poster_labels: {one_pass: "mono 'one pass · O(n + m)' bottom left", next_week: "dashed arrow down from the new file's bottom edge to hand 'next week's input'"}
+beats:
+  - id: B0
+    from: 0
+    to: 120
+    caption: "Two sorted files, merged as in merge sort, into an empty new file."
+    on_screen: [static figure, pointers at a and c]
+    motion: none
+    ledger: [L-0140, L-0142]
+  - id: B1
+    from: 120
+    to: 273
+    caption: "Compare the two words: the smaller one is written, and its pointer moves."
+    events:
+      - {at: 126, dur: 8, what: "blue outlines on a – a′ and c – c″", colour: blue}
+      - {at: 128, dur: 20, what: "write 'in memory: 2 lines'", colour: blue}
+      - {at: 148, dur: 10, what: "readout 'a < c' wiped on (fades from 188); 'b < c' at 198 (fades from 234)"}
+      - {at: 162, dur: 22, what: "a < c: write a – a′ into new row 1"}
+      - {at: 188, dur: 10, what: "dictionary pointer a → b; moves: 1", colour: blue}
+      - {at: 208, dur: 22, what: "b < c: write b – b′ into new row 2"}
+      - {at: 234, dur: 10, what: "dictionary pointer b → c; moves: 2", colour: blue}
+    ledger: [L-0143, L-0145]
+  - id: B2
+    from: 273
+    to: 405
+    caption: "Same word: the changelog's meaning wins, and both pointers move."
+    events:
+      - {at: 275, dur: 10, what: "readout 'c = c' (fades from 359)"}
+      - {at: 287, dur: 12, what: "red strike on c – c′, ghost", colour: red}
+      - {at: 297, dur: 26, what: "connector changelog c″ → new row 3, blue packet at the pen tip", colour: blue}
+      - {at: 325, dur: 22, what: "write c – c″, green ✓ at 345", colour: green}
+      - {at: 359, dur: 10, what: "both pointers move (c → d, c″ → e′)", colour: blue}
+    ledger: [L-0143, L-0144]
+  - id: B3
+    from: 405
+    to: 567
+    caption: "d goes out, then e′: a new word slots into its sorted place."
+    events:
+      - {at: 405, dur: 10, what: "readout 'd < e' (fades from 441); 'e < f' at 451 (fades from 525)"}
+      - {at: 415, dur: 22, what: "d < e: write d – d′"}
+      - {at: 441, dur: 10, what: "dictionary pointer d → f", colour: blue}
+      - {at: 465, dur: 26, what: "e < f: connector e′ → new row 5 with packet", colour: blue}
+      - {at: 493, dur: 22, what: "write e – e′, green ✓ at 513", colour: green}
+      - {at: 525, dur: 10, what: "changelog pointer e′ → f″", colour: blue}
+    ledger: [L-0144]
+  - id: B4
+    from: 567
+    to: 787
+    caption: "f″ wins; the changelog is used up, and the rest follows as it is."
+    events:
+      - {at: 567, dur: 10, what: "readout 'f = f' (fades from 649)"}
+      - {at: 577, dur: 12, what: "red strike on f – f′", colour: red}
+      - {at: 591, dur: 24, what: "connector f″ → new row 6 with packet; write f – f″ at 615, ✓ at 635", colour: green}
+      - {at: 649, dur: 10, what: "both pointers move; changelog pointer reaches the empty slot", colour: blue}
+      - {at: 663, dur: 18, what: "hand 'done' in the empty slot"}
+      - {at: 685, dur: 18, what: "write g – g′; pointer g → h at 705"}
+      - {at: 715, dur: 18, what: "write h – h′; pointer past the end at 735"}
+      - {at: 745, dur: 10, what: "mono '//' end mark"}
+    ledger: [L-0143, L-0144]
+  - id: B5
+    from: 787
+    to: 960
+    caption: "One pass, never backwards. The output is sorted: next week's input."
+    events:
+      - {at: 797, dur: 26, what: "write mono 'one pass · O(n + m)'"}
+      - {at: 829, dur: 26, what: "dashed arrow out of the new file"}
+      - {at: 857, dur: 24, what: "write 'next week's input'"}
+    on_screen: [end state = poster]
+    ledger: [L-0310, L-0140]

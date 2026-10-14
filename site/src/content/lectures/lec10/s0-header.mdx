@@ -1,0 +1,47 @@
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import { StorageSoFar } from '../../../figures/lec10/s0-header-sofar';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec10.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec10.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 10 · week 5, day 2 · running case: a word dictionary with no database, then Bitcask"
+      title: Files as a database
+      dek: "Two storage engines built from plain files: …, revealed at the end as Bitcask."
+      contents: 1 A dictionary with no database … 11 What to keep (eleven chapters, one page each).
+    Placed here (section "about"): L-0001 L-0002 L-0008. The "so far" block is untagged: it restates where
+    Lectures 3 and 9 left storage and teaches nothing new. Its unnumbered sketch (fig-sofar) was added by the
+    design fixer (critic C-07), like lec01's "Medium so far". */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 2 of week 5, and it continues the week’s subject, storage engines. The agenda is two problem statements: a word dictionary without any database, and a superfast key-value store. Both were chosen to build foundational blocks, for designing interesting new systems and for getting the most out of the ones that already exist. [[L-0001]]
+
+Neither is a toy. Both systems are actively used in production, to a huge extent; this is not something that is just theoretical. [[L-0002]] The problem statement was put together on purpose to touch a lot of the critical building blocks used day in and day out in the real world: file formats, indexes, object storage, rollouts, append-only logs and checksums all turn up before the end. [[L-0008]]
+
+**How this page is built.** Each engine is designed from nothing, one step at a time, and named only at the end, as in class. The class’s question-and-answer time is folded into the chapter it answers.
+
+</MarginNote>
+
+### Our storage so far
+
+Yesterday’s session built a cache like Redis: one hash table in memory, every byte counted, then split across many nodes with a ring to find each key, and an append-only file to come back after a restart. Earlier still, Lecture 3 built a key-value store on top of MySQL, where a delete was an update with a magic value and a cleanup job removed rows in batches.
+
+<Figure id="fig-sofar" max={620} caption="Our storage so far, one panel per earlier lecture: a cache like Redis with one hash table in memory, a ring of nodes and an append-only file (Lecture 9); a key-value store on MySQL where a delete sets a magic value and a cleanup job removes rows in batches (Lecture 3).">
+  <Desk><StorageSoFar /></Desk>
+  <Phone><StorageSoFar layout="phone" /></Phone>
+</Figure>
+
+<ul class="fwd-list">
+<li><ForwardChip label="back in" when="Lecture 9" lec="lec07" sec="s5-2">routing a key to its node, and the byte budget</ForwardChip></li>
+<li><ForwardChip label="back in" when="Lecture 9" lec="lec07" sec="s6-7">the append-only file</ForwardChip></li>
+<li><ForwardChip label="back in" when="Lecture 3" lec="lec05" sec="s3-4">delete with a magic value, and batched cleanup</ForwardChip></li>
+</ul>
+
+Today the data no longer fits in memory and must survive restarts, so both engines live in files. Engine 1, the dictionary (chapters 1–6), is read-mostly and changes once a week. Engine 2, the key-value store (chapters 7–10), must take writes as fast as the disk allows. Chapter 11 puts the two side by side.
+
+</div>

@@ -1,0 +1,183 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Cite from '../../../components/Cite.astro';
+import { OldIndexNewFile, PointerFile, TwoWaysChanged } from '../../../figures/lec10/s6a-switching-servers-figs';
+
+{/* §6 Switching every server to the new file, part a (6.1–6.3). Chapter page /lectures/lec10/6-switching-servers/.
+    Class 01:18–01:41. Fact-check: L-0153 inline (S3 overwrite atomic, override to low); L-0157 left as taught + A-D-05;
+    L-0149 + A-D-06; L-0171 + A-D-07; L-0179 + A-D-13; L-0181 inline + A-D-04. */}
+
+<Section id="s6" no="6" title="Switching every server to the new file" crumb="6 Switching servers"
+  dek="The new dictionary is ready. Overwrite the old one and servers read garbage. Upload it to a new path, point a small meta.json at it, and let a routine deployment do the reload. Then see why reading a few bytes from S3 matters so much."
+  meta="About 34 min · class 01:18–01:52, Q&A 02:58–03:01">
+
+The merge from chapter 5 has finished. The new dictionary, with apple’s new meaning, sits on the job server’s disk. Meanwhile every API server is still serving, and each one holds an index in memory that it built from last week’s file, with last week’s byte offsets.
+
+Getting the new file onto S3 is the easy part. Getting every server onto it, without a single user ever reading garbage, is what this chapter is about.
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Same path, stale offsets, garbage" crumb="6.1 Same path"
+  dek="Why not just overwrite the old file? Because every server’s offsets describe the old one."
+  meta="About 8 min · class 01:18–01:27">
+
+How should the new file reach S3, and what can go wrong on the way? The first proposal is a natural one: upload the new file to a new S3 path, a new URL, and tell the API servers that read the dictionary to swap over to it. Change the pointer, and worry about downtime while the switch happens. [[L-0149]] One practical note on “upload”: a 1 TB file can’t go up in one request. A single S3 PUT is limited to 5 GB, so large files use multipart upload, which as of October 2026 allows up to 10,000 parts of 5 MiB to 5 GiB each and objects up to about 50 TB <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html">aws.amazon.com</Cite> <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html">S3 limits</Cite>. [[L-0149]]
+
+The same proposal treats the switch as a deployment problem. The file lives in one single place, so a rolling upgrade *of the file* doesn’t seem to work. Instead, do a complete switch from A to B: create the new file at a new S3 URL, hand the new address to the API servers, and roll the change out with a canary, one server first and the rest once it works. [[L-0150]] Keep that doubt in mind: it is about the one file. Rolling the *servers* over will turn out to be the answer, in 6.4.
+
+Now the probe. Why upload to a new path at all? A new path means every API server has to be told to update its configuration. Uploading to the same path would seem to make the whole thing simpler: nobody needs telling. [[L-0152]]
+
+Two objections came up. While the file uploads there may be a short window when it can’t be served. And any deployment needs a rollback plan: if the upload fails or the file is corrupted, monitoring must catch it and you revert to the previous file. [[L-0153]] On S3 the first worry doesn’t apply: overwriting a key is atomic, so a reader gets the old object or the new one, never a partial one <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html">aws.amazon.com</Cite>. The second one stands, and more strongly: an overwrite throws the old copy away unless versioning is on, so there is nothing to roll back to. [[L-0153]]
+
+A refinement of the rollback idea: put the file in temporary storage first, check that it works, and only then mark it successful. A failed transfer then never replaces the file you were serving. [[L-0154]]
+
+This is where the problem gets interesting. Drawing boxes is easy. The details are what matter: where and how you upload, what can go wrong on the way, whether the transition is smooth, and whether a user is ever served garbage. Those details are super critical. [[L-0155]] The problem statement looks simple, almost stupid, and an hour and a half in it still hadn’t converged. That is the point of it: these problems and their fixes are building blocks you will reuse in other systems you design. [[L-0156]]
+
+So, what exactly goes wrong at the same path?
+
+<PauseAndThink k="L-0152 L-0157 L-0158 L-0159 L-0161"
+  q="The merged dictionary is ready. You upload it over the old file at the same S3 path. An API server still has last week’s index: apple at offset 100, 1,024 bytes. A user asks for “apple” a minute later. What do they get?"
+  choices={[{ label: 'The new meaning of apple' }, { label: '1,024 bytes of something else, maybe starting mid-word', correct: true }]}
+  right="Right. The new file has different offsets, so those bytes can be another word, or the tail of one, until every server reloads its index."
+  wrong="The read goes to offset 100 in the new file, but in the new file apple is somewhere else. The server’s offsets describe a file that no longer exists at that path.">
+
+Garbage, until each server reloads. That is why the new file goes to a new path, so that each server’s index always matches the file it reads. (S3 itself never serves a half-written object; the stale offsets are the problem.)
+
+</PauseAndThink>
+
+Uploading to the same path has a list of problems. What if the upload fails? What if the file is corrupted? And the API servers must be told to reload their index, because the offsets no longer match the file. [[L-0157]] On S3 specifically, a failed or interrupted upload leaves the object already there intact, because single-key updates are atomic, so the stale offsets are what bite first: an index built from last week’s file is wrong the moment the new file lands <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html">aws.amazon.com</Cite>. [[L-0157]]
+
+Here is how. The in-memory index says apple is at byte offset 100 and is 1,024 bytes long (a round number for the example; a real entry’s length is its own line’s byte count, 13 bytes for `apple,a fruit` plus its newline). After the new file is uploaded to the same path, a query for apple still goes to offset 100 and reads 1,024 bytes. In the new file those bytes may be some other word, the one before apple say, and they may start in the middle of it. Apple’s real offset in the new file is different, and the user sees garbage. [[L-0158]]
+
+<p class="lead-in">Step through it with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-6a" no="Fig 6·a" label="Old index, new file"
+  k="L-0157 L-0158 L-0159 L-0160 L-0152"
+  stepK={['L-0158', 'L-0152 L-0157 L-0158', 'L-0158 L-0159', 'L-0159 L-0160']}
+  caption="The API server on the left keeps last week’s index in memory; the file on the right is whatever sits at the S3 path. Blue is the read, green the right answer, red the garbage. The rows are illustrative. Redrawn from the class board at 01:25–01:26."
+  steps={[
+    'The server’s index says apple is at byte 100, 1,024 bytes long (the class’s round number). The read starts at apple’s entry and returns <span class="term green">apple,a fruit</span>.',
+    'The new file is uploaded to the <strong>same path</strong>. S3 swaps it in whole, but the server still holds last week’s offsets.',
+    'The same read at byte 100 now returns bytes from another word, cut mid-line: <span class="term red">garbage</span>.',
+    'Until each server reloads its index, users see <span class="term red">garbage</span>. How do you make the transition smooth?',
+  ]}>
+  <Desk><OldIndexNewFile /></Desk>
+  <Phone><OldIndexNewFile layout="phone" /></Phone>
+</StepThrough>
+
+So with a same-path upload you must tell every API server to reload its index immediately, and for that whole duration your users see garbage data. That is a very poor user experience. [[L-0159]]
+
+Telling them on a schedule doesn’t fix it. The prepared notes list it as transition option 1: a periodic refresh, where each server pulls the index again every so often. Between the moment the index changes on S3 and the next pull, users get garbage responses, and each server still needs a graceful termination or reload to swap the index under live traffic. [[L-0160]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="A new path, and a static meta.json" crumb="6.2 meta.json"
+  dek="Upload beside the old file, never over it. Then the only question is how servers learn the new name."
+  meta="About 5 min · class 01:26–01:31">
+
+So: a new path. The approach is a **parallel setup**. The new dictionary is prepared and uploaded as a separate file, at a new path, while the old file keeps serving; then the API servers move over to it. [[L-0151]]
+
+Version the file name. The first dictionary lives at one path, and this week’s update goes to the next:
+
+```text
+s3://word-dictionary/dictionary1.dictionary    (serving now)
+s3://word-dictionary/dictionary2.dictionary    (this week's)
+```
+
+That leaves one open question: how do you tell the API servers that this is the new path they should start serving? [[L-0161]]
+
+Whatever goes into the path changes nothing about that question. Put an IP address in it, or anything else; the new path still has to be conveyed to the API servers so that they reload. [[L-0162]]
+
+Three ideas come up quickly and are set aside:
+
+- **Ping every API server.** Send an interrupt or a command to each server telling it to invalidate its copy. Pinging all the API servers sounds too complex. [[L-0163]]
+- **Switch at a known time.** The job’s schedule is known, so tell every server to switch on Sunday at 1 PM. It isn’t reliable. What if the job runs past 1 PM? What if the upload failed completely, or the file is corrupt and was never validated? An independent clock switches anyway. [[L-0164]]
+- **One file per word.** Store each word in its own file, so the lookup just builds an S3 path like `/z/zoo.txt`. That kills portability, the very constraint this design is playing with: the dictionary must stay one file. [[L-0165]]
+
+The idea that sticks is a small **metadata file** on S3 that holds the path of the current dictionary. The job uploads the new file, and only when that upload succeeds, in the PUT request’s success callback, does it update the metadata. The API servers poll the metadata file every 5–10 minutes; when the path changes, they fetch the new file and rebuild their in-memory index. [[L-0166]]
+
+One detail makes it work: the metadata file’s own path is static, never versioned, so everyone knows it is the only place to look. [[L-0167]]
+
+<Figure id="fig-6b" no="Fig 6·b" k="L-0151 L-0161 L-0165 L-0166 L-0167"
+  caption="A pointer file. The job uploads dict2 beside dict1 (dashed: nobody waits for it), then updates meta.json, whose own path never changes. The inset is the rejected idea of one file per word. Redrawn from the class boards at 01:43 (the board shortens the names to s3://wd/dict1.dict)."
+  >
+  <Desk><PointerFile /></Desk>
+  <Phone><PointerFile layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="Polling, reactive, and still too complex" crumb="6.3 Polling, reactive"
+  dek="Polling every few minutes for a weekly change wastes thousands of requests. Making it reactive costs a whole component. Neither is the simplest thing."
+  meta="About 10 min · class 01:31–01:41">
+
+Why would every server poll every 5–10 minutes, when the job runs once a week? The answer offered: the exact upload time isn’t known. The update arrives on Sunday, but S3 might be down, and the upload only lands on Monday, so the servers keep polling to find out. [[L-0168]] That isn’t a reason to poll.
+
+Wherever there is polling, things can be made reactive. Instead of asking again and again, someone tells you “something has changed, go pull”. [[L-0169]]
+
+<ul class="fwd-list">
+<li><ForwardChip label="back in" when="Lecture 5" lec="lec08" sec="s4-5" k="L-0169">making config changes reactive</ForwardChip></li>
+<li><ForwardChip label="back in" when="Lecture 4" lec="lec02" sec="s8-4" k="L-0169">Redis Pub/Sub</ForwardChip></li>
+</ul>
+
+The reactive version here: every API server subscribes to a Redis Pub/Sub channel, and when the update server is done uploading, it publishes an event into the channel, so every server receives the update. [[L-0170]]
+
+But for this problem it seems too complex: another infrastructure component to run, and every API server listening on a persistent connection, just to learn that something changed. [[L-0171]] There is a reliability cost too. Redis Pub/Sub is at-most-once: if a subscriber can’t handle a message, for example because of a network disconnect, “the message is forever lost”, so a server restarting at the wrong moment would miss the update <Cite href="https://redis.io/docs/latest/develop/pubsub/">redis.io</Cite>. Redis Streams persist messages if you need stronger delivery. [[L-0171]]
+
+Polling isn’t bad, and this isn’t an argument against it. It’s just that with one update a week, why make 5,000 requests to find out, when someone can tell you, or trigger something, instead? [[L-0172]]
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0160 L-0166 L-0170 L-0171"
+  caption="Left, polling: the red span is the window between the change on S3 and a server’s next pull. Right, reactive: the servers subscribe (their arrows start at the server), and the job publishes once. Redrawn from the instructor’s prepared notes shown at 01:26, where the job box is labelled Standalone."
+  >
+  <Desk><TwoWaysChanged /></Desk>
+  <Phone><TwoWaysChanged layout="phone" /></Phone>
+</Figure>
+
+More ideas follow, and each one is either still polling or still complex.
+
+**A “latest” flag in the header.** Keep a 0/1 flag in each file’s header and set the old file’s flag to 0 when a new one is uploaded. But how would a server know which file is the latest? It never would, unless it polled. [[L-0173]]
+
+**Check the version on every request.** Keep the header’s version with the index, and on each incoming request ask the backend whether the version changed. But you can’t know something changed unless you poll it, so this is still polling. [[L-0174]]
+
+**A reload endpoint.** Expose a REST endpoint on each API server and have the update server call it. That is the same reactive approach as Pub/Sub. [[L-0175]]
+
+**Upgrade one server at a time.** Servers register with the update job; it sends each one an event to rebuild its index from the new path, tests it, then tells the load balancer to switch it in, on a new port say. That is complex, complex. The path is already in `meta.json`, so nobody needs to send it to the servers, and loading the index is just a normal stage of starting up. The same thing can be done in a very simple way. [[L-0176]] It is easy to build complex systems and very hard to build simple ones: make the solution so simple that anyone can understand it. [[L-0127]]
+
+**Same path, with S3 versioning on.** That goes S3-specific, and it is exactly what two separate files already do: different files, plus a meta file that says which one is active, is the latest version laid out in very simple terms. S3 can abstract it internally, but it is the same idea. [[L-0179]] Spelled out: with versioning, each upload to the same key gets a unique version ID, and a GET can ask for a specific `versionId`, so a version ID stored in `meta.json` next to the path would pin every server to the version its index was built from <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html">aws.amazon.com</Cite>. [[L-0179]]
+
+**An `updated_at` in meta.json, checked on every request.** Still polling, and making a call to `meta.json` on every request is expensive. [[L-0180]]
+
+**An `updated_at` in the dictionary file itself, checked before each read.** By the time you read it with the old index you have already read garbage, so you need another read and an index reload anyway. And a plain text file doesn’t store such a value at its top. [[L-0181]] The object does carry it outside its content, though: S3 returns an ETag and a Last-Modified with every GET. A server can send its ranged GET with `If-Match` set to the ETag its index was built from, and if the object has changed S3 answers `412 Precondition Failed` instead of returning bytes, so the server reloads its index rather than serving garbage <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html">aws.amazon.com</Cite>. Rejecting per-request checks as extra work is still a fair design call here. [[L-0181]]
+
+None of these survive, and that is fine. Brainstorming options that end up rejected is how you learn why certain design decisions are made. [[L-0182]]
+
+<TradeoffTable stack caption="Telling every server about the new file: six ways compared"
+  k="L-0164 L-0166 L-0171 L-0172 L-0175 L-0180 L-0183 L-0184"
+  columns={[{ label: 'Switch at a known time' }, { label: 'Poll meta.json' }, { label: 'Redis Pub/Sub' }, { label: 'Reload endpoint' }, { label: 'Check per request' }, { label: 'Rolling deployment' }]}
+  rows={[
+    { label: 'New code on the servers?', cells: ['A timed switch and reload', 'A poller and a reload', 'A subscriber and a reload', 'A reload API', 'A check on every request', 'None: boot already reads meta.json'], k: 'L-0166 L-0175 L-0183' },
+    { label: 'Extra infrastructure', cells: ['None', 'None: meta.json is a file on S3', 'Redis, and a persistent connection per server', 'None, but the job must reach every server', 'None', 'None: the deployment pipeline you already have'], k: 'L-0171 L-0183' },
+    { label: 'Requests wasted per week', cells: ['None', 'Thousands of polls for one change', 'None', 'None', 'A meta.json call on every request', 'None'], k: 'L-0172 L-0180' },
+    { label: 'If the upload fails', cells: [{ text: 'Switches anyway, to a missing or corrupt file', bad: true }, 'meta.json is never updated, so nothing moves', 'Nothing is published', 'The job never calls it', 'Nothing changes', 'The job never triggers the deployment'], k: 'L-0164 L-0166' },
+    { label: 'Garbage possible?', cells: ['Not with a new path, if the file is valid', 'Not with a new path', 'Not with a new path', 'Not with a new path', 'Not with a new path', 'No: each server’s index matches the file it reads'], k: 'L-0184' },
+  ]} />
+
+Every option on the table except the last needs new code on every server. The last one needs none, and it is hiding in something the servers already do.
+
+<PauseAndThink k="L-0169 L-0170 L-0171 L-0177 L-0178 L-0183 L-0184 L-0198"
+  q="The new file is at a new path, and <code>meta.json</code> now points at it. Every API server reads <code>meta.json</code> only when it boots. What is the least new code that gets every server onto the new file?"
+  choices={[{ label: 'None: trigger a rolling deployment, and each new server reads meta.json at boot', correct: true }, { label: 'Servers subscribe to Redis Pub/Sub; publish an event when the upload is done' }]}
+  right="Right. A reload is a boot. The update job calls the deployment pipeline (AWS SDK, Jenkins), servers are replaced one at a time, and each reads the new path."
+  wrong="It works, but it adds a component to run and a persistent connection on every server just to hear “something changed”, and a server that is restarting at that moment misses the event.">
+
+Trigger a deployment. It costs the same, needs no polling, no Pub/Sub and no reload API, and during the roll users get old or new meanings, never garbage. You control your own infrastructure: use it. The next section takes it step by step.
+
+</PauseAndThink>
+
+</Section>

@@ -1,0 +1,758 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Two problem statements: (1) a word dictionary without any database, and (2) a superfast key-value store. Both chosen to build foundational blocks; both are used in production (the second is revealed as Bitcask).",
+  "evidence": "Overview: 'The agenda is two problem statements: a word dictionary without any database, and a superfast key-value store.'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Ruled out: every traditional/off-the-shelf database - MySQL, Postgres, MongoDB, Redis, Elasticsearch, Memcache, nothing; the data must live in plain files. Relaxed: performance - a high response time is acceptable (caching/batching etc. covered elsewhere). Demanded: portability - literally one file holding everything needed to read/write it, copy and ship it.",
+  "evidence": "Ch1.1: 'no MySQL, no Postgres, no MongoDB, no Redis, no Elasticsearch, no Memcache, nothing'; 'Performance is not today's problem. A high response time is acceptable'; 'What is required is portability.'",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "No live, pointed updates. Once a week (say every Sunday) a changelog file arrives by email holding only the words that changed and their new meanings, and it is applied to whatever store you built. One huge processing pass a week is acceptable.",
+  "evidence": "Ch1.1: 'There are no live, pointed updates. Once a week, say every Sunday, a changelog file arrives by email holding only the words that changed and their new meanings'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Lookup is always a single word: given a word return its meaning, else 404; no autocomplete. It is a key-value store: key = word, value = a two- or three-line meaning. Sizes: whole dictionary 1 TB, 170,000 words (several MB per word - on purpose, imagine multimedia baked in).",
+  "evidence": "Ch1.1: 'A lookup is always a single word. There is no autocomplete... if the word does not exist, return 404. The whole dictionary is 1 TB, and it holds 170,000 words.'",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "Storage, query, portability, and seamless updates.",
+  "evidence": "Ch1.1: 'Every design that follows is judged on four axes: storage, query, portability and seamless updates.'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "Querying JSON means unmarshalling it, which is very expensive; to check whether one word exists you must read the entire JSON file, deserialize it, build an in-memory object (e.g. hash map) and only then check - at 1 TB really costly, and the format gives no direct way to reach one entry. (JSON Lines streams record by record but still has no index, so still a scan.)",
+  "evidence": "Ch1.2: 'Querying JSON means unmarshalling it, which is a very expensive process'; 'to check whether one word exists, you read the entire JSON file, deserialize it, build an in-memory object...'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "A CSV-like plain text file, one line per word: the word, a comma, its meaning, then newline - e.g. 'apple,a fruit' newline 'amazon,a rainforest', 1 TB in all. (A write-ahead-log style format was suggested but not taken up.)",
+  "evidence": "Ch1.2: 'It is CSV-like, one line per word: apple,a fruit, a newline, then amazon and its meaning'",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "The dictionary must not contain the same word twice - no repetitive entries (so an update can't simply be written as another line). Why: there are no columns, only words and meanings; imagine the file opened in a text editor with repeats in it - a portable file can't carry duplicates.",
+  "evidence": "Ch1.2: 'the dictionary must not contain the same word twice... remember that a portable file can't carry duplicates. That becomes a requirement of its own: no repetitive entries.'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "No - response time isn't a constraint, so sorting brings nothing yet; words can sit in any order. Accepted for starters; sorting returns in 5.3 when the weekly update (merge) needs it.",
+  "evidence": "Ch1.2: 'The first answer was no: response time isn't a constraint, so sorting brings nothing yet... For starters, that is accepted.'",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Very read-heavy: a thousand reads to one write would understate it; the real ratio is much more skewed (>> 1000:1).",
+  "evidence": "Ch1.1: 'a thousand reads to one write would understate it, and the real ratio is much more skewed than that.' Fig 1a: 'read-heavy: >> 1000 : 1'",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Agreed a single-word update cannot be very costly (shouldn't 'boil the ocean' with heavy IO or a scan of every file for one change), but since updates arrive as one weekly batch, one huge processing pass a week is acceptable.",
+  "evidence": "Ch1.1: 'A single-word update indeed cannot be very costly. But updates arrive as one weekly batch, so one huge processing pass a week is acceptable.'",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "Multiple files kill portability (must be literally one file). A single zip of many folders: you would still have to extract it to use it; it is still many logical files, often compressed, so there is no direct byte-offset read into the dictionary's data.",
+  "evidence": "Ch1.3: 'Rejected: with multiple files you kill portability.'; zip 'Rejected: you would still have to extract it... no direct byte-offset read'",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "AWS Athena - uploading a plain CSV to S3 and querying it seamlessly (in the lecture's telling Athena keeps an index handy with the file). Page notes Athena actually scans files and bills per TB scanned; the dictionary shares only the idea of querying plain files on S3 without a DB server. Kept simple because not many people know Parquet/Avro, and the aim is to keep it really simple - the points behind them are used, just not through Parquet; Lucene's good parts kept one level down: simple version first, then next level.",
+  "evidence": "Ch1.3 'What this simulates': 'a service called Athena'; Parquet: 'Not many people know these formats, and the aim is to keep it really simple'; Lucene: 'the simple version first, then the next level.'",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "It's over-engineering for a very simple dictionary: no B+ trees, nothing fancy; and why only 1,000 keys in memory - far more fit. Keep it very simple, that's where you see the power and beauty of the system. Start naive. (Page: page-based B+ trees matter when the index is too big for RAM, not the case here; the offset idea survives.)",
+  "evidence": "Ch2.1: 'And why only 1,000 keys in memory? Far more fit. For a very simple word dictionary all of this is over-engineering: no B+ trees, nothing fancy.'",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Store as CSV text file; open file, read line by line until the key is found, stop, read the meaning, return. Cost: worst case reads the whole 1 TB; on average half, 0.5 TB = 500 GB per request, paid again on every request.",
+  "evidence": "Ch2.1: 'In the worst case every request reads the whole 1 TB file; on average it reads half of it, 0.5 TB, which is 500 GB per request.'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "It degrades the disk's performance and wears the disk out - sectors go bad from heavy overuse; it is a hardware, software and time problem at once (wastes throughput, pushes drives past rated workload, reducing reliability).",
+  "evidence": "Ch2.1: 'degrades the disk's performance, and wears the disk out: its sectors go bad... a hardware problem, a software problem and a time problem at once.'",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Indexing - and then do the number crunch: how big will the index be, does it fit in memory?",
+  "evidence": "Ch2.1 rule: 'Whenever reads are slow, the only thing that should come to your mind is indexing.'",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Each entry: the key (word) and its offset in the data file. The offset is the byte position where the word's line starts - the nth byte from the beginning of the file, a count of bytes, not a line number (e.g. apple 0, amazon 14, book 34).",
+  "evidence": "Ch2.2: 'Each index entry holds two things: the key and its offset... the nth byte from the beginning of the file. It is a count of bytes, not a line number.'",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "The index holds only keys and small offsets, so you don't iterate over megabytes of meanings; the small index file is very fast to read sequentially even in the worst case (a couple of MB vs a terabyte). Then one pointed read of one line.",
+  "evidence": "Ch2.2: 'The index holds only keys and small offsets... you are not iterating over megabytes of meanings, and the small index file is very fast to read sequentially, even in the worst case.'",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "You'd still have to go through every word under that letter to find the one you want, while a per-word offset takes you straight to its line; and the full per-word index fits in memory anyway (~1.75 MB), so splitting by letter buys nothing.",
+  "evidence": "Ch2.3: 'you would still have to go through every word under that letter... the full per-word index fits in memory anyway, so splitting it by letter buys nothing.'",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Entry size = key length + offset length + 2 (comma and newline): avg word 4.3 chars (instructor computed from a downloaded dictionary, 'not more than five') + 4-byte integer offset + 2 = 10.3 bytes; total = 170,000 x 10.3 B. (Page notes: across distinct words avg is ~7.6; and a 1 TB file needs 8-byte offsets -> 14.3 B.)",
+  "evidence": "Ch2.3: 'So an entry is about 4.3 + 4 + 2 = 10.3 bytes.'; 'The offset is an integer, and an integer takes 4 bytes.'",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "170,000 x 10.3 B = 1,751,000 B ~ 1.75 MB (with correct 8-byte offsets ~2.4 MB). Conclusion: fits in RAM very easily, 'peanuts' next to 1 TB - load it into an in-memory hash map at server start; every lookup becomes one pointed read; settles storage and query axes.",
+  "evidence": "Ch2.3: '170,000 x 10.3 B = 1,751,000 B... about 1.75 MB'; 'An index of 1.75 MB fits in RAM very easily. Next to a 1 TB data file it is peanuts.'",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "Number crunching matters when designing any system: what looked huge (1 TB, 170,000 words) needs an index under two megabytes; one simple calculation, not a cleverer structure, settled the design - one level of indexing instead of over-complicating. Also don't take MB lightly.",
+  "evidence": "Ch2.3: 'This is why number crunching matters when you design any system.'; 'One simple number crunch made the system much better: instead of over-complicating things, one level of indexing.'",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "Index stored on disk, loaded into an in-memory hash map at API server start. A request checks the map for the word, gets the offset, goes to the data file, reads the line at that offset and returns the meaning (missing word -> 404).",
+  "evidence": "Ch2.3: 'A request checks the map for the word, gets the offset, goes to the data file, reads the line at that offset and returns the meaning.'",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "index.dict (couple of MB of words and offsets) and data.dict (the terabyte of meanings). Two files break portability: anyone copying must copy both and keep them together; portable meant literally one file.",
+  "evidence": "Ch3 intro / 3.1: 'Two files, an index and a data.dictionary, break portability. Anyone who copies the dictionary has to copy both and keep them together'",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Every startup would iterate through the entire terabyte of data just to rebuild something that hasn't changed; the file changes only once a week, so the work is avoidable. Store the index.",
+  "evidence": "Ch3.1: 'every startup then iterates through the entire terabyte of data just to rebuild something that hasn't changed. The file changes once a week, so the work is avoidable.'",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "How does the reader know where the index ends and the data begins? (Otherwise reading line by line it carries on into data, e.g. 'apple,a fruit' read as an entry and apple's offset replaced by 'a fruit'.) First two options: a special separator line/marker between index and data; and pre-allocating a fixed-size region (first 2 MB is the index).",
+  "evidence": "Ch3.1 / Fig 3a: '- special line / separator · - pre-allocate / fixed size · 2 MB'",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "'A very nice hack': reader knows the first 2 MB are index without looking (a little more than today's 1.751 MB since few words get added weekly), but it wastes a little space, and the push was to be more frugal.",
+  "evidence": "Ch3.1: '\"A very nice hack\", in the lecture's words, though it wastes a little space, and the push was to be more frugal.'",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "It still leaves the original problem: when the two meet, how do you know where one finished and the other begins? The gap is unused space until then, and the fallback was again a separator.",
+  "evidence": "Ch3.1: 'on the day the two meet, how do you know where one finished and the other begins? The gap between them is unused space until then, and the fallback, once more, was a separator.'",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "Store the boundary as a number - the byte offset / index size - directly at the start of the file in a small fixed-size chunk, removing the separator. General name: a (fixed-size) file header - the classic mechanism of file formats (PNG, JPG, MP3, AVI): first bytes hold meta information about the rest.",
+  "evidence": "Ch3.2: 'store the byte offset directly at the start of the file... That first chunk is a header, and it is the classic mechanism of file formats everywhere'",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "1) Name/magic 'OUR_DICT' - 8 bytes; 2) version - 4 bytes; 3) index size - 4 bytes. Total 16 bytes, fixed width.",
+  "evidence": "Ch3.2: 'a fixed-width header of 16 bytes: 8 for the name, 4 for the version, 4 for the index size.'",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "Magic name tells the decoder 'this is our dictionary' and lets it recognise the file (like PNG's 8-byte signature; your own DB would start with e.g. AODB). Version: one format can have variants (v1 index then data, v2 data then index); the decoder reads the version and acts accordingly. (It describes the file's format/layout variant, not the data.)",
+  "evidence": "Ch3.2: 'a name that tells the decoder \"this is our dictionary\"'; 'a version, because one format can have variants... The decoder reads the version and acts accordingly.'",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "1. Read the first 16 bytes (header). 2. First 8 bytes say OUR_DICT - our dictionary. 3. Next 4 bytes give the version; decoder acts on it. 4. Next 4 bytes give the index size (e.g. 1,751,000); read exactly that many bytes. 5. Build the in-memory hash table from the index (apple->0, amazon->14...). 6. Everything after the index is data, which the offsets point into; server ready.",
+  "evidence": "Ch3.2 Fig 3c steps 1-6.",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "Like other formats built from sections: in an MP4 the header says where the video part is and where the audio part is - video holding its frames, audio its waveform info - same header+compartments idea. (Page note: MP4 muxers usually write the moov index at the end, with 'faststart' moving it to the beginning.)",
+  "evidence": "Ch3.3: 'in an MP4, the header says where the video part is and where the audio part is'; 3.2 note on moov/faststart.",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "JSON has no header - it's a simple text file, so to get any information you read the entire file and let the decoder parse braces, quotes and strings into an in-memory dictionary first. Parquet has headers/information locating its parts - strictly a footer: PAR1, column chunks, file metadata + 4-byte length, PAR1; reader reads the footer first to find just the column chunks it needs.",
+  "evidence": "Ch3.3: 'JSON has no header... you read the entire file'; 'Parquet... keeps that information in a footer... a reader reads the footer first to find the column chunks it needs'",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "Encoder creates a file in that specific format; decoder decodes/reads it (image, video, audio, any format). 'This browser does not support TIF' means the browser has no decoder for that format: given the bytes it doesn't know how to interpret them. (As of Oct 2026 MDN lists Safari as the only browser displaying TIFF natively.)",
+  "evidence": "Ch3.3: 'The encoder creates a file in that specific format; the decoder decodes it.'; 'It means the browser has no decoder for that format'",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "[Header 16 B: OUR_DICT (8 B, bytes 0-7) | version (4 B, 8-11) | index size (4 B, 12-15)] [Index: word,offset entries, index_size bytes] [Data: word,meaning lines, offsets point here].",
+  "evidence": "Ch3.2 Fig 3b and struct dict_header: 'then: index[index_size] word,offset lines; then: data ... word,meaning lines'",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "End user's request (GET /word) -> load balancer -> forwarded to one of a bunch of API server instances, which return the word's meaning; first seed: where they read the dictionary from - a copy of the 1 TB file on each API server (vs a proposed shared disk storage).",
+  "evidence": "Ch4.1: 'A request from the end user comes to a load balancer, and behind the load balancer sits a bunch of API servers... a GET on /word'; Fig 4a: copy per server.",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "1) Updates become tedious - every server must be updated, some may be unavailable (fine: weekly bulk job). 2) Inconsistency if an update partially fails (fine: meanings barely change). 3) Cost - the same 1 TB stored on every server, e.g. 100 servers = 100 TB redundant data on costly SSDs. Cost was called the biggest pain / the real problem.",
+  "evidence": "Ch4.1: 'The biggest pain is cost: the same file stored again and again'; Fig 4a 'COST !!'",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Do the bare minimum at the bare minimum cost; if you're not thinking about cost you're not building good systems - cost-efficiency first, before speed. You can make anything faster by throwing money at a cloud provider: 1 TB RAM per machine, whole dictionary in one in-memory hash table, no index - fast, but not good because not cost effective.",
+  "evidence": "Ch4.1 rule and: 'Put one terabyte of RAM on each machine... It would be fast, and it would not be a good solution, because it is not cost effective.'",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Because replicating to every server is cost-inefficient, the data must be shared, and what is common across multiple servers is the network - so the dictionary needs a common place accessible over the network.",
+  "evidence": "Ch4.2: 'And what is common across multiple servers? The network. So the dictionary needs a common place that is accessible over the network.'",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "S3's get-object call takes parameters for the bytes you want to read (byte range): fetch just header and index bytes, then just a word's byte range. (HTTP Range header, e.g. bytes=0-9, returns 206 Partial Content.)",
+  "evidence": "Ch4.2: 'S3's get-object call takes parameters for the bytes you want to read.'",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "Random reads: 'from this file, at this offset, read n bytes' - written on the board as (file, off, n) / random read, i.e. network attached storage with file system semantics.",
+  "evidence": "Ch4.2: 'one feature is required: random reads... (file, offset, n)'; Fig 4b labels '(file, off, n) · network attached storage · + file system semantics · (random read)'",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "Any network attached storage with the same semantics: HDFS, literal physical network hard disks in a data center (Dell's network hard disks), NAS share. S3 chosen only because everyone understands it. (Page note: S3 is object storage, not block storage.)",
+  "evidence": "Ch4.2: 'S3 is not special here... HDFS, or literal physical network hard disks... S3 is used only because everyone understands it.'",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Only the dictionary's file path on S3 (static configuration for now). Calls: read first 16 bytes (header: our dictionary? index size?), then a second S3 call reading exactly index-size bytes; build in-memory hash table; then serve. Two S3 calls at boot.",
+  "evidence": "Ch4.3: 'Only the dictionary's file path on S3... read the first 16 bytes... Make another S3 call to read that many bytes of index'",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "GET reaches any API server, which checks its in-memory hash table: not there -> 404 (S3 never touched); there -> take offset and do a random/ranged read on the S3 file at that offset for that many bytes, return meaning (200). One S3 call per GET for an existing word.",
+  "evidence": "Ch4.3: 'If the word isn't there, return 404. If it is, take the offset and do a random read on the S3 file at that offset, for that many bytes.'",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Being able to fire pointed queries at S3 without reading the whole file - reading a single record, only the bytes of interest - which effectively builds a database (a key-value store serving gets on S3); has a ton of applications.",
+  "evidence": "Ch4.3: 'Being able to fire pointed queries at S3 without reading the whole file was called \"magical\"'",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "On a separate, newly spun-up server (not the API servers), as a periodic (cron-like) job triggered when the update arrives. It holds the changelog and downloads the current dictionary from S3.",
+  "evidence": "Ch5.1: 'the update job runs on a newly spun-up server. That server holds the changelog, and it downloads the current dictionary from S3.'",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "The dictionary would grow forever and hold duplicate entries, and the dictionary being served can't have repeated entries.",
+  "evidence": "Ch5.1: 'Then the dictionary keeps growing forever, and it holds duplicate entries, and the dictionary being served can't have repeated entries.'",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Because the changelog already states exactly what has to change. It's easy to build complex systems and very difficult to build simple ones; think only about what you really need.",
+  "evidence": "Ch5.1: 'Neither is needed, because the changelog already states exactly what has to change.'",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Disk writes go blindly over whatever is there; ball does not move down. The new 20-byte line (6 bytes longer than the 14-byte old one) has its last six bytes 'fruit' + newline land on bytes 14-19, where 'ball,a' was - overwriting it; file now reads 'apple,a round fruit' then 'round object'; the word ball is lost. (Works in an editor's memory, not on disk.)",
+  "evidence": "Ch5.2 / Fig 5b: 'A longer replacement doesn't push the next entry down; it overwrites it.'; 'bytes 14-19 lost: ball is gone'",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Product manager, architect, and engineer. The engineer hat - thinking through the implementation/code you'd write - exposes it.",
+  "evidence": "Ch5.2: 'always wears three hats: product manager, architect and engineer. Thinking through the code is what the engineer hat looks like.'",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "The served dictionary must not contain repeated entries (duplicates exist until compaction), and since it's a weekly update you can build the clean file directly. (Append-then-compact returns in the second engine, which takes live writes.)",
+  "evidence": "Ch5.2: 'Here it's out. The served dictionary must not contain repeated entries, and this is a weekly update, so build the clean file directly.'",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "Write a new file by merging the existing sorted dictionary and the changelog with two pointers, line by line - the student's 'very naive approach' was called not naive but the best approach here. It is the merge step of merge sort (merge two sorted lists/arrays into a third).",
+  "evidence": "Ch5.3: 'It isn't naive. It is the merge step of merge sort, and given this design it is the best approach.'",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "The dictionary file must be sorted (both inputs sorted). If the changelog isn't sorted: it's very short, so load it in memory, sort it and write it back out.",
+  "evidence": "Ch5.3: 'the dictionary file needs to be sorted'; 'If it isn't sorted, load it in memory, sort it and write it back out; it is small enough.'",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "a-a', b-b', c-c'', d-d', e-e', f-f'', g-g', h-h' (8 entries; changelog wins on c and f, e inserted).",
+  "evidence": "Ch5.3: 'The new file reads a, b, c'', d, e', f'', g, h.'",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "You never load the file into memory: iterate the files line by line and write a third file.",
+  "evidence": "Ch5.3: 'One difference from merging arrays: you never load the file into memory.'",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "The job server's disk must hold at least 2 TB: the 1 TB old dictionary plus the ~1 TB merged new one at once. Acceptable since it's just one server.",
+  "evidence": "Ch5.3: 'the disk of the server spun up for the job must hold at least two terabytes. That's acceptable: it is just one server.'",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "While the file uploads there may be a short window when it can't be served; and any deployment needs a rollback plan - if the upload fails or file is corrupted, monitoring must catch it and revert to the previous file. (Page: on S3 overwrite is atomic so the first doesn't apply; but overwrite discards old copy unless versioning is on, so nothing to roll back to. Refinement: upload to temporary storage first, check, then mark successful.)",
+  "evidence": "Ch6.1: 'Two objections came up. While the file uploads there may be a short window when it can't be served. And any deployment needs a rollback plan'",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Server's in-memory index says apple is at byte offset 100, 1,024 bytes long (built from last week's file). After the new file is uploaded to the same path, a query for apple still reads 1,024 bytes at offset 100 - but in the new file those bytes may belong to another word (e.g. the one before apple), possibly starting mid-word; apple's real offset differs, so the user sees garbage until each server reloads its index.",
+  "evidence": "Ch6.1: 'a query for apple still goes to offset 100 and reads 1,024 bytes. In the new file those bytes may be some other word... and they may start in the middle of it.'",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "What if the upload fails? What if the file is corrupted (and no old copy to roll back to)? And API servers must be told to reload their index immediately; for that whole duration users see garbage - very poor UX. A periodic refresh doesn't fix it: garbage between change and next pull, plus graceful termination/reload needed.",
+  "evidence": "Ch6.1: 'Uploading to the same path has a list of problems. What if the upload fails? What if the file is corrupted? And the API servers must be told to reload their index'",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Parallel setup: upload the new dictionary as a separate file at a new versioned path (s3://word-dictionary/dictionary1.dictionary serving now -> dictionary2.dictionary this week's) while the old keeps serving. Open question: how do you tell the API servers that this is the new path they should start serving (so they reload)?",
+  "evidence": "Ch6.2: 'That leaves one open question: how do you tell the API servers that this is the new path they should start serving?'",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "Pinging every server (interrupt/command to invalidate) sounds too complex. Switching at a known time (e.g. Sunday 1 PM) isn't reliable: the job may run past 1 PM, the upload may have failed, or the file is corrupt/never validated - an independent clock switches anyway.",
+  "evidence": "Ch6.2: 'Pinging all the API servers sounds too complex.'; 'It isn't reliable. What if the job runs past 1 PM?...'",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "It kills portability - the dictionary must stay one file.",
+  "evidence": "Ch6.2: 'That kills portability, the very constraint this design is playing with: the dictionary must stay one file.'",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "A small metadata file on S3 (meta.json) holding the path of the current dictionary. Job uploads the new file and only on success (PUT success callback) updates the metadata; API servers poll it every 5-10 minutes and, when the path changes, fetch the new file and rebuild their in-memory index. The meta file's own path must be static, never versioned - the one place to look.",
+  "evidence": "Ch6.2: 'One detail makes it work: the metadata file's own path is static, never versioned'",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "Because the exact upload time isn't known: the update arrives Sunday but S3 might be down and the upload only lands Monday, so servers keep polling to find out. Teacher: that isn't a reason to poll.",
+  "evidence": "Ch6.3: 'the exact upload time isn't known... S3 might be down, and the upload only lands on Monday... That isn't a reason to poll.'",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Make it reactive: API servers subscribe to a Redis Pub/Sub channel and the update server publishes an event when done uploading (or a reload REST endpoint the update server calls). Drawback: too complex - another infrastructure component, every server listening on a persistent connection just to learn something changed. (Page adds: Pub/Sub is at-most-once, a restarting server could miss it.)",
+  "evidence": "Ch6.3: 'it seems too complex: another infrastructure component to run, and every API server listening on a persistent connection'",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Latest flag (0/1 in header): a server would never know which file is latest unless it polled. Version check on every request: you can't know something changed unless you poll it - still polling.",
+  "evidence": "Ch6.3: 'It never would, unless it polled.'; 'you can't know something changed unless you poll it, so this is still polling.'",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "No. Polling isn't bad; it's just that with one update a week, why make ~5,000 requests to find out when someone can tell you or trigger something instead.",
+  "evidence": "Ch6.3: 'Polling isn't bad, and this isn't an argument against it. It's just that with one update a week, why make 5,000 requests'",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Page names transition option 1 as a periodic refresh (each server pulls the index every so often); the notes also cover reactive Pub/Sub and the parallel setup. Periodic-refresh timeline: index changes on S3, servers pull every 5-10 min; between the change and the next pull users get garbage responses (red span), and each server needs a graceful termination/reload to swap the index under live traffic.",
+  "evidence": "Ch6.1: 'The prepared notes list it as transition option 1: a periodic refresh'; 6.4: notes cover 'the transition, reactive Pub/Sub, the parallel setup'; Fig 6c labels 'index changes on S3 · garbage responses · poll every 5-10 min · graceful termination | reload'",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "'What happens when an API server boots?' (It reads meta.json, the path, the dictionary, builds index - so a reload is a boot.)",
+  "evidence": "Ch6.4: 'Here is the hint that cracks it: what happens when an API server boots?'",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Same path with S3 versioning goes S3-specific, and it is exactly what two separate files plus a meta file saying which one is active already do - 'the latest version laid out in very simple terms'; S3 may abstract it internally but it's the same idea. (A versionId stored in meta.json could pin servers.)",
+  "evidence": "Ch6.3: 'Same path, with S3 versioning on. That goes S3-specific, and it is exactly what two separate files already do'",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "After uploading to a new path and updating meta.json, the update job (with AWS SDK) triggers a (rolling) deployment through the deployment pipeline; each newly booted server reads meta.json, gets the new path, reads the file and index, builds the hash map and serves. A reload is a boot; no polling, Pub/Sub, or reload API.",
+  "evidence": "Ch6.4: 'The update job includes the AWS SDK and triggers a deployment through your deployment pipeline.'",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "During the roll some requests reach old servers (index on old data, old meaning) and others new servers (new meaning). No garbage, since new data is at another path and each server's index matches the file it reads. Eventually consistent - acceptable because meanings don't change drastically.",
+  "evidence": "Ch6.4: 'During the roll there is inconsistency... But no garbage is served... eventually consistent data, and that is fine, because meanings don't change drastically.'",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "The deploy arrow goes from the update job (its AWS SDK) to the API servers: step 4, 'trigger a rolling deployment'. (The page's figure draws it dashed, not purple.)",
+  "evidence": "Ch6.4 Fig 6d: 'update job · aws sdk ... 4 · trigger a rolling deployment'; 'Trigger a deployment' figure: 'aws sdk · deploy'",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Create the merged file -> upload it to a new S3 path -> update meta.json with that path -> only then trigger the deployment of the API servers.",
+  "evidence": "Ch6.4: 'The job creates the merged file, uploads it to a new S3 path, updates meta.json with that path, and only then triggers the deployment'",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Spin up a new server; download the dictionary locally; download the changelog; merge in O(n), creating a new dictionary and index locally; upload the new dictionary and new index to S3. O(n) because the dictionary and index are sorted (merge of two sorted lists).",
+  "evidence": "Ch6.4: 'Their Updating the dictionary page lays the update job out as a procedure, in this order...'",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Orders older than six months are rarely opened, so push them to S3; recent orders served from the hot DB (MySQL), old ones read from S3. Not dumped as JSON: stored in the same header/index/data layout so you can do pointed queries (order_id -> offset -> ranged read) - order ID in, details out. Data moves hot->cold but keeps the ability to be queried.",
+  "evidence": "Ch6.5: 'push orders older than six months to S3... A recent order is served from the hot database, say MySQL; an old one is read from S3'; 'You need the ability to make pointed queries on S3'",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "Trades time for money: S3 answers relatively very slowly (and requests/network I/O cost money) vs the fast hot DB, but storage is very cheap and the hot DB gets smaller - a significant saving. Latency acceptable because those reads are infrequent; and data stays queryable rather than just archived.",
+  "evidence": "Ch6.5: 'Keeping very infrequently accessed data on S3 trades time for money... The latency is acceptable because the reads are infrequent.'",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Data lakes; Athena (query engines); Apache Hudi (its table format being this kind of stored index) and Hive partitions. Page caveat: same family of idea, not same mechanism (Hudi maps key to file, Hive partitions are a directory layout).",
+  "evidence": "Ch6.5: 'Apache Hudi does exactly this behind the scenes... and Hive partitions are exactly this too'",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Alternatives: reload-trigger endpoints on the API servers (reactive again; works but more complicated); or push the index data itself in the update (only ~1.7 MB) so nothing reloads; many ways. Deployment preferred because it makes a point: an out-of-the-box approach engineers don't think of - cost stays same, no polling of meta file, no reactive Pub/Sub, no new code/extra component; we control our own infrastructure.",
+  "evidence": "Ch6.4: 'Three ways come to mind... The deployment is the one picked here because it makes a point.'",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "A super fast key-value store on commodity cheap magnetic disks - a database most people use without knowing it, with O(1) reads, writes and deletes plus persistence; going deeper into the file format than plain lines to get the maximum out of the disk (revealed as Bitcask).",
+  "evidence": "Ch7.1: 'It is also a database most people use without knowing it, with O(1) reads, writes and deletes plus persistence, and building it means going deeper into the file format'",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "Support put, get, update and delete, super fast, with full persistence (each put flushed to disk immediately), on very commodity hardware: cheap magnetic hard disks.",
+  "evidence": "Ch7.1: 'Design a super fast key-value store on very commodity hardware: cheap magnetic hard disks. It must support put, get, update and delete, with full persistence.'",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "Hierarchy CPU caches -> memory -> SSD -> magnetic disks -> tape. SSDs sit closer to memory than HDDs in both speed and cost (faster, costlier); HDDs slower, cheaper. Huge amounts of data are stored on magnetic disks, not SSDs, because SSDs are very costly.",
+  "evidence": "Ch7.1: 'SSDs sit closer to memory than magnetic hard disks do, both in speed and in cost... huge amounts of data are stored on magnetic disks'",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "The byte offset is translated to a physical place (disk, sector, offset in sector); the disk rotates and the magnetic head physically moves to that location, reads, sends it to the device driver, then up to user space. The mechanical movement - moving the head and rotating the disk - is the most time-consuming part.",
+  "evidence": "Ch7.1: 'That mechanical movement, moving the head and rotating the disk, is the most time-consuming part of disk I/O.'",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "That every put must be persisted to disk immediately (flushed) - so a memtable buffering writes in memory doesn't fit.",
+  "evidence": "Ch7.2: 'That doesn't fit the requirement as set: every put must be persisted to disk immediately.'",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Every put is appended at the end of one file (a write-ahead-style log/ledger), flushed (fsync) before ack. Best on magnetic disk because the head is already where the last write ended: no seek, no waiting for the platter to spin round - zero seek, no big mechanical movement.",
+  "evidence": "Ch7.2: 'Append only, zero seek, no big mechanical movement: the best you can do.'",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "K1 V1' is appended at the end (O4) like any other entry; the old K1 V1 isn't touched and simply becomes obsolete (map repointed from O1 to O4).",
+  "evidence": "Ch7.2: 'The new entry is appended like any other, and the old one simply becomes obsolete.'",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "Because it's an append-only file: you cannot write to any location other than the end (random reads yes, random writes no).",
+  "evidence": "Ch7.3: 'But this is an append-only file: you cannot write to any other location.'",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "As a put with a special marker value: DEL K2 = PUT(K2, -1), appended at end; K2 removed from the in-memory map. Gives O(1) delete, as efficient as put; dead entries cleaned later in merge.",
+  "evidence": "Ch7.3: 'Delete is a put with a special value, DEL K2 = PUT(K2, -1).'; 'a delete implemented as a put is just as efficient.'",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Naive: start at the top, look at every entry, return the latest for the key - very poor. Fast: in-memory hash table mapping each key to the offset of its latest entry (offset, not value), updated on each append; get goes straight to the offset - one memory lookup, one disk read.",
+  "evidence": "Ch7.4: 'Keep an in-memory hash table that maps each key to the offset of its latest entry in the file'",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Allows reading anywhere in what was written (random reads); forbids writing anywhere before the end (no random writes).",
+  "evidence": "Ch7.3: 'Random reads, yes; random writes, no.'",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Each op: append to disk first, note offset, then update map. PUT K1 V1 at O1 -> K1->O1; PUT K2 V2 at O2 -> K2->O2; PUT K3 V3 at O3 -> K3->O3; PUT K1 V1' at O4 -> K1 repointed to O4; DEL K2 appends K2 -1 at O5 and removes K2 from map. Final: K1->O4, K3->O3, no K2.",
+  "evidence": "Ch7.4 clip text and Fig 7c.",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "GET: look up key in map; no entry -> 404 (no disk read); entry -> read at that offset, return value. After crash: map gone but file safe on disk; on restart read the whole file from the top and rebuild the map (later entries win, -1 removes key); takes a long time, accepted in this design (can't answer until done).",
+  "evidence": "Ch7.4: 'on restart you go through the entire file and rebuild the index. That can take a long time, and for this design that is accepted.'",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Every key (not values) must fit in memory, so the number of keys is bounded by RAM. (Also slow restart to rebuild it.)",
+  "evidence": "Ch8.1: 'every key has to fit in memory... So you can store only as many keys as you can keep in RAM.'",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "It never collects anything, so it grows huge and the system eventually runs out of disk space. Against one/few huge files: a single huge file can't be indexed concurrently (smaller pieces can); cleaning smaller pieces is more even; biggest reason (per teacher): the file system may not support files over a terabyte (BTRFS, NTFS limits). Page caveat: modern FSs allow many TB (FAT32 caps 4 GB); stronger reason is merge/compaction/index rebuild work file by file.",
+  "evidence": "Ch8.1 third weakness; 8.2: 'The biggest reason of all is the file system.'",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Keep smaller files - say 100 MB or 1 GB - and rotate: when the active file crosses that threshold, start writing a new one (real Bitcask: 2 GB default max_file_size).",
+  "evidence": "Ch8.2: 'keep smaller files: say 100 MB, or 1 GB. As soon as the active file crosses that threshold, start writing to a new one.'",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Exactly one active file takes all writes; the others are read-only/immutable but still readable - a get goes to whichever file holds its key (active or older). The map must store which file and which offset per key (K1 -> f1, O4).",
+  "evidence": "Ch8.2: 'At any point in time exactly one file is active, and all writes go to it. Every other file is read-only, but it can still be read.'; 'it has to say which file the key is in, and at which offset'",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "A separate process (while the active file takes writes) iterates the read-only files and writes one new file combining them, without stale or deleted entries; old files are then deleted forever. Afterwards the in-memory map must be updated for every entry that moved (new file, new offsets) - atomically, per the prepared notes.",
+  "evidence": "Ch8.3: 'the in-memory map must be updated for every entry that moved into the new file. The prepared notes add one word: update it atomically.'",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "A sawtooth: usage climbs with writes, drops suddenly at each merge and compaction. Bounded by the disk's maximum capacity (e.g. 1 TB cap line); crossing it crashes the system.",
+  "evidence": "Ch8.4: 'You will see this sawtooth pattern'; 'If the disk is 1 TB, you cannot let usage grow beyond 1 TB.'",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "1) Merge and compaction frequency; 2) file rotation threshold (how big a file may grow). Tune by monitoring the sawtooth while building the store, then decide; expose both as configurable parameters. Merge too often: too much garbage collection, CPU not free for real work. Too rarely: work piles up, a peak hits the disk cap and the store crashes.",
+  "evidence": "Ch8.4: 'So this design has two configurable parameters...'; 'Merge too often... Merge too rarely and a lot of work piles up.'",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "You still get benefits but not as significant, since SSDs don't use a rotating disk; flash handles writes well. (Page: flash can't overwrite in place, so append-only stays flash-friendly; zoned SSDs require sequential writes.)",
+  "evidence": "Ch8.4: 'On SSDs you still get benefits, but not as significant, because SSDs don't use a rotating disk'",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Files are read by blocks, not lines; reading one byte at a time until newline means one disk I/O (read call) per byte - very slow ('school kid' code). (Page: page cache means most don't reach disk, but still slow.)",
+  "evidence": "Ch9.1: 'if you read one byte at a time until you hit \\n, you make one disk I/O per byte, and that makes things very slow.'",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Put key size and value size before the key and value, each a 4-byte integer (8 bytes total). Read: first I/O reads the 8 bytes (KSZ, VSZ); add them; second I/O reads exactly that many bytes, split into key and value - two disk I/Os, read predictability (same idea as dictionary header).",
+  "evidence": "Ch9.1: 'Each is a 4-byte integer, 8 bytes together... Reading a record is now two disk I/Os.'",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Machine crashes/power goes halfway through writing a gigantic value ('written 110 then the power went'): entry corrupt, can't fix it, but must know it lost integrity and not serve it. Dangerous because after restart the next entry is appended right after; reading 'value size' bytes from the broken entry runs into the next entry -> garbage.",
+  "evidence": "Ch9.2: 'A partial entry is dangerous for a second reason... the read runs into the entry after it.'",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "CRC = cyclic redundancy check, a checksum: simple hash over everything in the record - key size, value size, key, value - computed in memory and stored with it. Placed leftmost because it's the first thing written and made sure is flushed - the bare minimum to know something is corrupt (same instinct as ID generators putting timestamp leftmost); network formats too. Examples cited in class: Postgres commit log and MySQL binlog put CRC leftmost. Page correction: Postgres WAL has it at end of record header, MySQL in last 4 bytes of event; Bitcask and LevelDB put it first.",
+  "evidence": "Ch9.2: 'Good persistent record formats do this: the Postgres commit log puts the CRC on the leftmost side, and so does the MySQL binlog.' + More precisely note.",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "CRC | TS (timestamp) | KSZ (key size) | VSZ (value size) | K | V. TS is just for conflicts.",
+  "evidence": "Ch9.2: 'So the final record is: CRC, timestamp (just for conflicts), key size, value size, key, value.'",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Writes in order: header part, then key, then the large value. If the first write fails, the entry doesn't exist. If a later write fails, on read the CRC doesn't match -> tell the user the entry is corrupted, never serve it. Recovery is heuristic: ignore that entry in merge and compaction (and elsewhere), assume the write never came - corrupt data can't be recovered.",
+  "evidence": "Ch9.2: 'You ignore that entry, in merge and compaction and elsewhere, and assume the write never came your way'",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Per key: file (id), entry size, offset, and timestamp (for conflicts/meta). GET: 1) hash table lookup, 2) disk seek, 3) disk read.",
+  "evidence": "Ch10.1: 'it stores the file the key is in, the size of the record, the offset, and a timestamp'; Fig 10a '1 hash table lookup · 2 disk seek · 3 disk read'",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Bitcask's entries aren't sorted (write order), so it's not a merge-sort two-pointer merge; instead load entries into a temporary hash table (later entry replaces, delete removes) and flush it. The dictionary merge worked with two pointers because both files were sorted.",
+  "evidence": "Ch8.3: 'It is not like the merge step of merge sort, because these entries are not sorted'",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Limitation: all keys must fit in memory (keys + offsets in RAM decide how many keys you can store). Strengths: O(1) put/delete/get; very high write throughput and very low write latency; read = one memory lookup + one random read; I/O saturation of device and network (a good thing); easy backups - just copy the files.",
+  "evidence": "Ch10.1: 'So what is the limitation? All the keys must fit in memory.'; strengths paragraph.",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Bitcask - an embedded database (not a central server; like a library inside your program, like SQLite).",
+  "evidence": "Ch10.2: 'The database we just designed is called Bitcask. It is an embedded database.'",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "As taught: used by Uber in production for its main ride-hailing service via Riak - Riak is a simple key-value store using Bitcask as back end, making it distributed (listed: master-slave, consensus, routing proxy, consistent hashing, data movement). Analogy: Elasticsearch is an HTTP wrapper over Lucene; Riak is a wrapper over Bitcask. Page corrections: at Uber it ran via Riak in dispatch services, not main trip data; Riak is masterless, any node routes. Most Riak setups use Bitcask.",
+  "evidence": "Ch10.2: 'Elasticsearch is an HTTP wrapper over Lucene; in the same way, Riak is a wrapper over Bitcask.' + notes.",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "Whenever a system claims high throughput with persistence, it is using an append-only file or something similar; if not, doubt the claim (page: a strong heuristic, not a law).",
+  "evidence": "Ch10.2: 'Whenever a system claims high throughput with persistence, it is using an append-only file or something similar. If it isn't, doubt the high-throughput claim.'",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Implement it yourself (put/get/delete, map, rotation, merge, CRC format; ~one week) rather than just read the paper; benchmark it against on-disk and in-memory key-value stores, on magnetic disks and on SSDs, with Prometheus monitoring the store continuously.",
+  "evidence": "Ch10.3: 'implement it, then benchmark it against on-disk and in-memory key-value stores, on magnetic disks and on SSDs'; 'set up Prometheus'",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "As taught: in an SSTable design values are also kept in memory, Bitcask doesn't; SSTables are sorted (covered next week); and Bitcask writes every write to disk immediately, while a memtable buffers writes and could lose data if memory goes down. Page correction: in LSM only the memtable is in memory, every write first goes to an on-disk commit log; Bitcask keeps every key in memory; durability depends on sync settings.",
+  "evidence": "Ch10.3: 'in an SSTable design you also keep values in memory, while Bitcask does not. SSTables are also sorted'; 'The second difference is persistence.'",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Nothing special, no preallocation: open the file in append mode ('a') and start writing; laying it out on disk is the file system's job (it marks a large chunk and spaces files out, so growth isn't a problem).",
+  "evidence": "Ch7.2: 'You don't reserve space up front, say a contiguous 1 GB... you open the file and start writing.'",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "No special case: stale and deleted entries are simply skipped during merge, never copied to the new file (in the temp hash table a delete removes the key).",
+  "evidence": "Ch8.3: 'Deleted keys need no special case... simply skipped, so they are never copied to disk again.'",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Answer in class: yes, writing the header is atomic - header is tiny (~20 bytes) so it will definitely be written; the pattern assumes a header smaller than the block size is written whole, but kernels/file systems may not guarantee this, so behaviour can differ; more paranoid systems keep a separate WAL (left open). Page caveat: neither POSIX nor disks promise it; a torn header fails the CRC anyway.",
+  "evidence": "Ch9.3: 'The answer given in class was yes: writing the header is atomic.' + kernel/WAL paragraphs.",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "On purpose: at 1 TB copying the dictionary to every API server costs too much, forcing the storage and portability decisions (with a small file you'd just copy it everywhere). To make it honest, imagine meanings with multimedia baked in (audio, video, visualisation).",
+  "evidence": "Ch1.1: 'The size is on purpose. At 1 TB, copying the dictionary onto every API server costs too much'",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "In the real world you'd add caching or tiered storage; direct S3 reads per request are only to show pointed reads on S3 are possible. AWS: small S3 requests median tens of ms, roughly 100-200 ms for latency-sensitive small objects; recommends a cache (ElastiCache/CloudFront). S3 isn't free to call - requests and network I/O cost money and it's slow - but its storage is very cheap.",
+  "evidence": "Ch4.3: 'In the real world you would do exactly that. Reading S3 directly on every request here is only meant to show...'; 6.5 cost note.",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "Don't take megabytes lightly: M stands for a million, and a million bytes is not lightweight - it holds a huge amount of information. (MB = 10^6 bytes; MiB = 2^20, ~5% difference.)",
+  "evidence": "Ch2.3: 'And don't take megabytes lightly either: M stands for a million, and a million bytes is not lightweight'",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "The load balancer stays as it is; rolling deployment comes out of the box from cloud providers (servers removed and added one at a time, e.g. EC2 Auto Scaling instance refresh) - no code to write; just trigger it via the SDK/pipeline or a Jenkins job.",
+  "evidence": "Ch6.4: 'Rolling deployment comes out of the box from cloud providers: the load balancer stays as it is, and servers are removed and added one at a time.'",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "No - offsets are byte counts (nth byte where the line starts), not line numbers. The index-size field stores how big the index is (in bytes, e.g. integer for 1.75 MB) for the index in this same file, not the location of another file; read that many bytes after the header to get the index. (Board first had data start offset, replaced with size.)",
+  "evidence": "Ch2.2: 'It is a count of bytes, not a line number.'; Ch3.2: 'It is the size of the index stored in this same file, not the location of some other file'",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "The header is rebuilt every time: the merge produces a whole new file with a new dictionary, a new index and a new header.",
+  "evidence": "Ch5.3: 'The header is rebuilt every time, since the index size changes with every update'",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Keeping it sorted makes merging the changelog very easy and efficient (two-pointer merge), and the output stays sorted for free as next week's input. Merge is O(n) - one iteration over both files (O(n + m)) - instead of O(n^2).",
+  "evidence": "Ch5.3: 'Thanks to that sortedness, merging is O(n), one iteration over both files, instead of O(n²).'",
+  "found": true
+ }
+]

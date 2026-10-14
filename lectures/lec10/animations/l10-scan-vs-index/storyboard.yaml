@@ -1,0 +1,109 @@
+# Storyboard — clip l10-scan-vs-index   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l10-scan-vs-index
+title: Half a terabyte, or one line
+lecture: 10
+section: "2.2 A one-level index"
+status: reviewed
+why_motion: >
+  Accumulation / rate. The lesson is how much each lookup reads on the way to the answer: the scan's byte counter
+  climbs through half a terabyte, and the next request pays it all again, against one short sweep of a small index
+  and one pointed read. Two stills can mark where each read ends, not how much each one touched on the way.
+static_twin: "Fig 2·b (D-02 redraw, b_003545.jpg): index.dict left, data.dict right, 1 TB; Fig 2·a (D-01, the scan)"
+ledger:
+  taught: [L-0042, L-0043, L-0044, L-0047, L-0048, L-0050, L-0051, L-0063]
+  context_only: [L-0049, L-0045, L-0022, L-0012]
+fidelity_notes:
+  - "The file is unsorted at this point (L-0022), so ball's place is illustrative ('about halfway down'): that makes the scan the average case of L-0044 (half a terabyte), with the worst case (the whole 1 TB) marked by a dashed extension."
+  - "The counter is bytes, not seconds: no latency number is claimed. The first two counter values (14 B, 34 B) are the page's own byte offsets (apple at 0, amazon at 14, Fig 2·b, factcheck_applied 'Byte offsets in the example'); after that the counter is tied to the cursor's place in the file, ending at about 500 GB at ball (L-0044)."
+  - "The drawing is not to scale: rows stand for lines, the ⋮ rows for the ~85,000 lines skipped; the counter carries the size."
+  - "The second request's scan runs faster on screen than the first: it is the same scan, shortened so the clip stays under 30 s. Speed on screen does not encode time anywhere in this clip."
+  - "The index is drawn as a FILE scanned line by line (L-0050), as the class had it in 2.2. The in-memory map arrives in 2.3, after the clip, and is not shown. L-0063 is used only for 'a direct pointed read at the offset', which holds for both."
+  - "The index's size (1.75 MB, L-0058) is not shown (computed in 2.3; SN-02 revises it to ~2.4 MB with 8-byte offsets). The index label says only 'keys + offsets only'. No '4-byte' appears (SN-02, L-0051 inline clarification)."
+  - "ball's offset in the index is written '…' (no invented number). Offsets are byte positions (L-0049): the caret on data.dict is labelled 'byte offset'."
+  - "Disk wear (L-0045) is not claimed on screen; it stays in prose with its clarification."
+  - "Frame 0 is Fig 2·b without its three pointer arrows and with index.dict ghosted at 38% (the scan comes first); the board's o1/o2 become byte offsets 0 and 14, as on the page."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 936}
+duration_frames: 820
+start_frame_equals: "index.dict (ghosted) left with rows 'apple, 0' / 'amazon, 14' / ⋮ / 'ball, …' / ⋮; data.dict right, rows 'apple,a fruit' / 'amazon,…' / text lines / 'ball,…' / text lines / ⋮ and '1 TB'; empty 'bytes read' column."
+poster_frame: 819
+reduced_motion_stills: [80, 292, 412, 562, 692, 819]
+glyphs:
+  index_file: {shape: RowFile narrow, label: "index.dict (mono, above)", pos_wide: [40, 158, 290, 240], pos_phone: [30, 144, 220, 200], rows: ["apple, 0", "amazon, 14", "⋮", "ball, …", "⋮"]}
+  data_file: {shape: RowFile tall, label: "data.dict (mono, above); 1 TB in its last row", pos_wide: [420, 76, 380, 528], pos_phone: [300, 64, 356, 440], rows: ["apple,a fruit", "amazon,…", "text", "text", "text", "ball,… (row 5, halfway)", "(empty: byte offset label)", "text", "text", "text", "⋮  1 TB"]}
+  scan_cursor: {shape: "blue outlined row band", note: "the read itself = request path"}
+  scan_bar_1: {route: "data top → cursor, right of data.dict", solid, head: "down (reading direction)", colour: blue, x_wide: 822, x_phone: 674}
+  scan_bar_2: {route: "same, request 2", solid, head: down, colour: blue, x_wide: 844, x_phone: 692}
+  worst_ext: {route: "ball row → data bottom", dashed, colour: ink2, label: "worst: 1 TB (ink)"}
+  counters: {wide: "right column x 872: 'bytes read', 'request 1' + number, 'request 2' + number, 'per request'", phone: "block under the files, y 588–748"}
+  index_bar: {route: "index top → index cursor, left of index.dict", solid, head: down, colour: blue}
+  pointer: {route: "index 'ball, …' row → data.dict ball row (left edge)", solid, head: "data.dict (the reader initiates the read)", colour: blue}
+  offset_caret: {shape: OffsetCaret under ball row start, label: "byte offset"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "Find ball, halfway down a 1 TB file. Two ways."
+    on_screen: [static figure, index.dict ghosted]
+    motion: none
+    ledger: [L-0012]
+  - id: B1
+    from: 90
+    to: 300
+    caption: "Scan: read line by line until ball. About 500 GB later, there it is."
+    events:
+      - {at: 96, dur: 18, what: "'request 1' written in the counter column", colour: ink2}
+      - {at: 104, dur: 50, what: "blue cursor on row 1 (apple), then row 2 (amazon); counter 14 B, 34 B; blue bar grows down the data file's right side", colour: blue}
+      - {at: 146, dur: 84, what: "cursor runs down the text rows to ball (EASE_MOVE); counter climbs MB → GB, tied to the cursor's place", colour: blue}
+      - {at: 232, dur: 8, what: "ball row outlined green + ✓; counter reads '≈ 500 GB', turns red", colour: green}
+      - {at: 240, dur: 30, what: "dashed extension ball → bottom, 'worst: 1 TB' written", colour: ink2}
+    ledger: [L-0042, L-0044]
+  - id: B2
+    from: 300
+    to: 420
+    caption: "And the next request reads it all again."
+    events:
+      - {at: 306, dur: 12, what: "request 1's bar, counter and ✓ ghost to 38%"}
+      - {at: 308, dur: 18, what: "'request 2' written", colour: ink2}
+      - {at: 326, dur: 54, what: "cursor back at the top, runs to ball again; second bar + counter climb to '≈ 500 GB' (red)", colour: blue}
+      - {at: 382, dur: 8, what: "ball ✓ again", colour: green}
+    ledger: [L-0043, L-0044]
+  - id: B3
+    from: 420
+    to: 570
+    caption: "Index: scan only words and offsets, a much smaller file."
+    events:
+      - {at: 420, dur: 12, what: "the scan's overlays ghost; index.dict returns to full ink"}
+      - {at: 436, dur: 66, what: "blue cursor steps down index rows apple, amazon, ⋮, ball; a short blue bar grows on its left", colour: blue}
+      - {at: 506, dur: 30, what: "'keys + offsets' / 'only' written under the index", colour: ink2}
+    ledger: [L-0047, L-0048, L-0050, L-0051]
+  - id: B4
+    from: 570
+    to: 700
+    caption: "Then jump to ball's byte offset and read one line."
+    events:
+      - {at: 580, dur: 30, what: "pen draws the blue pointer index 'ball, …' → data.dict ball row, packet rides it, chevron at data.dict", colour: blue}
+      - {at: 612, dur: 26, what: "offset caret under ball's row start, 'byte offset' written"}
+      - {at: 636, dur: 12, what: "data ball row re-inked green + ✓ (one line read)", colour: green}
+      - {at: 648, dur: 20, what: "'+ one line' written under the index", colour: green}
+    ledger: [L-0050, L-0063]
+  - id: B5
+    from: 700
+    to: 820
+    caption: "Same answer. One read is pointed, not a scan."
+    on_screen: [end state = poster]
+    events:
+      - {at: 704, dur: 12, what: "scan counters return to full ink (bars stay ghosted)"}
+      - {at: 714, dur: 22, what: "'per request' written under the counters", colour: red}
+    ledger: [L-0043, L-0063]
+chapters:
+  - {label: two ways, frame: 10}
+  - {label: scan, frame: 100}
+  - {label: again, frame: 310}
+  - {label: index, frame: 430}
+  - {label: pointed read, frame: 580}
+page_context:
+  predict: "Both lookups find ball, a word halfway down the file. How much does each one read?"
+  caption: "The scan reads about 500 GB to reach a word halfway down the file, and every request pays it again. The index is a short scan of words and offsets, then one pointed read of one line."
+  after: "The index is still scanned line by line, but it holds only words and offsets. Is it small enough to keep in memory? (2.3)"

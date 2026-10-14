@@ -1,0 +1,180 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { BareMinimumRule, OneCopyPerServer, PointedReads, BootThenGet } from '../../../figures/lec10/s4-serving-from-s3-figs';
+
+{/* §4 Serving it from S3 (4.1–4.3). Chapter page /lectures/lec10/4-serving-from-s3/. Class 00:49:38–01:05:16, Q&A
+    02:57:50 folded into 4.3. Fact-check: SN-03 (L-0108, A-D-12), SN-04 (L-0112, A-SSE-10); inline L-0110; sourced
+    sentences A-FFD-09 (L-0100), A-D-03 (L-0105), A-D-17 (L-0113), A-D-08 + A-SSE-11 (L-0306); left as taught L-0117. */}
+
+<Section id="s4" no="4" title="Serving it from S3" crumb="4 Serving from S3"
+  dek="One file, many API servers. Copying it to each server is the obvious move and the costly one. Pin down the property you need, random reads over the network, and S3 turns the file into a database."
+  meta="About 16 min · class 00:50–01:05, Q&A 02:58">
+
+`GET /word` arrives at a load balancer with a fleet of API servers behind it. Each of them needs the dictionary's header and index at boot, and a few bytes of its data on every request. Where does the 1 TB file live?
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="One copy per server?" crumb="4.1 A copy per server"
+  dek="The obvious answer puts the file on every server. Its real problem isn't the one people name first."
+  meta="About 7 min · class 00:50–00:57">
+
+So far the dictionary has a file format, it is portable, it has a header, and it has an index for fast reads. Now comes the infrastructure side: how to serve actual user requests. Start from a seed design and improve on it. [[L-0092]]
+
+A request from the end user comes to a load balancer, and behind the load balancer sits a bunch of API servers whose job is to serve the incoming requests. [[L-0093]] The API exposes one endpoint, a `GET` on `/word`, which returns the word's meaning. The load balancer forwards each request to one of the API server instances. [[L-0094]]
+
+Where do those servers read the dictionary from? One proposal from class is a shared disk storage that all of them query. [[L-0095]] Before accepting it, ask the opposite: why not store the file on every API server?
+
+The first answer people give is that updates become tedious: every server has to be updated, and some may be unavailable at the time. But updates are not real time. They come as one bulk job every Sunday, so a weekly batch can update every copy. Is that still a problem? Not yet. [[L-0096]] The second answer is inconsistency: if an update partially fails, servers disagree. A valid point, and also not a problem yet, because these are meanings. Apple being “a fruit” on one server and “a round fruit” on another, for a while, is not the end of the world. [[L-0097]]
+
+The point of probing is this: before you propose something, think in depth about the disadvantages of the other options too. [[L-0098]]
+
+<PauseAndThink k="L-0096 L-0097 L-0099 L-0100 L-0102 L-0103"
+  q="You could copy the 1 TB dictionary onto each API server’s disk. Updates come once a week, and meanings barely change. What is the real problem with this?"
+  choices={[{ label: 'Updates: a weekly push to 100 servers drifts out of sync' }, { label: 'Cost: you pay for the same terabyte on every server', correct: true }]}
+  right="Right: on 100 servers that’s 100 TB of redundant, usually SSD, storage. That is what rules the design out."
+  wrong="Both are real, but neither hurts yet: a weekly batch can update every copy, and a server serving “a fruit” for a few minutes while another serves “a round fruit” is not the end of the world.">
+
+Cost. If you aren’t thinking about cost, you aren’t building good systems: keep one copy in a central place that every server can read over the network.
+
+</PauseAndThink>
+
+The biggest pain is **cost**: the same file stored again and again, a lot of duplicated storage across many servers. Tedious updates and brief inconsistency you can live with; that you cannot. [[L-0099]]
+
+<Figure id="fig-4a" no="Fig 4·a" k="L-0093 L-0096 L-0097 L-0099 L-0102"
+  caption="A copy of the dictionary on every API server. The board’s list, right: the two objections raised first are tolerable for a weekly update; the cost is not. The list is redrawn from the class board at 00:53–00:55.">
+  <Desk><OneCopyPerServer /></Desk>
+  <Phone><OneCopyPerServer layout="phone" /></Phone>
+</Figure>
+
+<RuleBox rule="Do the ==bare minimum== at the ==bare minimum cost==; if you are not thinking about cost, you are not building good systems." k="L-0100">
+
+Real-world system design is about doing the bare minimum things at the bare minimum cost. Whether a solution is cost-efficient should be the first thing that comes to mind, before whether it is fast.
+
+<Desk><BareMinimumRule /></Desk>
+<Phone><BareMinimumRule layout="phone" /></Phone>
+
+</RuleBox>
+
+Cloud providers frame it the same way: AWS’s Well-Architected Framework makes cost optimization one of its six pillars, and defines a cost-optimized workload as one that “achieves an outcome at the lowest possible price point, and meets your functional requirements” (<Cite href="https://docs.aws.amazon.com/wellarchitected/latest/cost-optimization-pillar/welcome.html">AWS</Cite>). [[L-0100]]
+
+You can make anything faster by throwing money at a cloud provider. Put one terabyte of RAM on each machine and you could load the whole dictionary into one in-memory hash table, with no index at all. It would be fast, and it would not be a good solution, because it is not cost effective. [[L-0101]]
+
+A copy per server has the same flaw at a smaller scale. Those copies sit on each server's disk, typically SSDs, which are very costly: with 100 servers you hold 100 terabytes of redundant data. [[L-0102]] So don't store the file on each server. Keep the dictionary in one central place, which is where the shared-storage proposal was heading. [[L-0103]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Properties first, then technology" crumb="4.2 Properties first"
+  dek="“Put it on S3” comes quickly. First ask what the storage must be able to do."
+  meta="About 5 min · class 00:57–01:02">
+
+The proposal comes fast: store the one dictionary file on Amazon S3, which is very cheap and optimized for blob storage. [[L-0104]] And it comes with a good reason. S3's get-object call takes parameters for the bytes you want to read. Since the header tells you the index size, you can fetch just the header and index bytes, then take a word's offset and fetch just that byte range to answer the user. [[L-0105]] Concretely, GetObject accepts a standard HTTP `Range` header: `Range: bytes=0-9` returns only the first 10 bytes, with a `206 Partial Content` response (<Cite href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html">GetObject</Cite>). [[L-0105]]
+
+That works. But don't start from the product name. First pin down the core properties you want from the system, then pick a particular technology. [[L-0106]]
+
+Why shared storage at all? Because replicating the data to every server is cost-inefficient. And what is common across multiple servers? The network. So the dictionary needs a common place that is accessible over the network. [[L-0107]]
+
+A common place accessible over the network is any block storage, or a database. Databases are ruled out by the brief, so the gigantic file goes on block storage such as S3. Portability survives: it is still one file, now on S3. [[L-0108]]
+
+<SourceNote href="https://aws.amazon.com/compare/the-difference-between-block-file-object-storage/" site="aws.amazon.com" k="L-0108">
+
+S3 is object storage, not block storage. AWS uses three terms: block storage (Amazon EBS) is a disk-like volume attached to one instance; file storage (Amazon EFS) is a shared network file system; object storage (Amazon S3) holds whole objects fetched over HTTP by key (<Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html">S3 user guide</Cite>). Databases are ruled out, so the file goes on shared storage such as S3 or a network file system.
+
+</SourceNote>
+
+Now look at what the design assumed. It was built for a normal disk: read the header bytes to learn the index size, read the whole index to build an in-memory hash table, then do random reads in the data section. Whatever storage replaces that disk must support the same thing. [[L-0109]]
+
+The generic term for such storage is **network attached storage**: storage accessible over the network that gives you file-system semantics. [[L-0110]] What actually matters is networked storage that supports random reads of a given length at a given offset; a NAS share, HDFS or an object store such as S3 all qualify (<Cite href="https://aws.amazon.com/what-is/nas/">AWS: what is NAS</Cite>). [[L-0110]]
+
+Strip it to the bare minimum and one feature is required: **random reads**. You must be able to say “from this file, at this offset, read n bytes”, `(file, offset, n)`, just as a normal disk lets you seek to a location and read that many bytes. [[L-0111]]
+
+S3 gives you that at the level of file-system semantics, which is why it can also be used as a distributed file system. You don't have to read the entire file: you ask for a number of bytes at an offset and get exactly those bytes. [[L-0112]]
+
+<SourceNote href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/download-objects.html" site="docs.aws.amazon.com" k="L-0112">
+
+S3 supports ranged reads (ask for n bytes at an offset and get exactly those), which is all this read-only design needs, one range per GET: S3 does not return several ranges in one request, and AWS recommends concurrent ranged GETs to download large objects quickly. But it is an object store, not a file system: objects are written whole and cannot be appended to or modified in place, and tools that mount S3 as a file system say they do not implement full POSIX semantics (<Cite href="https://github.com/awslabs/mountpoint-s3/blob/main/doc/SEMANTICS.md">Mountpoint for S3</Cite>).
+
+</SourceNote>
+
+S3 is not special here. Any network attached storage with the same semantics would do: HDFS, or literal physical network hard disks in a data center (Dell's network hard disks are well known). S3 is used only because everyone understands it. [[L-0113]] HDFS, for one, offers the same pointed read: its input streams support `seek()` and positioned reads from a given byte offset, so the offset-index design works there unchanged (<Cite href="https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/filesystem/fsdatainputstream.html">Hadoop docs</Cite>). [[L-0113]]
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Boot, GET, and a database built from a file" crumb="4.3 Boot and GET"
+  dek="Walk one server from boot to its first answer, and see what you have built."
+  meta="About 5 min · class 01:02–01:05, Q&A 02:58–02:59">
+
+What does each API server need to know? Only the dictionary's file path on S3, which can be passed as static configuration for now. Deployment hasn't been discussed yet; it comes back in chapter 6. [[L-0114]]
+
+Boot is the decoder from chapter 3, with S3 in place of the disk. From the configured path, read the first 16 bytes and interpret them as the header: is this our dictionary, and how big is the index? Make another S3 call to read that many bytes of index, and build the in-memory hash table from it. Then start serving requests. [[L-0115]]
+
+A `GET` reaches any API server, which checks its in-memory hash table. If the word isn't there, return 404. If it is, take the offset and do a random read on the S3 file at that offset, for that many bytes. The S3 API supports that, and so do HDFS and network hard disks. [[L-0116]]
+
+<Figure id="fig-4b" no="Fig 4·b" k="L-0093 L-0094 L-0110 L-0111 L-0117"
+  caption="The serving path. Each API server holds the word → offset map in memory and reads n bytes at an offset from the one file on S3. Under the cloud, the board’s list of storages that would do as well. Redrawn from the class board at 01:00–01:05.">
+  <Desk><PointedReads /></Desk>
+  <Phone><PointedReads layout="phone" /></Phone>
+</Figure>
+
+<StepThrough id="fig-4c" no="Fig 4·c" label="Boot, then one GET" grow k="L-0114 L-0115 L-0116 L-0117"
+  caption="Time runs down. Lanes: one API server and S3. Byte ranges follow from the 16-byte header, the 1,751,000-byte index and apple’s 14-byte line at the start of the data; the map’s offset is counted from the start of the data, which the class did not pin down. qwzx is an invented unknown word."
+  stepK={['L-0114', 'L-0115', 'L-0115', 'L-0115', 'L-0116', 'L-0116 L-0117', 'L-0116']}
+  steps={[
+    'The server starts with one setting: the file’s path on S3.',
+    'One ranged read gets the 16-byte header: <code>OUR_DICT</code>, version 1, index size 1,751,000.',
+    'A second read gets exactly index-size bytes, the index.',
+    'Build the in-memory map, then start serving.',
+    'A request for apple: the map gives its offset, <code>0</code> into the data.',
+    'One ranged read of that record, 14 bytes, and the answer goes back: <span class="term green">200</span>.',
+    'An unknown word misses the map: <span class="term red">404</span>, and S3 is never touched.',
+  ]}>
+  <Desk><BootThenGet /></Desk>
+  <Phone><BootThenGet layout="phone" /></Phone>
+</StepThrough>
+
+This is the beauty of the system. It reads a single record from S3 efficiently without reading the entire file: only the bytes of interest, nothing before and nothing after. And that effectively builds a database, because at heart a database is a key-value store. What we built is a key-value store that serves a huge number of gets on S3. [[L-0117]]
+
+Being able to fire pointed queries at S3 without reading the whole file was called “magical”, and it has a ton of applications. They come at the end of the dictionary half, in [6.5](#s6-5). [[L-0118]]
+
+<ForwardChip label="later in this lecture" when="6.5" lec="lec10" sec="s6-5" k="L-0118">building applications on pointed reads from S3</ForwardChip>
+
+Isn't one S3 call per API request costly? And wouldn't you add caching, or storage tiered by how often a word is read? In the real world you would do exactly that. Reading S3 directly on every request here is only meant to show that pointed reads on S3 are possible. [[L-0306]] For a sense of scale, AWS says small S3 requests usually see median latencies in the tens of milliseconds, and that latency-sensitive applications can expect roughly 100–200 ms for small objects and first bytes; it recommends a cache such as ElastiCache or CloudFront in front of S3 for frequently read data (<Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance-design-patterns.html">design patterns</Cite>, <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html">performance guidelines</Cite>). [[L-0306]]
+
+<ForwardChip label="back in" when="Lecture 2" lec="lec01" sec="s1-1" k="L-0306">caching at every level, from the API server to the CDN</ForwardChip>
+
+<h3 id="s4-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0096 L-0097 L-0099" q="The first objections to a copy per server were tedious updates and inconsistency. Why were both “not a problem yet”, and what was?">
+
+Updates arrive once a week as one bulk job, so updating every copy is a routine batch, and meanings barely change, so a server briefly serving the old meaning is harmless. The real problem is cost: 100 servers each holding a 1 TB copy is 100 TB of redundant, usually SSD, storage.
+
+  </RecallItem>
+  <RecallItem k="L-0111 L-0113" q="Which single property must the shared storage have, and name two storages besides S3 that have it.">
+
+Random reads over the network: “from this file, at this offset, read n bytes”. HDFS has it, and so do physical network hard disks in a data center (any network attached storage with file-system semantics).
+
+  </RecallItem>
+  <RecallItem k="L-0115 L-0116" q="How many S3 calls does a server make at boot, and how many per GET?">
+
+Two at boot: one for the 16-byte header, one for exactly index-size bytes of index. Then one per GET for a word that exists (a ranged read of that record), and none for a word that isn’t in the map, which gets a 404.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '5 · The weekly update', href: '#s5' }}
+  concepts={[{ label: 'cost first', href: '#s4-1' }, { label: 'properties before technology', href: '#s4-2' }, { label: 'network attached storage', href: '#s4-2' }, { label: 'random read (file, off, n)', href: '#s4-2' }, { label: 'ranged GET', href: '#s4-3' }, { label: 'pointed read', href: '#s4-3' }]} />
+
+</Section>

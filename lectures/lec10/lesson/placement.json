@@ -1,0 +1,3191 @@
+{
+ "lecture": "lec10",
+ "ledger": "lectures/lec10/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1.1": "The problem: a dictionary, no database",
+  "1.2": "JSON, or a plain text file?",
+  "1.3": "Clever ideas, set aside, and what \"portable\" means",
+  "2.1": "Start naive: scan the file",
+  "2.2": "A one-level index",
+  "2.3": "Will the index fit in memory?",
+  "3.1": "Two files break portability",
+  "3.2": "A fixed-size header",
+  "3.3": "Every file format is a header and sections",
+  "4.1": "One copy per server?",
+  "4.2": "Properties first, then technology",
+  "4.3": "Boot, GET, and a database built from a file",
+  "5.1": "A job on its own server",
+  "5.2": "Why you can't edit in place",
+  "5.3": "Merge, as in merge sort",
+  "6.1": "Same path, stale offsets, garbage",
+  "6.2": "A new path, and a static meta.json",
+  "6.3": "Polling, reactive, and still too complex",
+  "6.4": "A reload is a boot: trigger a deployment",
+  "6.5": "Why this matters: cold data you can still query",
+  "7.1": "The problem, and how a magnetic disk works",
+  "7.2": "Put: append, never seek",
+  "7.3": "Delete: a put with a special value",
+  "7.4": "Get: an in-memory map to the latest offset",
+  "8.1": "What could go wrong?",
+  "8.2": "File rotation",
+  "8.3": "Merge and compaction",
+  "8.4": "The sawtooth and its two knobs",
+  "9.1": "Don't read until the newline",
+  "9.2": "Detecting a torn write: CRC first",
+  "9.3": "Is the header write atomic?",
+  "10.1": "What we built: one map, many files",
+  "10.2": "Bitcask, Riak and Uber",
+  "10.3": "Bitcask vs LSM, and build it yourself",
+  "11": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Opening line: week 5 day 2 continues storage engines; two problem statements that build foundational blocks for new systems and for getting the most out of existing ones. Board agenda: word dictionary without any DB, superfast KV store."
+  },
+  "L-0002": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Both systems are used in production to a huge extent; not theoretical."
+  },
+  "L-0003": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Opening problem: build a word dictionary with no traditional database (no MySQL, Postgres, MongoDB, Redis, Elasticsearch, Memcache); be creative. Top of Fig 1·a."
+  },
+  "L-0004": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "'Quote-unquote' scalable on storage and API sides, within obvious constraints. Requirement card line."
+  },
+  "L-0005": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Any system design splits into storage and compute (API servers vs where the data lives)."
+  },
+  "L-0006": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "High response time acceptable: performance is not today's problem; caching and batching are known tricks from past sessions."
+  },
+  "L-0007": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    },
+    {
+     "section": "1.1",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Portability required; the page flags each design that breaks it (margin tag 'one file'); its importance becomes clear in the next system and next week (chip 'coming later · week 6')."
+  },
+  "L-0008": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "The problem statement was deliberately compiled to touch many building blocks used day in and day out."
+  },
+  "L-0009": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Standard English dictionary, mostly read-only (Oxford rarely changes)."
+  },
+  "L-0010": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    },
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Weekly changelog (Sunday) with only changed words and meanings, applied to the store; restated at the start of chapter 5 (only the changelog arrives, not the whole dictionary)."
+  },
+  "L-0011": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Single-word lookup, no autocomplete, unknown word -> 404."
+  },
+  "L-0012": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "1 TB, 170,000 words."
+  },
+  "L-0013": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Four axes: storage, query, portability, seamless updates; Fig 1·a draws them as tabs."
+  },
+  "L-0014": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "First proposal: text file or JSON file."
+  },
+  "L-0015": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Querying JSON means unmarshalling, which is expensive, so the text file is preferred."
+  },
+  "L-0016": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "JSON must be read and deserialized whole; no direct access to one entry; really costly at 1 TB. Left as taught (simplified/low) + optional A-D-15 (JSON Lines streams but has no index) as a separate sourced sentence."
+  },
+  "L-0017": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "So: a simple text file. Fig 1·b shows 'JSON file' struck out."
+  },
+  "L-0018": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Idea raised and not taken up: write the file like a log of updates; the format settled on word, meaning."
+  },
+  "L-0019": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "CSV-like format, one line per word: 'apple,a fruit', then 'amazon, ...'."
+  },
+  "L-0020": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: allow the same word twice for updates; in fact no duplicates (text editor readability, portability)."
+  },
+  "L-0021": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Added requirement: no repetitive entries."
+  },
+  "L-0022": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Planted question 'will you keep it sorted?': no for starters, accepted; the page marks it 'we come back to this' and closes it in 5.3."
+  },
+  "L-0023": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "B-trees deferred: discovering the design step by step makes it stick."
+  },
+  "L-0024": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Requirement: searchable by key; a key-value store, word -> two- or three-line meaning."
+  },
+  "L-0025": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Read-heavy: 1000:1 and more skewed than that."
+  },
+  "L-0026": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Single-word update must not boil the ocean, but a weekly batch makes one big pass acceptable."
+  },
+  "L-0027": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Ideas set aside: sort by key for efficient search (left open; the design goes another way first, sorting returns in 5.3)."
+  },
+  "L-0028": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "ForwardChip"
+    },
+    {
+     "section": "1.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Ideas set aside: shard into many sorted files and route a word to its file (yesterday's routing); kills portability. Back-chip Lecture 9 (routing a key to its node). Fig 1·c fan of files with red X."
+  },
+  "L-0029": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Definition: portability = literally one file holding everything needed to read and write it, easy to copy and ship. Optional A-D-09 (SQLite single file) as sourced sentence. Margin tag 'one file'."
+  },
+  "L-0030": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Zip of hundreds of folders as 'one file': rejected, you must extract it. Inline clarification (imprecise/low): still many logical, compressed files, no direct byte-offset read; + A-D-10 (ZIP central directory)."
+  },
+  "L-0031": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The one-file rule is not random: foundation for hundreds of systems; reason clear at the end."
+  },
+  "L-0032": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Logical partitions in one sorted file with a header of key ranges: complex enough to touch later."
+  },
+  "L-0033": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Parquet/Avro-style record encoding: not today, keep it simple; the points will be incorporated without Parquet."
+  },
+  "L-0034": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "The simpler direction is deliberate so base concepts of anything queryable come clear. RuleBox §1 body."
+  },
+  "L-0035": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "What this simulates: upload a CSV to S3 and query it with Athena; Athena 'creates an index kept with the file' (01:46:23). SN-01: Athena scans, billed per TB, partitioning/Parquet cut the scan (A-D-11).",
+   "source_note": "SN-01"
+  },
+  "L-0036": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The dictionary simulates how such an engine's builders would query simple files, at a smaller scale; many other applications. Left as taught (simplified/low); SN-01 sits just above."
+  },
+  "L-0037": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Lucene compared: tokenizes, doc IDs against keys, one big index file; kept one level down. Inline clarification (imprecise/low) + A-D-16: segments, segments_N, compound .cfs."
+  },
+  "L-0038": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: binary search, offsets as indexes, B+ tree pages, 8 KB blocks, 1000 keys in memory; over-engineering for this. Optional A-FFD-08 (8 kB pages are real, matter when the index exceeds RAM)."
+  },
+  "L-0039": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "No reason to limit memory to 1000 keys; far more fit (anticipates the 1.75 MB estimate)."
+  },
+  "L-0040": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Keep it very simple: that is where the power and beauty of the system show. RuleBox §1 headline; restated in 2.1 against the B+ tree idea; heuristics card §11."
+  },
+  "L-0041": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Naive design: one CSV text file, key then its gigantic meaning."
+  },
+  "L-0042": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Naive lookup: read line by line until the key, read the meaning, return."
+  },
+  "L-0043": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "A linear scan per read is very expensive for a read-heavy app."
+  },
+  "L-0044": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Figure"
+    },
+    {
+     "section": "2.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Worst case 1 TB, average 0.5 TB = 500 GB per request. Fig 2·a labels; clip l10-scan-vs-index beat 1."
+  },
+  "L-0045": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Slow, degrades disk, wears sectors. Inline clarification (imprecise/low): wastes throughput and pushes drives past rated workload (Seagate)."
+  },
+  "L-0046": {
+   "section": "2.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §2: whenever reads are slow, think indexing. Left as taught (simplified/low); the lecture itself names caching and batching (1.1). Reused in 7.4 for the KV store's get."
+  },
+  "L-0047": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "A small one-level index over the data file avoids scanning it."
+  },
+  "L-0048": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Index entry = key + offset (student offered offset and name; the class settled on key and offset)."
+  },
+  "L-0049": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Offset = byte position where the line starts. Q&A 03:01:39 folded in: bytes, not line numbers. Page uses real byte offsets (apple 0, amazon 14)."
+  },
+  "L-0050": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Read path with a separate index file: scan index to key, take offset, read one data line. Clip beat 2."
+  },
+  "L-0051": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Scanning the index is still linear but far cheaper (keys + small offsets vs huge meanings); file IO is sequential. Left as taught (simplified/low); offset width corrected by SN-02 in 2.3."
+  },
+  "L-0052": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Estimate the index size before deciding how to read it."
+  },
+  "L-0053": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: A-Z index of 26 entries; in fact you still scan the letter, and the full index fits anyway."
+  },
+  "L-0054": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Entry size = key length + offset length."
+  },
+  "L-0055": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Average word ~4.3 chars, computed by the instructor from a downloaded dictionary. Inline clarification (imprecise/low) + A-D-02: 4.8 in running text, ~7.6 across distinct words."
+  },
+  "L-0056": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Offset is a 4-byte integer. SN-02 + A-D-01: 1 TB needs 8-byte offsets; index still a few MB. Fig 2·c second row in red/green.",
+   "source_note": "SN-02"
+  },
+  "L-0057": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "+2 for comma and newline: 4.3 + 4 + 2 = 10.3 B per entry."
+  },
+  "L-0058": {
+   "section": "2.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 2·c calculator: 170,000 x 10.3 = 1,751,000 B = 1.751 MB (arithmetic checked). Left as taught (simplified/low); SN-02 gives the 8-byte variant (~2.4 MB); A-FFD-07 MB vs MiB."
+  },
+  "L-0059": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "1.75 MB fits in RAM easily: 'peanuts' next to 1 TB."
+  },
+  "L-0060": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Number crunching is very important: huge-looking data, MB index. RuleBox §2 body; heuristics card §11."
+  },
+  "L-0061": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Keep index on disk, load into an in-memory hash map at server start; request -> map -> offset -> read line -> answer."
+  },
+  "L-0062": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "One number crunch made it much better: one level of indexing, no over-complication."
+  },
+  "L-0063": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "No scan left: one pointed read per lookup; storage and query settled. Clip end state."
+  },
+  "L-0064": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Two files (index, data.dictionary) break portability; must become one file. Opening problem of chapter 3."
+  },
+  "L-0065": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Tempting: rebuild the index at every start; rejected (full scan each boot, file changes weekly). T1 column."
+  },
+  "L-0066": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Concatenate index and data into one file; raises 'where does the index end?'."
+  },
+  "L-0067": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Separator line: good but improvable; superseded by a byte offset in the header. T1 column (red X cell)."
+  },
+  "L-0068": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Fixed 2 MB index region: 'very nice hack', slightly wasteful; be frugal. T1 column; boxed 2MB in Fig 3·a."
+  },
+  "L-0069": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Data top-down, index bottom-up like a stack: still need the boundary; the gap is wasted. T1 column."
+  },
+  "L-0070": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Why the reader must know where to stop: data lines would load into the map as entries (apple -> 'fruit')."
+  },
+  "L-0071": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Reserve a position at the start for boundary info: interesting, refined into the header."
+  },
+  "L-0072": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "3.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Store the byte offset at the start of the file; no separator; reader reads that first chunk. T1 last column; P2 reveal."
+  },
+  "L-0073": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Header = classic mechanism of PNG, JPG, MP3, AVI: first bytes carry meta information. Left as taught (simplified/low) + A-FFD-04 (directory at the end in ZIP/MP4) as separate sourced sentence."
+  },
+  "L-0074": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "One file, several sections, so the header describes each."
+  },
+  "L-0075": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "The header must be fixed size."
+  },
+  "L-0076": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "CodeBlock"
+    },
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Field 3: index size (4 B); alternatively a data start offset. Q&A 03:02:20 folded in: the size of the index in the same file, not a path."
+  },
+  "L-0077": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "CodeBlock"
+    },
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Field 1: 8-byte name, OUR_DICT (page uses the 8-byte board spelling)."
+  },
+  "L-0078": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "PNG's first bytes say PNG. Inline clarification (imprecise/low) + A-FFD-01: the 8-byte PNG signature."
+  },
+  "L-0079": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The instructor's own database name (AODB on the board) in its first bytes; his decoder would recognise it. No personal name."
+  },
+  "L-0080": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "CodeBlock"
+    },
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Field 2: 4-byte version; variants (index first vs data first); decoder acts on it."
+  },
+  "L-0081": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    },
+    {
+     "section": "3.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Fig 3·b: 16 B = 8 + 4 + 4. A-FFD-02 (byte order of header integers) as sourced sentence."
+  },
+  "L-0082": {
+   "section": "3.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 3·c 'Opening the file': read 16 B, check name, version, read index-size bytes into a hash table; the rest is data."
+  },
+  "L-0083": {
+   "section": "3.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §3: compartments + a header saying where each lies = any custom file format; the dictionary is now shippable, one file because of the one constraint."
+  },
+  "L-0084": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "JPG frames; MP4 header says where video and audio parts are. Left as taught (simplified/low)."
+  },
+  "L-0085": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "A file with a header ships easily; anyone with the decoder can read it."
+  },
+  "L-0086": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Parquet has headers and information too. Inline clarification (imprecise/low) + A-FFD-03: metadata in a footer after PAR1."
+  },
+  "L-0087": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "JSON has no header: read all, parse braces and quotes into memory first. Left as taught (simplified/low)."
+  },
+  "L-0088": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "CSV usually has no header; PPT and PDF do; define your own. Inline clarification (imprecise/low) + A-FFD-05 (RFC 4180 optional column-name line)."
+  },
+  "L-0089": {
+   "section": "3.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Where the instructor learned this': he once tried to write his own image format. Unverifiable: attributed as his experience."
+  },
+  "L-0090": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Every format has an encoder and a decoder."
+  },
+  "L-0091": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'This browser does not support TIF' = no decoder for those bytes. Optional A-FFD-06 (only Safari shows TIFF natively, Oct 2026)."
+  },
+  "L-0092": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Recap and transition: formats, portability, headers, indexing done; now infrastructure from a seed design."
+  },
+  "L-0093": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    },
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "LB in front of a bunch of API servers."
+  },
+  "L-0094": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "GET /word; the LB forwards to one instance."
+  },
+  "L-0095": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal: shared disk storage read by every server; credited when the class converges on a central place."
+  },
+  "L-0096": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Copy per server -> 'updates tedious': not a problem yet, updates are one weekly bulk job. P3 wrong choice."
+  },
+  "L-0097": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Partial update -> inconsistency: valid but not a problem yet, meanings barely change. P3."
+  },
+  "L-0098": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Think through the alternatives' disadvantages before proposing."
+  },
+  "L-0099": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Biggest pain: cost of duplicated storage (board 'COST !!'). P3 reveal."
+  },
+  "L-0100": {
+   "section": "4.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §4: bare minimum at bare minimum cost; cost-efficiency first. A-FFD-09 (Well-Architected cost pillar) as sourced sentence. Heuristics card §11."
+  },
+  "L-0101": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Throw money: 1 TB RAM per machine, no index, not cost effective."
+  },
+  "L-0102": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "100 servers x 1 TB SSD = 100 TB redundant."
+  },
+  "L-0103": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "So keep the dictionary in one central place."
+  },
+  "L-0104": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal: one file on Amazon S3, cheap, built for blobs."
+  },
+  "L-0105": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Get-object with a byte range: fetch header/index bytes, then one word's range. A-D-03 (HTTP Range header) as sourced sentence."
+  },
+  "L-0106": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Pin the core properties first, then pick the technology. Heuristics card §11."
+  },
+  "L-0107": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Shared storage because replication is cost-inefficient; what servers share is the network."
+  },
+  "L-0108": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'Any block storage or database'; DBs ruled out, so block storage such as S3. SN-03 + A-D-12: S3 is object storage (EBS block, EFS file).",
+   "source_note": "SN-03"
+  },
+  "L-0109": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Design assumed a normal disk (header, index, random reads); replacement storage must support that."
+  },
+  "L-0110": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Network attached storage with file-system semantics. Inline clarification (imprecise/low): networked storage with (offset, length) reads: NAS, HDFS or an object store."
+  },
+  "L-0111": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Bare minimum: random reads (file, offset, n). Board note on Fig 4·b."
+  },
+  "L-0112": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "S3 gives file-system-level semantics (n bytes at an offset). SN-04 + A-SSE-10: ranged reads yes, but object store; whole-object writes, no in-place edits; one range per GET.",
+   "source_note": "SN-04"
+  },
+  "L-0113": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "S3 not special: HDFS, network hard disks in a DC (Dell); S3 because everyone knows it. Optional A-D-17 (HDFS positioned reads)."
+  },
+  "L-0114": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Each server needs the S3 path, as static config for now; deployment still to discuss (6.2, 6.4)."
+  },
+  "L-0115": {
+   "section": "4.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 4·c steps 1-4: config path -> 16-byte header read -> index read -> in-memory hash table -> serve. Restated in 6.1 for the garbage example."
+  },
+  "L-0116": {
+   "section": "4.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 4·c steps 5-7: GET -> map; absent 404; present -> ranged read at offset (S3, HDFS, network disks support it)."
+  },
+  "L-0117": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Pointed reads of one record without reading the file = effectively a database ('magical'). Left as taught (simplified/low): read-only KV store with point lookups. 'Pointed Read' label."
+  },
+  "L-0118": {
+   "section": "4.3",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Chip 'later in this lecture: 6.5' for applications of pointed reads on S3."
+  },
+  "L-0119": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Last big piece: seamless updates. Opening line of chapter 5."
+  },
+  "L-0120": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Periodic (cron) job on a separate machine: update dictionary and index, repackage, upload."
+  },
+  "L-0121": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Batch job vs periodic job. Inline clarification (imprecise/low): a batch job triggered on a schedule (cron job); Kubernetes CronJob source."
+  },
+  "L-0122": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Job runs on a new server holding the changelog and the downloaded dictionary."
+  },
+  "L-0123": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Bump the header version? Last step; and it is a format version, not a data version."
+  },
+  "L-0124": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Tempting: append changelog at end (file unsorted); in fact ever-growing with duplicates. T2 column."
+  },
+  "L-0125": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Iterate and replace changed entries: 'is it really that simple?' leads to 5.2."
+  },
+  "L-0126": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Compare hashes / generate a diff: unnecessary; the changelog is the diff."
+  },
+  "L-0127": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Easy to build complex systems, very hard to build simple ones; restated at 01:36:42 against a one-server-at-a-time proposal (6.3). Heuristics card §11."
+  },
+  "L-0128": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Tempting: use the index offset and replace apple's line in place. T2 column."
+  },
+  "L-0129": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    },
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Fig 5·b step 1: 'apple, a fruit' then 'ball, a round object'; new meaning 'a round fruit'; does ball move down? P4 question."
+  },
+  "L-0130": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    },
+    {
+     "section": "5.3",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Fig 5·b step 3: bytes are overwritten blindly; the longer meaning runs into ball. P4 reveal; T2 red X cell."
+  },
+  "L-0131": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "IDE analogy: lines move down in memory, not on disk."
+  },
+  "L-0132": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "So 'I'll replace the entry' overrides existing data. Fig 5·b step 4."
+  },
+  "L-0133": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Imagine the code you would write; that reveals what breaks."
+  },
+  "L-0134": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Three hats: product manager, architect, engineer; this is the engineer hat."
+  },
+  "L-0135": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Graveyard entries + compaction rejected: no repeats; weekly batch, build clean. Page notes it returns in §8 for live writes. T2 column."
+  },
+  "L-0136": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal (called naive): new file, write the change where it belongs, append the rest."
+  },
+  "L-0137": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Not naive: merge step of merge sort, best approach here. T2 winning column."
+  },
+  "L-0138": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "No B+ trees: simple is efficient; complexity has costs."
+  },
+  "L-0139": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The dictionary must be sorted for an efficient merge; Q&A 03:03:31 folded in (sorting came in with the merge). Closes the planted question from 1.2. Left as taught (simplified/low)."
+  },
+  "L-0140": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Merge the existing sorted dictionary and the changelog into a new file."
+  },
+  "L-0141": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Changelog is small: sort it in memory and dump if unsorted."
+  },
+  "L-0142": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Classic merge of two sorted lists/arrays into a third."
+  },
+  "L-0143": {
+   "section": "5.3",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Prose"
+    },
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Merge loop pseudo-code: pointer per file, write smaller, advance; on match write changelog meaning, advance both. Clip l10-sorted-merge beats."
+  },
+  "L-0144": {
+   "section": "5.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "5.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 5·c (D-08): a..h + c'', e', f'' -> merged; changelog exhausted -> rest follows. Clip l10-sorted-merge data."
+  },
+  "L-0145": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Streams line by line into a third file; never loads the file into memory."
+  },
+  "L-0146": {
+   "section": "5.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §5: never write in place; always write new entries into a new file. Heuristics card §11."
+  },
+  "L-0147": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "1 TB in and out: job server needs >= 2 TB disk; fine for one server."
+  },
+  "L-0148": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Merged file is complete with new header and index, sorted; Q&A 03:03:07 folded in (index size changes, header rebuilt)."
+  },
+  "L-0149": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal: upload to a new S3 path, swap the pointer, worry about downtime. A-D-06 (multipart upload for 1 TB) as sourced sentence."
+  },
+  "L-0150": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Same proposal framed as deployment: a rolling upgrade of the single file won't work; switch A to B with a canary. Student's doubt is about the file, not server rollout."
+  },
+  "L-0151": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Chosen transition: parallel setup; new file at a new path while the old serves, then servers move over."
+  },
+  "L-0152": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "The probe: why a new path? Same path avoids telling servers. P5 question."
+  },
+  "L-0153": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Answers: short unserved window; rollback plan if upload fails/corrupts. Inline clarification (imprecise/low, verifier override from medium): S3 overwrites are atomic; you lose the old copy unless versioning."
+  },
+  "L-0154": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Upload to temporary storage, validate, then mark live."
+  },
+  "L-0155": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Drawing boxes is easy; upload details and 'do users see garbage?' are the critical part."
+  },
+  "L-0156": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "A simple-looking problem still unconverged after 1.5 hours; building blocks for other systems."
+  },
+  "L-0157": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Same-path problems: upload may fail, file may corrupt, servers must reload (offsets no longer match). Left as taught (simplified/low) + A-D-05 (atomic overwrite; real danger is stale offsets) as separate sourced sentence."
+  },
+  "L-0158": {
+   "section": "6.1",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "6.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Fig 6·a: apple @100, 1024 B; same-path upload; same read returns another word mid-line: garbage. P5 reveal; clip l10-garbage-vs-rolling left lane."
+  },
+  "L-0159": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Until all servers reload, users see garbage: very poor UX."
+  },
+  "L-0160": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Prepared notes option 1: periodic pull of the index; garbage between the S3 change and the next pull; graceful reload. Fig 6·c panel 1."
+  },
+  "L-0161": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Version the file name: s3://word-dictionary/dictionary1.dictionary -> dictionary2.dictionary; open question: how do servers learn it."
+  },
+  "L-0162": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Putting an IP or anything in the path changes nothing; the new path still has to reach the servers."
+  },
+  "L-0163": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Set aside: invalidate command to every server; too complex."
+  },
+  "L-0164": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Set aside: switch at the job's known time; unreliable (overrun, failed or corrupt upload). T3 column with the red X."
+  },
+  "L-0165": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Set aside: one file per word kills portability (D-11 inset, margin tag 'one file')."
+  },
+  "L-0166": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Accepted: metadata file on S3 with the current path, updated on upload success; servers poll every 5-10 min and reload on change. T3 column."
+  },
+  "L-0167": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "The metadata file's path must be static: the one place to look."
+  },
+  "L-0168": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Why poll 5-10 min for a weekly job? Answer given: upload time unknown (S3 down Sunday, upload Monday); not accepted as a reason to poll."
+  },
+  "L-0169": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Wherever there is polling, make it reactive. Back-chips: Lecture 5 (make systems reactive), Lecture 4 (Redis Pub/Sub)."
+  },
+  "L-0170": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Reactive option: servers subscribe to Redis Pub/Sub; the job publishes when done. Fig 6·c panel 2."
+  },
+  "L-0171": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Pub/Sub too complex: another component, persistent connections just to hear 'changed'. A-D-07 (at-most-once) as sourced sentence. T3 column."
+  },
+  "L-0172": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Polling isn't bad, but why 5,000 requests when someone can tell you. T3 'requests wasted' row."
+  },
+  "L-0173": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'latest' flag in the old file's header: you never learn it without polling."
+  },
+  "L-0174": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Check the header version with the backend per request: still polling."
+  },
+  "L-0175": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "A REST endpoint the job calls = same reactive approach as Pub/Sub. T3 'reload endpoint' column."
+  },
+  "L-0176": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Register servers, upgrade one at a time, switch ports: 'complex, complex'; path already in meta.json."
+  },
+  "L-0177": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "meta.json is static and holds the path; boot = read meta.json, read dictionary, build index, serve."
+  },
+  "L-0178": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Reload after meta.json changes = a deployment (hint at 01:37:06). P6 reveal."
+  },
+  "L-0179": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Same path + S3 versioning: S3-specific, same as two files + pointer. A-D-13 (versionId in meta.json) as sourced sentence."
+  },
+  "L-0180": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "updated_at in meta.json per request: still polling, and expensive. T3 'check per request' column."
+  },
+  "L-0181": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "updated_at in the dictionary file: garbage first, and text files carry no such metadata. Inline clarification (imprecise/low) + A-D-04: ETag/Last-Modified, If-Match -> 412."
+  },
+  "L-0182": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Brainstorming rejected options shows why decisions are made."
+  },
+  "L-0183": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "6.4",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "6.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Job uses the AWS SDK to trigger a rolling deployment; new servers read meta.json at boot. Q&A 03:00:19 folded in (out of the box from cloud providers). Optional A-D-14 (instance refresh). Clip right lane."
+  },
+  "L-0184": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "During the roll: inconsistent, never garbage (each server's index matches its file); eventually consistent; meanings don't change drastically. Clip end state; T3 'garbage possible?' row."
+  },
+  "L-0185": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Any deployment tool; one invocation replaces endpoints and Pub/Sub. RuleBox §6 body."
+  },
+  "L-0186": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The instructor's prepared notes cover the same flow (changelog, merge, same path, transition, Pub/Sub, parallel setup, header). One line."
+  },
+  "L-0187": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'The prepared notes' number': 171,476 words, 4.7 + 3 + 2x4, ~2.6 MB. Left as taught (simplified/low): arithmetic checks out; 8-byte caveat (SN-02) applies."
+  },
+  "L-0188": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "What was built: pointed GETs on S3 reading the bare minimum; huge applications."
+  },
+  "L-0189": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Amazon orders > 6 months -> S3, recent in MySQL; users can still look them up. Fig 6·e (D-12)."
+  },
+  "L-0190": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Can't just dump JSON on S3; you need pointed queries (order ID -> details)."
+  },
+  "L-0191": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "ForwardChip"
+    },
+    {
+     "section": "6.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Foundation of multi-tiered storage; data on S3 stays queryable. Q&A 02:58:29 folded in. Chip 'coming later · week 6' (tiered storage for Amazon orders)."
+  },
+  "L-0192": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "S3 as cheap, not archival storage: time vs a big cut in hot-DB cost. Q&A 02:59:16 folded in (higher latency fine for infrequent reads; S3 storage cheap, calls not)."
+  },
+  "L-0193": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Data lakes: huge data on very cheap storage, still queryable."
+  },
+  "L-0194": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Apache Hudi table format and Hive partitions 'exactly this'. Inline clarification (imprecise/low): same idea (key -> file id indexes, partition layouts) + optional A-SSE-12."
+  },
+  "L-0195": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Summary: from deciding to deploying, keep it simple. Chapter 6 hand-off to chapter 7."
+  },
+  "L-0196": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Order of steps (Q&A 01:47:56): merge -> upload to new path -> update meta.json -> trigger deployment. Fig 6·d numbers 1-4."
+  },
+  "L-0197": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: better than a whole redeploy? Only startup reruns; reload endpoints possible but more complex."
+  },
+  "L-0198": {
+   "section": "6.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §6: trigger a deployment; out of the box, same cost, no polling or Pub/Sub; we control our infrastructure. Heuristics card §11."
+  },
+  "L-0199": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Alternative: send the 1.7 MB index itself in the update; no reload from S3."
+  },
+  "L-0200": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening problem of chapter 7: super fast KV store on cheap magnetic disks, put/get/update/delete with full persistence; break teaser (O(1), used unknowingly)."
+  },
+  "L-0201": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Storage hierarchy; SSDs closer to memory in speed and cost. Speed scale on Fig 7·a."
+  },
+  "L-0202": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "SSDs fast but costly; huge data lives on magnetic disks."
+  },
+  "L-0203": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Magnetic disk: a head moves across a spinning platter."
+  },
+  "L-0204": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Byte offset -> disk, sector, offset in sector."
+  },
+  "L-0205": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Read: rotate, move the head, read, driver, user space; every other read needs another movement."
+  },
+  "L-0206": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Mechanical movement is the most time-consuming part of disk I/O."
+  },
+  "L-0207": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Only put/get/delete, but every put flushed immediately."
+  },
+  "L-0208": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: memtable/SSTable sorted map in memory; rejected: persist immediately. Left as taught (simplified/low); SN-10 in 10.3 covers LSM's WAL."
+  },
+  "L-0209": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Ledger-like file: every change appended at the end."
+  },
+  "L-0210": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Appending fits a magnetic disk: no seek, no rotational wait. Board 'Append only / Zero seek / Best we can do!!'. Left as taught (simplified/low)."
+  },
+  "L-0211": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Figure"
+    },
+    {
+     "section": "7.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Put K1 V1, K2 V2, K3 V3 appended in order. Fig 7·b rows; clip beats."
+  },
+  "L-0212": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Remember where each key starts? Deferred to get (returns as the map in 7.4)."
+  },
+  "L-0213": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "RuleBox"
+    },
+    {
+     "section": "7.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Update = append; old entry obsolete; 'no matter what'. RuleBox §7 headline."
+  },
+  "L-0214": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Appending every put = max put performance on a cheap disk."
+  },
+  "L-0215": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "ForwardChip"
+    },
+    {
+     "section": "7.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Tempting: overwrite K2's value with -1; append-only forbids it. Back-chip Lecture 3 (delete as expired_at = -1). P7 wrong choice."
+  },
+  "L-0216": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Append-only: random reads anywhere, writes only at the end (restated 02:12:18). RuleBox §7 body."
+  },
+  "L-0217": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "7.4",
+     "component": "Figure"
+    },
+    {
+     "section": "7.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Delete = put with a special value: DEL K2 = PUT(K2, -1). P7 reveal."
+  },
+  "L-0218": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Put is O(1), so delete is too."
+  },
+  "L-0219": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Naive get: scan all entries, return the latest; very poor."
+  },
+  "L-0220": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "SSTable for get? A simple hash table; the two are very different."
+  },
+  "L-0221": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Figure"
+    },
+    {
+     "section": "7.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "In-memory hash table key -> offset of the latest entry (offset, not value), updated on every append."
+  },
+  "L-0222": {
+   "section": "7.4",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    },
+    {
+     "section": "7.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Clip l10-append-only-log: append first, then point the key (K1->O1, K2->O2, K3->O3; K1 V1' -> O4)."
+  },
+  "L-0223": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Delete removes the key from the map; no entry = no key."
+  },
+  "L-0224": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Get: map lookup; absent 404; present read at offset. Board 'GET(k) -> hash lookup, disk seek, disk read' (also in Fig 10·a)."
+  },
+  "L-0225": {
+   "section": "7.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 7·c 'Crash and rebuild': map lost, scan the file, rebuild; slow but fine."
+  },
+  "L-0226": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "get/put/delete each O(1), bare minimum, full persistence; same move as the dictionary index (2.3)."
+  },
+  "L-0227": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Slow restart lowers availability; accepted; ways to improve. A-SSE-01 (hint files) as sourced sentence."
+  },
+  "L-0228": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "All keys must fit in memory (keys, not values)."
+  },
+  "L-0229": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Nothing collected; the file grows until the disk is full. Board 'File grows huge!!!'."
+  },
+  "L-0230": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Several files; scrub one no longer written (live keys only); becomes merge and compaction (8.3)."
+  },
+  "L-0231": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Writes go to one file; the others become immutable."
+  },
+  "L-0232": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: room for three files (write, read, build); in fact reads and writes hit the same files."
+  },
+  "L-0233": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Tempting: file size = disk / 2 or 3 (100 TB disk -> 10 TB files); more problems. P8 wrong choice."
+  },
+  "L-0234": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Huge files can't be indexed concurrently; smaller units make cleanup more even. P8 reveal."
+  },
+  "L-0235": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Biggest reason: file-system limits (BTRFS, NTFS). Inline clarification (imprecise/low): FAT32 caps at 4 GB, modern FS allow TBs; stronger reason is per-file merge/rebuild work. P8 reveal."
+  },
+  "L-0236": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Small files (100 MB or 1 GB), new file when crossed. A-SSE-03 (Riak default 2 GB) as sourced sentence. P8 right choice."
+  },
+  "L-0237": {
+   "section": "8.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 8·a: files 001-004, exactly one active (yellow), the rest read-only but readable."
+  },
+  "L-0238": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Definition: file rotation, a new file each time the active one crosses its limit."
+  },
+  "L-0239": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Map stores file + offset per key (K1 -> f1, O4); page fixes the board's K3 -> f2 slip to f1."
+  },
+  "L-0240": {
+   "section": "8.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Rotated files hold stale (old K1) and deleted (K2) entries."
+  },
+  "L-0241": {
+   "section": "8.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 8·b: merge and compaction while the active file takes writes; new file without dead entries; old files deleted."
+  },
+  "L-0242": {
+   "section": "8.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Offsets change, so the map is updated for every moved entry (prepared notes: 'atomically')."
+  },
+  "L-0243": {
+   "section": "8.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Not a merge-sort merge (unsorted): temporary hash table, newer replaces older, flush periodically. Contrast with 5.3."
+  },
+  "L-0244": {
+   "section": "8.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "Prose"
+    },
+    {
+     "section": "8.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Fig 8·c: sawtooth of disk usage; clip l10-sawtooth."
+  },
+  "L-0245": {
+   "section": "8.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "Prose"
+    },
+    {
+     "section": "8.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "RuleBox §8: keep the sawtooth under the disk cap; shape sets merge frequency and performance; crossing crashes the system. Heuristics card §11."
+  },
+  "L-0246": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Too often: GC steals CPU; too rarely: work piles up."
+  },
+  "L-0247": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Two knobs: merge frequency and file rotation threshold. Left as taught (simplified/low) + A-SSE-04 (real Bitcask merge triggers) as separate sourced sentence."
+  },
+  "L-0248": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Tune by monitoring the sawtooth; expose both as config."
+  },
+  "L-0249": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Standard approach, best on a cheap disk, almost as fast as SSDs. Inline clarification (imprecise/low): for writes; every get still costs a seek."
+  },
+  "L-0250": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [],
+   "note": "On SSDs the gain is smaller. Inline clarification (imprecise/low): flash can't overwrite in place either; optional A-SSE-17 (zoned SSDs)."
+  },
+  "L-0251": {
+   "section": "9.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Files read by blocks; 'key value' too casual; a defined record format (even the dictionary was simplified)."
+  },
+  "L-0252": {
+   "section": "9.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Every database serializes to disk in its own record format."
+  },
+  "L-0253": {
+   "section": "9.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Reading byte by byte until newline = one I/O per byte. Inline clarification (imprecise/low) + A-SSE-15 (page cache absorbs disk reads; still one call per byte)."
+  },
+  "L-0254": {
+   "section": "9.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §9: at any offset, know exactly how many bytes to read. Heuristics card §11."
+  },
+  "L-0255": {
+   "section": "9.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 9·a: KSZ (4 B) + VSZ (4 B) before key and value."
+  },
+  "L-0256": {
+   "section": "9.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Two I/Os: 8-byte prefix, then key+value in one read; read predictability; like the dictionary header."
+  },
+  "L-0257": {
+   "section": "9.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 9·b: the dictionary in the same format (word size, meaning size, word, meaning)."
+  },
+  "L-0258": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Fault tolerance: crash mid-write corrupts the entry; know it, don't serve it."
+  },
+  "L-0259": {
+   "section": "9.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Fig 9·c step 3: reading VSZ bytes runs into the next record. P9 wrong-choice verdict."
+  },
+  "L-0260": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "CRC over KSZ, VSZ, key, value, computed in memory. Left as taught (simplified/low). P9 reveal."
+  },
+  "L-0261": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "SourceNote"
+    },
+    {
+     "section": "9.2",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "CRC leftmost, first thing written and flushed; 'cannot' go at the end. SN-05: a convention (Bitcask, LevelDB), not a rule; any position works if the length is known. Back-chip Lecture 6 (timestamp leftmost).",
+   "source_note": "SN-05"
+  },
+  "L-0262": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Postgres commit log, MySQL binlog put CRC leftmost. SN-05 + A-SSE-07, A-SSE-08: both CRC every record, but elsewhere (Postgres end of record header, MySQL end of event).",
+   "source_note": "SN-05"
+  },
+  "L-0263": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Network formats put the CRC first. SN-06: frames carry checksums, often at the end (PPP FCS; TCP checksum mid-header).",
+   "source_note": "SN-06"
+  },
+  "L-0264": {
+   "section": "9.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Final record: CRC, TS (conflicts), KSZ, VSZ, K, V (Fig 9·c last step). A-SSE-05 (Bitcask source order) as sourced sentence."
+  },
+  "L-0265": {
+   "section": "9.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 9·c: write header part, then key, then value; first write fails -> no entry; later fails -> CRC mismatch -> 'corrupt'."
+  },
+  "L-0266": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Recovery is heuristic: ignore the entry (e.g. in merge). A-SSE-06 (LevelDB skips and resyncs) as sourced sentence."
+  },
+  "L-0267": {
+   "section": "9.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Question CSV-until-newline; use sizes, key, value and CRC. Heuristics card §11."
+  },
+  "L-0268": {
+   "section": "10.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "10.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fig 10·a: map entry = file id, size, offset, timestamp; writes only to the active file."
+  },
+  "L-0269": {
+   "section": "10.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.3",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "10.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Main limitation: all keys in memory. T4 red X cell."
+  },
+  "L-0270": {
+   "section": "10.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Very high write throughput, very low write latency."
+  },
+  "L-0271": {
+   "section": "10.1",
+   "component": "Prose",
+   "also": [],
+   "note": "I/O saturation of disk and network: nothing idle."
+  },
+  "L-0272": {
+   "section": "10.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Easy backups: copy the files."
+  },
+  "L-0273": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Reveal: it is Bitcask, an embedded database."
+  },
+  "L-0274": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Embedded = a library, no server (SQLite). A-SSE-16 (SQLite serverless) as sourced sentence."
+  },
+  "L-0275": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Uber uses Bitcask for its main ride-hailing service. SN-07: around 2015 Uber used Riak (default backend Bitcask) for parts of dispatch; core trips in Postgres then Schemaless.",
+   "source_note": "SN-07"
+  },
+  "L-0276": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Uber via Riak, a KV store with Bitcask as back end. SN-07 (historical, ~2015).",
+   "source_note": "SN-07"
+  },
+  "L-0277": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Riak : Bitcask = Elasticsearch : Lucene. Left as taught (simplified/low)."
+  },
+  "L-0278": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.2",
+     "component": "SourceNote"
+    },
+    {
+     "section": "10.2",
+     "component": "Figure"
+    },
+    {
+     "section": "10.2",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Riak distributes Bitcask: 'master-slave', consensus, proxy, consistent hashing, mutually exclusive sets. SN-08 + A-SSE-14: masterless ring, N replicas, any node coordinates. Fig 10·b drawn corrected. Back-chip Lecture 9 (consistent hashing).",
+   "source_note": "SN-08"
+  },
+  "L-0279": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The append-only file is the magic behind Bitcask on commodity hardware."
+  },
+  "L-0280": {
+   "section": "10.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "10.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §10: high throughput + persistence -> append-only file. Inline clarification (imprecise/low): heuristic; batching, group commit, relaxed sync too (Cassandra). Heuristics card §11."
+  },
+  "L-0281": {
+   "section": "10.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Bitcask simple yet fabulous: integrity, record format, merge and compaction; usual Riak back end."
+  },
+  "L-0282": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [],
+   "note": "There is a Bitcask paper, a search away."
+  },
+  "L-0283": {
+   "section": "10.3",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "10.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "'Project: build your own Bitcask'; not difficult, ~a week, surfaces devils (merge process, map updates); Q&A 02:51:06 folded in."
+  },
+  "L-0284": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The instructor implemented Bitcask ~5 years ago and benchmarked it. Unverifiable: attributed as his experience."
+  },
+  "L-0285": {
+   "section": "10.3",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "10.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Monitor with Prometheus while running; spend a week or two (both said in class)."
+  },
+  "L-0286": {
+   "section": "11",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next week: high-throughput systems (S3, video encoding, YouTube views counting, one more DB), compute side. 'coming later · week 6'."
+  },
+  "L-0287": {
+   "section": "11",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next Saturday: deep dive on S3 and its nitty-gritty. 'coming later · week 6'."
+  },
+  "L-0288": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "10.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Bitcask vs SSTable: 'SSTables keep values in memory', also sorted (next week). SN-09 + A-SSE-13: only the memtable is in memory; SSTables are immutable sorted files; Bitcask keeps all keys in RAM.",
+   "source_note": "SN-09"
+  },
+  "L-0289": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "10.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Bitcask persists every write by default; memtable can lose data. SN-10 + A-SSE-02: LSM logs to a WAL first; Bitcask default sync=none leaves flushing to the OS.",
+   "source_note": "SN-10"
+  },
+  "L-0290": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "10.3",
+     "component": "ForwardChip"
+    },
+    {
+     "section": "11",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Bitcask taught first as the foundation; next week SSTable, memtable, LSM, counting. Chip 'coming later · week 6'."
+  },
+  "L-0291": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Kleppmann's book starts its storage chapter with Bitcask (raised in class)."
+  },
+  "L-0292": {
+   "section": "10.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The instructor met Bitcask in a college storage paper-reading course. Unverifiable: attributed as his experience."
+  },
+  "L-0293": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Q&A 02:46:31: open in append mode 'a'; don't preallocate; the FS lays out the file."
+  },
+  "L-0294": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A 02:48:26: FS (BTRFS, NTFS, ext) don't pack files back to back; growing is fine. Left as taught (simplified/low)."
+  },
+  "L-0295": {
+   "section": "8.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Q&A 02:49:23: deleted keys skipped in the merge, never copied."
+  },
+  "L-0296": {
+   "section": "8.3",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "Prose"
+    },
+    {
+     "section": "8.3",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Q&A 02:50:13: merge via a separate in-memory hash table (replace on newer, remove on delete), flush as new file."
+  },
+  "L-0297": {
+   "section": "9.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Pattern assumes header write is atomic; confirmed in class. Inline clarification (imprecise/low): not guaranteed; the CRC catches a torn header too."
+  },
+  "L-0298": {
+   "section": "9.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Kernels and FS differ; header under block size assumed whole. A-SSE-09 (Postgres torn pages, full_page_writes) as sourced sentence."
+  },
+  "L-0299": {
+   "section": "9.3",
+   "component": "Prose",
+   "also": [],
+   "note": "~20-byte header will be written in practice. Left as taught (simplified/low)."
+  },
+  "L-0300": {
+   "section": "9.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Raised in class (open): paranoid systems use a separate WAL; this pattern is more performant."
+  },
+  "L-0301": {
+   "section": "9.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Integrity is almost never covered in design overviews. Unverifiable: attributed as the instructor's view."
+  },
+  "L-0302": {
+   "section": "9.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Ignore integrity and systems only seem to work. Unverifiable: attributed as the instructor's view."
+  },
+  "L-0303": {
+   "section": "9.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Go deeper: Postgres internals': Hussein Nasser's Medium posts; read after implementing Bitcask."
+  },
+  "L-0304": {
+   "section": "9.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Surprise from those posts: pages for meta info vs data. Unverifiable: attributed as the instructor's impression."
+  },
+  "L-0305": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Q&A 02:56:05 moved up: 1 TB chosen deliberately to make copy-per-server too costly; imagine multimedia meanings."
+  },
+  "L-0306": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Q&A 02:57:50: one S3 call per request is costly; in the real world you cache/tier; here only to show pointed reads. A-D-08 + A-SSE-11 (S3 latency, cache in front) as sourced sentences. Back-chip Lecture 2 (caching at every level)."
+  },
+  "L-0307": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A 02:59:16: don't take MBs lightly; M = a million bytes. A-FFD-07 (MB vs MiB)."
+  },
+  "L-0308": {
+   "section": "6.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From the instructor: reload by deploying': Pub/Sub and reload APIs first, then just a deployment. Unverifiable: attributed as his experience."
+  },
+  "L-0309": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A 03:04:11: keeping 170,000 records sorted isn't complex; the merge produces the sorted file."
+  },
+  "L-0310": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Q&A 03:05:04: both sorted -> output sorted -> next week's input; O(n) not O(n^2). Left as taught (simplified/low)."
+  },
+  "L-0311": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "CS is obsessed with sorted data because it makes processes simple. Closes chapter 5's merge."
+  }
+ },
+ "dropped": [],
+ "source_notes": {
+  "SN-01": [
+   "L-0035"
+  ],
+  "SN-02": [
+   "L-0056"
+  ],
+  "SN-03": [
+   "L-0108"
+  ],
+  "SN-04": [
+   "L-0112"
+  ],
+  "SN-05": [
+   "L-0261",
+   "L-0262"
+  ],
+  "SN-06": [
+   "L-0263"
+  ],
+  "SN-07": [
+   "L-0275",
+   "L-0276"
+  ],
+  "SN-08": [
+   "L-0278"
+  ],
+  "SN-09": [
+   "L-0288"
+  ],
+  "SN-10": [
+   "L-0289"
+  ]
+ },
+ "additions": {
+  "A-D-01": {
+   "section": "2.3",
+   "component": "SourceNote",
+   "note": "SN-02: 1 TB needs 8-byte offsets; index still a few MB (L-0056)."
+  },
+  "A-D-02": {
+   "section": "2.3",
+   "component": "Prose",
+   "note": "Inline on L-0055: 4.8 letters in running text, ~7.6 across distinct words."
+  },
+  "A-D-03": {
+   "section": "4.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0105: GetObject takes an HTTP Range header."
+  },
+  "A-D-04": {
+   "section": "6.3",
+   "component": "Prose",
+   "note": "Inline on L-0181: ETag/Last-Modified; If-Match ranged GET fails with 412 instead of garbage."
+  },
+  "A-D-05": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0157: S3 overwrite is atomic; the danger is stale offsets."
+  },
+  "A-D-06": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0149: 1 TB needs multipart upload (single PUT max 5 GB)."
+  },
+  "A-D-07": {
+   "section": "6.3",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0171: Redis Pub/Sub is at-most-once."
+  },
+  "A-D-08": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0306: S3 latency 100-200 ms for latency-sensitive apps; cache in front."
+  },
+  "A-D-09": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Optional, used: SQLite is one portable disk file (with L-0029)."
+  },
+  "A-D-10": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Inline on L-0030: ZIP's central directory holds each member's offset."
+  },
+  "A-D-11": {
+   "section": "1.3",
+   "component": "SourceNote",
+   "note": "SN-01: Athena scans, billed per TB; partition/compress/Parquet (L-0035)."
+  },
+  "A-D-12": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "note": "SN-03: block (EBS) vs file (EFS) vs object (S3) storage (L-0108)."
+  },
+  "A-D-13": {
+   "section": "6.3",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0179: S3 versionId in meta.json pins each server to its version."
+  },
+  "A-D-14": {
+   "section": "6.4",
+   "component": "Prose",
+   "note": "Optional, used: EC2 Auto Scaling instance refresh launches new before terminating old (L-0183)."
+  },
+  "A-D-15": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "Optional, used: JSON Lines streams record by record but has no index (L-0016)."
+  },
+  "A-D-16": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Inline on L-0037: Lucene segments, segments_N, compound .cfs."
+  },
+  "A-D-17": {
+   "section": "4.2",
+   "component": "Prose",
+   "note": "Optional, used: HDFS positioned reads (L-0113)."
+  },
+  "A-FFD-01": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "Inline on L-0078: the 8-byte PNG signature."
+  },
+  "A-FFD-02": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0081: header integers need a fixed byte order (PNG big-endian, Parquet little-endian)."
+  },
+  "A-FFD-03": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Inline on L-0086: Parquet metadata in a footer after PAR1."
+  },
+  "A-FFD-04": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0073: ZIP and MP4 keep the directory at the end."
+  },
+  "A-FFD-05": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Inline on L-0088: RFC 4180 optional column-name header."
+  },
+  "A-FFD-06": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Optional, used: only Safari shows TIFF natively (Oct 2026), with L-0091."
+  },
+  "A-FFD-07": {
+   "section": "2.3",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0058/L-0307: MB = 10^6 B vs MiB = 2^20 B."
+  },
+  "A-FFD-08": {
+   "section": "2.1",
+   "component": "Prose",
+   "note": "Optional, used: 8 kB pages are real; page trees matter when the index exceeds RAM (L-0038)."
+  },
+  "A-FFD-09": {
+   "section": "4.1",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0100: cost optimization is a Well-Architected pillar."
+  },
+  "A-SSE-01": {
+   "section": "8.1",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0227: hint files speed up startup."
+  },
+  "A-SSE-02": {
+   "section": "10.3",
+   "component": "SourceNote",
+   "note": "SN-10: Bitcask default sync_strategy none; o_sync per write (L-0289)."
+  },
+  "A-SSE-03": {
+   "section": "8.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0236: Riak Bitcask rotates at 2 GB by default."
+  },
+  "A-SSE-04": {
+   "section": "8.4",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0247: merge triggers 60% dead keys / 512 MB dead bytes, merge window."
+  },
+  "A-SSE-05": {
+   "section": "9.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0264: Bitcask's source writes CRC, tstamp, ksz, vsz, key, value."
+  },
+  "A-SSE-06": {
+   "section": "9.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0266: LevelDB skips corrupt data, resyncs at next block."
+  },
+  "A-SSE-07": {
+   "section": "9.2",
+   "component": "SourceNote",
+   "note": "SN-05: Postgres CRC-32C per WAL record (L-0262)."
+  },
+  "A-SSE-08": {
+   "section": "9.2",
+   "component": "SourceNote",
+   "note": "SN-05: MySQL binlog_checksum CRC32, last 4 bytes of the event (L-0262)."
+  },
+  "A-SSE-09": {
+   "section": "9.3",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0298: Postgres torn 8 KB pages, full_page_writes."
+  },
+  "A-SSE-10": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "note": "SN-04: one byte range per GET; concurrent ranged GETs (L-0112)."
+  },
+  "A-SSE-11": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0306: tens-of-ms median latency for small requests; cache in front of S3."
+  },
+  "A-SSE-12": {
+   "section": "6.5",
+   "component": "Prose",
+   "note": "Optional, used: Hudi index maps record key to file id (L-0194)."
+  },
+  "A-SSE-13": {
+   "section": "10.3",
+   "component": "SourceNote",
+   "note": "SN-09: Cassandra commit log -> memtable -> immutable SSTables; 10 s sync window (L-0288)."
+  },
+  "A-SSE-14": {
+   "section": "10.2",
+   "component": "SourceNote",
+   "note": "SN-08: Riak ring, N vnodes per key, any node coordinates, no master (L-0278)."
+  },
+  "A-SSE-15": {
+   "section": "9.1",
+   "component": "Prose",
+   "note": "Inline on L-0253: the page cache serves nearby reads."
+  },
+  "A-SSE-16": {
+   "section": "10.2",
+   "component": "Prose",
+   "note": "Sourced sentence with L-0274: SQLite reads and writes its file directly, no server."
+  },
+  "A-SSE-17": {
+   "section": "8.4",
+   "component": "Prose",
+   "note": "Optional, used: zoned SSDs need sequential writes per zone (with L-0250 inline)."
+  }
+ },
+ "additions_not_used": {}
+}

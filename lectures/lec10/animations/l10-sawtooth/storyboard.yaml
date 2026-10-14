@@ -1,0 +1,111 @@
+# Storyboard — clip l10-sawtooth   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l10-sawtooth
+title: Keep it under the cap
+lecture: 10
+section: "8.4 The sawtooth and its two knobs"
+status: reviewed
+why_motion: >
+  Accumulation plus a periodic drop, with a rate knob that changes the shape. The sawtooth is itself a time series:
+  usage climbs while writes arrive and drops when merge and compaction runs. The lesson is what the merge rate does
+  to the peaks against a hard 1 TB cap: the same writes, merged half as often, climb into the cap and crash the store;
+  merged twice as often, the peaks stay low but the CPU is busy merging. A still graph shows one shape, not the same
+  writes producing a crash when only the merge rate changes.
+static_twin: "Fig 8·c (D-15 right half, b_022500.jpg; D-20 graph, b_023515.jpg): usage plot under a red 1 TB cap"
+ledger:
+  taught: [L-0244, L-0245, L-0246, L-0247, L-0248]
+  context_only: [L-0236, L-0238, L-0241]
+fidelity_notes:
+  - "The only number is the board's 1 TB cap (L-0245). Write rate, merge intervals, drop depth and the time axis are illustrative and unlabelled; the time axis carries no units."
+  - "All three runs use the same write rate (the same slope); only the merge interval changes (healthy P, too often P/2, too rarely 2P). That is the clip's one controlled variable."
+  - "After each merge, usage drops to the live data, drawn as a flat floor (not labelled). The clip doesn't claim how the floor moves over time; every run starts at that floor."
+  - "Too rarely: the first peak (at twice the healthy interval) reaches the cap before its merge runs, and the line stops there with a red ✕ and 'disk full: crash'. 'Crash' follows L-0245's merged verbatim ('As soon as it crosses the cap of it, your system would crash') and the outline's wording."
+  - "'CPU spent merging' is a qualitative bar (L-0246: 'too much garbage collection ... your CPU not getting CPU to do actual work'). It grows by one equal chunk per merge, so it counts merges: 3 healthy, 7 too often, 0 too rarely. No percentages and no claim about the cost of one merge."
+  - "The rotation threshold is named, not animated: the class gave no rule for how it changes the shape (L-0247). Real Bitcask triggers merges by how much garbage exists (A-SSE-04); that sits in the prose next to the clip, not on screen."
+  - "L-0247 is fact-checked as 'simplified' (real Bitcask exposes many more settings). The caption says 'This design has two knobs', not 'only two knobs'; the board's notes '1. MC freq' and '2. file rotation threshold' are shown as written (split over two lines)."
+  - "'work piles up' (L-0246) is in the B3 caption only, not drawn as a label, to keep the plot free of labels crossing ghosted lines."
+  - "The usage lines are graphite (they are not a request path); red marks only the cap, the curve that hits it and the crash."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1024}
+duration_frames: 1080
+start_frame_equals: "Fig 8·c's empty plot: hand 'disk used' (y) and 'time' (x) axes, the red 1 TB cap line with mono '1 TB', and an empty 'CPU spent merging' bar under the plot."
+poster_frame: 1079
+reduced_motion_stills: [80, 322, 576, 782, 942, 1079]
+glyphs:
+  axes: {shape: "UsagePlot axes (hand lines, chevrons at the far ends)", wide: "y x=150 from 420 up to 96; x y=420 from 150 to 660", phone: "y x=110 from 500 up to 88; x y=500 from 110 to 650"}
+  y_label: {text: "disk used", style: hand ink2, wide: [172, 106], phone: [130, 104]}
+  x_label: {text: "time", style: hand ink2, wide: "[676, 432] right of the arrow", phone: "[650, 542] under the arrow end, anchor end"}
+  cap: {shape: "red horizontal line (Ceiling)", label: "1 TB (mono, red, left of the y axis)", wide_y: 150, phone_y: 160}
+  usage_healthy: {shape: "graphite polyline, period P", wide: "x 160–640, floor 380, peaks 265", phone: "x 120–540, floor 460, peaks 310"}
+  usage_often: {shape: "graphite polyline, period P/2", label: "too often (hand, at its right end)"}
+  usage_rarely: {shape: "graphite polyline, period 2P, stops at the cap; re-inked red at the touch", label: "too rarely (hand, right of the line); 'disk full: crash' (hand, red, right of the ✕ above the cap)"}
+  merge_ticks: {shape: "short dashed graphite ticks under the x axis at each drop", label: "merge & compaction (hand ink2, once, under the axis)"}
+  cpu_bar: {shape: "outlined bar under the plot; fill grows one chunk per merge (ink3)", label: "CPU spent merging (hand ink2, left of the bar)", wide: "label [150, 594], bar [556, 566, 400, 36]", phone: "label [30, 650], bar [340, 626, 350, 32]"}
+  dials: {shape: "two dial glyphs (hand circle + pointer)", labels: ["1. MC freq (mono)", "2. file rotation / threshold (mono, two lines)"], wide: "right column x 740 / 784, y 190 and 270", phone: "under the bar, x 60 / 98, y 730 and 810"}
+  monitor: {text: "monitor the sawtooth", style: "hand ink, weight 600", wide: "top right [1170, 70] anchor end", phone: "two lines right of the dials [440, 750] [440, 790]"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "Disk used over time, on a 1 TB disk."
+    on_screen: [static figure: axes, red 1 TB cap, empty CPU bar]
+    motion: none
+    ledger: [L-0245]
+  - id: B1
+    from: 90
+    to: 330
+    caption: "Writes fill the disk; each merge and compaction drops it back. A sawtooth."
+    events:
+      - {at: 100, dur: 190, what: "the healthy usage line is drawn left to right at a constant time speed (a pen dot at its tip); it climbs, then drops at each merge: three teeth, all well under the cap"}
+      - {at: 182, dur: 8, what: "a dashed tick under the axis at each drop (x = P, 2P, 3P), and the CPU bar grows by one chunk"}
+      - {at: 186, dur: 24, what: "'merge & compaction' written under the first tick (ink2)"}
+    ledger: [L-0244]
+  - id: B2
+    from: 330
+    to: 584
+    caption: "Merge too often: low peaks, but the CPU is busy collecting garbage."
+    events:
+      - {at: 330, dur: 12, what: "healthy line, its ticks and its CPU fill ghost to 38%"}
+      - {at: 340, dur: 190, what: "same writes, merges every P/2: seven low teeth drawn; a tick and one CPU chunk per drop; the bar ends about 70% full"}
+      - {at: 532, dur: 22, what: "'too often' written at the line's right end"}
+    ledger: [L-0246]
+  - id: B3
+    from: 584
+    to: 790
+    caption: "Merge too rarely: work piles up, a peak hits the cap, and the store crashes."
+    events:
+      - {at: 584, dur: 12, what: "too-often line, ticks and CPU fill ghost to 38%"}
+      - {at: 594, dur: 101, what: "same writes, merges every 2P: one tall tooth climbs to the cap; no merge has run, the CPU bar stays empty"}
+      - {at: 695, dur: 10, what: "the line touches the cap: line re-inked red, red ✕ at the touch", colour: red}
+      - {at: 706, dur: 24, what: "'disk full: crash' written above the cap", colour: red}
+      - {at: 734, dur: 22, what: "'too rarely' written beside the line"}
+    ledger: [L-0245, L-0246]
+  - id: B4
+    from: 790
+    to: 950
+    caption: "This design has two knobs: merge frequency and file rotation size."
+    events:
+      - {at: 790, dur: 12, what: "the healthy line, its ticks and CPU fill return to full ink; the too-rarely line and its labels ghost"}
+      - {at: 800, dur: 24, what: "dial 1 drawn (circle, then pointer)"}
+      - {at: 822, dur: 24, what: "'1. MC freq' written"}
+      - {at: 852, dur: 24, what: "dial 2 drawn"}
+      - {at: 872, dur: 40, what: "'2. file rotation' / 'threshold' written"}
+    ledger: [L-0247]
+  - id: B5
+    from: 950
+    to: 1080
+    caption: "Watch the sawtooth, tune both knobs, keep it under the cap."
+    on_screen: [end state = poster]
+    events:
+      - {at: 958, dur: 30, what: "'monitor the sawtooth' written"}
+    ledger: [L-0248, L-0245]
+chapters:
+  - {label: the cap, frame: 10}
+  - {label: sawtooth, frame: 100}
+  - {label: too often, frame: 340}
+  - {label: too rarely, frame: 594}
+  - {label: two knobs, frame: 800}
+page_context:
+  predict: "Halve the merge frequency. Does the peak go up or down, and what is the line it must never cross?"
+  caption: "Disk usage climbs with writes and drops at each merge and compaction: a sawtooth under the 1 TB cap. Merge too often and the CPU is busy merging; too rarely and a peak hits the cap and the store crashes."
+  after: "Two knobs, one picture: monitor it, and expose both settings to whoever runs your store."

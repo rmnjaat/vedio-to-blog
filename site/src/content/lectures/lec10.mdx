@@ -1,0 +1,141 @@
+---
+title: "Files as a database"
+kicker: "Lecture 10 · week 5, day 2 · running case: a word dictionary with no database, then Bitcask"
+dek: "Two storage engines built from plain files: a read-only dictionary on S3 with a header, an index and a weekly merge, and an append-only key-value store with one map in memory, revealed at the end as Bitcask."
+description: "Lecture 10: build a portable word dictionary with no database, served from one file on S3 by pointed reads and updated weekly, then design an append-only key-value store on cheap disks and meet Bitcask."
+reviewed: 14 Oct 2026
+status: published
+ledger: lectures/lec10/ledger/ledger.jsonl
+contents:
+  - no: "1"
+    title: "A dictionary with no database"
+    href: "#s1"
+    children:
+      - { no: "1.1", title: "The problem: a dictionary, no database", href: "#s1-1" }
+      - { no: "1.2", title: "JSON, or a plain text file?", href: "#s1-2" }
+      - { no: "1.3", title: "Clever ideas, set aside, and what “portable” means", href: "#s1-3" }
+  - no: "2"
+    title: "Finding one word fast"
+    href: "#s2"
+    children:
+      - { no: "2.1", title: "Start naive: scan the file", href: "#s2-1" }
+      - { no: "2.2", title: "A one-level index", href: "#s2-2" }
+      - { no: "2.3", title: "Will the index fit in memory?", href: "#s2-3" }
+  - no: "3"
+    title: "One file you can ship"
+    href: "#s3"
+    children:
+      - { no: "3.1", title: "Two files break portability", href: "#s3-1" }
+      - { no: "3.2", title: "A fixed-size header", href: "#s3-2" }
+      - { no: "3.3", title: "Every file format is a header and sections", href: "#s3-3" }
+  - no: "4"
+    title: "Serving it from S3"
+    href: "#s4"
+    children:
+      - { no: "4.1", title: "One copy per server?", href: "#s4-1" }
+      - { no: "4.2", title: "Properties first, then technology", href: "#s4-2" }
+      - { no: "4.3", title: "Boot, GET, and a database built from a file", href: "#s4-3" }
+  - no: "5"
+    title: "The weekly update"
+    href: "#s5"
+    children:
+      - { no: "5.1", title: "A job on its own server", href: "#s5-1" }
+      - { no: "5.2", title: "Why you can't edit in place", href: "#s5-2" }
+      - { no: "5.3", title: "Merge, as in merge sort", href: "#s5-3" }
+  - no: "6"
+    title: "Switching every server to the new file"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "Same path, stale offsets, garbage", href: "#s6-1" }
+      - { no: "6.2", title: "A new path, and a static meta.json", href: "#s6-2" }
+      - { no: "6.3", title: "Polling, reactive, and still too complex", href: "#s6-3" }
+      - { no: "6.4", title: "A reload is a boot: trigger a deployment", href: "#s6-4" }
+      - { no: "6.5", title: "Why this matters: cold data you can still query", href: "#s6-5" }
+  - no: "7"
+    title: "Fast writes on a cheap disk"
+    href: "#s7"
+    children:
+      - { no: "7.1", title: "The problem, and how a magnetic disk works", href: "#s7-1" }
+      - { no: "7.2", title: "Put: append, never seek", href: "#s7-2" }
+      - { no: "7.3", title: "Delete: a put with a special value", href: "#s7-3" }
+      - { no: "7.4", title: "Get: an in-memory map to the latest offset", href: "#s7-4" }
+  - no: "8"
+    title: "Files that never stop growing"
+    href: "#s8"
+    children:
+      - { no: "8.1", title: "What could go wrong?", href: "#s8-1" }
+      - { no: "8.2", title: "File rotation", href: "#s8-2" }
+      - { no: "8.3", title: "Merge and compaction", href: "#s8-3" }
+      - { no: "8.4", title: "The sawtooth and its two knobs", href: "#s8-4" }
+  - no: "9"
+    title: "Record format and integrity"
+    href: "#s9"
+    children:
+      - { no: "9.1", title: "Don’t read until the newline", href: "#s9-1" }
+      - { no: "9.2", title: "Detecting a torn write: CRC first", href: "#s9-2" }
+      - { no: "9.3", title: "Is the header write atomic?", href: "#s9-3" }
+  - no: "10"
+    title: "It’s called Bitcask"
+    href: "#s10"
+    children:
+      - { no: "10.1", title: "What we built: one map, many files", href: "#s10-1" }
+      - { no: "10.2", title: "Bitcask, Riak and Uber", href: "#s10-2" }
+      - { no: "10.3", title: "Bitcask vs LSM, and build it yourself", href: "#s10-3" }
+  - no: "11"
+    title: "What to keep"
+    href: "#s11"
+chapters:
+  - no: "1"
+    slug: 1-dictionary-no-database
+    parts: [s1-dictionary-no-database]
+    summary: "Serve every English word and its meaning with no database at all: one portable file, read-mostly, updated every Sunday. First the requirements, then the format, then the clever ideas set aside."
+  - no: "2"
+    slug: 2-finding-one-word
+    parts: [s2-finding-one-word]
+    summary: "The naive lookup reads half a terabyte per request. One small index, and one multiplication, turn it into a single pointed read."
+  - no: "3"
+    slug: 3-one-file
+    parts: [s3-one-file]
+    summary: "The index made two files, and the brief said one. Putting both in one file raises a new question: where does the index stop? The answer is the header, the trick behind every file format."
+  - no: "4"
+    slug: 4-serving-from-s3
+    parts: [s4-serving-from-s3]
+    summary: "One file, many API servers. Copying it to each server is the obvious move and the costly one. Pin down the property you need, random reads over the network, and S3 turns the file into a database."
+  - no: "5"
+    slug: 5-weekly-update
+    parts: [s5-weekly-update]
+    summary: "Sunday’s changelog changes apple’s meaning. You can’t edit a file in place, so build a new one, and keeping the file sorted makes that a single merge pass."
+  - no: "6"
+    slug: 6-switching-servers
+    parts: [s6a-switching-servers, s6b-switching-servers]
+    summary: "The new dictionary is ready. Overwrite the old one and servers read garbage. Upload it to a new path, point a small meta.json at it, and let a routine deployment do the reload. Then see why reading a few bytes from S3 matters so much."
+  - no: "7"
+    slug: 7-fast-writes
+    parts: [s7-fast-writes]
+    summary: "The second engine must take writes as fast as a magnetic disk allows, and lose nothing. Append every put to the end of one file, make delete a put, and keep one map in memory for reads."
+  - no: "8"
+    slug: 8-files-that-grow
+    parts: [s8-files-that-grow]
+    summary: "The store never deletes anything from disk, so it fills up. Split it into small files with one active writer, merge and compact the old ones, and watch disk usage draw a sawtooth."
+  - no: "9"
+    slug: 9-record-format
+    parts: [s9-record-format]
+    summary: "“Write key, value” is too casual. Prefix every record with its sizes so one read gets it all, and lead with a CRC so a half-written record is caught, not served."
+  - no: "10"
+    slug: 10-bitcask
+    parts: [s10-bitcask]
+    summary: "One map of keys in memory, append-only files on disk, merges in the background, a CRC on every record: that is Bitcask. What it can’t do, where it runs, and how it differs from the LSM trees coming next week."
+  - no: "11"
+    slug: 11-what-to-keep
+    parts: [s11-keep]
+    summary: "The same few ideas built both engines. Here they are side by side, with the heuristics the class kept returning to, and where the course goes next."
+---
+import Header from './lec10/s0-header.mdx';
+
+{/* Lecture 10 (lec10). This body is the lecture overview page (/lectures/lec10/): the header block (About this
+    class, our storage so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec10/<slug>/), built from
+    the parts listed under `chapters` in the frontmatter, in outline order (§6 is two parts, s6a and s6b). Section ids:
+    #s1 … #s11, subsections #s<n>-<m>; §11 has h3 subsections only. A link to a section on another chapter page is
+    written as a plain #id: the page template sends it to the right chapter. */}
+
+<Header />
