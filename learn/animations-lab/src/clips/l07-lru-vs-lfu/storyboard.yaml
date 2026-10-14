@@ -1,0 +1,91 @@
+# Storyboard — clip l07-lru-vs-lfu (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l07-lru-vs-lfu
+title: A scan and a spike
+lecture: 9            # course position; folder id lec07
+section: "3.4 LRU or LFU? Follow the key's life"
+status: reviewed      # draft | approved | built | reviewed
+why_motion: >
+  Accumulation, then a flush. Read counts build up over a day of traffic while LRU's recency order keeps
+  shuffling; then one burst of one-off reads arrives, and LRU pushes the evergreen pages out one by one while LFU
+  only ever drops the one-off pages. The cost shows up afterwards: the morning reads miss in LRU and hit in LFU.
+  Two stills (before and after) show different contents but not that one cold burst did it, or that the misses
+  come later.
+static_twin: "Fig 3·c (D-08 redraw: the two access patterns, LFU · wikipedia with a world-cup spike). Frame 0 is the clip's own figure: the two empty six-slot caches that the page prose and P5 describe."
+ledger:
+  taught:
+    - L-0165  # one scan wipes out recency-based entries; frequency keeps the heavily used items -> B2, the scan evicts A-D from LRU, only S-pages from LFU
+    - L-0167  # LFU: keep a key even though its access recently dipped; past frequency predicts future -> A-D sit untouched through the scan but keep their counts; B4 caption
+    - L-0168  # Wikipedia: a page quiet now but frequently read before should stay -> "evergreen pages" A-D, read all day
+    - L-0169  # a recent spike should not evict the top pages: once the fad goes they are read with the same frequency again -> B3 morning reads of A-D
+  context_only:
+    - L-0162  # the question "when LRU, when LFU" (page prose before the clip)
+    - L-0170  # where LRU fits (hit hard, then forgotten): the prose right after the clip (news case); not shown here
+    - L-0172  # Google News, the LRU case (prose after the clip)
+    - L-0174  # RuleBox §3: understand the key's life cycle, then decide
+fidelity_notes:
+  - "The burst is the class's scan answer (L-0165): a nightly scan reads six articles once each. The instructor's World Cup spike (L-0169) is carried by its second half, the part the clip shows: once the burst passes, the top pages are read again. A spike that reads one page many times is not simulated (under exact LFU it would build its own count); the clip does not claim anything about it."
+  - "Exact LRU (a list, newest at the left) and exact LFU (a count per key; ties broken by evicting the least recently used of the tied keys) are shown for clarity. Redis approximates both by sampling (SN-06, A-DCL-02); the page caption under the clip says so. Counts are not decayed (Redis's LFU decays them); not claimed."
+  - "Cache size 6, four evergreen pages A-D, ten daytime reads (A B C D A B C D A B), six scan reads S1-S6, four morning reads A B C D. All illustrative; the class gave no sizes or counts. The tallies (4 misses vs 4 hits) are the clip's own simulation (sim.ts), not lecture numbers."
+  - "The 'the scan evicted' rows record the scan's evictions only. In the morning LRU evicts S1-S4 again to make room for A-D; those cards turn red and fade off the oldest end without being added to the row (the row would otherwise mix two stories)."
+  - "Time is compressed (a day, a night, a morning in 35 s); no clock is shown and no durations are claimed."
+  - "Not claimed: that LFU is better in general (the prose follows with the news case, where LRU wins, L-0170/L-0172), that LRU cannot be made scan-resistant (A-DCL-21, InnoDB midpoint insertion, is in the prose), any hit rate or latency."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1000, note: "portrait re-flow at <= 640 px: LRU block above LFU block (offset 384), six 100 px cards per row, evicted keys on the label's line, morning marks and the summary on one line; lettering 30, titles and captions 32"}
+duration_frames: 1060   # 35.3 s; 70.7 s at 0.5x
+start_frame_equals: "ticker 'read [ ]' at the top centre; left 'LRU · by recency' over six dashed empty slots with 'newest -> oldest' under them; right 'LFU · by frequency' over six dashed empty slots with 'count = times read' under them"
+poster_frame: 1059
+reduced_motion_stills: [70, 375, 680, 915, 1059]
+glyphs:
+  ticker: {shape: "server-box 76x62 at top centre, label 'read' (hand) left of it", content: "the key being read, mono, blue while read; ink-2 after the last read"}
+  caches: {left: "LRU · by recency (title, hand 48), x 50-544", right: "LFU · by frequency (title, hand 48), x 656-1150"}
+  slots: {shape: "six dashed placeholder boxes per cache (step 84), bottoms aligned at y 306", note: "empty capacity; cards cover them"}
+  cards: {shape: "server-box card with the key in mono; LFU cards 74x110 add the read count (num) under the key; LRU cards 74x76 hold only the key", lru: "cards slide to keep newest at the left; a hit card lifts 86 px (clear of the row, below the title), travels to the head and is set down while the others make room", lfu: "cards stay in their slot; a new key takes the evicted key's slot"}
+  marks: {read: "card outline re-inked blue, fades back", evict: "card outline red, card fades; key written red in the evicted row (scan only)", morning_lru: "red ✕ stamped on the morning row, refetched card inked red then graphite", morning_lfu: "card re-inked green, count +1, green ✓ on the morning row"}
+  rows: {under: "LRU: newest / oldest with a thin arrow; LFU: count = times read", evicted: "'the scan evicted:' then the evicted keys, red mono, under their columns", morning: "'morning:' then one mark per morning read", summary: "'4 misses' red (LRU), '4 hits' green (LFU)"}
+beats:
+  - id: B0
+    from: 0
+    to: 80
+    caption: "Two caches, same size, same reads."
+    on_screen: [static figure]
+    motion: none
+    ledger: []
+  - id: B1
+    step: 1
+    from: 80
+    to: 385
+    caption: "Evergreen pages A–D are read all day."
+    events:
+      - {at: 92, dur: 22, what: "reads A, B, C, D (every 26 f) fill four slots in both caches: ticker writes the key; LRU shifts its cards right and inks the new card at the head; LFU inks the card in the next free slot with count 1", colour: blue}
+      - {at: 196, dur: 26, what: "reads A B C D A B (every 26 f): LRU lifts the read card (always the oldest) over the others to the head; LFU re-inks the card blue and rewrites its count (A 3, B 3, C 2, D 2)", colour: blue}
+    ledger: [L-0168]
+  - id: B2
+    step: 2
+    from: 385
+    to: 690
+    caption: "A nightly scan reads six articles, once each."
+    events:
+      - {at: 389, dur: 16, what: "'the scan evicted:' written under both caches"}
+      - {at: 417, dur: 36, what: "S1, S2 (every 40 f) fill the last two slots in both, count 1 in LFU", colour: blue}
+      - {at: 497, dur: 40, what: "S3-S6: LRU's oldest card (C, D, A, B in turn) turns red and fades, its key is written red in the evicted row, the rest shift right, the S card is inked at the head; LFU's lowest count (S1, S2, S3, S4: count 1, least recent) turns red and fades, the new S card takes its slot", colour: red}
+    ledger: [L-0165, L-0167]
+  - id: B3
+    step: 3
+    from: 690
+    to: 925
+    caption: "Morning: readers want the evergreen pages back."
+    events:
+      - {at: 694, dur: 16, what: "'morning:' written under both caches"}
+      - {at: 722, dur: 42, what: "reads A, B, C, D (every 42 f): LRU misses (red ✕ stamped), evicts its oldest scan card and inks the page back at the head; LFU hits (card re-inked green, count +1, green ✓ stamped)", colour: "red / green"}
+    ledger: [L-0169, L-0165]
+  - id: B4
+    step: 4
+    from: 925
+    to: 1060
+    caption: "When past popularity predicts the future, frequency wins."
+    events:
+      - {at: 937, dur: 20, what: "'4 misses' written red under LRU", colour: red}
+      - {at: 961, dur: 20, what: "'4 hits' written green under LFU", colour: green}
+    on_screen: [end state = poster]
+    ledger: [L-0167]

@@ -1,0 +1,125 @@
+# Storyboard — clip l04-heartbeat-expiry (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l04-heartbeat-expiry
+title: Every beat moves the deadline
+lecture: 1   # course position 01 (folder lec04)
+section: "2.8 Let the database expire it"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  A window in time. The key's expiry is pushed forward on every heartbeat, and "offline" is the moment the
+  window finally closes, 30 s after the last beat, with nobody calling anything. A still shows a key with a
+  TTL; only motion shows the deadline moving forward on each beat, the countdown running on its own after the
+  battery dies, and (lane 2) a plain SET clearing the TTL so the deadline never comes.
+static_twin: "Fig 2·i panel b (api -> store with a TTL timer, SET u42 EX 30, the store's own dashed expiry) + the laptop and friend's screen of Fig 2·e; board b_004430.jpg ('Every heartbeat move the expiration time forward !')"
+ledger:
+  taught:
+    - L-0046  # a client cannot announce going offline: battery dies -> no offline call, UI keeps showing online
+    - L-0047  # no heartbeat for long enough -> offline
+    - L-0048  # 'long enough' is business logic; this design uses 30 s
+    - L-0062  # absence = offline: each heartbeat resets the 30 s timer, when it runs out the entry is deleted
+    - L-0068  # offload expiry to the database (don't reinvent the wheel)
+    - L-0070  # final logic: every heartbeat sets the entry with TTL 30 s; the store deletes it; exists = online; board 'every heartbeat move the expiration time forward'
+  context_only:
+    - L-0069  # key-value + expiration: Redis and DynamoDB
+    - L-0103  # heartbeats every 10 s (the class's interval, taught in 4.1)
+    - L-0327  # the TTL is there because space mattered
+fidelity_notes:
+  - "10 s (heartbeat interval, L-0103) and 30 s (threshold, L-0048) are the class's numbers. Beats at 0, 10 and 20 s, the battery dying at 22 s and the expiry at 50 s are an example timeline; the captions say '30 s after the last heartbeat', never '30 s after the battery died'."
+  - "The store is drawn as Redis (mono 'redis', command SET u42 1 EX 30). The class said 'Redis or DynamoDB, whichever you choose'. DynamoDB's late deletion (SN-02 / A-OOI-02: 'typically within a few days', so check expires_at) is NOT animated; it stays in the page's SourceNote. The clip never says 'DynamoDB'."
+  - "Lane 2 (plain SET without EX clears the TTL, the key never expires) is the fact-check's addition A-OOI-01 (SN-02), not something said in class. It is labelled 'no EX' on screen and listed under additions."
+  - "Time is sped up (labelled 'sped up' on the track). The clock pauses while a heartbeat travels laptop -> api -> redis, so the hops are not to scale."
+  - "The friend's screen shows the dot only; how it reads the key (GET /status, EXISTS) is left to prose. The api box is the class's 'REST endpoints talking to this database' (L-0070)."
+  - "The store's expiry is drawn as graphite (dashed key outline + graphite ✕): deleting is the mechanism working, not a failure. Red is used only for the dead battery and the missing EX."
+  - "Not claimed: how Redis expires keys inside (lazy + sampling; ForwardChip), any millisecond precision, that the offline call is never useful, any number of users."
+additions:
+  - {fact: "In Redis a plain SET clears a key's TTL; write SET key value EX 30 on every heartbeat or the key never expires (TTL returns -1).", id: A-OOI-01, source_url: "https://redis.io/docs/latest/commands/expire/", checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1000, note: "used at <= 640 px; laptop -> api -> redis on row 1, friend's screen on row 2 under redis with 'friend sees' to its left, 'battery dies' under the laptop; lane 1 and lane 2 stacked full width; lane titles above each track; 'sped up' on its own line between lane 1's tick labels and lane 2's title (critic C-08); 'online' for lane 2 under its end dot; lettering 30 px, captions 32 px"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1185   # 39.5 s; 79 s at 0.5x
+start_frame_equals: "laptop -> api -> redis with key u42 (clock, 'ttl 30s'), friend's screen with a green dot 'online'; lane 1 'EX 30' time track with the beat at 0 s, the bracket '30 s' and the dashed 'expires' marker at 30 s"
+poster_frame: 1184
+reduced_motion_stills: [90, 365, 465, 643, 805, 1060, 1184]
+glyphs:
+  laptop: {shape: "screen rectangle + base", pos: [40, 100, 140, 106], label: "laptop", inner: "battery (outline + 3 bars); dies: red outline, red ✕, laptop body and arrow ghost; the labels 'laptop' and 'heartbeat' stay at full ink (C-08)"}
+  api: {shape: server-box, label: "api (mono)", pos: [290, 110, 110, 80]}
+  redis: {shape: cylinder-solid, label: "redis (mono)", pos: "cx 650, top 112, rx 110, h 150", inner: "key box 'u42' + TTL clock face (pie = time left), mono 'ttl Ns'"}
+  friend_screen: {shape: "monitor rectangle + stand", pos: [900, 100, 250, 120], label: "friend sees", inner: "status dot: green filled 'online' / graphite ring 'offline'"}
+  arrows:
+    - {route: "laptop -> api", solid: true, head: api, label: "heartbeat (hand, blue)"}
+    - {route: "api -> redis", solid: true, head: redis, label: "SET u42 1 EX 30 (mono, blue)"}
+  lane1: {axis_y: 440, x_of_seconds: "260 + 14 * s", ticks: "0 s .. 50 s", title: "EX 30 (mono)", note: "sped up", beat: "blue dot on the axis", expiry: "dashed vertical marker + 'expires'; old markers ghost at 38%", bracket: "beat -> expiry, '30 s'", death: "red ✕ at 22 s"}
+  lane2: {axis_y: 596, title: "no EX (mono, red)", set: "red dot at 20 s + 'SET u42 1' (red mono)", span: "red dashed span from 20 s to the end of the track, chevron, 'no expiry'", end: "green dot ringed red + 'online'"}
+beats:
+  - id: B0
+    from: 0
+    to: 95
+    caption: "Every heartbeat sets the key with a 30-second TTL."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0070, L-0048]
+  - id: B1
+    from: 95
+    to: 370
+    caption: "Each beat resets the TTL: the expiry moves to 30 s after it."
+    events:
+      - {at: 105, dur: 60, what: "clock 0 -> 10 s (linear): playhead moves, ttl 30s -> 20s, clock pie drains"}
+      - {at: 165, dur: 32, what: "heartbeat: blue pen + packet laptop -> api (16 f), api -> redis (16 f)", colour: blue}
+      - {at: 197, dur: 8, what: "ttl back to 30s; blue beat dot stamped at 10 s", colour: blue}
+      - {at: 199, dur: 18, what: "expiry marker + bracket slide 30 -> 40 s (old marker ghosts at 38%)"}
+      - {at: 225, dur: 60, what: "clock 10 -> 20 s"}
+      - {at: 285, dur: 32, what: "second heartbeat, same path", colour: blue}
+      - {at: 319, dur: 18, what: "expiry marker + bracket slide 40 -> 50 s"}
+    ledger: [L-0062, L-0070]
+  - id: B2
+    from: 370
+    to: 470
+    caption: "The battery dies. No ‘offline’ call is ever sent."
+    events:
+      - {at: 380, dur: 12, what: "clock 20 -> 22 s"}
+      - {at: 392, dur: 14, what: "battery inked red with a ✕", colour: red}
+      - {at: 400, dur: 8, what: "red ✕ stamped on the track at 22 s", colour: red}
+      - {at: 404, dur: 22, what: "'battery dies' written under the laptop", colour: red}
+      - {at: 410, dur: 12, what: "laptop body and its arrow ghost to 38%; its labels 'laptop' and 'heartbeat' stay at full ink"}
+    ledger: [L-0046]
+  - id: B3
+    from: 470
+    to: 648
+    caption: "No more beats. The store keeps counting down on its own."
+    events:
+      - {at: 480, dur: 168, what: "clock 22 -> 50 s (linear): playhead runs to the expiry marker, ttl 28s -> 0s; the dot stays green"}
+    ledger: [L-0068, L-0047]
+  - id: B4
+    from: 648
+    to: 810
+    caption: "30 s after the last heartbeat the key is gone: absent means offline."
+    events:
+      - {at: 656, dur: 8, what: "graphite ✕ on the track at 50 s"}
+      - {at: 664, dur: 24, what: "key box re-drawn dashed (the store's own expiry) with a graphite ✕; clock and 'u42' ghost"}
+      - {at: 690, dur: 26, what: "the struck key (dashed box, ✕, 'u42', clock) and 'ttl 0s' fade out (10 f); 'deleted' is written in the key's place, so it never sits on the struck key (C-08)"}
+      - {at: 720, dur: 12, what: "friend's green dot -> graphite ring"}
+      - {at: 732, dur: 26, what: "'online' replaced by 'offline'"}
+    ledger: [L-0062, L-0070, L-0047, L-0048]
+  - id: B5
+    from: 810
+    to: 1065
+    caption: "Forget the TTL on one write and the user never goes offline."
+    events:
+      - {at: 810, dur: 12, what: "top diagram and lane 1 ghost to 38%"}
+      - {at: 818, dur: 18, what: "'no EX' written (red mono)", colour: red}
+      - {at: 836, dur: 24, what: "lane 2 axis pen"}
+      - {at: 862, dur: 14, what: "blue beat dots at 0 s and 10 s", colour: blue}
+      - {at: 876, dur: 22, what: "red dot at 20 s + 'SET u42 1'", colour: red}
+      - {at: 904, dur: 48, what: "red dashed span grows from 20 s to the end of the track (linear), chevron", colour: red}
+      - {at: 954, dur: 20, what: "'no expiry' written", colour: red}
+      - {at: 978, dur: 8, what: "red ✕ at 22 s (battery dies)", colour: red}
+      - {at: 990, dur: 24, what: "green dot, then a red ring around it", colour: green}
+      - {at: 1012, dur: 18, what: "'online' written", colour: green}
+    ledger: [L-0070]
+  - id: B6
+    from: 1065
+    to: 1185
+    caption: "Every heartbeat: SET with EX 30. The store does the deleting."
+    on_screen: [end state = poster]
+    events:
+      - {at: 1065, dur: 12, what: "top diagram and lane 1 return to full ink for the comparison"}
+    ledger: [L-0068, L-0070]

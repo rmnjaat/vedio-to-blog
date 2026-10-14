@@ -1,0 +1,124 @@
+# Storyboard — clip l02-missed-message (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l02-missed-message
+title: Lost in real time
+lecture: 4            # course position (folder lec02)
+section: "9.3 When a real-time message is lost"
+status: reviewed      # draft | approved | built | reviewed  (render-check rounds: lectures/lec02/animations/l02-missed-message/review.md)
+why_motion: >
+  A window in time. The message is lost only because the publish falls inside a short disconnection of WS2, and
+  the fix is a later timer event on the same time line. A still can show the parts, but not that the message sat
+  in the database all along while E's screen stayed wrong until the timer ran.
+static_twin: "Fig 9·b reduced to its real-time + persistence columns (A on ws1, the redis pub/sub pipe, ws2 with E's screen; kafka -> worker -> db; api under E); board D-11 (b_022945.jpg) with its 'What if some messages are not sent in realtime? <- Transient issue' text"
+ledger:
+  taught:
+    - L-0332  # board insight: messages once sent will always be persisted (B1)
+    - L-0284  # a server not connected at the moment of publish does not receive it (B2)
+    - L-0344  # no persistence in Redis Pub/Sub: only those connected get it, a message can be lost in real time (B2, B3)
+    - L-0345  # a small JS thread periodically fetches the last 50 messages and renders any it missed (B4)
+    - L-0334  # board: (1) correction job ensures messages are shown (B4 label 'correction job')
+    - L-0379  # persistence is guaranteed, the real-time notification is not (B5)
+  context_only:
+    - L-0282  # Pub/Sub keeps nothing (taught in 8.4; the B2 label 'keeps nothing' repeats it as the reason)
+    - L-0333  # clicking the channel loads it through the channel-scroll REST API (prose)
+    - L-0338  # the type-2 persistence path ws -> kafka -> workers -> db (Fig 9·b)
+    - L-0346  # WhatsApp's 'checking for new messages' (unverifiable reading, prose only)
+fidelity_notes:
+  - "The disconnection is drawn as a break in WS2's link to the pipe at the moment of the publish. The class says only 'not connected at that moment' (L-0284); the predict line's 'one second' is illustrative and no duration is on screen."
+  - "Reduced Fig 9·b: one edge server per side, one worker, one db cylinder, no lb in front of the api (the figure has fleets, a partitioned db and an lb). In this reduced view only WS2 serves c1's other member, so 'Redis pushes to no one' means no connected subscriber for the message."
+  - "The persistence path is the type-2 path of the final diagram (L-0338) and the board recap's step 1 'persist message in Kafka': ws1 -> kafka dashed, worker pulls (dashed, head at kafka, hand 'pull'), worker -> db solid. 'Always persisted' (L-0332, fact-check: simplified, low) is shown as green 'saved ✓'; the idempotent-insert caveat (A-MLA-09) stays in the prose."
+  - "Kafka keeps its message square after the worker's pull (graphite); the Pub/Sub keeps nothing (L-0282): the two pipes' contrast."
+  - "The timer's interval was not given in class: the clock on E's screen shows no number. 'Last 50' is the class's (L-0345); the request is drawn as mono 'GET last 50 (c1)', an HTTP call to the api (the class: a small JavaScript thread periodically fetching the last 50 messages; the board's non-realtime API servers in D-11). The verb GET is a drawing convention, not a claimed endpoint."
+  - "'correction job' is the board's wording (L-0334 (1)). The board's second fix, buffering in another Kafka and replaying (L-0334 (2)), is named in the after-sentence, not drawn."
+  - "Message text 'standup in 5' is the lecture page's running example message (also used in l02-three-ways-to-persist), not from class; E's earlier messages are drawn as unlabelled grey lines."
+  - "'push: not guaranteed' / 'persisted: guaranteed' paraphrase L-0379 ('the notification part is not guaranteed, but the persistence is guaranteed')."
+  - "Redis's at-most-once delivery (A-SRW-10) and Redis Streams are in the prose, not on screen. Not claimed: how long a reconnect takes, how often the timer runs, that Slack uses this exact timer."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1040, note: "portrait re-flow at <= 640 px: A + ws1 top-left; ws1 elbows into a horizontal pipe band; ws2 under the pipe's right end, E's screen under ws2 (≈ 55% width); the persistence column (kafka -> worker -> db) runs down the left edge; api under E's screen with its line left to the db; lettering 30, captions 32"}
+duration_frames: 1020   # 34 s; 68 s at 0.5x
+start_frame_equals: "Reduced Fig 9·b, graphite: mono A on a WS stub into ws1; ws1 - redis pub/sub pipe - ws2 (plain connectors); ws2 WS line to E's screen (clock, header 'E #c1', two grey lines, an empty slot); ws1 -> kafka dashed; worker -> kafka dashed, hand 'pull'; worker -> db; E's screen -> api -> db"
+poster_frame: 1019
+reduced_motion_stills: [84, 274, 484, 604, 864, 1019]
+glyphs:
+  user_A: {shape: "mono letter on a WS stub (two thin rails, no head)", wide: "A at (130, 78), stub ws1 top (130,140) -> (130,94)", phone: "A at (110, 52)"}
+  message_text: {shape: "mono 'standup in 5' beside A (blue while it travels, then graphite)", wide: "(172, 78)", phone: "(150, 52)"}
+  edge_servers: {shape: "chamfered box + two-prong plug mark", labels: [ws1, ws2], wide: "ws1 x 50-210 y 140-210; ws2 x 740-900 y 140-210", phone: "ws1 x 30-190 y 100-160; ws2 x 520-680 y 360-420"}
+  pubsub_pipe: {shape: "pipe (two long lines, round ends) with empty dotted lanes; never holds a square", label: "mono 'redis pub/sub' above", wide: "x 300-650 y 150-200", phone: "x 230-690 y 210-254"}
+  connectors: {shape: "plain line, no head (a persistent connection); ws1's gets a blue head at the pipe only while PUBLISH rides it", wide: "ws1 -> pipe and pipe -> ws2, horizontal at y 175", phone: "ws1 elbows right then down into the pipe; pipe -> ws2 vertical"}
+  e_screen: {shape: "chamfered box: clock glyph (circle + two hands) and mono 'E #c1', a rule, two grey message lines, an empty slot", wide: "x 960-1170 y 40-270", phone: "x 300-700 y 470-690"}
+  kafka: {shape: "horizontal pipe, mono 'kafka' inside, message square stays at its right end", wide: "x 40-260 y 340-390", phone: "x 20-210 y 430-474"}
+  worker: {shape: "chamfered box, mono 'worker'", wide: "x 355-525 y 330-400", phone: "x 20-200 y 540-600", arrows: "worker -> kafka dashed (head at kafka, hand 'pull'); worker -> db solid"}
+  db: {shape: "solid cylinder, mono 'db'", wide: "cx 660, y 302-418", phone: "cx 110, y 728-830"}
+  api: {shape: "chamfered box, mono 'api'", wide: "x 985-1145 y 345-415", phone: "x 420-580 y 760-820", arrows: "E's screen -> api solid; api -> db solid"}
+  arrows: "solid = synchronous, dashed = async (ws1 -> kafka, worker -> kafka); heads at the initiator's target only; responses ride back as packets on the same line"
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "A posts in C1. E is on WS2, across Redis."
+    on_screen: [static figure]
+    motion: none
+    ledger: []
+  - id: B1
+    from: 90
+    to: 280
+    caption: "The message is persisted through Kafka, as always."
+    events:
+      - {at: 98, dur: 22, what: "mono 'standup in 5' written beside A", colour: blue}
+      - {at: 122, dur: 22, what: "square A -> ws1 along A's stub, stub re-inked", colour: blue}
+      - {at: 146, dur: 28, what: "ws1 -> kafka dashed re-inked, square rides into kafka and stays there", colour: blue}
+      - {at: 180, dur: 20, what: "worker -> kafka 'pull' re-inked (the worker asks)", colour: blue}
+      - {at: 200, dur: 22, what: "a copy rides kafka -> worker (the square stays in kafka)", colour: blue}
+      - {at: 226, dur: 22, what: "worker -> db re-inked, square into db", colour: blue}
+      - {at: 250, dur: 18, what: "green 'saved ✓' under db", colour: green}
+    ledger: [L-0332]
+  - id: B2
+    from: 280
+    to: 490
+    caption: "WS2 is disconnected right then: Redis pushes to no one, keeps nothing."
+    events:
+      - {at: 280, dur: 14, what: "B1's blue re-inks fade back to graphite; kafka's square and the message text turn graphite"}
+      - {at: 290, dur: 16, what: "pipe -> ws2 connector replaced in place by a broken red dashed line", colour: red}
+      - {at: 306, dur: 20, what: "red hand 'disconnected' above ws2", colour: red}
+      - {at: 330, dur: 20, what: "mono 'PUBLISH c1' under the pipe", colour: blue}
+      - {at: 352, dur: 24, what: "ws1 -> pipe connector re-inked, head at the pipe; square rides in", colour: blue}
+      - {at: 378, dur: 30, what: "square rides the pipe to its ws2 end; nothing to push to", colour: blue}
+      - {at: 408, dur: 14, what: "square fades, a red ring with ✕ stays where it was", colour: red}
+      - {at: 424, dur: 26, what: "red hand 'lost: keeps nothing' under 'PUBLISH c1'", colour: red}
+    ledger: [L-0284, L-0344]
+  - id: B3
+    from: 490
+    to: 610
+    caption: "WS2 is back, but nothing replays. E doesn't see it."
+    events:
+      - {at: 490, dur: 12, what: "'PUBLISH c1' and ws1's blue re-ink ghost/fade"}
+      - {at: 500, dur: 20, what: "red broken line fades; the connector is re-drawn graphite by the pen"}
+      - {at: 512, dur: 30, what: "'disconnected' replaced in place by hand 'reconnected' (graphite)"}
+      - {at: 548, dur: 14, what: "red '?' in E's empty message slot (nothing arrives)", colour: red}
+    ledger: [L-0344]
+  - id: B4
+    from: 610
+    to: 870
+    caption: "On a timer, E's client fetches the last 50 and renders what it missed."
+    events:
+      - {at: 620, dur: 24, what: "the clock's hand sweeps one turn (the timer fires)"}
+      - {at: 646, dur: 22, what: "hand 'correction job' by the clock"}
+      - {at: 672, dur: 20, what: "E's screen -> api re-inked, square rides down", colour: blue}
+      - {at: 694, dur: 22, what: "mono 'GET last 50 (c1)' under the api", colour: blue}
+      - {at: 720, dur: 24, what: "api -> db re-inked, square rides in", colour: blue}
+      - {at: 748, dur: 22, what: "the list returns db -> api", colour: green}
+      - {at: 772, dur: 18, what: "api -> E's screen", colour: green}
+      - {at: 790, dur: 10, what: "'?' fades (replaced in place)"}
+      - {at: 796, dur: 28, what: "'standup in 5' written into the slot, green ✓", colour: green}
+    ledger: [L-0345, L-0334]
+  - id: B5
+    from: 870
+    to: 1020
+    caption: "Persistence is guaranteed. The real-time push is not."
+    events:
+      - {at: 870, dur: 14, what: "B4's re-inks fade back to graphite"}
+      - {at: 872, dur: 32, what: "'lost: keeps nothing' rewritten in place as red hand 'push: not guaranteed'", colour: red}
+      - {at: 910, dur: 24, what: "green bracket + hand 'persisted: guaranteed' under the persistence column", colour: green}
+      - {at: 934, dur: 86, what: "hold on the poster (2.9 s)"}
+    ledger: [L-0379]
+chapters: [{label: "persisted", frame: 100}, {label: "push lost", frame: 290}, {label: "no replay", frame: 500}, {label: "timer fetch", frame: 620}, {label: "guarantees", frame: 880}]

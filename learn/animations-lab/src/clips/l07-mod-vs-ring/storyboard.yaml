@@ -1,0 +1,119 @@
+# Storyboard — clip l07-mod-vs-ring (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l07-mod-vs-ring
+title: Add one node
+lecture: 9            # course position; folder id lec07
+section: "6.3 Adding and removing nodes"
+status: reviewed      # draft | approved | built | reviewed
+why_motion: >
+  Redistribution. The lesson is how many keys move when one node appears: with hash % N every key is rechecked
+  and half of them travel to another node; on the ring only the keys in the new node's slice change owner, and their
+  data comes from one neighbour while everything else stays still. Before/after stills show positions, not the
+  recheck of every key or the stillness of the rest.
+static_twin: "Fig 6·a (D-17 redraw, the h % 2 → h % 3 tables) for the left panel; Fig 6·b / 6·d (D-18, D-19: the ring with c1 at 3, c3 at 5, c4 at 10, c2 at 12; c5 added at 1) for the right panel. Frame 0 = the left panel with c0/c1 and six keys (Fig 6·a table 1 as nodes); the right panel is empty until ③."
+ledger:
+  taught:
+    - L-0272  # adding a node: mod 2 becomes mod 3, every key must be rechecked -> ① c2 penned, header digit rewritten, K1..K6 re-inked blue in turn
+    - L-0273  # K1, K3, K4 stay; K2 c0->c2, K5 c1->c0, K6 c0->c2 -> ② the three slides
+    - L-0274  # 3 of 6 = 50% data movement, the pain point -> tally "3 of 6 moved = 50%"
+    - L-0291  # cache 5 hashes to 1; K1, owned by cache 1, is now owned by cache 5 -> ④ c5 at 1, K1's arrow re-pens to c5
+    - L-0292  # only keys in the new node's range move (cache 1 -> cache 5), all other keys unaffected -> ④ bracket (12, 1], packets from c1, the other four arrows untouched
+    - L-0294  # minimal data transfer when scaling -> right tally "2 of 6 moved" against "3 of 6"; summary caption
+  context_only:
+    - L-0271  # six keys on two caches, K1 K2 K6 / K3 K4 K5 (frame 0; taught in 6.1)
+    - L-0284  # ring positions 3/5/10/12 (taught with Fig 6·b in 6.2)
+    - L-0288  # owner = first node to the right (clockwise) (③ caption; taught in 6.2)
+    - L-0289  # K1 at 0 -> cache 1 (③, the first arrow drawn)
+    - L-0293  # "nodes before and after": fact-check simplified/low; the clip shows only the successor (c1) handing over, matching the applied wording
+fidelity_notes:
+  - "Left panel uses the board's exact mapping (D-17): h % 2 puts K1, K2, K6 on c0 and K3, K4, K5 on c1; h % 3 moves K2 and K6 to c2 and K5 to c0. Hash values (page-made, Fig 6·a) are not shown in the clip; the static figure carries them."
+  - "Right panel uses the board's ring (D-18/D-19): 0..15, c1 at 3, c3 at 5, c4 at 10, c2 at 12, c5 added at 1, K1 at 0. Keys K2..K6 at 2, 4, 7, 11, 14 are page-made positions on the ring's own hash (L-0283's 0..15 range); they are not the left panel's hash values. Nodes are named c1..c5 (the board's 'cache 1'..'cache 5') to fit the ring."
+  - "With this layout two of six ring keys fall in (12, 1] (K6 and K1), so the honest tally is 2 of 6 against 3 of 6. The two examples also differ in N (2 -> 3 on the left, 4 -> 5 on the right), as on the board; the summary line gives the averages so the comparison is not read off one lucky/unlucky layout."
+  - "Data for the slice is shown travelling from c1 to c5 as two red packets (L-0292 'from cache 1 to cache 5'). How the copy is done (snapshot first, then add to the ring, L-0303) is §6.4's step-through, not this clip."
+  - "Only the successor (c1) hands over keys; the predecessor (c2) is untouched. This matches the fact-check on L-0293 (simplified/low). Not claimed: replication, virtual nodes, removal."
+  - "Red marks a moved key (the cost the lecture calls the pain point) in both panels; the second cue is the red '*' (the board's asterisk) and the dashed empty slot on the left, and the re-pointed arrow on the right."
+additions:
+  - fact: "Going from N to N+1 nodes, hash % N keeps a key on its node only when h mod N(N+1) < N, so about N/(N+1) of keys move on average (2/3 for 2 -> 3; the board's 50% is a lucky case). A ring moves only the new node's share, about 1/(N+1) of keys (n/m keys for n keys and m slots)."
+    source_url: "https://en.wikipedia.org/wiki/Consistent_hashing"
+    checked: 2026-10-14
+    note: "Arithmetic derivation for % N; the ring average is the standard result on the cited page (the lecture fact-check's own source for L-0279/L-0293). Already a page addition in factcheck_applied.md §6 and figures.md Fig 6·a."
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1070, note: "portrait re-flow at <= 640 px: mod panel on top (three columns 240 apart, its tally and average under it), the ring below (r 160, node names outside, key names and positions inside at r-50), its tally and average under it; lettering 30, captions 32", wide_lettering: "34 canvas px, captions 36 (≈ 15/16 px at the 540 px stage; critic C-17)"}
+duration_frames: 1180   # 39.3 s; 78.7 s at 0.5x
+start_frame_equals: "left: mono 'node = h % 2'; node boxes c0, c1 (third column empty); key chips K1, K2, K6 under c0 and K3, K4, K5 under c1. Right of the dashed divider: empty graph paper."
+poster_frame: 1179
+reduced_motion_stills: [80, 275, 520, 780, 1040, 1179]
+glyphs:
+  header: {text: "node = h % 2 -> 3", font: mono, pos: [40, 60]}
+  mod_nodes: {shape: server-box, label: "c0 | c1 | c2 (mono)", pos: "columns x 130/310/490, top 96, 130x60"}
+  key_chips: {shape: server-box chip 110x52, label: "K1..K6 mono", pos: "three slots per column (tops 176/240/304)"}
+  lane: {note: "moves run down out of the column, along y 392 under all stacks, up into the target slot (orthogonal), so no chip crosses another"}
+  vacated_slot: {shape: "dashed red chip outline", note: "persists; K5 later covers K2's old slot"}
+  ring: {shape: "hand circle", pos: "centre (900, 290), r 180 (phone (360, 640), r 160)", note: "positions at true angles, 0 at the top, clockwise; Fig 6·d's glyphs and stroke (critic C-03)"}
+  ring_nodes: {shape: "small rectangle 50x20 straddling the circle (Fig 6·d)", label: "c1 | c3 | c4 | c2 | c5 mono OUTSIDE, 12 px from the box", numbers: "3 | 5 | 10 | 12 | 1 INSIDE at r-56 (ink-2)"}
+  ring_keys: {shape: "hatched 22 px square on the circle (Fig 6·d's key glyph)", label: "K1..K6 mono INSIDE at r-56"}
+  ownership: {route: "only the keys that move get arrows: K1 -> c1 (the board's arrow) inside the ring at r-16 in ③, ghosted in ④; in ④ K1 -> c5 (r+20) and K6 -> c5 (r+42), short red clockwise arcs outside the ring, each with a short radial lead from its key", solid: true, head: "owner end"}
+  slice: {shape: "translucent red band laid on the ring itself from 12 to 1, under the two red arcs", label: "(12, 1] mono red, outside the band at the top-left"}
+  tallies: {left: "'3 of 6 moved = 50%' mono red at (40, 566)", right: "'2 of 6 moved' mono red at (640, 566)", averages: "hand ink-2 at y 614: 'on average ~N/(N+1)' | 'on average ~1/(N+1)'"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "Six keys on two nodes, placed by hash mod 2."
+    on_screen: [static figure]
+    motion: none
+    ledger: []
+  - id: B1
+    step: 1
+    from: 90
+    to: 282
+    caption: "Add a node: mod 2 becomes mod 3, so every key is rechecked."
+    events:
+      - {at: 100, dur: 22, what: "c2 node box penned in the third column, 'c2' written"}
+      - {at: 128, dur: 22, what: "the '2' of h % 2 is wiped and '3' written in its place"}
+      - {at: 160, dur: 67, what: "K1..K6 re-inked blue one after another (every 11 f, 12 f each), each fading back 22 f later", colour: blue}
+    ledger: [L-0272]
+  - id: B2
+    step: 2
+    from: 282
+    to: 528
+    caption: "Three of six keys change node: half the data moves."
+    events:
+      - {at: 292, dur: 44, what: "K6 turns red and slides c0 -> c2 (down, along the lane, up) with a red dashed trail; its old slot stays as a dashed red outline; tally '1 of 6 moved'", colour: red}
+      - {at: 346, dur: 44, what: "K2 c0 -> c2, same; tally 2", colour: red}
+      - {at: 400, dur: 44, what: "K5 c1 -> c0 into K2's old slot; tally 3; red '*' beside each moved chip", colour: red}
+      - {at: 450, dur: 18, what: "'= 50%' written after the tally", colour: red}
+    ledger: [L-0273, L-0274]
+  - id: B3
+    step: 3
+    from: 528
+    to: 790
+    caption: "On a ring, each key belongs to the next node clockwise."
+    events:
+      - {at: 528, dur: 12, what: "left panel ghosts to 38% (its tally stays)"}
+      - {at: 538, dur: 34, what: "ring penned from the top, clockwise"}
+      - {at: 576, dur: 39, what: "c1 (3), c3 (5), c4 (10), c2 (12) penned in turn with their positions"}
+      - {at: 622, dur: 47, what: "keys K1..K6 penned on the ring as hatched squares, names inside"}
+      - {at: 676, dur: 30, what: "K1's arrow penned clockwise inside the ring to c1 (the board's arrow, Fig 6·b); no other ownership arrows (critic C-03)"}
+    ledger: [L-0288, L-0289]
+  - id: B4
+    step: 4
+    from: 790
+    to: 1050
+    caption: "Add c5 at 1: only its slice moves, all from one neighbour."
+    events:
+      - {at: 800, dur: 32, what: "c5 node penned at position 1, '1' written outside"}
+      - {at: 836, dur: 40, what: "red band (12, 1] laid on the ring; '(12, 1]' written", colour: red}
+      - {at: 882, dur: 52, what: "red packet c1 -> c5 along the outside of the ring; a short red arc K6 -> c5 is penned outside the ring (outer track), K6 turns red; tally '1 of 6 moved'", colour: red}
+      - {at: 948, dur: 52, what: "same for K1 (inner track); K1's old arrow to c1 ghosts to 38%; tally '2 of 6 moved'. K2..K5 do not change", colour: red}
+    ledger: [L-0291, L-0292, L-0294]
+  - id: B5
+    from: 1050
+    to: 1180
+    caption: "On average, % N moves about N/(N+1) of keys; a ring about 1/(N+1)."
+    events:
+      - {at: 1050, dur: 12, what: "left panel back to full ink"}
+      - {at: 1060, dur: 18, what: "'on average ~N/(N+1)' under the left tally"}
+      - {at: 1082, dur: 18, what: "'on average ~1/(N+1)' under the right tally"}
+    on_screen: [end state = poster]
+    ledger: [L-0274, L-0294]
+chapters: [{label: "mod 3", frame: 100}, {label: "3 of 6 move", frame: 292}, {label: "the ring", frame: 538}, {label: "add c5", frame: 800}, {label: "on average", frame: 1060}]

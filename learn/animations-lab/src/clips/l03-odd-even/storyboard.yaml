@@ -1,0 +1,96 @@
+# Storyboard — clip l03-odd-even (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l03-odd-even
+title: One ticket server goes away and comes back
+lecture: 3          # folder lec03, course position 06 ("Lecture 06")
+section: "5.8 When the odd server comes back"
+status: reviewed    # draft | approved | built | reviewed (render-check rounds: lectures/lec03/animations/l03-odd-even/review.md)
+why_motion: >
+  A repeated protocol plus a window: round robin alternates two ticket servers, then one is absent for a while
+  and the other runs far ahead. The "aesthetic" problem only appears once the stream interleaves again after the
+  return (7, 204, 9, 206). A still shows one moment; the clip shows the IDs staying unique the whole time while
+  their order gets worse, and the optional reset that only tidies the order.
+static_twin: "Fig 5·d (board D-16, b_013130.jpg; Q&A state b_013500.jpg): two ticket cylinders, an lb bar under them, requests coming up from below"
+ledger:
+  taught:
+    - L-0177  # one ticket server odd, the other even (status line 'odd' / 'even'; counters step by 2)
+    - L-0179  # round robin alternates, IDs come out 1, 2, 3, 4 ... almost in order (row 1)
+    - L-0180  # one goes down, the other carries on (row 2)
+    - L-0181  # odd dies after 5, even reaches 202, odd resumes 7, 204, 9, 206; still unique, only looks odd (row 3)
+    - L-0182  # optional: reset both to max + buffer, 241 and 242; round robin continues 241, 242, 243, 244 (row 4)
+    - L-0183  # the reset is only for looks; order was never promised (final caption)
+  context_only:
+    - L-0178  # auto_increment_increment / offset settings (Fig 5·d and prose; not in the clip)
+    - L-0187  # "where did we enforce monotonicity?" (prose after the clip)
+fidelity_notes:
+  - "5, 202, 7 / 204 / 9 / 206 and 241 / 242 are the class's numbers (L-0181, L-0182). The board also shows 240/241 and 239/240 (D-16, Q&A); one consistent example is used, as on the page (§5.8)."
+  - "The counter inside each cylinder is the server's NEXT ID (labelled 'next'), so the dead odd server visibly keeps 'next 7' while it is down: MySQL persists the counter (L-0181 'MySQL is a persistent source'). The persistence mechanism (InnoDB redo log, A-IG-14) and its crash caveat stay in prose."
+  - "The reset is shown after the interleaved row, as the optional alternative the lecture offers. In class the max was 202 at the moment the odd server returned; here the even server has reached 206 by then, so the clip says only 'max + buffer' (no number) and lands on the class's 241 / 242, which is above either max."
+  - "The reset is shown as the two counters changing value; who does it (an SRE or a script, L-0185) and the fact-check note that the variables are dynamic and need no reboot are prose (SN-11 margin). No process reboot is drawn, and 'restart' is not used in the caption."
+  - "The clip makes no claim that the servers coordinate or gossip (SN-11: Flickr's servers never coordinate; A-IG-10: Flickr lets the sides drift). The class's 'id = id + 1' query does not appear (SN-10)."
+  - "Each request is one blue packet that rides the entry arrow into the lb bar and up the link to the chosen server; the ID it gets is written into the strip at the same moment (blue, settling to ink). The response packet back to the client is omitted to keep one motion per request (simplification)."
+  - "Row 2 is fast-forwarded: three requests at normal pace (8, 10, 12), then the even counter rolls up to 204 while the row writes '… 202'. Labelled on screen 'sped up'. No request rate or duration is claimed."
+  - "7 and 9 are ringed in graphite, not red: nothing is wrong. Green ✓ 'unique' marks row 3 (L-0181 'you are still getting unique ID')."
+  - "Not claimed: strict order after the reset (L-0183), any timing, which server the lb picks first beyond alternation, Flickr resetting anything (it does not; prose)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1010, note: "portrait re-flow at <= 640 px: the two cylinders, lb bar and request arrow on top; the four strip rows stacked below them; 30 px lettering, 32 px captions"}
+duration_frames: 1180   # 39.3 s; 78.7 s at 0.5x
+start_frame_equals: "Fig 5·d: cylinders 'ticket 1' (odd, next 1) and 'ticket 2' (even, next 2), lb bar with links up to both, the request arrow from below, 'round robin'; the empty strip 'IDs handed out'"
+poster_frame: 1179
+reduced_motion_stills: [72, 302, 572, 832, 1082, 1179]
+glyphs:
+  ticket1: {shape: cylinder-solid, label: "mono 'ticket 1', hand 'odd' under it", pos: "cx 140, top 175, rx 80, h 130", content: "hand 'next' + mono counter 1 → 3 → 5 → 7 … 241 → 243 → 245"}
+  ticket2: {shape: cylinder-solid, label: "mono 'ticket 2', hand 'even'", pos: "cx 380, top 175, rx 80, h 130", content: "next 2 → … 204 → 206 → 208 → 242 → 244 → 246"}
+  lb: {shape: lb-bar, label: "mono 'lb' at its right end", pos: [60, 390, 400, 24]}
+  links: {route: "lb → each cylinder", solid: true, head: "cylinder (the lb sends the request)"}
+  entry: {route: "clients (below) → lb", solid: true, head: "lb", labels: "hand 'requests' under it, hand 'round robin' right of it"}
+  down_mark: {shape: "red ✕ on ticket 1's link + red re-ink of its outline + red hand 'down' left of the link", becomes: "green 'back' in B3"}
+  strip: {shape: "four rows of mono IDs at x 600, hand header 'IDs handed out' (ink2)", rows: ["both up: 1 2 3 4 5 6", "odd down · sped up: 8 10 12 … 202", "odd back: 7 204 9 206 + ✓ unique (green)", "optional: max + buffer: 241 242 243 244"]}
+  rings: {shape: graphite ellipses around 7 and 9 in row 3}
+beats:
+  - {id: B0, from: 0, to: 80, caption: "Two ticket servers: one odd, one even.", on_screen: [static figure], motion: none, ledger: [L-0177]}
+  - id: B1
+    step: 1
+    from: 80
+    to: 310
+    caption: "Round robin: the IDs come out almost in order."
+    events:
+      - {at: 92, dur: 170, what: "six blue packets, every 30 f, alternate ticket 1 / ticket 2; each arrival writes the ID in row 1 (1 2 3 4 5 6) and steps that counter by 2", colour: blue}
+    ledger: [L-0179]
+  - id: B2
+    step: 2
+    from: 310
+    to: 580
+    caption: "The odd server dies. The even one carries on, up to 202."
+    events:
+      - {at: 320, dur: 30, what: "red ✕ on ticket 1's link, its outline re-inked red, red 'down' written; row 1 ghosts", colour: red}
+      - {at: 356, dur: 94, what: "three packets all to ticket 2: row 2 gets 8, 10, 12", colour: blue}
+      - {at: 456, dur: 94, what: "fast-forward: ticket 2's counter rolls 14 → 204 (linear), row 2 writes '…' then 202"}
+    ledger: [L-0180, L-0181]
+  - id: B3
+    step: 3
+    from: 580
+    to: 840
+    caption: "It resumes where it stopped: 7, 204, 9, 206. Still unique."
+    events:
+      - {at: 590, dur: 24, what: "red 'down', ✕ and outline fade (10 f); green 'back' written in the same place (wipe 598-614); row 2 ghosts", colour: green}
+      - {at: 616, dur: 124, what: "four packets alternate again: row 3 gets 7, 204, 9, 206; 7 and 9 ringed in graphite", colour: blue}
+      - {at: 750, dur: 28, what: "green ✓ 'unique' at the end of row 3", colour: green}
+    ledger: [L-0181]
+  - id: B4
+    step: 4
+    from: 840
+    to: 1090
+    caption: "Optional: reset both above the max. It only looks tidier."
+    events:
+      - {at: 850, dur: 24, what: "row 4 label 'optional: max + buffer' written; row 3 ghosts"}
+      - {at: 880, dur: 12, what: "counters change in place: next 11 → 241, next 208 → 242"}
+      - {at: 912, dur: 124, what: "four packets alternate: row 4 gets 241 242 243 244", colour: blue}
+    ledger: [L-0182, L-0183]
+  - id: B5
+    from: 1090
+    to: 1180
+    caption: "Uniqueness never broke. Order was never promised."
+    on_screen: [end state = poster, all rows back to full ink]
+    motion: "past rows un-ghost over 12 f (summary)"
+    ledger: [L-0183]

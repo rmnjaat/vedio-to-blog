@@ -1,0 +1,130 @@
+# Storyboard — clip l06-invalidate (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l06-invalidate
+title: The old face lingers
+lecture: 8
+section: "3.3 When the photo changes"
+status: reviewed  # draft | approved | built | reviewed
+why_motion: >
+  A window in time. What matters is how long a wrong answer keeps being served after the photo changes, and what
+  closes that window. In a still, "TTL 1–2 days" and "purge /h1" are two labels; in motion the reader watches the old
+  photo come back request after request while the clock runs to the TTL, then sees the same requests answered with
+  the new photo once a purge closes the window almost at once.
+static_twin: "Fig 3·b panel b (invalidation) and board D-05 (b_011130.jpg / b_011345.jpg); frame 0 = that diagram plus an empty two-lane time track"
+ledger:
+  taught:
+    - L-0126  # the event exists to invalidate the CDN: once user 2 loaded user 1's photo, the CDN serves it to everyone; a change must evict it
+    - L-0127  # photos rarely change, so the TTL might be one or two days
+    - L-0128  # even with a long TTL, invalidate right away when the user changes the photo (good UX)
+    - L-0129  # photo-updated event -> consumers (workers) call the CDN API to invalidate /h1; next request misses, API reads DB + S3, CDN caches and serves
+  context_only:
+    - L-0124  # hit/miss flow (B1 hits and B5's miss show it; taught in 3.2)
+    - L-0125  # API updates the DB and pushes an event to Kafka (drawn in B2/B4; prose teaches it)
+    - L-0130  # every CDN exposes invalidation APIs (prose)
+fidelity_notes:
+  - "'user 1' (the uploader) and 'user 2' (the visitor) are the teacher's own names (01:11:52). The visitor stands for every visitor (L-0126: 'served via CDN to all the users')."
+  - "v1 / v2 are labels for the old and new photo; the lecture names no versions. The db shows which photo is active (v1 -> v2); S3 keeps both files (the upload adds v2)."
+  - "TTL is shown as 'TTL: 1–2 days', the lecture's hedged guess (L-0127: 'might have a TTL of one day or two day'); fact-check: accurate, not a claim about Gravatar's real headers. The track is labelled 'time (not to scale)': the TTL span and the purge delay are not drawn to scale, and no seconds/hours are claimed for the purge."
+  - "'purge /h1' is the board's 'invalidate a path /h1' (L-0129) in the word Fig 3·b and the page caption use; the board labels the bus 'queue' and the audio says Kafka (L-0129 detail) — the clip says kafka."
+  - "Lane A (TTL only) is a projection drawn on the track only: the diagram does not replay the TTL-expiry refill, so the diagram stays at 'just after the change' until B4. The ✓ after the TTL mark on lane A is the refill the lecture describes for any miss (L-0124)."
+  - "On a miss the clip shows cdn -> api and the new photo coming back; the api's db + s3 reads (L-0129) were drawn in B2 and are not re-animated (one motion per beat)."
+  - "The direct-call variant (the API calls the CDN synchronously, accepted in class, L-0128 detail) and the browser-cache caveat (A-GD-13) are left to prose after the clip."
+  - "Not claimed: how fast the purge takes effect, how many requests arrive, that edges everywhere drop the file at the same instant, or Gravatar's real TTL."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 970, note: "portrait re-flow at <= 640 px: user 1 above the api, db + s3 stacked at the right, worker and kafka below, lane titles above each lane; lettering 30, captions 32"}
+duration_frames: 1190   # 39.7 s; 79.3 s at 0.5x
+start_frame_equals: "Fig 3·b panel b with the serving path: user 2 -> cdn (holding the cached photo v1) -> api -> db (v1) and s3 (v1); user 1 above the api; kafka pipe under the api; 'cdn invalidation' worker pulling from it, its dashed line up to the cdn. Below: two empty lanes 'TTL only' and 'with purge' on a time track."
+poster_frame: 1189
+reduced_motion_stills: [95, 245, 425, 705, 885, 1065, 1189]
+glyphs:
+  user2: {shape: stick-figure, label: "user 2", pos: [80, 160, 0, 110]}
+  cdn: {shape: cloud, label: "cdn (mono, inside)", pos: [225, 155, 210, 120], holds: "photo card v1 (mono) -> red dashed + 'old' (B2) -> red x, removed (B4) -> v2, green (B5)"}
+  api: {shape: server-box, label: "api", pos: [570, 170, 140, 66]}
+  user1: {shape: stick-figure, label: "user 1", pos: [640, 20, 0, 100]}
+  db: {shape: cylinder-solid, label: "db (above), v1 -> v2 inside", pos: [808, 162, 104, 84]}
+  s3: {shape: cloud, label: "s3, v1 -> 'v1 v2' inside", pos: [970, 165, 190, 120]}
+  kafka: {shape: pipe, label: "kafka (mono, inside); 'photo_updated' (mono) right of the pipe", pos: [520, 352, 280, 44]}
+  worker: {shape: server-box, label: "cdn / invalidation (hand, two lines)", pos: [140, 330, 290, 94]}
+  arrows:
+    - {route: "user 2 -> cdn", solid, head: cdn}
+    - {route: "cdn -> api (origin, used only on a miss)", solid, head: api}
+    - {route: "user 1 -> api", solid, head: api, label: "v2 (blue, B2)"}
+    - {route: "api -> db", solid, head: db}
+    - {route: "api -> s3", solid, head: s3}
+    - {route: "api -> kafka", dashed, head: kafka}
+    - {route: "worker -> kafka (the worker pulls)", solid, head: kafka}
+    - {route: "worker -> cdn", dashed, head: cdn, label: "purge /h1 (mono, B4)"}
+  track:
+    lanes: {A: {title: "TTL only", y: 488}, B: {title: "with purge", y: 572}, x: [300, 1168]}
+    marks: "green ✓ = served the right photo, red ✕ = served the old photo; dashed change line 'photo changed' at x 440; lane A red span to 'TTL: 1–2 days' at x 1060 + 'old photo served'; lane B red sliver to 'purge' at x 490"
+    label: "time (not to scale)"
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "The CDN holds user 1's photo. Visitors get it from the edge."
+    on_screen: [static figure, empty track]
+    motion: none
+    ledger: [L-0126]
+  - id: B1
+    from: 105
+    to: 255
+    caption: "User 2 and everyone else get it from the CDN, never from the origin."
+    events:
+      - {at: 115, dur: 22, what: "blue request packet user 2 -> cdn (pen re-inks the line)", colour: blue}
+      - {at: 139, dur: 22, what: "green photo packet cdn -> user 2; ✓ stamped on both lanes at x 340", colour: green}
+      - {at: 177, dur: 44, what: "second round trip; ✓ at x 390 on both lanes", colour: green}
+    ledger: [L-0126]
+  - id: B2
+    from: 255
+    to: 435
+    caption: "User 1 uploads a new photo. The origin has it; the CDN doesn't know."
+    events:
+      - {at: 263, dur: 30, what: "pen user 1 -> api, packet; 'v2' written by the arrow", colour: blue}
+      - {at: 295, dur: 24, what: "pen api -> db; db's v1 replaced by v2 (write)", colour: blue}
+      - {at: 325, dur: 24, what: "pen api -> s3; s3 gains v2 next to v1", colour: blue}
+      - {at: 363, dur: 14, what: "dashed change line pen across both lanes; 'photo changed' written"}
+      - {at: 383, dur: 10, what: "cdn's card turns red dashed; 'old' written above the cloud", colour: red}
+    ledger: [L-0126]
+  - id: B3
+    from: 435
+    to: 715
+    caption: "TTL only: the CDN keeps serving the old photo for up to 1–2 days."
+    events:
+      - {at: 447, dur: 190, what: "playhead on lane A, linear from the change line to the TTL mark; red span grows behind it (secondary indicator)", colour: red}
+      - {at: 452, dur: 44, what: "request 1: blue packet in, RED old photo back; red ✕ stamped on lane A at the playhead", colour: red}
+      - {at: 504, dur: 44, what: "request 2, same", colour: red}
+      - {at: 556, dur: 44, what: "request 3, same", colour: red}
+      - {at: 605, dur: 24, what: "'old photo served' written under the span", colour: red}
+      - {at: 637, dur: 20, what: "TTL mark stamped, 'TTL: 1–2 days' written"}
+      - {at: 667, dur: 8, what: "green ✓ after the TTL on lane A (the next miss refills)", colour: green}
+    ledger: [L-0127]
+  - id: B4
+    from: 715
+    to: 895
+    caption: "Instead: an event on Kafka, and a worker calls the CDN's purge API."
+    events:
+      - {at: 727, dur: 30, what: "blue dashed pen api -> kafka + packet; 'photo_updated' written", colour: blue}
+      - {at: 765, dur: 28, what: "packet kafka -> worker along the worker's pull line", colour: blue}
+      - {at: 801, dur: 26, what: "blue dashed pen worker -> cdn + packet; 'purge /h1' written", colour: blue}
+      - {at: 829, dur: 8, what: "red ✕ on the cached card; lane B: 'purge' mark stamped, red sliver change -> purge", colour: red}
+      - {at: 843, dur: 10, what: "card and ✕ removed (an empty dashed slot stays)"}
+    ledger: [L-0129, L-0128]
+  - id: B5
+    from: 895
+    to: 1075
+    caption: "Next request misses; the CDN fetches the new photo from the origin."
+    events:
+      - {at: 905, dur: 22, what: "blue request user 2 -> cdn", colour: blue}
+      - {at: 929, dur: 24, what: "blue pen cdn -> api, 'miss' written", colour: blue}
+      - {at: 957, dur: 24, what: "green packet api -> cdn; card 'v2' written in green", colour: green}
+      - {at: 989, dur: 22, what: "green packet cdn -> user 2; lane B ✓ at the first request's x, then ✓ at the other request slots", colour: green}
+    ledger: [L-0129]
+  - id: B6
+    from: 1075
+    to: 1190
+    caption: "Long TTL, plus a purge on change: the new face shows right away."
+    on_screen: [end state = poster: both lanes, lane A's long red window to the TTL, lane B's sliver to the purge]
+    motion: none
+    ledger: [L-0128, L-0127]
+chapters: [{label: cached, frame: 115}, {label: photo changes, frame: 265}, {label: TTL only, frame: 445}, {label: with a purge, frame: 725}]

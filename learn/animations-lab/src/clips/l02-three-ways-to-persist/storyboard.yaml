@@ -1,0 +1,149 @@
+# Storyboard — clip l02-three-ways-to-persist (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l02-three-ways-to-persist
+title: Three guarantees
+lecture: 4            # course position (folder lec02)
+section: "7.3 Three ways to persist a message"
+status: reviewed      # draft | approved | built | reviewed
+why_motion: >
+  The lesson is an ordering in time and a window: on path 1 the message is saved before anyone sees it, on path 2
+  it is shown at once and saved only after a lag, on path 3 it is shown and never saved. A reload that lands inside
+  path 2's lag window hides a message B has already seen; the same reload after the worker's write finds it. Fig 7·c
+  shows the routes; only time shows which mark comes first and that the reload falls inside the window.
+static_twin: "Fig 7·c (D-04 redraw), phone form: three strips, one per path, each with only its own parts; TradeoffTable T4"
+ledger:
+  taught:
+    - L-0204  # three types on one system, picked by guarantee; Slack = hypothesis, WhatsApp hypothetical (lane titles)
+    - L-0206  # type 1: broadcast only after persisting (B1: saved, then shown)
+    - L-0209  # type 1 flow: HTTP -> api -> db, then api -> edge (WebSocket server) -> users
+    - L-0210  # send over HTTP, receive over WebSocket (HTTP arrow in, WS line out)
+    - L-0214  # type 2: WS -> edge -> other user now, -> kafka -> db later
+    - L-0218  # 10-minute persistence lag; a Slack user reloading from the db does not see it (B4)
+    - L-0219  # different guarantees, different architecture (B6)
+    - L-0220  # type 3 Zoom chat: only whoever is connected gets it, no persistence
+    - L-0221  # leave and come back: no history (B3 'rejoin', 'history gone'), softened 'by default'
+    - L-0389  # delivered now, stored late (B2 shown at once; B5 saved later)
+    - L-0390  # delayed processing: source of truth lacks it; a reload hides a seen message (B4)
+  context_only:
+    - L-0205  # the parts (edge server = WebSocket server); named in prose and the NotationKey
+    - L-0211  # WhatsApp keeps a copy on the device and has no backend copy (why lane 2 is 'hypothetical')
+    - L-0213  # Slack users keep no local copy (prose)
+    - L-0215  # async is fine when the device holds a copy (prose)
+    - L-0216  # no synchronous db call, batch writes (prose)
+    - L-0222  # pick by how critical persistence is (RuleBox)
+    - L-0386  # Kafka is pulled: the worker -> kafka arrow direction
+fidelity_notes:
+  - "Lane 1 is titled 'Slack' with '(a hypothesis)' (L-0204: 'my hypothesis, I may be wrong'). Persist-then-broadcast is the class's type 1, not Slack's published path; A-MLA-03 (Slack's real send path has more tiers and does not say the write completes first) stays in prose."
+  - "Lane 2 is 'WhatsApp-like' with '(hypothetical)': WhatsApp keeps no backend copy (L-0211, prose)."
+  - "The lane-2 reload is the class's 'imagine Slack' scenario (L-0218): a client that reads the channel back from the database. WhatsApp clients read their device copy, so it works there (L-0215, L-0218). The B4 caption says so: 'If B reloads from the DB in the lag (Slack does)'."
+  - "Lane 3 is 'Zoom chat' with '(by default)': the softening from the fact-check of L-0220/L-0221 (A-MLA-12, continuous meeting chat persists). Its reload is drawn as 'rejoin' (leave and come back), which is what L-0221 describes."
+  - "The lag is the class's example ('let's say it takes 10 minutes', L-0218), written '≈ 10 min lag' with 'not to scale' under it: the window is a short bar and the clip does not run for ten minutes. The reload moment inside it (red tick) is illustrative."
+  - "Fig 7·c's load balancer, API fleet and three shards are reduced to one 'api' box and one 'db' cylinder; Kafka's three workers to one 'worker'. The edge server is labelled mono 'edge' (the page names it 'edge server', a WebSocket server, L-0205)."
+  - "On reload B is drawn reading the db directly (arrow from B's screen to the db). In class the client reads messages from the database through the API (L-0218); the API hop is omitted for room."
+  - "Board colours (white / green / blue paths) are not used; paths are numbered 1-3 as on the board. Blue = the message travelling or a read, green = saved / found, red = not stored yet / history gone."
+  - "Not shown: Kafka retention, idempotent inserts, batching (L-0216, prose), the grey -> black 'sent' observation (7.2), any timing number other than the class's 10 minutes, that the final diagram uses path 2 (L-0236, prose)."
+additions:
+  - {fact: "Zoom's in-meeting chat shows only messages sent while you are present by default; continuous meeting chat can persist them", source_url: "https://www.zoom.com/en/blog/continuous-meeting-chat", checked: 2026-10-13, used_as: "'(by default)' in lane 3's title (A-MLA-12)"}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1060, note: "three lanes stacked as horizontal strips (Fig 7·c phone form): A -> parts -> B's screen left to right; lane 2's kafka/worker/db row and lag bar under its main row; order line + result line per lane at its foot; lettering 30, captions 32"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1200   # 40.0 s; 80 s at 0.5x
+start_frame_equals: "Fig 7·c phone form: three numbered paths side by side (wide) / stacked (phone), each with A, its own parts (api + db; edge + kafka + worker + db; edge) and B's empty screen; no message, no marks"
+poster_frame: 1199
+reduced_motion_stills: [86, 303, 545, 736, 932, 1116, 1199]
+glyphs:
+  layout_wide: "three columns: path 1 x 0-380, path 2 x 380-850, path 3 x 850-1200; dashed separators; flow top -> bottom"
+  title: {shape: "circled numeral + hand title (bold) + ink2 qualifier line", text: ["1 Slack / (a hypothesis)", "2 WhatsApp-like / (hypothetical)", "3 Zoom chat / (by default)"]}
+  user_A: {shape: "mono letter 'A' (users drawn as letters, figures.md)", pos: "top of each spine (wide) / left of each strip (phone)"}
+  http: {route: "A -> api", solid: true, head: api, label: "mono HTTP"}
+  ws: {shape: "WS line: two thin parallel lines, no head", routes: ["A -> edge (paths 2, 3)", "edge -> B (all paths)"], label: "mono WS"}
+  api: {shape: server-box, label: "mono api", path: 1}
+  db: {shape: cylinder-solid, label: "mono db", paths: [1, 2]}
+  api_to_db: {route: "api -> db", solid: true, head: db}
+  api_to_edge: {route: "api -> edge", solid: true, head: edge, note: "then tell the edge (L-0209)"}
+  edge: {shape: "server-box with a two-prong plug mark", label: "mono edge"}
+  kafka: {shape: "horizontal pipe (capsule)", label: "mono kafka (right half)", path: 2, note: "the message square waits at the inlet, left of the label"}
+  edge_to_kafka: {route: "edge -> kafka", dashed: true, head: kafka}
+  worker: {shape: server-box, label: "mono worker", path: 2}
+  worker_pull: {route: "worker -> kafka", dashed: true, head: kafka, note: "consumers pull (L-0386); the message rides back along it"}
+  worker_to_db: {route: "worker -> db", solid: true, head: db}
+  reload: {route: "B's screen -> db", solid: true, head: db, paths: [1, 2], note: "drawn in B4, stays graphite after"}
+  screen_B: {shape: "screen box with a header strip ('B' mono left; 'reload' / 'rejoin' hand right) and a chat bubble 'standup in 5' (mono)"}
+  lag: {shape: "thin bar with end ticks, hand '≈ 10 min lag' above and 'not to scale' below", path: 2, refresh_tick: "red tick inside the bar", end_tick: "green when saved"}
+  order_line: {shape: "hand words joined by a drawn arrow", text: ["saved → shown", "shown → saved", "shown only"], colours: "saved green, shown ink"}
+  result_line: {shape: "✓ / ✕ drawn mark + hand words", text: ["✓ still there (green)", "✕ gone in the lag (red)", "✕ history gone (red)"]}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "One message, three paths: when saved, when shown?"
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0204]
+  - id: B1
+    step: 1
+    from: 90
+    to: 307
+    caption: "Slack (a hypothesis): over HTTP, saved first, then broadcast to B."
+    events:
+      - {at: 99, dur: 28, what: "pen re-inks A -> api blue, packet rides it", colour: blue}
+      - {at: 129, dur: 22, what: "api -> db blue, packet", colour: blue}
+      - {at: 153, dur: 20, what: "green ✓ on db; order line writes 'saved'", colour: green}
+      - {at: 179, dur: 28, what: "api -> edge blue, packet", colour: blue}
+      - {at: 209, dur: 22, what: "packet edge -> B over WS", colour: blue}
+      - {at: 233, dur: 24, what: "bubble 'standup in 5' drawn and written on B's screen"}
+      - {at: 251, dur: 26, what: "order line: arrow + 'shown'"}
+    ledger: [L-0206, L-0209, L-0210]
+  - id: B2
+    step: 2
+    from: 307
+    to: 549
+    caption: "WhatsApp-like (hypothetical): shown at once, saved later via Kafka."
+    events:
+      - {at: 307, dur: 12, what: "path 1 ghosts to 38%; its blue fades to graphite"}
+      - {at: 317, dur: 28, what: "packet A -> edge over WS", colour: blue}
+      - {at: 347, dur: 22, what: "packet edge -> B", colour: blue}
+      - {at: 371, dur: 24, what: "bubble on B's screen; order line 'shown' (db still empty)"}
+      - {at: 417, dur: 26, what: "edge -> kafka dashed, blue packet; message square at kafka's inlet", colour: blue}
+      - {at: 455, dur: 62, what: "'≈ 10 min lag' written, bar drawn, 'not to scale' written"}
+    ledger: [L-0214, L-0389]
+  - id: B3
+    step: 3
+    from: 549
+    to: 740
+    caption: "Zoom chat: whoever is connected sees it. Rejoin later: no history."
+    events:
+      - {at: 549, dur: 12, what: "path 2 ghosts"}
+      - {at: 559, dur: 28, what: "packet A -> edge over WS", colour: blue}
+      - {at: 589, dur: 22, what: "packet edge -> B", colour: blue}
+      - {at: 613, dur: 24, what: "bubble on B's screen"}
+      - {at: 633, dur: 20, what: "order line 'shown only'"}
+      - {at: 660, dur: 50, what: "'rejoin' written; bubble replaced by a red dashed empty outline; '✕ history gone'", colour: red}
+    ledger: [L-0220, L-0221]
+  - id: B4
+    from: 740
+    to: 936
+    caption: "If B reloads from the DB in the lag (Slack does): ① there, ② gone."
+    events:
+      - {at: 740, dur: 12, what: "paths 1 and 2 return to full strength; path 3 ghosts"}
+      - {at: 750, dur: 18, what: "'reload' written on B's strip in paths 1 and 2; red tick inside path 2's lag bar", colour: red}
+      - {at: 770, dur: 56, what: "path 1: B -> db read (blue), green packet back, '✓ still there'", colour: green}
+      - {at: 836, dur: 68, what: "path 2: B -> db read (blue), red packet back (db empty), bubble replaced by a red dashed outline, '✕ gone in the lag'", colour: red}
+    ledger: [L-0218, L-0390]
+  - id: B5
+    from: 936
+    to: 1120
+    caption: "A worker saves it later; then a reload finds it. Stored late."
+    events:
+      - {at: 936, dur: 12, what: "path 1 ghosts"}
+      - {at: 946, dur: 22, what: "worker pulls: pull arrow re-inked blue, packet kafka -> worker", colour: blue}
+      - {at: 970, dur: 22, what: "worker -> db blue, packet", colour: blue}
+      - {at: 994, dur: 26, what: "green ✓ on db, lag bar end tick green; order line 'shown → saved' completes", colour: green}
+      - {at: 1026, dur: 58, what: "reload again: read re-inked blue, green packet back, red outline replaced by the bubble", colour: green}
+    ledger: [L-0214, L-0389]
+  - id: B6
+    from: 1120
+    to: 1200
+    caption: "Different guarantees, different architecture."
+    on_screen: [end state = poster]
+    motion: "all lanes return to full strength (12 f)"
+    ledger: [L-0219]

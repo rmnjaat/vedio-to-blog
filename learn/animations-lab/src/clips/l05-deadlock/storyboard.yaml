@@ -1,0 +1,111 @@
+# Storyboard — clip l05-deadlock (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l05-deadlock
+title: One cycle
+lecture: 3          # course position "Lecture 03"; folder lec05
+section: "1.5 Deadlocks"
+status: reviewed    # draft | approved | built | reviewed (render-checked 2026-10-13, see review.md)
+why_motion: >
+  Contention and ordering. The lesson is the order of the waits: T1 waiting for row 1 is harmless on its own
+  (waiting is not deadlock, L-0096); only the second wait, in the opposite order, closes the loop, and the engine
+  breaks it at that moment. A still (Fig 1·e) shows only the finished loop; the clip shows the cycle being born
+  from the lock order, which is why locking in one order (L-0028, A-C-04) prevents it.
+static_twin: "Fig 1·e (D-01 redraw, frame b_001430.jpg, T2 restored): T1, T2 circles; row 1 top, row 2 bottom"
+ledger:
+  taught:
+    - L-0025  # deadlock: the unannounced side effect of pessimistic locking (caption B0 framing, stamp)
+    - L-0026  # T1 holds row 2 / wants row 1; T2 holds row 1 / wants row 2; nobody moves
+    - L-0028  # arrange lock acquisition order (poster note "lock rows in one order", with A-C-04)
+    - L-0031  # when a lock would make a transaction wait, the engine checks for a deadlock
+    - L-0032  # a cycle in who-waits-for-whom = deadlock ("cycle" label, red loop)
+    - L-0033  # the engine kills one transaction (softened per SN-04: "rolls one back")
+    - L-0096  # waiting is not deadlock (B2 caption, graphite hourglass)
+  context_only:
+    - L-0027  # any pessimistic locking risks a deadlock (prose before the clip)
+    - L-0030  # popular databases never let a deadlock persist (prose before the clip)
+    - L-0035  # a stuck deadlock would need a reboot (prose)
+fidelity_notes:
+  - "Lock layout follows Fig 1·e / L-0026: T1 holds row 2, T2 holds row 1; T1 asks for row 1 first, T2 asks for row 2 second. The lecture names no order of the two requests; the clip picks T1 first so the harmless single wait can be shown (L-0096)."
+  - "Victim (SN-04): the board says 'the transaction that detects the deadlock kills itself' (L-0033). The fact-check softened this: engines choose differently (InnoDB prefers the smaller transaction, PostgreSQL's choice is unpredictable, Oracle rolls back one statement). The clip says 'the engine rolls one back: here T2'. T2 happens to be both the one whose request closed the cycle (the teacher's rule) and a legitimate InnoDB victim (both transactions are the same size); the clip does not say why T2 was chosen."
+  - "'ERROR 1213' is MySQL/InnoDB's deadlock error (A-C-02, sourced addition); PostgreSQL's is SQLSTATE 40P01 (left to SN-04)."
+  - "'retry' under T2 follows A-C-02 / SN-04 (the application retries the whole transaction); the lecture's own fix is ordering (L-0028)."
+  - "No detection delay is claimed: the stamp appears right after the cycle closes. PostgreSQL first waits deadlock_timeout (1 s, A-C-01); that stays in the prose (L-0031 inline)."
+  - "Not claimed: 'kills itself' (only in the page's prose quote), how long T1 waited, any timing numbers, that the cycle ever persists (L-0030: engines never let it)."
+  - "Ghosting: the 'cycle' label ghosts to 55% (its lines to 38%); at 38% the red word was illegible on the blackboard sheet."
+  - "Routing is orthogonal (a rectangle loop) rather than the board's diagonals, so labels sit on straight runs and the loop reads as one ring."
+additions:
+  - {fact: "InnoDB rolls back the victim's whole transaction with ERROR 1213; the application should retry the entire transaction (A-C-02)", source_url: "https://dev.mysql.com/doc/refman/8.4/en/innodb-error-handling.html", checked: 2026-10-13}
+  - {fact: "Acquiring locks on multiple rows in one consistent order prevents the cycle (A-C-04)", source_url: "https://www.postgresql.org/docs/current/explicit-locking.html", checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30, note: "wide lettering 34 px (~15 px at the 540 px stage), captions 36 px (~16 px; shared band scaled by 0.75), ink 3.6 px (~1.6 px; the sheets use 1.7), matching the page sheets (critic C-05, 2026-10-14)"}
+phone_canvas: {width: 720, height: 1000, note: "portrait re-flow at <= 640 px: T1 top, T2 bottom, row 1 left, row 2 right; status labels inside the loop; stamp and fix note under the loop; 30 px lettering, 32 px captions"}
+duration_frames: 1020   # 34.0 s; 68 s at 0.5x
+start_frame_equals: "Fig 1·e's parts without edges: circles T1 (left) and T2 (right), boxes row 1 (top middle) and row 2 (bottom middle)"
+poster_frame: 1019
+reduced_motion_stills: [72, 192, 372, 582, 732, 882, 1019]
+glyphs:
+  T1: {shape: circle (transaction), label: "T1" mono, wide: [190, 300, r58], phone: [360, 170, r50]}
+  T2: {shape: circle (transaction), label: "T2" mono, wide: [1010, 300, r58], phone: [360, 630, r50]}
+  row1: {shape: server-box (row), label: "row 1" mono, wide: [470, 120, 260, 80], phone: [40, 365, 200, 70], lock_slot: "one padlock slot at the right end of the box; the holder is shown by the line"}
+  row2: {shape: server-box (row), label: "row 2" mono, wide: [470, 400, 260, 80], phone: [480, 365, 200, 70]}
+  holds: {route: "T1 - row 2, T2 - row 1", solid, head: none, lock: green padlock in the row's lock slot, label: "holds" on T1's}
+  wants: {route: "T1 -> row 1, T2 -> row 2", solid, head: "at the row (the requester points at what it wants)", label: "wants" on T1's}
+  hourglass: {shape: two-triangle hourglass, colour: graphite, label: "waits"}
+  loop: {route: "T1 -> row 1 -> T2 -> row 2 -> T1 (red overlay)", label: "cycle" red, centre}
+  stamp: {text: "deadlock detected", colour: red, wide: top centre, phone: top row}
+  verdicts: {T2: ["ERROR 1213" mono red, "rolled back" red, "retry" ink], T1: "commits ✓" green}
+  fix_note: {text: "lock rows in one order", colour: ink, wide: bottom centre, phone: under T2's verdicts}
+beats:
+  - {id: B0, from: 0, to: 80, caption: "Two transactions, two rows.", on_screen: [static figure], motion: none, ledger: [L-0026]}
+  - id: B1
+    from: 80
+    to: 200
+    caption: "T1 locks row 2. T2 locks row 1."
+    events:
+      - {at: 90, dur: 28, what: "pen draws T1 - row 2 line (graphite); green padlock in row 2 at 114; 'holds' written 120-136", colour: green}
+      - {at: 138, dur: 26, what: "pen draws T2 - row 1 line; green padlock in row 1 at 160", colour: green}
+    ledger: [L-0026]
+  - id: B2
+    from: 200
+    to: 380
+    caption: "T1 now wants row 1. It waits. Waiting is not a deadlock."
+    events:
+      - {at: 210, dur: 36, what: "blue pen + packet T1 -> row 1, chevron at row 1; 'wants' written", colour: blue}
+      - {at: 262, dur: 20, what: "blue fades back to graphite (14 f); hourglass + 'waits' by T1 (graphite)"}
+      - {at: 282, dur: 98, what: "hold: one wait, no cycle"}
+    ledger: [L-0096, L-0026]
+  - id: B3
+    from: 380
+    to: 590
+    caption: "T2 wants row 2. Now each waits for the other: a cycle."
+    events:
+      - {at: 390, dur: 36, what: "blue pen + packet T2 -> row 2; fades to graphite; hourglass + 'waits' by T2", colour: blue}
+      - {at: 460, dur: 72, what: "red pen traces the loop T1 -> row 1 -> T2 -> row 2 -> T1, one leg after another", colour: red}
+      - {at: 534, dur: 18, what: "'cycle' written in the middle", colour: red}
+    ledger: [L-0026, L-0032]
+  - id: B4
+    from: 590
+    to: 740
+    caption: "The engine sees the cycle and rolls one back: here T2."
+    events:
+      - {at: 600, dur: 22, what: "stamp 'deadlock detected' written", colour: red}
+      - {at: 630, dur: 20, what: "T2's circle re-inked red", colour: red}
+      - {at: 652, dur: 50, what: "T2's 'waits' removed; 'ERROR 1213' / 'rolled back' written", colour: red}
+    ledger: [L-0031, L-0032, L-0033]
+  - id: B5
+    from: 740
+    to: 890
+    caption: "T2's lock on row 1 is released: T1 gets it and commits. T2 retries."
+    events:
+      - {at: 750, dur: 12, what: "T2's edges and its half of the red loop ghost to 38%; T1's red legs fade back to graphite; T2's padlock in row 1 removed (10 f); 'cycle' ghosts to 55%"}
+      - {at: 770, dur: 30, what: "green pen re-inks T1 -> row 1; green padlock back in row 1's slot at 796", colour: green}
+      - {at: 800, dur: 36, what: "T1's 'waits' removed (10 f) and replaced in place by 'commits ✓' (812-836)", colour: green}
+      - {at: 840, dur: 16, what: "'retry' written where T2's 'waits' was"}
+    ledger: [L-0033]
+  - id: B6
+    from: 890
+    to: 1020
+    caption: "Lock rows in the same order and this loop can't form."
+    events:
+      - {at: 900, dur: 28, what: "'lock rows in one order' written (fix note)"}
+    on_screen: [end state = poster]
+    ledger: [L-0028]
+chapters: [{label: "two locks", frame: 90}, {label: "one wait", frame: 210}, {label: "cycle", frame: 390}, {label: "rollback", frame: 600}]

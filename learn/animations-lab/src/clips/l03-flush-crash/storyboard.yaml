@@ -1,0 +1,110 @@
+# Storyboard — clip l03-flush-crash (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l03-flush-crash
+title: The counter runs ahead of the disk
+lecture: 3          # folder lec03, course position 06 ("Lecture 06")
+section: "2.6 Flush every N, restart from the safest value"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  A window in time: between flushes the counter in memory runs ahead of the copy on disk, and the gap opens with
+  every ID and closes with every flush. A crash that lands inside the window loses the difference. A still shows
+  one moment; the clip shows the gap opening and closing, the crash landing inside it, the duplicates a
+  naive restart makes, and the safe restart that jumps past the whole window.
+static_twin: "none on the page (the former StepThrough was removed by the design fix, C-04); the clip-as-text covers no-motion readers. Source: board D-05, b_002445.jpg: a lane of issued IDs, time running down, and the disk value 03 → 06"
+ledger:
+  taught:
+    - L-0042  # flush frequency: write the counter only every N IDs (title 'flush every 3 IDs', one solid flush arrow)
+    - L-0043  # counter++ and save when counter % N == 0 (flushes land exactly at 03 and 06; code form stays in the CodeBlock)
+    - L-0044  # worked example N = 3: 01-03 (3 flushed), 04-06 (6 flushed), 07, 08, crash; restart from 6 reissues 7 and 8
+    - L-0045  # safest value = last flushed + N + 1 = 06 + 3 + 1 = 10 -> m1-10
+    - L-0046  # some integers are never used, and that is fine: correctness over using every integer
+  context_only:
+    - L-0047  # takeaway 1: periodic IO via a mod, not a timer thread (prose after the clip)
+    - L-0048  # takeaway 2: on recovery start from the safest value (prose after the clip)
+fidelity_notes:
+  - "N = 3, flushes at 03 and 06, crash after m1-08 with 06 on disk, restart m1-10 and the formula '06 + 3 + 1 = 10' are the class's numbers and the board's notation (D-05)."
+  - "Unused numbers: the instructor said 'we never used 8 and 9 ... we lost those two values' (00:24:05), but m1-08 was handed out before the crash (L-0044 says so, and the clip shows it). So the clip marks only m1-09 as 'never used' and states no count. The final caption 'An unused number is fine. A duplicate ID is not.' keeps L-0046's point without repeating the slip."
+  - "The memory box and the disk cylinder showing the live counter value are a visual addition to board D-05's lanes (the board has the lane and an 'On disk values' column 03 / 06). They state nothing beyond L-0044: memory holds the counter, the disk holds the last flushed value."
+  - "The dashed box around the unflushed IDs and the bracket 'ahead of disk' are the window between flushes (L-0044: 'the last value that was written was 6, the ID generated was already 8'). Not to scale in time."
+  - "The crash is drawn as a red line across the issued lane under m1-08 (the board strikes m1-08 with an arrow to CRASH) and the memory box re-inked red with its value gone. m1-08 itself is not struck: it was handed out and is in use, which is the point."
+  - "Flushes are one solid write arrow memory → disk (the machine pushes a periodic write, so the head sits at the disk; the dashed glyph stays reserved for async copy, critic C-13), pen-drawn blue as data leaving and settling to graphite; the green ticks in the lane mark the IDs whose value reached the disk."
+  - "On restart from 6 the memory box shows 06, then 07, 08 in red as they go out again. On the safe restart it shows 10 (green): board 'New starting value (safe) = m1-10'. The code form load() + N then ++ is not shown (CodeBlock in 2.6)."
+  - "Not claimed: anything about fsync or page caches (A-IG-03, prose 2.4); that a crash can only happen at 8 (it is the class's example); how long a flush takes; a timer thread (L-0047, prose)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 970, note: "portrait re-flow at <= 640 px: memory box + disk cylinder across the top with the formula to their right, the bracket under them, the issued/restart lanes below; 30 px lettering, 32 px captions"}
+duration_frames: 1140   # 38.0 s; 76 s at 0.5x
+start_frame_equals: "board D-05 before step 1: title 'flush every 3 IDs', the empty 'issued' lane, memory box 'm1 memory' reading 00, disk cylinder reading 00"
+poster_frame: 1139
+reduced_motion_stills: [72, 252, 432, 652, 832, 1042, 1139]
+glyphs:
+  title: {shape: hand label, text: "flush every 3 IDs", pos: [56, 60], colour: ink2}
+  issued_lane: {shape: column of mono IDs, header: "issued", x: 56, rows: "m1-01 .. m1-08, y 180 + 44(n-1); crash gap; rows 9-10 at 558 / 604"}
+  window_box: {shape: dashed chamfered box around the unflushed IDs of the lane, x: [40, 198], colour: "graphite; red after the crash; ghosted at step 5"}
+  ticks: {shape: green check, pos: "right of m1-03 and m1-06", meaning: "value reached the disk"}
+  memory_box: {shape: server box, header: "m1 memory", pos: [630, 138, 200, 180], content: "live counter, mono 104"}
+  disk: {shape: cylinder-solid, header: "disk", pos: "cx 1060, top 152, rx 96, h 150", content: "last flushed value, mono 104"}
+  flush_arrow: {route: "memory box → disk", dashed: false, head: "disk (the machine writes)", label: "flush (hand, above)"}
+  bracket: {shape: square bracket under memory and disk, y: 352, label: "ahead of disk", colour: "ink2, red after the crash"}
+  crash_line: {shape: red line across the issued lane under m1-08, y: 514, label: "crash (red hand, row 9)"}
+  restart_lane: {shape: column of mono IDs, header: "restart", x: 262, rows: "red m1-07 / m1-08 with red '=' to their twins and 'twice'; then m1-09 (ink-3) 'never used', m1-10 (green, double underline) 'safest'"}
+  formula: {shape: mono, text: "06 + 3 + 1 = 10", pos: [630, 478], phone: "two lines right of the disk at [486, 176/222]"}
+beats:
+  - {id: B0, from: 0, to: 80, caption: "m1 hands out IDs from a counter kept in memory.", on_screen: [static figure], motion: none, ledger: [L-0044]}
+  - id: B1
+    step: 1
+    from: 80
+    to: 260
+    caption: "Every third ID, the counter is written to disk."
+    events:
+      - {at: 90, dur: 60, what: "m1-01, m1-02, m1-03 written in the lane (blue, settling to ink); memory ticks 01, 02, 03; the dashed window box grows a row with each", colour: blue}
+      - {at: 162, dur: 30, what: "solid flush arrow memory → disk pen-drawn, hand 'flush'", colour: blue}
+      - {at: 194, dur: 18, what: "disk value 00 → 03; green tick right of m1-03; window box fades", colour: green}
+    ledger: [L-0042, L-0043, L-0044]
+  - id: B2
+    step: 2
+    from: 260
+    to: 440
+    caption: "Memory runs ahead between flushes; at 6 the disk catches up."
+    events:
+      - {at: 270, dur: 60, what: "m1-04 .. m1-06; memory 04 .. 06 while disk stays 03; box grows again", colour: blue}
+      - {at: 342, dur: 30, what: "flush arrow re-inked blue", colour: blue}
+      - {at: 374, dur: 18, what: "disk 03 → 06; green tick right of m1-06; box fades", colour: green}
+    ledger: [L-0043, L-0044]
+  - id: B3
+    step: 3
+    from: 440
+    to: 660
+    caption: "Two more IDs, then m1 crashes. Disk says 6, but 8 was handed out."
+    events:
+      - {at: 450, dur: 40, what: "m1-07, m1-08; memory 07, 08; box over rows 7-8", colour: blue}
+      - {at: 498, dur: 40, what: "bracket under memory 08 and disk 06, hand 'ahead of disk'"}
+      - {at: 556, dur: 42, what: "red crash line across the lane under m1-08, red 'crash'; memory value gone, box + bracket + window turn red", colour: red}
+    ledger: [L-0044]
+  - id: B4
+    step: 4
+    from: 660
+    to: 840
+    caption: "Restart from 6, and 7 and 8 are handed out a second time."
+    events:
+      - {at: 660, dur: 12, what: "bracket ghosts to 38%"}
+      - {at: 668, dur: 18, what: "header 'restart' written"}
+      - {at: 690, dur: 10, what: "memory box back to ink, reads 06 (from the disk)"}
+      - {at: 716, dur: 90, what: "red m1-07, m1-08 in the restart lane with red '=' to their twins, memory 07, 08 in red; red hand 'twice'", colour: red}
+    ledger: [L-0044]
+  - id: B5
+    step: 5
+    from: 840
+    to: 1050
+    caption: "Restart from the safest value instead: 6 + 3 + 1 = 10."
+    events:
+      - {at: 840, dur: 12, what: "red duplicates and the window box ghost to 38%"}
+      - {at: 852, dur: 40, what: "mono '06 + 3 + 1 = 10' written"}
+      - {at: 906, dur: 40, what: "m1-09 in ink-3, hand 'never used'"}
+      - {at: 960, dur: 56, what: "m1-10 green, double underline, hand 'safest'; memory reads 10 (green)", colour: green}
+    ledger: [L-0045, L-0046]
+  - {id: B6, from: 1050, to: 1140, caption: "An unused number is fine. A duplicate ID is not.", on_screen: [end state = poster], motion: none, ledger: [L-0046]}
+chapters: [{label: "flush every 3", frame: 90}, {label: "ahead of disk", frame: 270}, {label: "crash", frame: 450}, {label: "restart from 6", frame: 670}, {label: "safest value", frame: 850}]
+page_context:
+  predict: "The disk says 6. Watch where the counter really was when the machine died."
+  caption: "Restart from 6 and 7, 8 go out twice; restart from 6 + 3 + 1 = 10 and nothing repeats."
+  after: "Two habits from this: don't do IO on every call, and always restart from the safest value."

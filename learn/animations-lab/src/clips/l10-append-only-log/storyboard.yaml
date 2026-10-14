@@ -1,0 +1,110 @@
+# Storyboard — clip l10-append-only-log   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l10-append-only-log
+title: One file, one map
+lecture: 10
+section: "7.4 Get: an in-memory map to the latest offset"
+status: reviewed
+why_motion: >
+  Ordering / position over time. The lesson is an order of events and a position that only moves one way: every
+  put, update and delete is appended at the tail FIRST, and only THEN is the key pointed at the new offset; the write
+  position never moves back, so K1's pointer jumps from O1 to O4 while the old entry stays on disk, and K2 simply
+  leaves the map. Fig 7·b shows only where things end up.
+static_twin: "Fig 7·b (D-14 redraw, b_021445.jpg): operations list left, in-mem map middle, append-only file right. Frame 0 = the same layout before any write (empty file with its write slot, empty map)."
+ledger:
+  taught: [L-0211, L-0213, L-0216, L-0217, L-0221, L-0222, L-0223, L-0224, L-0226]
+  context_only: [L-0210, L-0225]
+fidelity_notes:
+  - "Layout follows the board (D-14) and Fig 7·b: ops list | in-mem map | file, pointer arrows map → file. animations.md sketched the map right of the file; the board/static-twin order wins so frame 0 matches the page figure."
+  - "The disk head is not drawn. 'Zero seek' holds only while the disk serves just this write stream, and gets do seek (factcheck_applied L-0210). The clip shows only the write slot at the tail (L-0216: writes only at the end) and claims no seek behaviour."
+  - "−1 is the class's marker value (L-0217, board 'DEL K2 = PUT(K2, -1)'); the clip does not claim how real Bitcask marks deletes."
+  - "Offsets O1…O5 are the board's names for 'the offset of this entry' (L-0222); no byte values are shown. Rows are not to scale."
+  - "O(1) on the poster is L-0226's claim for get, put and delete (update is a put, L-0213). The get beat still shows its one disk read (L-0224)."
+  - "Obsolete rows (K1 V1 after the update, K2 V2 after the delete) stay on disk, ghosted; nothing is erased from the file. K2 −1 stays at full ink: it is the latest entry for K2 even though the map no longer points at it. Garbage collection (§8) is not shown."
+  - "The GET K2 → 404 outcome reads 'no entry in the map, so no disk read' (L-0224, L-0223). 404 is the class's 'return 404 or something'."
+  - "Not claimed: crash rebuild (L-0225, the step-through Fig 7·c after the clip), memory limits (L-0228), file growth (L-0229)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 960}
+duration_frames: 1110
+start_frame_equals: "Fig 7·b's layout before any write: ops list PUT K1 V1, PUT K2 V2, PUT K3 V3, PUT K1 V1′, DEL K2 (left); empty in-mem map with three empty rows (middle); header 'append-only file' with only its dashed write slot 'append' at the top (right)."
+poster_frame: 1109
+reduced_motion_stills: [95, 351, 535, 717, 943, 1109]
+glyphs:
+  ops_list: {shape: "mono text list", wide: "x 40, baselines 116…508 (56 apart), eq indented under DEL", phone: "two columns: PUTs at x 40, DEL/eq/GETs at x 386, baselines 60…192", caret: "blue open chevron left of the current op; past ops dim to 55%"}
+  map: {shape: "Cache table, 3 rows", label: "hand 'in-mem' (board)", pos_wide: [360, 76, 220, 168], pos_phone: [470, 282, 230, 162], rows: ["K1 → O1 (→ O4)", "K2 → O2 (removed)", "K3 → O3"]}
+  file: {shape: "RowFile growing one row per append, offset cell inside the row on the map side", label: "hand 'append-only file'", pos_wide: [720, 76, 250, 280], pos_phone: [20, 282, 340, 270], rows: ["K1 V1 | O1", "K2 V2 | O2", "K3 V3 | O3", "K1 V1′ | O4", "K2 −1 | O5"]}
+  write_slot: {shape: "dashed empty row with hand 'append' (the write position); drops one row after each append, never moves up"}
+  pointers: {route: "map row → its file row's offset cell", line: "thin graphite, solid, dot at source, chevron at target", note: "K1 → O4 routes orthogonally (out, down, in) and crosses the K3 line once, as on the board"}
+  marks: {obsolete: "row text to 45% + hand 'obsolete' (wide: right of the file; phone: inside the row)", delete: "red strike on K2's map row, then the row is removed; hand 'no K2: deleted' under the map", get: "blue outline on map row K1 and file row O4, blue pen + packet along K1's pointer; green '→ V1′' ✓; red dashed outline on K2's empty map row, red '→ 404' ✕"}
+  poster_labels: {wide: "hand 'writes only at the end · reads anywhere' (y 560), mono 'put · update · delete · get: O(1)' (y 612)", phone: "hand on two lines + mono line under the file"}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Four puts and a delete. One file, one map in memory."
+    on_screen: [static figure: ops list, empty map, empty file with its write slot]
+    motion: none
+    ledger: [L-0211, L-0221]
+  - id: B1
+    from: 105
+    to: 361
+    caption: "Each put is appended at the end, then the map points the key at it."
+    events:
+      - {at: 111, dur: 8, what: "blue caret fades in at PUT K1 V1", colour: blue}
+      - {at: 125, dur: 30, what: "row O1 inked, 'K1 V1' + 'O1' written at the write slot"}
+      - {at: 155, dur: 10, what: "write slot drops one row"}
+      - {at: 163, dur: 16, what: "map row 'K1 → O1' written"}
+      - {at: 177, dur: 12, what: "pointer K1 → O1 drawn"}
+      - {at: 189, dur: 72, what: "same for PUT K2 V2 (O2)"}
+      - {at: 261, dur: 72, what: "same for PUT K3 V3 (O3); last motion ends 331"}
+    ledger: [L-0211, L-0216, L-0221, L-0222]
+  - id: B2
+    from: 361
+    to: 545
+    caption: "An update is just another append. K1 now points at O4."
+    events:
+      - {at: 371, dur: 10, what: "caret to PUT K1 V1′", colour: blue}
+      - {at: 383, dur: 26, what: "row O4 'K1 V1′' appended"}
+      - {at: 413, dur: 10, what: "write slot drops"}
+      - {at: 429, dur: 10, what: "K1's old pointer and its 'O1' fade (replaced in place)"}
+      - {at: 441, dur: 14, what: "'O4' written in K1's map row"}
+      - {at: 457, dur: 26, what: "new pointer K1 → O4 drawn (out, down, in)"}
+      - {at: 489, dur: 24, what: "K1 V1 row ghosts to 45%, hand 'obsolete'"}
+    ledger: [L-0213, L-0222]
+  - id: B3
+    from: 545
+    to: 727
+    caption: "Delete is a put with −1. K2 leaves the map."
+    events:
+      - {at: 555, dur: 10, what: "caret to DEL K2", colour: blue}
+      - {at: 567, dur: 24, what: "'= PUT(K2,−1)' written under DEL K2"}
+      - {at: 595, dur: 26, what: "row O5 'K2 −1' appended"}
+      - {at: 625, dur: 10, what: "write slot drops"}
+      - {at: 641, dur: 12, what: "red strike through map row K2", colour: red}
+      - {at: 659, dur: 12, what: "K2 map row + pointer removed; K2 V2 row ghosts to 45%"}
+      - {at: 673, dur: 22, what: "hand 'no K2: deleted' under the map"}
+    ledger: [L-0217, L-0223]
+  - id: B4
+    from: 727
+    to: 953
+    caption: "Get: look up the map, read once at that offset. No entry: 404."
+    events:
+      - {at: 737, dur: 30, what: "caret to new op, 'GET K1' written", colour: blue}
+      - {at: 771, dur: 8, what: "blue outline on map row K1 (lookup)", colour: blue}
+      - {at: 783, dur: 28, what: "pen re-inks K1's pointer blue, packet to O4 (one read)", colour: blue}
+      - {at: 811, dur: 8, what: "blue outline on row O4", colour: blue}
+      - {at: 823, dur: 24, what: "'→ V1′' written + ✓", colour: green}
+      - {at: 859, dur: 30, what: "blue returns to graphite; caret to new op, 'GET K2' written", colour: blue}
+      - {at: 893, dur: 10, what: "red dashed outline + ✕ on K2's empty map row", colour: red}
+      - {at: 907, dur: 16, what: "'→ 404' written", colour: red}
+    ledger: [L-0224, L-0223]
+  - id: B5
+    from: 953
+    to: 1110
+    caption: "Writes only at the end, reads anywhere. Every operation is O(1)."
+    events:
+      - {at: 953, dur: 10, what: "caret fades"}
+      - {at: 963, dur: 30, what: "hand 'writes only at the end · reads anywhere'"}
+      - {at: 999, dur: 28, what: "mono 'put · update · delete · get: O(1)'"}
+    on_screen: [end state = poster, hold 83 f after the last write]
+    ledger: [L-0216, L-0226]

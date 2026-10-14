@@ -1,0 +1,114 @@
+# Storyboard — clip l04-cache-aside (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l04-cache-aside
+title: One join, many hits
+lecture: 1          # course position 01 (folder lec04)
+section: "6.2 One shared cache for the blog"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  Accumulation / rate. The lesson is how often the expensive work happens: without a cache the database runs the
+  same join on every read, with one shared cache it runs it once and every later read, whichever API server it
+  lands on, is answered from the cache. A still shows the boxes (Fig 6·b); only the reads piling up while the
+  join counter climbs in one phase and stays at 1 in the other shows the database's work flattening.
+static_twin: "Fig 6·b (D-15 redraw: users → lb → three api → db, one shared cache) before the cache is drawn in; board b_021330.jpg / b_021645.jpg"
+ledger:
+  taught:
+    - L-0248  # remote cache any API server can talk to; logically between the API servers and the database
+    - L-0249  # read flow: check the cache; hit → return; miss → read the db, put it in the cache, return
+    - L-0250  # no matter which API server a request goes to, all read the same cache: one copy, everyone reads it
+    - L-0251  # popular blog: the 3–4 table join again and again is unnecessary db load; cache it centrally
+    - L-0252  # the cache still costs a network IO, but reading the precomputed result beats recomputing
+  context_only:
+    - L-0244  # a cache saves expensive disk IO, network IO or computation (final caption's wording "expensive computation")
+fidelity_notes:
+  - "'3–4 table join' is the class's description (L-0251). No latencies, no load percentages: the only numbers on screen are counts of the reads and joins the clip itself plays (3 reads without a cache, 4 with one); they are illustrative, not the class's numbers."
+  - "No load gauge: the database's work is shown as the join counter (L-0251 'again and again puts unnecessary load'); 'massive margin' is not quantified."
+  - "The lb spreads reads straight across (user k → api k) to keep the paths readable; which server a read lands on is the point (L-0250), not the balancing algorithm."
+  - "The cache is drawn as the kit's cube (Fig 6·b), reached over one shared line from the API servers' bus, the same bus that leads to the db: both are separate network destinations, and the API server talks to each itself (cache-aside, L-0249). The cache never fetches from the db (no read-through is shown)."
+  - "Wide layout puts the cache above the db trunk (top right, as on the board); the phone layout puts it left of the db under the bus. Both read 'between the API servers and the database' logically (L-0248)."
+  - "'blog' in the cache is the precomputed result of the join (L-0252 'pre-computed')."
+  - "Not claimed: invalidation, TTL or freshness (the shared copy can go stale until invalidated or expired: fact-check note on L-0250; covered in Lectures 2 and 9). The green '✓ once' label holds for this clip's reads, not 'forever'. No product (Redis) is named."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1000, note: "top to bottom: three users in a row → horizontal lb bar → api 1/2/3 in a row → bus y 400; cache cube below-left (branch at x 270), db below-right (branch at x 480); labels under each; tally as a table (header 'reads joins' y 752, rows y 800/848, counts only); caption band at 872; 30 px lettering, 32 px captions"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1117   # 37.2 s; 74.5 s at 0.5x
+start_frame_equals: "Fig 6·b before the cache: three users → lb → api 1, api 2, api 3 → shared bus → db; '3–4 table join' not yet written; tally row 'no cache  reads 0  joins 0'"
+poster_frame: 1116
+reduced_motion_stills: [97, 377, 637, 897, 1004, 1116]   # 8 f before each next beat (caption fully up) + poster
+glyphs:
+  users: {shape: stick-figure ×3, wide: "x 70, hips y 190/310/430", phone: "y 110, x 180/360/540"}
+  lb: {shape: lb-bar, label: "lb (mono)", wide: [180, 150, 24, 320], phone: [120, 196, 480, 24]}
+  api: {shape: server-box ×3, label: "api 1 / api 2 / api 3 (mono)", wide: "x 290, w 150, h 64, cy 190/310/430", phone: "cx 180/360/540, w 130, h 60, top 270"}
+  bus: {route: "api right edges → x 540 vertical (wide) / api bottoms → y 400 horizontal (phone)", style: solid, head: none}
+  db: {shape: cylinder-solid, label: "db (mono)", note: "'3–4 table join' (hand, ink2) under it", wide: {cx: 1000, top: 274, rx: 86, h: 96}, phone: {cx: 540, top: 498, rx: 80, h: 90}}
+  db_line: {route: "bus → db", style: solid, head: db}
+  cache: {shape: cube (kit), label: "cache (mono)", inner: "'blog' (mono) once stored", wide: "front 640,66 s 124 d 26; labels x 822", phone: "front 225,470 s 90 d 22"}
+  cache_line: {route: "bus → cache", style: solid, head: cache, drawn: "B2"}
+  packets: {shape: "dot r9 (r8 phone)", colours: "blue request / query / store; green reply"}
+  status_slot: {pos: "right of the cube under 'cache' (wide) / under 'cache' (phone)", text: ["miss (ink2)", "hit ✓ (green)"]}
+  hop_label: {text: "one network hop", colour: ink2, pos: "under the status slot"}
+  tally: {rows: ["no cache  reads N  joins N  every read", "shared cache  reads N  joins N  ✓ once"], pos: "y 556/612 wide; phone header 752, rows 800/848"}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Three API servers serve one popular post, again and again."
+    on_screen: [static figure, tally row 1 at 0]
+    motion: none
+    ledger: [L-0251]
+  - id: B1
+    step: 1
+    from: 105
+    to: 385
+    caption: "Without a cache, every read runs the same expensive join."
+    events:
+      - {at: 115, dur: 78, what: "read 1: blue pen + packet user 1 → lb → api 1 (18 f); query api 1 → db (20 f); join: joins 1, '3–4 table join' written at 153; green reply db → api 1 → user 1 (18 + 18 f); blue fades 14 f", colour: blue}
+      - {at: 195, dur: 78, what: "read 2 on api 2, same steps; joins 2", colour: blue}
+      - {at: 275, dur: 78, what: "read 3 on api 3, same steps; joins 3", colour: blue}
+    ledger: [L-0251]
+  - id: B2
+    step: 2
+    from: 385
+    to: 645
+    caption: "Add one shared cache. First read: miss, join once, keep it."
+    events:
+      - {at: 385, dur: 12, what: "tally row 1 ghosts to 38%"}
+      - {at: 393, dur: 26, what: "cache cube pen-drawn"}
+      - {at: 419, dur: 20, what: "cache line from the shared bus pen-drawn (reachable from all three api); 'cache' written"}
+      - {at: 441, dur: 20, what: "tally row 2 'shared cache reads 0 joins 0' written"}
+      - {at: 465, dur: 18, what: "read 4: blue packet user 1 → api 1", colour: blue}
+      - {at: 483, dur: 16, what: "api 1 checks the cache (blue packet api → cache)", colour: blue}
+      - {at: 499, dur: 14, what: "'miss' written (ink2)"}
+      - {at: 515, dur: 20, what: "query api 1 → db; join at 535 (joins 1)", colour: blue}
+      - {at: 539, dur: 18, what: "green reply db → api 1", colour: green}
+      - {at: 559, dur: 18, what: "api 1 puts the result in the cache (blue packet api → cache); 'blog' written in the cube at 577", colour: blue}
+      - {at: 593, dur: 18, what: "green reply api 1 → user 1", colour: green}
+    ledger: [L-0248, L-0249]
+  - id: B3
+    step: 3
+    from: 645
+    to: 905
+    caption: "Every later read, on any server, gets the same copy."
+    events:
+      - {at: 655, dur: 68, what: "read on api 2: request (16 f), cache check (16 f), hit at 687: 'miss' fades, green 'hit ✓' written; green reply cache → api 2 → user 2 (16 + 16 f); reads 2, joins stays 1", colour: green}
+      - {at: 729, dur: 68, what: "read on api 3, hit; reads 3", colour: green}
+      - {at: 803, dur: 68, what: "read on api 1, hit; reads 4", colour: green}
+    ledger: [L-0250, L-0251]
+  - id: B4
+    step: 4
+    from: 905
+    to: 1012
+    caption: "The hop to the cache remains; the join doesn't."
+    events:
+      - {at: 913, dur: 22, what: "'one network hop' written under the cache (ink2)"}
+      - {at: 937, dur: 10, what: "tally row 1 back to full ink"}
+      - {at: 940, dur: 18, what: "'every read' written after row 1 (ink2)"}
+      - {at: 962, dur: 18, what: "green ✓ 'once' after row 2", colour: green}
+    ledger: [L-0252, L-0251]
+  - id: B5
+    from: 1012
+    to: 1117
+    caption: "Save the expensive computation once; read it many times."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0251, L-0252]

@@ -1,0 +1,112 @@
+# Storyboard — clip l04-staggered-delete (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l04-staggered-delete
+title: One big delete vs many small ones
+lecture: 1          # course position 01 (folder lec04)
+section: "5.4 The soft-delete lifecycle"
+status: reviewed    # draft | approved | built | reviewed (3 render-check rounds, 2026-10-13; see review.md). Revised 2026-10-14 for faithfulness F-002: requests slow down, none give up; no lock framing.
+why_motion: >
+  Impact over time. The same 100,000 soft-deleted rows are hard deleted twice: in one shot, and as
+  10,000-row batches spread out. What differs is what happens to the traffic running alongside: while one huge
+  delete runs, requests slow down and queue (none is lost, nothing goes down); between short batches they barely
+  slow. A still can show the two schedules, but not the queue building behind the long delete and draining after it.
+static_twin: "Fig 5·d (the life of a deleted blog: 'DELETE … LIMIT 1000' blocks spread along the axis, 'staggered, off-peak') and the batched-delete CodeBlock in 5.4"
+ledger:
+  taught:
+    - L-0282  # 'a cron job has nothing to do with availability': no downtime (B2 'Nothing goes down', 'slowed, never down')
+    - L-0263  # soft deletes grow the DB, so they are periodically hard deleted (a cron job picks them all up)
+    - L-0283  # 100,000 rows under high traffic: not in one shot; staggered across the day like GC, 10,000 rows every hour
+    - L-0295  # the hourly cron job also takes one or two pool connections: you gain some, you lose some
+    - L-0297  # a retention policy in the DB is still someone deleting: the DB's thread does the cron job
+    - L-0298  # regular deletes: offload to the database and do it in a staggered way (fact-check: 'always works' too strong; not said)
+  context_only:
+    - L-0284  # the interviewer's locking worry is about strong consistency, not availability (MarginNote in 5.4; not drawn: the clip shows no locks)
+    - L-0230  # batching cuts lock, commit and log overhead (fact-check reading, 5.3)
+fidelity_notes:
+  - "100,000 rows and 10,000 rows an hour are the class's numbers (L-0283; he settled on '10,000 rows every hour' after shifting numbers; '1,000 at a time' is in the page prose, not on screen). Lane 2 runs ten batches of 10,000 so the counter steps 100,000 -> 0 exactly."
+  - "What the clip draws is the class's point: one huge DELETE is the whole job at once, so its impact on the traffic is concentrated (L-0283: 'to minimize the impact'); staggered, the impact is spread thin. The strip is labelled 'deleting' (when a DELETE runs), not 'locks held': the class treated the locking worry as a consistency matter, not an availability one (L-0284), so the clip shows no lock gate and no lock model. No B+ tree rebalancing on screen (SN-07)."
+  - "No request gives up and the service never goes down (L-0282: 'There would not be any downtime'; 'a cron job has nothing to do with availability'). Requests slow down and queue while the big DELETE runs, then drain; lane 1's verdict is 'slowed, never down', lane 2's 'barely slowed'. The slowdown is the illustrative form of 'the impact'; the lecture gives no latency figures."
+  - "The number of requests, their rate, the per-request slowdown, the queue and the bar lengths are illustrative; the lecture gives none. The long bar is drawn 10x a short bar (same rows), not a claim that one big delete takes exactly as long as ten small ones. One shared 'time (not to scale)' label under the lower strip covers both strips (they share one x scale); lane 2's gaps between hourly batches are compressed."
+  - "The poster caption says 'whether a cron job or the database runs it' (L-0297: the DB's retention thread is the cron job offloaded; L-0298: offload and stagger). It does not say 'always works' (fact-check on L-0298: simplified)."
+  - "'1–2 connections' under lane 2's job is L-0295's 'one or two connections' from the pool. The trade-off (data grows if you don't delete) stays in prose."
+additions: []   # the MySQL lock-duration addition was dropped with the lock framing (F-002)
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1000, note: "portrait re-flow at <= 640 px: lanes stacked; the cron job sits under the table with its arrow up; strip label above the strip; lettering 30, captions 32"}
+duration_frames: 1120   # 37.3 s; 74.7 s at 0.5x
+start_frame_equals: "two lanes, 'all in one shot' and '10,000 an hour'. Each: 'users' -> request line -> 'blogs' table with a hatched block of soft-deleted rows ('100,000 left' above it) <- 'cron job' box; an empty 'deleting' time strip under the lane; 'time (not to scale)' under lane 2's strip. No requests in flight."
+poster_frame: 1119
+reduced_motion_stills: [100, 228, 450, 595, 875, 995, 1119]
+glyphs:
+  lanes: {wide: "lane 1 y 0-300 (main row y 150), lane 2 y 300-600 (main row y 450)", phone: "lane 1 y 0-400 (main y 150), lane 2 y 400-800 (main y 550)"}
+  lane_titles: {shape: hand lettering, labels: ["all in one shot", "10,000 an hour"], pos: "top left of each lane"}
+  users: {shape: hand label, label: "users", pos: "wide: left end of the request line; phone: above the line's start (so a long queue never covers it)"}
+  request_line: {route: "users -> blogs table", style: solid graphite, head: "at the table (users initiate)"}
+  requests: {shape: blue dots r 10 (phone 9), motion: "travel at constant speed; wait at the table's door in slots when it is slow to take them; enter the table and fade", colour: blue, model: "one server: a request every 6 f normally, every 26 f while lane 1's DELETE runs, every 22 f during a lane 2 batch; every request is served"}
+  table: {shape: server-box with header, label: "blogs (mono)", inner: "hatched block = soft-deleted rows, shrinks as rows are deleted"}
+  counter: {shape: mono, label: "100,000 left -> 0 left", pos: "above the table"}
+  cron_job: {shape: server-box, label: "cron job (mono)", arrow: "job -> table, solid, head at the table (the job initiates the DELETE)", pos: "wide: right of the table; phone: under the table"}
+  slowed: {shape: hand label, label: "slowed, never down", colour: ink, weight: 600, pos: "lane 1, row under the request line"}
+  barely_slowed: {shape: "green tick", label: "barely slowed", colour: green, pos: "same row in lane 2"}
+  connections: {shape: hand label, label: "1–2 connections", pos: "lane 2; wide: under the cron job box, right-anchored; phone: left of the job box"}
+  table_job_wide: "blogs table x 580-800, cron job x 890-1120 (shifted 30 px left in round 3 so the connections label clears the table)"
+  strip: {shape: "thin axis + chevron; graphite bars", label: "deleting (left)", lane1: "one long bar (344 px wide, = ten short bars)", lane2: "ten 34 px bars spread evenly, the last clear of the axis chevron", axis_label: "time (not to scale) under lane 2's strip, shared by both strips"}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "100,000 soft-deleted rows to hard delete, at peak traffic."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0263, L-0283]
+  - id: B1
+    from: 105
+    to: 233
+    caption: "All in one shot: one huge DELETE puts its whole load on the database at once."
+    events:
+      - {at: 113, dur: 8, what: "lane 1 request stream fades in (already flowing), dots enter the table", colour: blue}
+      - {at: 140, dur: 200, what: "'deleting' bar grows linearly; hatched block shrinks; counter 100,000 -> 0 (runs into B2)"}
+      - {at: 150, dur: 83, what: "the table takes requests more slowly: arriving dots wait at its door and a queue builds", colour: blue}
+    ledger: [L-0283]
+  - id: B2
+    from: 233
+    to: 455
+    caption: "Requests slow down behind it while it runs. Nothing goes down."
+    events:
+      - {at: 253, dur: 22, what: "'slowed, never down' written under lane 1's request line"}
+      - {at: 233, dur: 107, what: "the queue grows to about seven dots (longest wait 88 f); every dot is still served, one every 26 f"}
+      - {at: 340, dur: 1, what: "DELETE done: counter at '0 left'"}
+      - {at: 340, dur: 70, what: "queue drains into the table, one dot every 6 f; last dot gone ~417", colour: blue}
+    ledger: [L-0282, L-0283]
+  - id: B3
+    from: 455
+    to: 600
+    caption: "Stagger it instead: 10,000 an hour, like garbage collection."
+    events:
+      - {at: 455, dur: 12, what: "lane 1 ghosts to 38%"}
+      - {at: 463, dur: 8, what: "lane 2 request stream fades in", colour: blue}
+      - {at: 490, dur: 110, what: "batches 1-4: each runs 20 f (short bar), counter -10,000 per batch, block shrinks a tenth"}
+    ledger: [L-0283]
+  - id: B4
+    from: 600
+    to: 880
+    caption: "Each batch is small, so requests barely slow down."
+    events:
+      - {at: 610, dur: 180, what: "batches 5-10; a dot pauses about 7 f at the door per batch, then passes; counter reaches 0 at 790", colour: blue}
+      - {at: 760, dur: 80, what: "stream stops spawning; last dot gone ~840"}
+    ledger: [L-0283]
+  - id: B5
+    from: 880
+    to: 1000
+    caption: "Same rows gone. The price: the job holds a pool connection or two."
+    events:
+      - {at: 880, dur: 12, what: "lane 1 un-ghosts (restored for the comparison)"}
+      - {at: 892, dur: 24, what: "lane 2 verdict row: green tick + 'barely slowed'", colour: green}
+      - {at: 930, dur: 24, what: "'1–2 connections' written by lane 2's cron job"}
+    ledger: [L-0283, L-0295]
+  - id: B6
+    from: 1000
+    to: 1120
+    caption: "Stagger the hard delete, whether a cron job or the database runs it."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0297, L-0298]
+chapters: [{label: "one shot", frame: 115}, {label: "requests slow down", frame: 243}, {label: "10,000 an hour", frame: 465}, {label: "small bumps", frame: 610}, {label: "the price", frame: 890}]
