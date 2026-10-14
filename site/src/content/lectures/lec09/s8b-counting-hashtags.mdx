@@ -1,0 +1,153 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { BatchSketch, OneBatch } from '../../../figures/lec09/s8b-counting-hashtags-figs';
+
+{/* §8 Counting hashtags, part b (8.4–8.5). Writer w4. Chapter page /lectures/lec09/8-counting-hashtags/. */}
+
+<Section id="s8-4" no="8.4" title="Inside a counting server" crumb="8.4 Counting server"
+  dek="A hash map, one write per hashtag, then a commit. And the over-count a crash causes, which the design accepts."
+  meta="About 8 min · class 02:15–02:18 and 02:23–02:24; Q&A 02:37–02:42, 02:48–02:50, 03:14">
+
+One partition of `POST_HASHTAG` holds many different hashtags. How does a server count them?
+
+<RuleBox rule="Whenever you can batch, ==batch==." k="L-0252 L-0253 L-0288">
+
+Count something in huge quantities without batching and you do `count++` every time: a flood of micro writes that chokes the database and forces you to over-provision it. One bulk write of many rows is far faster than many single ones. And a batch is only whole when everything for one hashtag reaches one server, which is why the hashtags are extracted and re-ingested into a topic partitioned by hashtag before anything is written.
+
+<Desk><BatchSketch /></Desk>
+<Phone><BatchSketch layout="phone" /></Phone>
+
+</RuleBox>
+
+That is the standard principle whenever you count something in huge quantities: leverage batching. [[L-0252]] Instead of firing 100 separate insert statements, send one batch insert of 100 rows. A bulk insert is about 100× faster than inserting one row at a time, and batching its writes is the best way to get performance out of a database. [[L-0253]] (The safe wording is “many times faster”: the exact factor depends on the database and the rows. <Cite href="https://dev.mysql.com/doc/refman/8.4/en/insert-optimization.html">dev.mysql.com</Cite>)
+
+The counting servers consume the hashtag-partitioned topic: say three partitions and three servers. Because all the (hashtag, post) tuples of a particular hashtag go to the same server, that server can batch and do `count += n` on the database instead of `count++`. That is what makes this path efficient. [[L-0270]]
+
+Inside, the mechanics are small. Each message carries the hashtag and the post ID, so a server can group what it reads by hashtag even though one partition holds many different hashtags. [[L-0296]] On the server, keep a hash table from hashtag to an integer that starts at zero, add one for every message read, and once the batch is big enough, write the counts to the database. [[L-0297]]
+
+```python
+# one counting server, reading one partition of POST_HASHTAG
+from collections import defaultdict
+
+counts = defaultdict(int)                      # hashtag -> count, starts at 0
+for tag, post_id in consumer.poll():           # <#sunset, p31>, <#sun, p31>, ...
+    counts[tag] += 1
+    if batch_is_big_enough(counts):
+        db.bulk_update(                        # one write per hashtag: count += n
+            "UPDATE hashtags SET total_photos = total_photos + %s WHERE tag = %s",
+            [(n, tag) for tag, n in counts.items()])
+        consumer.commit()                      # only after the write has landed
+        counts.clear()
+```
+
+Details as small as this hash table are worth working out for yourself. A design discussion can’t write every single line, and this one takes a few minutes with a pen. [[L-0298]]
+
+<p class="lead-in">One batch through one counting server, including a crash in the worst possible place. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-8d" no="Fig 8·d" label="One batch on one counting server" grow
+  k="L-0255 L-0256 L-0270 L-0296 L-0297"
+  stepK={['L-0296', 'L-0297', 'L-0297', 'L-0270', 'L-0270', 'L-0255 L-0256']}
+  caption="Time runs down. Top: partition 0 of POST_HASHTAG with the committed position; middle: the counting server and its hash map; bottom: the hashtag document’s count. Blue is what the server reads, green its write and commit, red the crash and the second +2. New figure, from the live notes at 02:41 (&lt;h1, p1&gt; and { h1: int })."
+  steps={[
+    'The server pulls a batch, offsets 0 to 2: <code>&lt;#sunset, p31&gt;</code>, <code>&lt;#sun, p31&gt;</code>, <code>&lt;#sunset, p40&gt;</code>. Each message carries a hashtag and a post ID, so it can group them even though one partition holds many hashtags.',
+    'It keeps a hash map from hashtag to a counter that starts at 0, and adds one per message: <code>{ #sunset: 2, #sun: 1 }</code>.',
+    'When the batch is big enough, it writes.',
+    'One write per hashtag: <code>total_photos + 2</code> for <code>#sunset</code>, <code>+ 1</code> for <code>#sun</code>. <span class="term green">count += n</span> instead of <code>count++</code> per post.',
+    'Then it <span class="term green">commits</span> its position on the topic: offset 3 is next.',
+    'Replay instead: it <span class="term red">crashes</span> after the write but before the commit. On restart it reads from offset 0 again, and <code>#sunset</code> gets <span class="term red">+ 2 a second time</span>. The design accepts it: the page says 1.2m, and nobody checks.',
+  ]}>
+  <Desk><OneBatch /></Desk>
+  <Phone><OneBatch layout="phone" /></Phone>
+</StepThrough>
+
+That last step is the compromise this counting design makes: if some nodes go down, some posts may get counted more than once. That is acceptable, because nobody needs an exact count. The page may say 1.2 million photos, it renders only 100, and users will not check. [[L-0255]] Committing the offset only after the database write is what produces exactly this: Kafka calls it at-least-once, where each record is delivered once in normal operation but may be duplicated after a failure. <Cite href="https://kafka.apache.org/43/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html">kafka.apache.org</Cite>
+
+You don’t need strong consistency every time. When you are doing things at scale you can relax some constraints: a few numbers here and there don’t matter, and there is always an error rate. [[L-0256]]
+
+What the database has to provide, though, is atomicity. Many updaters may increment the same hashtag’s count, so pick a database that gives atomic increments; it is one of the key features to read about any database. And it isn’t exclusive to relational databases: MySQL and DynamoDB both give it. [[L-0308]] <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s4-3" k="L-0308">count = count + 1, done by the database</ForwardChip> One caution from DynamoDB’s documentation: its atomic counters (an `UpdateItem` with `SET c = c + :n`) are not idempotent, so an update retried after a timeout can count twice; where over- or under-counting can’t be tolerated, AWS suggests a conditional update instead. <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/WorkingWithItems.html">docs.aws.amazon.com</Cite>
+
+How many partitions should `POST_HASHTAG` have? They can’t match the number of hashtags. Define n partitions, measure the throughput you get, and if it’s less than you need, increase the number of partitions. [[L-0294]] Adding partitions to a live topic works, with one caveat: it changes which partition a key maps to. Records for the same hashtag may land on a different partition afterwards, and existing data is not moved, so per-key ordering and the one-server-per-hashtag property are briefly broken during the change. <Cite href="https://kafka.apache.org/43/operations/basic-kafka-operations/">kafka.apache.org</Cite> <ForwardChip when="Lecture 9" lec="lec07" sec="s6-3">what changing the number of partitions does to keys</ForwardChip>
+
+How Kafka spreads messages over partitions was covered in depth earlier in the course. <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s3-6" k="L-0295">Kafka partitioning, in depth</ForwardChip> [[L-0295]]
+
+More hashtags also mean more of those micro writes on the database. But the long-tail hashtags are not that popular, and that is okay. [[L-0346]]
+
+</Section>
+
+<Section id="s8-5" no="8.5" title="Other ways to count" crumb="8.5 Other ways"
+  dek="Why chat’s Redis Pub/Sub is wrong here, what any partitioned broker gives you, and where Spark fits."
+  meta="About 8 min · Q&A 02:43–02:47, 03:16–03:18, 03:22–03:25">
+
+Lecture 4’s chat used Redis Pub/Sub. Why not here?
+
+Chat needed real-time Pub/Sub. Counting doesn’t need real time, and real-time Pub/Sub gives you no persistence, while the counting service consumes at its own pace and the messages must persist until it does. You still want a kind of pub/sub here, just not a real-time one. <ForwardChip label="from" when="Lecture 4" lec="lec02" sec="s8-5" k="L-0300">Redis channels for Slack channels</ForwardChip> [[L-0300]]
+
+With Redis Pub/Sub, only the servers connected to Redis and subscribed to the channel at that moment get a message. If a counting server is down when the hashtag extractor sends, it never receives the message; it is simply gone. [[L-0301]]
+
+So the difference is persistence and the speed of consumption. Redis Pub/Sub is push-based, so a very popular hashtag would keep bombarding one server. Kafka consumers pull, at their own pace, and they batch. [[L-0302]] With real-time push, the database’s speed throttles you as well. The counting servers batch and write to the database; if the database is overwhelmed, the writes take longer, and the messages being pushed in overwhelm the servers even more. [[L-0303]]
+
+Chat used Pub/Sub for the opposite reason: latency had to be minimal, so messages had to be pushed to users rather than users pulling them. [[L-0304]]
+
+<TradeoffTable caption="Carrying (hashtag, post) events to the counting servers" k="L-0300 L-0301 L-0302 L-0303 L-0350 L-0351"
+  columns={[{ label: 'Redis Pub/Sub', glyph: 'broadcast' }, { label: 'Kafka topic by hashtag', glyph: 'stream' }, { label: 'In-memory queue', glyph: 'queue' }]}
+  rows={[
+    { label: 'Survives a counter being down', cells: [{ text: 'No: the message is gone', bad: true }, 'Yes: it waits on the topic', 'Only while the queue is up; a crash loses about a minute'], k: 'L-0301 L-0350' },
+    { label: 'Push or pull', cells: ['Push, to whoever is subscribed right now', 'Pull: each server asks for its next batch', 'Whatever the broker does; it must be partitioned'], k: 'L-0302 L-0350' },
+    { label: 'Who sets the pace', cells: ['The sender: a hot hashtag keeps bombarding one server', 'The counting server', 'The counting server, as with Kafka'], k: 'L-0302' },
+    { label: 'Batches easily', cells: ['No: and a slow database piles pushed messages up', 'Yes: pull, count, write count += n', 'Yes, if each hashtag reaches one consumer'], k: 'L-0302 L-0303 L-0350' },
+    { label: 'Other consumers can reuse it', cells: ['No: nothing is kept', 'Yes: what Kafka persists can feed other services', 'No: nothing outlives the count'], k: 'L-0351' },
+    { label: 'Right for', cells: ['Chat: minimal latency, pushed to users', 'Counting: persisted, read at its own pace', 'Counting alone, if losing a minute is fine'], k: 'L-0300 L-0304 L-0350' },
+  ]} />
+
+One idea raised in class: just for counting, an in-memory distributed queue would do instead of a persistent Kafka, accepting the loss of a minute of data if it crashes. Then you are doing exactly the same thing. RabbitMQ is fine, Kafka is fine: what you are using is a partitioned message broker. [[L-0350]] (One catch with RabbitMQ: its classic queues aren’t partitioned by key. Getting all the messages of a hashtag to one consumer there takes super streams, which partition a large stream into smaller ones, or a consistent-hash exchange plugin. <Cite href="https://www.rabbitmq.com/docs/streams">rabbitmq.com</Cite>) And Kafka isn’t here only to count: the information it persists can be picked up by other services too. [[L-0351]]
+
+What about Spark, or MapReduce, instead of hand-built counting servers? MapReduce is very data-engineering specific, so only its core idea is sprinkled in here. [[L-0360]] Think of it, Spark jobs or Hadoop MapReduce jobs alike, as distributed computing. The counting servers are normal stateless VMs consuming from Kafka. You could replace them with a Spark cluster, which has Kafka connectors and would do the counting and the batched writes to the database just fine. How you implement it is up to you. [[L-0361]]
+
+All of these frameworks exist to do distributed computing: one machine is not enough to compute everything, so you compute in a distributed way. Pick one of Kafka, Kinesis, Flume, Flink and so on. The name “counting servers” is deliberately generic, so as not to pick one tool from a massive ecosystem. [[L-0362]] (The list mixes categories. Kafka and Kinesis are transport, and Flume is a service for collecting and moving large amounts of log data. The compute options for the counting step are Spark, which has Kafka connectors, Flink, Kafka Streams and similar. <Cite href="https://flume.apache.org/">flume.apache.org</Cite>)
+
+<MarginNote title="The instructor’s advice: where to start with data engineering" why="skip unless you want to learn Spark" k="L-0363 L-0364">
+
+MapReduce is a computing paradigm, and Hadoop MapReduce is easy to learn. Start with Spark, then venture into Flume, Flink and the others. [[L-0364]] (Flume is a log-collection and transport service rather than a compute engine like Spark or Flink. <Cite href="https://flume.apache.org/">flume.apache.org</Cite>)
+
+To learn Spark, start with O’Reilly’s book on it. The title was given from memory, “Effective Spark is mostly the name”, and no O’Reilly book by exactly that name could be confirmed. Learn to use it first, then go into its internals. In the instructor’s words, Spark is “mind-blowingly awesome”, it has its own flaws, and you should know at least Spark. [[L-0363]] And implement what you learn: without implementation it is all theoretical knowledge, because the problems only show up when you build. [[L-0365]]
+
+</MarginNote>
+
+<h3 id="s8-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Why can’t you simply change the post topic’s key from user_id to hashtag? Give both reasons." k="L-0240 L-0241 L-0254">
+
+First, one post carries several hashtags, so it has no single hashtag key. Second, the post topic belongs to everyone: search, analytics and notifications already consume it, and the counter has to read that same topic, because making the post service write to a second Kafka brings in the distributed-consistency problem. So the topic stays keyed by user, and an adapter re-publishes one event per hashtag to a topic keyed by hashtag.
+
+  </RecallItem>
+  <RecallItem q="A counting server crashes after writing count += 12 but before committing. What happens on restart, and why does the design accept it?" k="L-0255 L-0256 L-0270">
+
+It resumes from its last committed offset, reads the same batch again and adds 12 a second time: an over-count, the at-least-once delivery you get by committing after the write. The design accepts it because nobody needs an exact count: the page shows “1.2m photos” and renders 100, users won’t check, and at scale you can relax constraints because there is always an error rate.
+
+  </RecallItem>
+  <RecallItem q="Why is Redis Pub/Sub right for chat and wrong for counting?" k="L-0300 L-0301 L-0302 L-0303 L-0304">
+
+Chat needs minimal latency, so messages are pushed to users the moment they arrive. Counting doesn’t need real time, but it does need every message: with Pub/Sub a counting server that is down misses messages for good, a hot hashtag keeps bombarding one server with pushes, and a slow database makes the pile-up worse. Kafka keeps the messages and lets each server pull and batch at its own pace.
+
+  </RecallItem>
+</RecallQuestions>
+
+Counts are handled. The top 100 still has to arrive from data science, and the page still has to be read fast.
+
+<SectionEnd next={{ title: '9 · The whole hashtag design', href: '#s9' }}
+  concepts={[{ label: 'batch, don’t count++', href: '#s8-1' }, { label: 'partition key', href: '#s8-2' }, { label: 'hash partitioning', href: '#s8-2' }, { label: 'the adapter', href: '#s8-3' }, { label: 'POST_HASHTAG', href: '#s8-3' }, { label: 'count += n', href: '#s8-4' }, { label: 'at-least-once over-count', href: '#s8-4' }, { label: 'push vs pull', href: '#s8-5' }]} />
+
+</Section>

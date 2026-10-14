@@ -1,0 +1,167 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Cite from '../../../components/Cite.astro';
+import { LossSketch, StreamSteps } from '../../../figures/lec09/s10a-running-the-pipeline-figs';
+
+{/* §10 Running the pipeline, part a (10.1–10.3): Kafka down, retention and where a consumer starts, the SLA. Part b (10.4–10.5, recall, hand-off) is s10b-running-the-pipeline.mdx. */}
+
+<Section id="s10" no="10" title="Running the pipeline" crumb="10 Running the pipeline"
+  dek="The questions that come after the diagram: Kafka goes down, a new consumer joins, the SLA tightens, someone wants Kafka as a database, and the servers run hot."
+  meta="About 30 min · Q&A 02:51–03:11, 03:17–03:22">
+
+The hashtag pipeline is live. One afternoon Kafka is unreachable for a minute, and the post service’s writes start failing.
+
+Drawing the design was the first half of the job. This chapter is the second: operating it. What to do when Kafka is down, where a consumer starts reading, what an SLA means for this pipeline, why Kafka is not your database, and how to get more out of the servers you already have.
+
+</Section>
+
+<Section id="s10-1" no="10.1" title="When Kafka goes down" crumb="10.1 Kafka down"
+  dek="A replicated cluster can still be unavailable. Buffer, drop or fall back, and decide by what a lost message costs."
+  meta="About 9 min · Q&A 02:51–02:57, 03:21–03:22">
+
+First, Kafka is not a single instance; it is a cluster. Its data is replicated across nodes, so when one node goes down another takes over. That is availability. [[L-0311]]
+
+It is tempting to conclude that a replicated cluster is up all the time and never goes down. It can go down. [[L-0312]] Kafka gives you about 99.9% availability, not four nines or five nines. [[L-0313]]
+
+<SourceNote href="https://aws.amazon.com/msk/sla/" site="aws.amazon.com (MSK SLA)" k="L-0313">
+
+Kafka can go down, but its availability belongs to a deployment, not to Kafka itself. Amazon MSK gives service credits when a Multi-AZ cluster’s monthly uptime falls below 99.9%. Confluent Cloud offers up to 99.99% (Standard and Enterprise clusters with at least 2 eCKU, multi-zone Dedicated) and 99.5% on Basic. <Cite href="https://docs.confluent.io/cloud/current/clusters/cluster-types.html">docs.confluent.io</Cite> Either way, producers need a plan for when it is unavailable.
+
+</SourceNote>
+
+For as long as Kafka is down, the writes to it are lost unless you handle them. There are three ways, and you pick one depending on the system:
+
+1. If the data is really critical, push it to a dead letter queue, then later consume it from there and re-ingest it into Kafka.
+2. If losing data is acceptable, drop it.
+3. Buffer it in memory for some time, and write it when Kafka comes back up; if it doesn’t come back in that time, drop it. [[L-0314]]
+
+Two refinements. The Kafka producer already buffers and retries on its own: unsent records wait in `buffer.memory` (32 MiB by default) and are retried until `delivery.timeout.ms` (120 s by default) before the send fails, so option 3 is partly built in for short outages. <Cite href="https://kafka.apache.org/43/configuration/producer-configs/">kafka.apache.org</Cite> And “dead letter queue” usually names the place for messages a *consumer* failed to process; a store for writes that never reached Kafka is more precisely a fallback queue.
+
+Kafka gives you no dead letter queue for this. Use another queue that has one, say RabbitMQ or SQS: if the write to Kafka fails, write to that other queue instead, assuming that queue is up and running. SQS fits really well here. [[L-0358]] What you are building is a separate fallback queue. SQS’s own dead-letter queue feature is a different thing: it receives messages that consumers failed to process after `maxReceiveCount` receives (Kafka Connect’s <code style={{whiteSpace:'normal'}}>errors.<wbr/>deadletterqueue.<wbr/>topic.<wbr/>name</code> likewise holds records a sink connector failed to process). <Cite href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">docs.aws.amazon.com</Cite> <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s3-3" k="L-0358">SQS and message queues</ForwardChip>
+
+Another proposal: skip the second queue and write the failed message into your own database, then process it later. In class this was called the transactional outbox pattern: write to the database what you wanted to write but couldn’t, and put it on Kafka afterwards. [[L-0359]]
+
+<SourceNote href="https://microservices.io/patterns/data/transactional-outbox.html" site="microservices.io" k="L-0359">
+
+Writing the messages that failed to reach Kafka into your own database and replaying them later is a fallback store. The transactional outbox pattern goes further: *every* outgoing message is inserted into an outbox table in the same local transaction as the business update, and a separate relay process publishes it to the broker, so there is no gap between the two writes.
+
+</SourceNote>
+
+<TradeoffTable caption="Kafka is down: buffer in memory, drop, write to a fallback queue, or write to your own database"
+  k="L-0314 L-0319 L-0320 L-0358 L-0359"
+  columns={[{ label: 'Buffer in memory', glyph: 'apiram' }, { label: 'Drop' }, { label: 'Fallback queue (SQS)', glyph: 'queue' }, { label: 'Write to own DB', glyph: 'dynamodb' }]}
+  rows={[
+    { label: 'Lost if the app also crashes', k: 'L-0314', cells: ['Whatever is still in memory', 'Already lost, crash or not', 'Nothing, if that queue was up', 'Nothing, once the row is written'] },
+    { label: 'Extra component', k: 'L-0319 L-0358', cells: ['None: the producer already buffers', 'None', 'A second queue, which must be up', 'A table and a job that replays it'] },
+    { label: 'Good for', k: 'L-0319 L-0320', cells: ['Short outages', { text: 'A hashtag count; never an SOS button', bad: true }, 'Data you can’t lose', 'Data you can’t lose, kept with the rest of your data'] },
+  ]} />
+
+One way to frame the choice was raised in class: Kafka and the database are stateful, the workers and servers stateless. Stateless servers are sized by load testing for the QPS you need; a stateful component going down means downtime or data loss, so the question to ask is what you do when the stateful parts go down. [[L-0318]]
+
+Pick one of the three depending on the system, because you don’t always have to add yet another component. Sometimes it’s okay to lose some data. [[L-0319]]
+
+<RuleBox rule="You don’t always have to add yet another component; ==sometimes it’s okay to lose the data==." k="L-0319 L-0320 L-0336">
+
+Decide what a lost message costs before you build machinery to prevent it. A hashtag count can absorb a minute of lost posts; an SOS button can’t lose one. And when it is speed you are after, measure before you optimize ([10.5](#s10-5)).
+
+<Desk><LossSketch /></Desk>
+<Phone><LossSketch layout="phone" /></Phone>
+
+</RuleBox>
+
+When you cannot lose data at all, the system has to be highly available. Take Uber’s SOS emergency button (the instructor has a YouTube video on it). You are travelling in a cab, something bad happens, and you press SOS: the service cannot be down at that moment, and no message or event may be lost. [[L-0320]]
+
+Even so, very few systems give you a 100% uptime guarantee. With a leader-replica database, when the leader goes down you have to bear a failover, “two seconds, three seconds”. [[L-0321]] In practice it is often longer, tens of seconds to a couple of minutes: AWS says RDS Multi-AZ failovers are typically 60–120 seconds, and clients must reconnect because the DNS record changes. <Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZ.Failover.html">docs.aws.amazon.com</Cite> <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s2-4" k="L-0321">leaders, replicas and failover</ForwardChip>
+
+So even a system that must not lose an SOS event usually bears a failover of a few seconds. Then why not leaderless replication, and no failover at all? You can, but it brings its own complexity: multi-master replication, and with it conflict resolution. You get some, you lose some. [[L-0322]] Cassandra is the usual example: every replica can accept writes, and conflicting updates are resolved by last-write-wins timestamps, so the nodes’ clocks must be kept in sync. <Cite href="https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html">cassandra.apache.org</Cite>
+
+</Section>
+
+<Section id="s10-2" no="10.2" title="Retention, horizon, and where a consumer starts" crumb="10.2 Retention and offsets"
+  dek="How long Kafka keeps messages, how far back a consumer can read, and the three places it can start."
+  meta="About 9 min · Q&A 02:57–03:03">
+
+A new search service starts consuming Instagram’s year-old post topic. Where does it begin?
+
+Start with how long the messages are there. On Kafka, messages stay forever unless you configure a deletion policy, for example one that periodically deletes messages older than 30 days. [[L-0323]]
+
+<SourceNote href="https://kafka.apache.org/41/configuration/broker-configs/" site="kafka.apache.org (broker configs)" k="L-0323">
+
+Kafka deletes messages after a retention period by default: `log.retention.hours = 168` (7 days), with cleanup policy `delete` (unchanged as of Kafka 4.3). Keeping data longer, or forever, is opt-in: set `retention.ms = -1` on the topic, or use log compaction to keep the latest value per key.
+
+</SourceNote>
+
+With a deletion policy in place, the time at which the last deletion ran is your **horizon**, and you cannot read messages from before it. [[L-0324]] (“Horizon” is Kinesis vocabulary: its `TRIM_HORIZON` is the oldest record still in the shard. Kafka calls the same position the earliest offset, or log start offset, and deletes whole log segments, so the oldest readable message moves forward in segment-sized steps. <Cite href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html">docs.aws.amazon.com</Cite>)
+
+So when your workers come up and read from Kafka or Kinesis “from the horizon”, they read from the beginning of the stream. Beginning does not mean the first message ever: those messages may well have been deleted by the deletion policy. [[L-0325]] Kinesis spells out the choices: start at `TRIM_HORIZON` (the oldest retained record), at `LATEST`, `AT_TIMESTAMP`, or at or after a given sequence number. <Cite href="https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html">docs.aws.amazon.com</Cite>
+
+You can’t always start from the horizon, though, and that is where checkpoints come in. After reading a set of messages, a consumer tells Kafka it is committing. Kafka marks that this consumer has committed up to this message, and later the consumer can ask to read from its last checkpoint, its last commit. [[L-0326]] (Precisely, Kafka keeps the committed offset per consumer group and partition, not per consumer, and it is the offset of the *next* message to read; any member of the group that takes over the partition resumes from it. <Cite href="https://kafka.apache.org/43/design/design/">kafka.apache.org</Cite>) <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s3-7" k="L-0326">committing, and why messages come back</ForwardChip>
+
+You keep committing to Kafka periodically. If a consumer crashes after consuming a few messages, then on restart it can resume from the horizon or from its last checkpoint. Resuming from the last checkpoint means reprocessing the messages it had consumed since that commit. [[L-0327]]
+
+<p class="lead-in">One partition of the post topic, from the first message to a new consumer. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-10a" no="Fig 10·a" label="A stream with H and LC" grow
+  k="L-0323 L-0324 L-0325 L-0326 L-0327 L-0328"
+  stepK={['L-0323', 'L-0323 L-0324 L-0325', 'L-0326', 'L-0327', 'L-0327', 'L-0328']}
+  caption="One partition as a row of offsets. H is the horizon, LC the last commit (green). Blue squares are messages; struck ones were deleted by retention; red marks the crash, the reprocessed messages, and Kafka’s default for a new group. Redrawn from the class board at 03:01."
+  steps={[
+    'Messages arrive on a partition, oldest on the left: offsets 0 to 8.',
+    'A deletion policy (here, older than 30 days) removes the oldest. The horizon <code>H</code> is where the last deletion stopped; nothing before it can be read.',
+    'The search consumer reads a batch, 3 to 5, and commits: Kafka records how far it got. The last commit <code>LC</code> points at 6, the next message to read.',
+    'It processes three more, 6 to 8, and <span class="term red">crashes</span> before the next commit.',
+    'On restart it resumes from the last commit and processes 6 to 8 <span class="term red">again</span>.',
+    'A brand-new consumer should start at the horizon to read the history. Kafka’s default for a new group starts it at the latest message instead, skipping that history, unless you set <code>earliest</code>.',
+  ]}>
+  <Desk><StreamSteps /></Desk>
+  <Phone><StreamSteps layout="phone" /></Phone>
+</StepThrough>
+
+So a consumer has three places to start. Before reading them, try the search service:
+
+<PauseAndThink k="L-0324 L-0325 L-0328"
+  q="A new search service starts consuming Instagram’s year-old post topic, which keeps 30 days. It must index every post Kafka still holds. Does a brand-new consumer group read the retained history on its own?"
+  choices={[{ label: 'Yes: new consumers start from the oldest retained message' }, { label: 'No: it starts at the latest message unless you set earliest', correct: true }]}
+  right="Right. The intent is ‘start from the horizon’, and in Kafka you have to say so."
+  wrong="Not quite. That’s what you want, but Kafka’s default is ‘latest’: without earliest, the new consumer sees only new posts.">
+
+No, not unless you configure it to. The rule below is right in intent: a new consumer should start at the horizon (Kafka’s earliest retained offset), a crashed one at its last checkpoint, and only a loss-tolerant one at the latest message. But Kafka’s default for a group with no committed offset is `auto.offset.reset = latest`, so the new search service would skip all the history unless you set `earliest`.
+
+</PauseAndThink>
+
+The three places are the horizon, the last checkpoint, and the current (latest) message. A brand-new consumer starts from the horizon: say you never had a search service consuming from this Kafka and now you add one; it is better off starting from the first message still there. An existing consumer that crashed resumes from its last checkpoint, not from the first message ever. And if losing data is perfectly fine for a consumer, it can start from whatever message comes in now. How far back to go is use-case specific and there are exceptions, but in most cases consumers resume from the last checkpoint, new ones start from the horizon, and very few start from the most recent message. [[L-0328]] Kafka’s own default for a brand-new group is the latest offset, though (`auto.offset.reset` defaults to `latest`), so a new consumer skips existing messages unless you set it to `earliest`. <Cite href="https://kafka.apache.org/41/configuration/consumer-configs/">kafka.apache.org</Cite>
+
+```properties
+# the new search service's consumer: it must read the retained history
+auto.offset.reset=earliest
+
+# the post topic: 30 days, set on purpose (Kafka's default is 7)
+retention.ms=2592000000
+```
+
+Does the retention length matter, say six months instead of 30 days? A big difference. No deletion policy means data forever, which means a large amount of storage. A low-throughput system, with little data coming in, can afford to keep its data. But with a huge amount of data flowing at very high throughput, a longer retention period means your disk will blow up, so in that case you typically set deletion policies. [[L-0329]]
+
+If you still want the history of a high-volume topic, have a consumer read the old events, archive them to S3 and then delete them from Kafka. Kafka now also has plugins that, before deleting, take a batch of events and archive them to S3, Blob Storage, GCS or anything else, and then trigger the deletion. [[L-0330]] The built-in mechanism is **tiered storage**, production-ready since Kafka 3.9: it moves completed log segments to remote storage such as S3 or HDFS while keeping them readable through Kafka, rather than archiving and then deleting, and you supply a `RemoteStorageManager` plugin since Kafka ships none. <Cite href="https://kafka.apache.org/43/operations/tiered-storage/">kafka.apache.org</Cite> The consumer that archives to S3 is still a common pattern.
+
+</Section>
+
+<Section id="s10-3" no="10.3" title="The SLA is how fast you consume" crumb="10.3 The SLA"
+  dek="For this pipeline an SLA is a consumption rate, and you meet it with partitions and workers."
+  meta="About 2 min · Q&A 02:52–02:54">
+
+The product team wants new posts counted within a minute. What does that SLA mean for this design?
+
+For this pipeline, the SLA is about how quickly you can consume messages from Kafka. Kafka’s parallelism is proportional to the number of partitions, so measure the throughput your system gets: if it fits your SLA, good enough; if not, increase the partitions and increase the workers. [[L-0315]]
+
+Increasing partitions means choosing between online repartitioning and repartitioning with downtime, depending on how good your SRE team is. Pick one, but either way have a strategy to scale things up. [[L-0316]] Keep the caveat from [8.4](#s8-4) in mind: adding partitions is an online operation, but it changes which partition a key maps to, and existing data is not moved. <Cite href="https://kafka.apache.org/43/operations/basic-kafka-operations/">kafka.apache.org</Cite>
+
+How SLAs define a system, and how you make sure you meet them at every step, gets its own treatment with the distributed task scheduler; this is a precursor. [[L-0317]] <ForwardChip when="week 7, after this series" k="L-0317">SLAs and the distributed task scheduler</ForwardChip>
+
+</Section>

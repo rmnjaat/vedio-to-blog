@@ -1,0 +1,97 @@
+# page gates lec10 2026-10-14 23:14:41
+## build
+build lec10 -> site/.builds/lec10
+build ok: 15 pages
+## coverage
+coverage lec10: 232/311 placed ids on the pages; ledger overall 232/311
+  ids per page: 1-dictionary-no-database 36, 10-bitcask 0, 11-what-to-keep 0, 2-finding-one-word 28, 3-one-file 28, 4-serving-from-s3 28, 5-weekly-update 35, 6-switching-servers 52, 7-fast-writes 29, 8-files-that-grow 0, 9-record-format 0, overview 0
+  MISSING L-0001 [supporting/admin_reference] placed in about: Week 5, day 2 continues the discussion on storage engines; the agenda is two problem statements that build fou
+  MISSING L-0002 [aside/claim] placed in about: Both systems discussed today are actively used in production to a huge extent; they are not just theoretical.
+  MISSING L-0008 [aside/admin_reference] placed in about: The problem statement was deliberately compiled to cover many critical building blocks used day in and day out
+  MISSING L-0227 [supporting/tradeoff] placed in 8.1: Rebuilding the index on restart lowers availability because coming back takes a lot of time; the teacher accep
+  MISSING L-0228 [core/claim] placed in 8.1: The design assumes all index entries fit in memory: you are limited by how much index (the keys, not the value
+  MISSING L-0229 [core/concept] placed in 8.1: Because the design only appends and never collects disk garbage, the single file grows huge and the system eve
+  MISSING L-0230 [supporting/concept] placed in 8.1: A student proposed using multiple files on disk instead of one, and scrubbing a file no longer being appended 
+  MISSING L-0231 [core/concept] placed in 8.2: With multiple files, at any point in time writes go to only one file; the other files become immutable.
+  MISSING L-0232 [aside/misconception] placed in 8.2: A student argued the disk needs room for three files at most (one being written, one being read, one being cre
+  MISSING L-0233 [supporting/misconception] placed in 8.2: A student proposed choosing when to switch to a new file by dividing the disk space by two or three.
+  MISSING L-0234 [supporting/claim] placed in 8.2: Problems with very large files: scanning a single file cannot build the in-memory index concurrently (a motiva
+  MISSING L-0235 [core/claim] placed in 8.2: The biggest reason not to use huge files is the file system limitation: a file system may not support files la
+  MISSING L-0236 [core/rule_of_thumb] placed in 8.2: Rather than waiting for one huge file to fill, keep smaller files (e.g. 100 MB or 1 GB) and start writing a ne
+  MISSING L-0237 [core/concept] placed in 8.2: Files are numbered in sequence (file 001, 002, 003, 004 ...); at any time exactly one file is active and recei
+  MISSING L-0238 [core/definition] placed in 8.2: File rotation: every time the active file crosses its size limit, a new file is created and writes continue in
+  MISSING L-0239 [core/concept] placed in 8.2: With multiple files, the in-memory index stores for each key which file it is in and at which offset; a get fi
+  MISSING L-0240 [core/concept] placed in 8.3: The rotated files contain many stale entries (keys overwritten later, e.g. the old K1) and deleted entries (e.
+  MISSING L-0241 [core/definition] placed in 8.3: Merge and compaction: while the active file keeps taking writes, a process iterates through the read-only file
+  MISSING L-0242 [core/process] placed in 8.3: After merge and compaction the offsets change, so the in-memory index must be updated for every entry that mov
+  MISSING L-0243 [core/concept] placed in 8.3: Merging Bitcask files is not like the merge step of merge sort, because the entries are not sorted; instead lo
+  MISSING L-0244 [core/concept] placed in 8.4: Disk utilization follows a sawtooth pattern: it grows as writes come in and drops suddenly every time merge an
+  MISSING L-0245 [core/rule_of_thumb] placed in 8.4: The sawtooth must stay below the disk's maximum capacity (a 1 TB disk cannot let it grow beyond 1 TB); its sha
+  MISSING L-0246 [core/tradeoff] placed in 8.4: Merging too frequently means too much garbage collection, taking CPU away from actual work; merging too rarely
+  MISSING L-0247 [core/concept] placed in 8.4: The design has only two configurable parameters: the merge and compaction frequency, and the file rotation thr
+  MISSING L-0248 [supporting/rule_of_thumb] placed in 8.4: Set the two parameters by monitoring the sawtooth pattern while building the store, and when you design such a
+  MISSING L-0249 [core/claim] placed in 8.4: This append-only design with merge and compaction is a pretty standard approach and the best one can do on a c
+  MISSING L-0250 [supporting/comparison] placed in 8.4: On SSDs the design still helps but not as significantly, because SSDs do not use a rotating disk; they use fla
+  MISSING L-0251 [core/concept] placed in 9.1: Writing 'key value' to the file is too casual: files are read by blocks, not line by line, so a disk-based sto
+  MISSING L-0252 [supporting/claim] placed in 9.1: Every database (MySQL, Postgres, MongoDB, Redis, ...) serializes data to disk in its own record format designe
+  MISSING L-0253 [core/misconception] placed in 9.1: Reading a record until a newline is a bad approach: reading one byte at a time until '\n' means one disk I/O p
+  MISSING L-0254 [core/rule_of_thumb] placed in 9.1: At any offset you should know exactly how many bytes to read to get the complete key-value entry, so the whole
+  MISSING L-0255 [core/concept] placed in 9.1: Record format: before the key and value, write the key size and the value size (each a 4-byte integer, 8 bytes
+  MISSING L-0256 [core/process] placed in 9.1: Reading a record takes two disk I/Os: first read the 8-byte header and interpret the first 4 bytes as key size
+  MISSING L-0257 [supporting/example] placed in 9.1: The word dictionary should also be stored this way (word size, meaning size, then word and meaning); it was wr
+  MISSING L-0258 [core/concept] placed in 9.2: A database must be fault tolerant: if the machine crashes while a gigantic value is being written, the write f
+  MISSING L-0259 [supporting/claim] placed in 9.2: A partially written entry is dangerous: if another entry is written after it, reading 'value size' bytes from 
+  MISSING L-0260 [core/definition] placed in 9.2: The only way to detect corruption is a CRC (cyclic redundancy check) / checksum: a hash over key size, value s
+  MISSING L-0261 [core/rule_of_thumb] placed in 9.2: The CRC goes on the leftmost side of the record and is the first thing written and flushed, because it is the 
+  MISSING L-0262 [supporting/example] placed in 9.2: Good persistent record formats put the CRC on the leftmost side, e.g. the Postgres commit log file and the MyS
+  MISSING L-0263 [supporting/example] placed in 9.2: Network formats also put the CRC first, because those are the first bytes received and tell whether the incomi
+  MISSING L-0264 [core/concept] placed in 9.2: Final record format: CRC, timestamp (just for conflicts), key size, value size, key, value.
+  MISSING L-0265 [core/process] placed in 9.2: Write the header part first, then the key in one disk write and the (possibly gigantic) value in another. If t
+  MISSING L-0266 [supporting/rule_of_thumb] placed in 9.2: Recovery from a corrupted entry is mostly heuristics: ignore the entry (for example during merge and compactio
+  MISSING L-0267 [supporting/rule_of_thumb] placed in 9.2: When designing storage, question whether CSV and reading until newline is the best way; use a record format wi
+  MISSING L-0268 [core/concept] placed in 10.1: With file rotation, each in-memory index entry holds, for a key, the file it is in, the record size, the offse
+  MISSING L-0269 [core/claim] placed in 10.1: The main limitation of the design: all keys must fit in memory. Values are on disk, but the in-memory index ho
+  MISSING L-0270 [core/claim] placed in 10.1: The design gives very high write throughput and very low write latency, because it does the bare minimum disk 
+  MISSING L-0271 [supporting/claim] placed in 10.1: The design reaches I/O saturation of the physical device (and of the network), which is good: nothing waits id
+  MISSING L-0272 [supporting/claim] placed in 10.1: Backups are easy because the data is normal files: copy and paste the files and you have a backup.
+  MISSING L-0273 [core/definition] placed in 10.2: The database just designed is Bitcask, an embedded database.
+  MISSING L-0274 [supporting/definition] placed in 10.2: An embedded database is a library rather than a central server everyone connects to (unlike a MySQL server); S
+  MISSING L-0275 [supporting/example] placed in 10.2: Uber uses Bitcask in production for its main ride-hailing service.
+  MISSING L-0276 [supporting/example] placed in 10.2: Since Bitcask is embedded, Uber uses Riak as its main database; Riak is a simple key-value store that uses Bit
+  MISSING L-0277 [supporting/analogy] placed in 10.2: Riak is to Bitcask what Elasticsearch is to Lucene: Elasticsearch is an HTTP wrapper over Lucene, and Riak is 
+  MISSING L-0278 [supporting/concept] placed in 10.2: Riak's responsibility is to make Bitcask distributed: master-slave architecture, consensus, a proxy that route
+  MISSING L-0279 [core/claim] placed in 10.2: The append-only file is the magic behind Bitcask getting the most out of cheap commodity hardware.
+  MISSING L-0280 [core/rule_of_thumb] placed in 10.2: Whenever a system claims high throughput with persistence, it is using an append-only file or something simila
+  MISSING L-0281 [supporting/claim] placed in 10.2: Bitcask is a really simple yet fabulous database that covers the intricate details: data integrity checks, rec
+  MISSING L-0282 [aside/admin_reference] placed in 10.3: There is a paper on Bitcask, a Google search away, that learners can refer to.
+  MISSING L-0283 [supporting/rule_of_thumb] placed in 10.3: The teacher highly recommends implementing Bitcask yourself: it is not difficult, and building it gives a much
+  MISSING L-0284 [aside/war_story] placed in 10.3: The teacher implemented Bitcask about five years ago and personally benchmarked it against on-disk and in-memo
+  MISSING L-0285 [aside/rule_of_thumb] placed in 10.3: To benchmark your own Bitcask, set up Prometheus on a machine to monitor it continuously while running it; spe
+  MISSING L-0286 [aside/admin_reference] placed in 11: Next week is about high-throughput systems, extending the storage week: S3, video encoding, YouTube views coun
+  MISSING L-0287 [aside/admin_reference] placed in 11: Next Saturday starts with a deep discussion of S3 and its nitty-gritty; everything studied so far comes in han
+  MISSING L-0288 [core/qa_insight] placed in 10.3: Bitcask vs SSTable/memtable (LSM trees): the big difference is that an SSTable design keeps values in memory, 
+  MISSING L-0289 [core/qa_insight] placed in 10.3: Bitcask persists every write immediately to disk by default, prioritising persistence while still getting the 
+  MISSING L-0290 [aside/admin_reference] placed in 10.3: Bitcask was taught first on purpose as the foundation; next week covers SSTable, memtable, LSM trees and high-
+  MISSING L-0291 [aside/qa_insight] placed in 10.3: A student noted that Martin Kleppmann's book covers Bitcask in its storage chapter, and that understanding Bit
+  MISSING L-0292 [aside/war_story] placed in 10.3: The teacher came across Bitcask in a storage paper-reading course in college and was struck by how simple and 
+  MISSING L-0295 [core/qa_insight] placed in 8.3: Deleted keys (entries with the special delete value) are handled in merge and compaction: when merging the imm
+  MISSING L-0296 [core/process] placed in 8.3: Merge implementation: buffer key-value pairs in an in-memory hash table, replacing a key when a newer entry ap
+  MISSING L-0297 [supporting/qa_insight] placed in 9.3: The pattern assumes writing the whole value is not atomic but writing the checksum and header is; the teacher 
+  MISSING L-0298 [supporting/qa_insight] placed in 9.3: Different file systems and kernels give different guarantees: the pattern assumes a header under the block siz
+  MISSING L-0299 [aside/qa_insight] placed in 9.3: The header is tiny (fields of eight and four bytes, roughly 20 bytes), so in practice it will definitely be wr
+  MISSING L-0300 [aside/qa_insight] placed in 9.3: A student noted that more paranoid systems, where the kernel does not guarantee atomic header writes, use a se
+  MISSING L-0301 [supporting/claim] placed in 9.3: Integrity is almost never covered in system design overviews: people just say 'write it to a WAL file' without
+  MISSING L-0302 [aside/claim] placed in 9.3: When integrity is ignored, systems only seem to work fine; in reality they do not, and without the occasional 
+  MISSING L-0303 [aside/admin_reference] placed in 9.3: The teacher recommends Hussein Nasser's Medium blog posts on Postgres internals (record-level format, pages, s
+  MISSING L-0304 [aside/claim] placed in 9.3: The number of pages Postgres uses to store meta information compared with actual data surprised the teacher (f
+COVERAGE FAIL
+## links
+check-links: 15 pages, 793 internal links and assets checked under base /vedio-to-blog/
+  198 links into other lectures (not in this isolated build) checked only for the lecture's MDX file
+  BROKEN /vedio-to-blog/lectures/lec10/5-weekly-update/: #s8-3  (no #s8-3 on /vedio-to-blog/lectures/lec10/5-weekly-update/)
+  BROKEN /vedio-to-blog/lectures/lec10/7-fast-writes/: #s10-3  (no #s10-3 on /vedio-to-blog/lectures/lec10/7-fast-writes/)
+2 broken
+## figures
+check-figures ok: every page at 360/390/768/1440, light + dark
+
+GATES FAIL

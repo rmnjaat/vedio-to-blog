@@ -1,0 +1,106 @@
+# Storyboard — clip l09-presigned-upload   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l09-presigned-upload
+title: The bytes leave your servers' path
+lecture: 7
+section: "3.3 The pre-signed URL"
+status: reviewed
+why_motion: >
+  Accumulation, then its absence. One 5 MB upload through the API server is harmless; a steady stream of them,
+  each crossing the server's network card twice, fills the card until other API calls wait. The fix is only visible
+  in motion: the uploads keep coming along the new route, but the bar on the API server stops moving.
+static_twin: "Fig 3·b row b (user ⇄ api ⇄ s3) + RuleBox §3 sketch (the long arc user → s3); board D-03 (b_013115.jpg)"
+ledger:
+  taught: [L-0068, L-0072, L-0076, L-0077, L-0078, L-0081, L-0082, L-0084, L-0085]
+  context_only: [L-0079, L-0080, L-0083]
+fidelity_notes:
+  - "No money, egress or bill on screen: SN-01 (L-0079) says inbound internet traffic and same-Region EC2↔S3 transfer are free, so the clip claims bandwidth and transfers only. L-0078's '5 MB in, 5 MB out' versus one transfer is the class's arithmetic and stays."
+  - "The prepare step draws NO call to S3: the URL is signed locally by the service (L-0085 / L-0084 inline clarification). Only api → user carries the URL."
+  - "The upload is labelled POST, the GitHub flow (L-0082); the prose says a presigned PUT works too (fact-check inline)."
+  - "`valid 60 s` is one of the class's examples (10, 20, 30, 60 s, L-0084). `s3://images/<id>.png` is the class's path shape (L-0081: s3://images/random_id.png)."
+  - "`GET /feed` is an illustrative stand-in for 'other API calls' (L-0072). The bandwidth bar has no unit; its steps (one per crossing of the card) are illustrative, not measured."
+  - "The memory half of L-0072 is left to the prose; the clip shows the network card only."
+  - "The expiry is not exercised here (that is clip l09-signed-url-expiry). One user glyph stands for many users' uploads."
+  - "The class's API server and the dedicated image upload service are one box `api` here (L-0077: the bytes skip both)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1090}
+duration_frames: 1080
+start_frame_equals: "Fig 3·b row b: stick figure `user` holding a blue PhotoChip, solid arrow user → api box, solid arrow api → s3 cloud (bucket mark); an empty bar under the api, hand `network card`."
+poster_frame: 1079
+reduced_motion_stills: [292, 492, 702, 912, 1079]
+glyphs:
+  user: {shape: stick-figure, label: "user (hand)", pos: [100, 330], extra: "blue PhotoChip above the head"}
+  api: {shape: server-box, label: "api (mono)", pos: [420, 290, 160, 80]}
+  bar: {shape: slot bar, label: "network card (hand, ink2)", pos: [420, 392, 160, 24]}
+  s3: {shape: "cloud with bucket mark", label: "s3 (mono)", pos: [1000, 330, 125, 80]}
+  get_feed: {shape: "mono label in a dashed red box", label: "GET /feed", pos: [500, 200]}
+  key_tag: {shape: "chamfered tag with hole", label: "s3://images/<id>.png (mono)", pos: [40, 540]}
+  clock: {shape: "circle + two hands", label: "valid 60 s (hand)", pos: [60, 612]}
+  arrows:
+    - {route: "user → api", solid, head: api}
+    - {route: "api → s3", solid, head: s3}
+    - {route: "GET /feed → api", solid, head: api}
+    - {route: "user → s3 (long arc above the api)", solid, head: s3, appears: B4}
+phone_layout: "column: user top, api middle (bar right of it), s3 bottom; the arc runs down the left edge into s3's left side; tag, clock and the two summary lines in rows under s3"
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "A 5 MB photo, uploaded through the API server."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0068]
+  - id: B1
+    step: 1
+    from: 90
+    to: 300
+    caption: "Each photo crosses the API server twice: 5 MB in, 5 MB out."
+    events:
+      - {at: 100, dur: 34, what: "user → api re-inked blue, chip rides it; mono `5 MB in` written", colour: blue}
+      - {at: 134, dur: 8, what: "bar steps up (crossing 1)"}
+      - {at: 140, dur: 34, what: "api → s3 re-inked blue, chip rides it; mono `5 MB out`; bar steps up (crossing 2)", colour: blue}
+      - {at: 200, dur: 66, what: "photo 2 in and out; bar steps twice more"}
+    ledger: [L-0068, L-0078]
+  - id: B2
+    step: 2
+    from: 300
+    to: 500
+    caption: "Uploads keep coming. The network card fills; other API calls wait."
+    events:
+      - {at: 310, dur: 116, what: "photos 3-6 stream through; the bar climbs a step per crossing"}
+      - {at: 380, dur: 8, what: "bar full: its fill turns red", colour: red}
+      - {at: 392, dur: 18, what: "hand `full` beside the bar", colour: red}
+      - {at: 416, dur: 20, what: "arrow GET /feed → api, mono `GET /feed`"}
+      - {at: 444, dur: 26, what: "red dashed outline round GET /feed, hand `waits`", colour: red}
+    ledger: [L-0072]
+  - id: B3
+    step: 3
+    from: 500
+    to: 710
+    caption: "Pre-signed: first ask for a short-lived URL for one path. No bytes yet."
+    events:
+      - {at: 500, dur: 12, what: "the before state ghosts to 38%"}
+      - {at: 512, dur: 26, what: "thin blue pen + packet user → api, no chip; mono `prepare`", colour: blue}
+      - {at: 548, dur: 26, what: "green packet api → user (nothing goes to s3: signed locally)", colour: green}
+      - {at: 576, dur: 56, what: "key tag drawn by the user: mono `s3://images/<id>.png`; clock, hand `valid 60 s`"}
+    ledger: [L-0076, L-0081, L-0084, L-0085]
+  - id: B4
+    step: 4
+    from: 710
+    to: 920
+    caption: "Then the photo goes straight to S3. Your servers never touch it."
+    events:
+      - {at: 714, dur: 10, what: "the ghosted red fill is replaced by a near-empty bar (and `full` removed)"}
+      - {at: 724, dur: 40, what: "long blue arc user → s3 pen-revealed, the chip riding it; mono `POST`", colour: blue}
+      - {at: 766, dur: 8, what: "green ✓ at the bucket", colour: green}
+      - {at: 790, dur: 80, what: "two more chips ride the arc; the api's bar does not move"}
+    ledger: [L-0077, L-0082, L-0085]
+  - id: B5
+    from: 920
+    to: 1080
+    caption: "One transfer per photo, and nothing to run in between."
+    events:
+      - {at: 928, dur: 24, what: "hand `before: 5 MB in + out` (ink2)"}
+      - {at: 960, dur: 24, what: "hand `after: 5 MB, one trip` (blue)"}
+    on_screen: [end state = poster]
+    ledger: [L-0078, L-0077]

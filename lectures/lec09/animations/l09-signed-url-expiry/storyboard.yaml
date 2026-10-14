@@ -1,0 +1,141 @@
+# Storyboard — clip l09-signed-url-expiry (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l09-signed-url-expiry
+title: A forwarded URL, before and after it expires
+lecture: 7          # course position 07 (folder lec09)
+section: "5.2 Anatomy of a signed URL"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  A window in time. The same URL, in the same hands (C, who never asked the API server), works at minute 2 and is
+  refused at minute 10; nothing about the person changes, only the clock. The playhead crossing the expiry mark is the
+  lesson; a still shows either the working URL or the refused one, not that it is the same URL on one timeline.
+static_twin: "Fig 5·b (URL anatomy: oh = hash, oe = expiry, most probably) and Fig 5·a (the copied URL opens for a non-follower); notes page '3. Privacy' (b_012057.jpg, b_013045.jpg)"
+ledger:
+  taught:
+    - L-0162  # on the CDN, anyone with the URL can access the photo (C, not a follower, sees it at minute 2)
+    - L-0164  # a follower copies the URL and sends it to a friend who doesn't follow: the friend sees the photo
+    - L-0168  # the CDN has no authentication of its own, stateless: doesn't know B or C ('knows no one')
+    - L-0169  # timed signature like JWT: expiry baked into the URL, a signature over it so no one can change it
+    - L-0172  # privacy is enforced in the API server, which decides who gets the URL ('follows A?', 'decides who gets the URL')
+    - L-0177  # expiry of, say, five minutes: requests after five minutes are not served
+    - L-0178  # the check: CDN extracts the parameters, checks signature validity and expiry, image or bad url
+  context_only:
+    - L-0163  # board 'URL is short lived because certs are short lived' → SN-04 (expiry checked per request, however long the photo is cached)
+    - L-0170  # oe 'most probably' the expiry, oh the hash (the instructor's guess; shown as 'oe: expiry (most probably)')
+    - L-0171  # demo 'Bad URL timestamp' for removed parameters: left to prose/MarginNote, not attached to a case the class didn't show
+fidelity_notes:
+  - "The 5-minute expiry is the class's example (L-0177). Minutes 2 and 10 are illustrative readings; the track says 'time (sped up)'."
+  - "oe is labelled 'oe: expiry (most probably)', keeping the instructor's hedge (L-0170). oh is shown on the tag but not named; the clip never shows how the signature is computed."
+  - "The CDN's checklist says 'signature', not 'certificate' (fact-check inline clarification on L-0169)."
+  - "'even with the photo still cached' (B4 caption) is the sourced addition A-CDM-13 / SN-04: the expiry is checked when each request arrives, however long the object stays cached. The photo stays in the cdn's slot (graphite) throughout."
+  - "The refusal reads 'bad url' (the notes page and L-0178: 'otherwise it returns bad url'). The demo's literal 'Bad URL timestamp' (L-0171) was for removed parameters and is not shown. No HTTP status code is claimed (A-CDM-12's 403 stays in prose)."
+  - "The tamper beat restates L-0169 ('so no one can change it'): C rewrites oe to 'oe=later' (illustrative value), the signature check fails, the expiry row is left unchecked (the check order follows L-0178: signature, then expiry)."
+  - "The request is labelled mono 'GET /users/A/posts' (illustrative path for L-0172's '/post call'). The API's check reads 'follows A?'."
+  - "The copy B → C is a dashed graphite path with the head at C (a copy, not a call; Fig 5·a). C never talks to the api."
+  - "The fact-check nuance on L-0168 (CDNs do offer signed URLs / cookies / token auth; they are user-stateless, not access-control-free) is in the prose; the clip's 'knows no one' is the user-stateless half, and the checklist itself is the CDN's access control."
+  - "Not claimed: signing keys, key groups, how long keys live, IP-bound policies, which CDN, real Facebook parameter names beyond oh/oe."
+additions:
+  - {fact: "The CDN checks the expiry when each request arrives, so a URL fails after its expiry however long the object stays cached.", source_url: "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html", id: A-CDM-13, checked: 2026-10-14}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1000, note: "same two rows narrower: time track across the top (0 → 10 at x 120 → 640, 'time (sped up)' and 'oe: expiry (most probably)' under it); row 1 B (x 262) → api box (520–700, 'follows A?' under it); checklist above the cloud (x 470); row 2 C → cdn cloud (centre 578,680); tags left of each person, copy path at x 200; result label under C's line; 'knows no one' under the cloud; caption band at 828; 30 px lettering, 32 px captions"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1200   # 40 s; 80 s at 0.5x
+start_frame_equals: "time track 0 · 2 · 5 · 10 min with the playhead at 0; B (follower) → api; C (not a follower) → cdn cloud whose slot already holds A's photo ('cached'); the cdn's empty checklist 'signature', 'not expired'. No URL exists yet."
+poster_frame: 1199
+reduced_motion_stills: [326, 426, 632, 874, 1048, 1199]
+glyphs:
+  track: {shape: "axis with ticks 0, 2, 5, 10 min (mono, ink2), playhead (graphite line + small triangle)", wide: "y 84, x 400 + 68/min", phone: "y 80, x 120 + 52/min"}
+  valid_span: {shape: "thick green line 0 → 5 on the axis", appears: B1}
+  expiry_mark: {shape: "red dashed vertical at 5, red 'oe: expiry' + ink2 '(most probably)' beside/under", appears: B1}
+  past_span: {shape: "thick red line from 5 to the playhead, grows linearly as the playhead passes 5", appears: B4}
+  stamps: {text: ["✓ photo (green) above minute 2", "✕ expired (red) above minute 10"]}
+  B: {shape: stick-figure, wide: "x 330, hips 274", label: "B (hand, bold) + 'follower' (ink2) above the tag"}
+  C: {shape: stick-figure, wide: "x 330, hips 544", label: "C (hand, bold); 'not a follower' (ink2) under C's tag"}
+  api: {shape: server-box, label: "api (mono); 'follows A?' + green ✓ written in B1", wide: [880, 216, 260, 104], phone: [520, 256, 180, 72]}
+  cdn: {shape: cloud (single stroke), label: "cdn (mono)", wide: "centre 1000,540 rx 170 ry 84", phone: "centre 578,680 rx 126 ry 78"}
+  slot: {shape: "one-row cache slot inside the cloud holding A's photo (ink2 chip) from frame 0", label: "cached (hand, ink2)"}
+  checklist: {shape: "two small boxes above the cloud: 'signature', 'not expired'; green ✓ / red ✕ stamped per attempt, replaced in place"}
+  key_tag: {shape: "chamfered tag with a hole at its left, mono 'oh=…' / 'oe=…', clock (expiry) top right", wide: "B's at 32,216 250×108; C's at 32,486", note: "C's line 2 becomes red 'oe=later' in B5"}
+  arrows:
+    - {route: "B → api", style: solid, head: api}
+    - {route: "C → cdn", style: solid, head: cdn}
+    - {route: "B's tag → C's tag", style: dashed graphite, head: "C's tag (a copy, not a call)"}
+  packets: {shape: "dot r9 (r8 phone)", colours: "blue requests; green reply api → B (the response carrying the URL); red refusals cdn → C"}
+  chip: {shape: "PhotoChip 34×24 green: the photo's bytes cdn → C at minute 2"}
+  labels: {request: "GET /users/A/posts (mono, blue) above B's line, kept at full blue to the poster: it is the step that decides who gets the URL (critic C-06)", result: "'photo' (hand, green) then 'bad url' (mono, red) on C's line, replaced in place", poster: "'decides who / gets the URL' (ink2) by the api; 'knows no one' (ink2) by the cdn"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "A's account is private. B follows A; C doesn't."
+    on_screen: [static figure]
+    motion: none
+    ledger: []
+  - id: B1
+    step: 1
+    from: 90
+    to: 332
+    caption: "The API server checks the follow and gives B a signed URL, valid 5 minutes."
+    events:
+      - {at: 100, dur: 30, what: "blue pen + packet B → api; 'GET /users/A/posts' written (102, 24 f)", colour: blue}
+      - {at: 136, dur: 20, what: "'follows A?' written in the api box; green ✓ at 158", colour: green}
+      - {at: 172, dur: 30, what: "green packet api → B (the response carrying the URL)", colour: green}
+      - {at: 206, dur: 40, what: "B's key tag inked, 'oh=…' / 'oe=…' written, clock at 234"}
+      - {at: 246, dur: 24, what: "green valid span 0 → 5 on the track (pen)", colour: green}
+      - {at: 264, dur: 38, what: "red dashed expiry mark at 5; 'oe: expiry' (red) then '(most probably)' (ink2) written", colour: red}
+    ledger: [L-0172, L-0169, L-0177]
+  - id: B2
+    step: 2
+    from: 332
+    to: 432
+    caption: "B copies the URL to C."
+    events:
+      - {at: 342, dur: 24, what: "dashed graphite path B's tag → C's tag (pen, head at C)"}
+      - {at: 368, dur: 34, what: "a copy of the tag slides down and lands as C's tag"}
+    ledger: [L-0164]
+  - id: B3
+    step: 3
+    from: 432
+    to: 638
+    caption: "Minute 2: signature valid, not expired. C sees the photo."
+    events:
+      - {at: 442, dur: 30, what: "playhead 0 → 2 (linear)"}
+      - {at: 478, dur: 30, what: "blue pen + packet C → cdn", colour: blue}
+      - {at: 514, dur: 24, what: "signature ✓ (514), not expired ✓ (530)", colour: green}
+      - {at: 548, dur: 30, what: "green photo chip cdn → C; 'photo' written (562)", colour: green}
+      - {at: 588, dur: 20, what: "track stamp ✓ photo at minute 2", colour: green}
+    ledger: [L-0162, L-0178, L-0169]
+  - id: B4
+    step: 4
+    from: 638
+    to: 880
+    caption: "Minute 10: expired. The CDN refuses, even with the photo still cached."
+    events:
+      - {at: 638, dur: 10, what: "③'s check marks and 'photo' removed (replaced in place)"}
+      - {at: 652, dur: 60, what: "playhead 2 → 10 (linear); red past-expiry span grows from 5 with it", colour: red}
+      - {at: 720, dur: 30, what: "blue pen + packet C → cdn (same URL)", colour: blue}
+      - {at: 756, dur: 24, what: "signature ✓ (756), not expired ✕ red (772)", colour: red}
+      - {at: 790, dur: 34, what: "red packet cdn → C; 'bad url' (mono, red) written (804); the photo stays in the slot", colour: red}
+      - {at: 830, dur: 20, what: "track stamp ✕ expired at minute 10", colour: red}
+    ledger: [L-0177, L-0178]
+  - id: B5
+    step: 5
+    from: 880
+    to: 1054
+    caption: "Change the expiry and the signature no longer matches."
+    events:
+      - {at: 880, dur: 10, what: "④'s check marks removed"}
+      - {at: 892, dur: 34, what: "on C's tag 'oe=…' removed and rewritten red 'oe=later'", colour: red}
+      - {at: 936, dur: 30, what: "blue pen + packet C → cdn", colour: blue}
+      - {at: 972, dur: 8, what: "signature ✕ red; expiry row left unchecked", colour: red}
+      - {at: 990, dur: 34, what: "red packet cdn → C; 'bad url' replaced and written again (1004)", colour: red}
+    ledger: [L-0169, L-0178]
+  - id: B6
+    from: 1054
+    to: 1200
+    caption: "The CDN checks the URL, not the person."
+    events:
+      - {at: 1064, dur: 34, what: "'decides who' / 'gets the URL' written by the api (ink2)"}
+      - {at: 1102, dur: 20, what: "'knows no one' written by the cdn (ink2)"}
+    on_screen: [end state = poster]
+    motion: none after 1122 (hold 2.6 s)
+    ledger: [L-0172, L-0168]

@@ -96,12 +96,12 @@ export async function courseNav(): Promise<NavLecture[]> {
 
 /** Reading order across the course: each lecture's overview, then its chapters. Unwritten lectures stay in the
     order (without a link), so the last chapter of a lecture points to the next lecture even when it is coming soon. */
-export interface Stop { href?: string; kind: 'lecture' | 'chapter'; lecture: string; title: string }
+export interface Stop { href?: string; kind: 'lecture' | 'chapter'; lecture: string; title: string; lectureTitle?: string }
 export function readingOrder(nav: NavLecture[]): Stop[] {
   const out: Stop[] = [];
   for (const l of nav) {
     out.push({ href: l.href, kind: 'lecture', lecture: l.id, title: l.href ? `${l.label} · ${l.title}` : `${l.label}${l.title ? ` · ${l.title}` : ''} · coming soon` });
-    for (const c of l.chapters ?? []) out.push({ href: c.href, kind: 'chapter', lecture: l.id, title: `${c.no} · ${c.title}` });
+    for (const c of l.chapters ?? []) out.push({ href: c.href, kind: 'chapter', lecture: l.id, title: `${c.no} · ${c.title}`, lectureTitle: `${l.label} · ${l.title}` });
   }
   return out;
 }
@@ -114,7 +114,12 @@ export function around(nav: NavLecture[], href: string) {
   const label = (s: Stop, dir: 'prev' | 'next') =>
     s.kind === 'chapter' ? (dir === 'prev' ? 'Previous chapter' : 'Next chapter')
       : s.lecture === me.lecture ? 'Lecture overview' : dir === 'prev' ? 'Previous lecture' : 'Next lecture';
-  const prev = i > 0 && order[i - 1].href ? { ...order[i - 1], label: label(order[i - 1], 'prev') } : undefined;
+  // an overview's previous stop is the last chapter of the previous lecture: name that lecture, not "Previous chapter"
+  // (lec09 critic C-05)
+  const p = i > 0 ? order[i - 1] : undefined;
+  const prev = p?.href ? (p.kind === 'chapter' && p.lecture !== me.lecture
+    ? { ...p, label: 'Previous lecture', title: `${p.lectureTitle}, ch. ${p.title}` }
+    : { ...p, label: label(p, 'prev') }) : undefined;
   const next = order[i + 1] ? { ...order[i + 1], label: label(order[i + 1], 'next') } : undefined;
   return { prev, next };
 }

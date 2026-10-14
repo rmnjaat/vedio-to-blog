@@ -1,0 +1,1245 @@
+{
+  "lecture": "lec09",
+  "title": "Lecture 07 - Social networks: how CDN works, image upload service (pre-signed URLs), hashtag service",
+  "sources": [
+    "lectures/lec09/transcript/transcript.md",
+    "lectures/lec09/board/board_log.md",
+    "lectures/lec09/board/diagrams.md"
+  ],
+  "count": 154,
+  "skipped_windows": [],
+  "questions": [
+    {
+      "id": "Q001",
+      "q": "What four items were on the board's agenda for this session, in order?",
+      "answer": "Instagram's year-1 architecture; how CDN works; uploading photos at scale; the hashtag service.",
+      "source": "board S01 00:00:00; transcript 00:00:45",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q002",
+      "q": "Why did almost every company started between 2008 and 2011-12 use a PHP/MySQL stack?",
+      "answer": "Because Facebook saw massive growth on PHP, MySQL (and Memcache); everyone asked for its tech stack and copied it without asking whether they needed it.",
+      "source": "transcript 00:01:12",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q003",
+      "q": "What growth numbers made Instagram's year-1 architecture famous?",
+      "answer": "14 million users in 1 year, with 3 engineers.",
+      "source": "transcript 00:02:13; board S03 00:02:30",
+      "kind": "number",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q004",
+      "q": "Describe the board's diagram of Instagram's year-1 architecture: which boxes are on the top row, which stores are below, and how they connect.",
+      "answer": "Top row: Nginx -> Django -> Celery. Bottom: Cassandra, PostgreSQL, Memcached, Redis and RabbitMQ (a pipe). Lines fan out from Django and from Celery to every one of the five stores. Hosted on AWS; Celery does async processing with RabbitMQ/Redis for message passing.",
+      "source": "board S02 00:01:15; transcript 00:02:57",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q005",
+      "q": "What did the teacher predict about the next dominant tech stack, and what about Golang?",
+      "answer": "A new stack is due (it has been 10-11 years), likely within about five years, maybe based on Rust. Golang was supposed to be it but failed to become the default choice for day-zero architectures. Keep an eye on whichever company sees massive growth.",
+      "source": "transcript 00:04:15",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q006",
+      "q": "Where does a CDN sit, and what is meant by the 'origin'?",
+      "answer": "The CDN sits transparently between the user and the origin. The origin is wherever the content really lives (an S3 bucket, a backend server, anything you want served via the CDN); it needs to be publicly accessible (security policies can be applied).",
+      "source": "transcript 00:06:35; board S05 00:06:00",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q007",
+      "q": "A common belief is that you 'push things to the CDN'. What did the teacher say instead?",
+      "answer": "A CDN is not something you push to (APIs exist but that is not the main purpose). It sits transparently in front of the origin and pulls/caches what the origin returns.",
+      "source": "transcript 00:06:35",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q008",
+      "q": "Why is serving images directly from your backend servers a bad idea?",
+      "answer": "Images are near-static and large (1-10 MB), so they eat your API servers' bandwidth (you want API servers lean and fast); and a server in, say, Singapore serving a 10 MB image to a US user is slow. A CDN caches it near the user.",
+      "source": "transcript 00:09:14",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q009",
+      "q": "What do you configure on a CDN provider to put a site behind it?",
+      "answer": "A mapping from a CDN property (your subdomain, e.g. a.mycdn.net) to an origin (e.g. arpitbhayani.me). You do not configure each path.",
+      "source": "transcript 00:11:10",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q010",
+      "q": "How does a browser's request for a.mycdn.net/... end up at the CDN?",
+      "answer": "The browser just does DNS resolution of the hostname; a.mycdn.net resolves to the CDN provider's IP (DNS configured on Route 53, GoDaddy, Namecheap etc.). The browser has no idea it is a CDN.",
+      "source": "transcript 00:12:17",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q011",
+      "q": "Following the board's text, what happens step by step when a user hits https://a.mycdn.net/system-design/logo.png for the first time?",
+      "answer": "The request goes to the CDN; the CDN finds the origin configured for a.mycdn.net; it has nothing cached for the path, so the CDN itself forwards the request to https://arpitbhayani.me/system-design/logo.png; the origin returns the image; the CDN caches it and returns it.",
+      "source": "board S08 00:10:45; transcript 00:13:30",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q012",
+      "q": "When the CDN forwards a request to the origin, which part of the URL changes and which stays the same?",
+      "answer": "Only the host changes (a.mycdn.net is replaced by the origin arpitbhayani.me); the path (/system-design/logo.png) is kept as is. It is plain string replacement.",
+      "source": "board S09 00:12:00; transcript 00:13:30",
+      "kind": "diagram",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q013",
+      "q": "What happens on the second request for the same CDN path?",
+      "answer": "The CDN already has it cached, so it serves it directly without going to the origin.",
+      "source": "transcript 00:15:27",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q014",
+      "q": "Is a CDN only for images? What can it cache?",
+      "answer": "No. To a CDN the response is just bytes: it caches whatever the origin returns - API/JSON responses, text files, HTML, images, videos, fragments, anything.",
+      "source": "transcript 00:16:18; board S05 00:06:00",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q015",
+      "q": "What does a CDN do for backend cost and load?",
+      "answer": "Cached requests never even reach the backend, saving backend bandwidth and servers (infra cost down); only a few requests hit the origin, when the cache entry expires/is invalidated.",
+      "source": "transcript 00:17:19",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q016",
+      "q": "Can you configure as origin a site you do not own, e.g. facebook.com?",
+      "answer": "Yes. For the CDN the origin is just a URL; anything can be put behind a CDN.",
+      "source": "transcript 00:18:22",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q017",
+      "q": "In the edge.arpitbhayani.me demo, what was configured as the origin, and what URL did the CDN fetch for edge.arpitbhayani.me/img/arpit.png?",
+      "answer": "The origin was arpitbhayani.me/static; the CDN appended the requested path to it and fetched arpitbhayani.me/static/img/arpit.png, cached it and responded.",
+      "source": "transcript 00:20:18; board S12 00:20:15",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q018",
+      "q": "Does a CDN work only for public resources?",
+      "answer": "No; it depends on the CDN. For private content the CDN must interface with e.g. AWS private buckets - you configure AWS keys on the CDN; this is a plugin feature that not every CDN supports for every cloud.",
+      "source": "transcript 00:23:00",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q019",
+      "q": "How does the user's browser learn the CDN URL of an image?",
+      "answer": "The backend sends it - in the HTML page or API response the image URL is the CDN URL; the frontend just renders whatever URL it gets in the IMG tag.",
+      "source": "transcript 00:24:56",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q020",
+      "q": "Can the switch to CDN URLs happen automatically, or must you change the URLs you send?",
+      "answer": "You must do it explicitly: it is the backend's responsibility to send the CDN URL to the frontend; otherwise requests would not go to the CDN. The frontend just renders what it receives.",
+      "source": "transcript 00:27:53",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q021",
+      "q": "If the image at the origin changes, how does the CDN pick up the change?",
+      "answer": "It does not until the TTL expires, unless you call the CDN's API to invalidate that path. Then the next request is a cache miss and it fetches from the origin. You never push the image to the CDN.",
+      "source": "transcript 00:29:08",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q022",
+      "q": "What were the brainstorm parameters for the image upload service, in the board's order?",
+      "answer": "Storage, data flow, separation of concern, privacy, extensibility, optimization.",
+      "source": "board S15 00:30:15; transcript 00:30:17",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q023",
+      "q": "What upload volume requirement was written for the image upload service?",
+      "answer": "5 million photos uploaded per day.",
+      "source": "board S15 00:30:15",
+      "kind": "number",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q024",
+      "q": "Where should the uploaded images be stored, and why?",
+      "answer": "In blob storage such as S3/GCS - because it is dirt cheap.",
+      "source": "transcript 00:31:43; board S16 00:31:30",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q025",
+      "q": "A student proposed a persistent connection and sending the ~5 MB image in chunks. What was the teacher's response?",
+      "answer": "Overkill: 5 MB fits easily in one HTTP request, peanuts for an HTTP server. Keep it simple - it is easy to build complex systems and exponentially difficult to build simple ones.",
+      "source": "transcript 00:33:06",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q026",
+      "q": "Why was uploading the image asynchronously (accept now, copy to S3 later in a job) rejected?",
+      "answer": "Poor user experience: on Instagram the user wants to see the image right away and send it to followers, not have it appear after an hour of async processing.",
+      "source": "transcript 00:34:29",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q027",
+      "q": "If the API server fails in the middle of an upload, is the image lost?",
+      "answer": "Not a problem: the server returns a 5xx and the user retries.",
+      "source": "transcript 00:35:31",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q028",
+      "q": "What is the real problem with uploading images through the API servers?",
+      "answer": "Bandwidth: each network card has a physical limit, so multi-MB uploads eat bandwidth other API calls need, and the API servers' memory requirement grows.",
+      "source": "transcript 00:36:02; board S18 00:35:45",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q029",
+      "q": "On the live upload diagram, what does the long arc arrow from the user to S3/GCS represent, and what text was written next to 'Bandwidth concern'?",
+      "answer": "The upload going directly from the user to S3/GCS, bypassing the ImgUpld (API) box; the text was 'Presigned URL with expiration'.",
+      "source": "board S19 00:37:30; transcript 00:38:46",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q030",
+      "q": "What two things does uploading directly to S3 save compared with going through the upload service?",
+      "answer": "Network bandwidth on the service, and the double data transfer: you pay egress/ingress for every hop, so 5 MB via a server costs 2x transfer, which on AWS is expensive.",
+      "source": "transcript 00:39:25",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q031",
+      "q": "What is a pre-signed URL?",
+      "answer": "A URL that is signed in advance for one specific storage path and carries an expiration; it is short-lived.",
+      "source": "transcript 00:40:24",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q032",
+      "q": "Give the steps of uploading an image with a pre-signed URL, in order.",
+      "answer": "1) The user talks to the image upload service to prepare; 2) the service generates a random image ID and asks S3 to create a pre-signed URL for that path (e.g. s3://img/<random_id>.png) valid for N seconds; 3) the pre-signed URL is sent to the user; 4) the user POSTs the image directly to S3 on that URL.",
+      "source": "transcript 00:41:15; board S21 00:41:00",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q033",
+      "q": "Why not simply make the S3 bucket open for anyone to upload, instead of using pre-signed URLs?",
+      "answer": "Anyone could upload huge amounts of data to your bucket for free, and you would be billed because S3 bills on stored data.",
+      "source": "transcript 00:42:01",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q034",
+      "q": "What validity windows did the teacher give for a pre-signed URL, and what exactly is 'open' during that window?",
+      "answer": "Something like 10, 20, 30 or 60 seconds. It is not the path that is open but the pre-signed URL: anyone with that URL can POST to it during the window.",
+      "source": "transcript 00:43:11",
+      "kind": "number",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q035",
+      "q": "List the benefits of the pre-signed URL design.",
+      "answer": "No bulky upload servers; 1 x 5 MB transfer instead of 5 + 5 MB (saves network cost); less infrastructure to manage; native security on the AWS side via the pre-signed URL.",
+      "source": "transcript 00:44:03",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q036",
+      "q": "In the GitHub demo, what did the first request (POST to github.com .../upload/policies/assets) carry - and what did it not carry?",
+      "answer": "Only metadata: file name, size 183938 bytes (~179 KB), content type image/png, authenticity token (and repository id). No image bytes.",
+      "source": "transcript 00:45:28; board S23 00:46:00",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q037",
+      "q": "On the devtools network list in the GitHub demo, what were the calls in order and what did each do?",
+      "answer": "201 POST github.com assets (prepare: get the pre-signed form); 200 OPTIONS to the S3 host (preflight); 204 POST to the S3 host (the image bytes uploaded directly to S3); 200 PUT github.com 221335625 (confirm back to GitHub, payload only an authenticity token).",
+      "source": "board S23 00:46:00; transcript 00:46:28",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q038",
+      "q": "In the response, where did upload_url point?",
+      "answer": "Not to GitHub but to S3: github-production-user-asset-....s3.amazonaws.com.",
+      "source": "transcript 00:47:48; board S24 00:47:15",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q039",
+      "q": "What was the 'href' in the response and what were the two numbers in its path?",
+      "answer": "The CDN URL user-images.githubusercontent.com/4745789/221335625-....png: 4745789 is the teacher's GitHub user ID and 221335625 is the generated image ID. The real S3 path is not exposed.",
+      "source": "transcript 00:47:48; board S24 00:47:15",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q040",
+      "q": "What fields did the 'form' object in the response contain?",
+      "answer": "key (the S3 path, user_id/image_id...png), acl: public-read, policy (the signed certificate with expiry), X-Amz-Algorithm, X-Amz-Credential, X-Amz-Date, X-Amz-Signature, Content-Type (plus cache-control fields).",
+      "source": "board S24 00:47:15; transcript 00:51:27",
+      "kind": "example",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q041",
+      "q": "How does S3 know a pre-signed URL has expired without storing anything in a database?",
+      "answer": "The expiration is embedded in the signed policy/certificate (signed with the key on the API server), like a JWT; once the time has passed the signature no longer holds. No DB, no timer.",
+      "source": "transcript 00:51:27",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q042",
+      "q": "Where does the actual image upload request go and what does its form body contain?",
+      "answer": "A POST to github-production-user-asset-....s3.amazonaws.com (S3): the key, ACL, policy, Amazon algorithm/credential/date/signature and content type from the response, plus the file with the actual image bytes.",
+      "source": "transcript 00:52:44; board S25 00:53:15",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q043",
+      "q": "What happens the first time someone opens the user-images.githubusercontent.com URL?",
+      "answer": "It goes to the CDN; the CDN does not have the path, so it goes to the origin GitHub configured (the S3 bucket), reads the key, caches it and returns it; later loads come from the CDN.",
+      "source": "transcript 00:54:51; board S26 00:54:57",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q044",
+      "q": "How does submitting the GitHub issue map onto Instagram?",
+      "answer": "Submitting the issue is like publishing the Instagram post: the image is already uploaded to S3, then a separate post call publishes it. Same flow.",
+      "source": "transcript 00:55:57",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q045",
+      "q": "How does content moderation fit the direct-to-S3 upload flow?",
+      "answer": "It is a separate, asynchronous system. If moderation must happen in the request context before publishing, you cannot upload directly to S3; that is why most moderation happens after publishing or almost on the fly.",
+      "source": "transcript 00:57:19",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q046",
+      "q": "Why does the upload response include a CDN URL rather than only the S3 pre-signed URL?",
+      "answer": "So the frontend can render the image: S3 is not public (only the CDN may read it), so the backend image upload service sends the CDN URL, built by string concatenation (replace the bucket with the CDN prefix).",
+      "source": "transcript 00:58:00",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q047",
+      "q": "Why are CDNs faster than reading from S3?",
+      "answer": "Mainly geography: Akamai has about 18 locations in India (3 North, 2 Northeast, 3 West, 4 South) while AWS has only 2-3 data centres, so content is served closer. Also storage: CDNs may use SSDs, S3 does not (too costly for an ocean of data). Benchmark if unsure - and serving from S3 means paying S3 egress.",
+      "source": "transcript 01:00:13",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q048",
+      "q": "How does the CDN read images from a private S3 bucket - does it generate signed URLs?",
+      "answer": "No. The CDN is given AWS access and secret keys and reads via a normal S3 SDK call; CDNs and S3 also have native integrations now.",
+      "source": "transcript 01:02:26",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q049",
+      "q": "For the post table, most people include the image URL. What did the teacher say, and what happened on the board?",
+      "answer": "Storing the URL is suboptimal ('wrong' is too strong): on the board the post list user.id / Caption / url had url circled and then struck through.",
+      "source": "transcript 01:05:37; board S30 01:05:00",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q050",
+      "q": "What rule did the teacher want everyone to always remember about storing data?",
+      "answer": "If something is derivable, don't store the derived value - store the crux information and derive the rest in business logic.",
+      "source": "transcript 01:06:05",
+      "kind": "heuristic",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q051",
+      "q": "What real-world scenario shows why storing the CDN URL in the post table hurts?",
+      "answer": "Changing CDN provider: Instagram probably used Cloudflare; after Facebook acquired it they had to move to Facebook's CDN, which would mean rewriting the image URL of every post in the database.",
+      "source": "transcript 01:06:42",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q052",
+      "q": "Why is storing the S3 URL instead no better?",
+      "answer": "You may have to change cloud provider - e.g. if Amazon raises prices 4x (as Microsoft did with Bing APIs, 4-10x). Don't bind your stored data to a provider.",
+      "source": "transcript 01:07:17",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q053",
+      "q": "On the notes page, what are the posts table's columns and where does each come from?",
+      "answer": "id -> id generator; user_id -> author of the post; image_id -> random photo id from the Image Service; caption.",
+      "source": "board S31 01:06:15",
+      "kind": "diagram",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q054",
+      "q": "How is the photo's S3 path computed from the posts row, per the notes page?",
+      "answer": "S3://insta-images/<user_id>/<random photo id>: the user_id column feeds <user_id> and the image_id column feeds <random photo id>; images are grouped in one folder per user.",
+      "source": "board S31 01:06:15; transcript 01:08:46",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q055",
+      "q": "How do you send 20% of traffic to a second CDN when only IDs are stored?",
+      "answer": "Generate the URL in the API handler: pick a random number; if it falls in 0-0.2 use CDN A's prefix, otherwise CDN B's. Impossible if the URL were stored.",
+      "source": "transcript 01:10:08",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q056",
+      "q": "Where and when is the image URL generated?",
+      "answer": "In the API server when reading the post: read the row, build the (CDN/signed) URL from the columns in the handler, and send it in the JSON response.",
+      "source": "transcript 01:11:18",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q057",
+      "q": "How does storing user_id and image_id make deleting a user's image easy?",
+      "answer": "You can compute the S3 path from them and call S3 delete; with only a URL stored you would have to trim the CDN part and manipulate strings.",
+      "source": "transcript 01:12:23",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q058",
+      "q": "Give the flow once a Post service is added, in order.",
+      "answer": "User talks to the image service to prepare (signed URL on S3); user uploads to S3; after upload completes the user calls the post service, which creates the entry in the posts DB.",
+      "source": "transcript 01:13:20",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q059",
+      "q": "What links a post to its image, and what does separating them buy?",
+      "answer": "The image ID stored in the post. Separation of concerns: you can add video, shorts or reels upload services without changing the concept of a post.",
+      "source": "transcript 01:13:54",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q060",
+      "q": "What extra check can the Posts service perform, per the notes?",
+      "answer": "It can validate that the image_id in the request belongs to the same user.",
+      "source": "board S34 01:13:15",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q061",
+      "q": "In the notes diagram of the photo flow, what feeds Kafka, what consumes it, and what is the partition key?",
+      "answer": "The Posts Service writes to Kafka and MySQL also feeds it via CDC; Kafka feeds Other Services (Search, Notification, Analytics). The partition key answer: user_id.",
+      "source": "board S35 01:13:30; transcript 01:13:20",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q062",
+      "q": "List the 'Overall Flow' steps from the notes, in order.",
+      "answer": "User A uploads the photo via the Image Service; A posts it (creates an entry in the post table); user B visits A's profile with GET /users/A/posts; the response has url dynamically generated by the backend (e.g. https://instacdn.net/A/1234.png); the URLs are rendered in an IMG tag; photos load from instacdn.",
+      "source": "board S36 01:15:30; transcript 01:15:02",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q063",
+      "q": "Once the URL is in the IMG tag, what happens?",
+      "answer": "The browser makes a GET to the CDN URL; the CDN returns it if cached, otherwise reads it from S3, caches it and returns it.",
+      "source": "transcript 01:16:54",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q064",
+      "q": "Are Instagram's private photos really private?",
+      "answer": "No. Photos are served via the CDN, so anyone with the URL can open it until the signature/TTL expires - e.g. a follower copies the URL and sends it to a non-follower.",
+      "source": "transcript 01:19:20; board S38 01:20:57",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q065",
+      "q": "Why does Instagram still serve private photos via the CDN?",
+      "answer": "Serving them through its own servers would shoot costs up; serving via the CDN gives the best user experience.",
+      "source": "transcript 01:19:20",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q066",
+      "q": "What did the Instagram demo show with a photo from a private profile?",
+      "answer": "The photo's URL copied from inspect element opened fine in a private/incognito window - privacy is a myth for anyone holding the URL.",
+      "source": "transcript 01:22:08; board S40 01:22:45",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q067",
+      "q": "What are the parts of the Instagram image URL, and which part makes photos 'private'?",
+      "answer": "The CDN host (fbcdn.net, after migrating from Cloudflare), a path with the image name / random ID, and query parameters such as ig_cache_key, oh (hash), oe (probably expiry), _nc_sid. The query parameters make it private.",
+      "source": "transcript 01:23:21; board S39 01:22:15",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q068",
+      "q": "What happened when the URL's parameters were removed or edited?",
+      "answer": "The CDN returned 'Bad URL timestamp' - it expected the parameter; with the original URL the image loads again.",
+      "source": "transcript 01:25:23; board S40 01:25:15",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q069",
+      "q": "How does a CDN authenticate requests?",
+      "answer": "It has no authentication of its own and is 100% stateless; it does not know who follows whom. It relies on time-bounded certificates passed in the URL.",
+      "source": "transcript 01:24:09",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q070",
+      "q": "Where is the real access check for private accounts?",
+      "answer": "In the API server: if the account is private and you are not allowed, the API simply does not send the photo list/URLs in the JSON response. The CDN has no access to the database.",
+      "source": "transcript 01:25:56",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q071",
+      "q": "How would you build a truly private platform, and why don't large platforms do it?",
+      "answer": "Route every image upload and download through the API servers and check access on every request, no CDN. At Instagram's scale that would need about 50x-100x more servers (they run 100,000+), so they use 'pseudo privacy'.",
+      "source": "transcript 01:27:11",
+      "kind": "tradeoff",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q072",
+      "q": "What are timed signatures and what are they like?",
+      "answer": "Exactly like JWT: the expiration is baked into the URL's metadata and a certificate/signature ensures nobody changed it; the CDN validates the certificate and checks the expiry (e.g. 5 minutes).",
+      "source": "transcript 01:29:31",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q073",
+      "q": "List the notes' steps for how the CDN checks a signed URL, and the closing note.",
+      "answer": "URL rendered in IMG tag -> request goes to CDN -> CDN validates using the attached keys -> if certs are valid and not expired it returns the image -> otherwise it returns bad URL. Note: the URL is short-lived because the certs are short-lived.",
+      "source": "board S41 01:29:30",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q074",
+      "q": "How is extensibility handled when a post is published?",
+      "answer": "Kafka is the glue: a message is pushed to Kafka on publish and consumed by search, analytics, notification, feed etc., each iterating at its own pace.",
+      "source": "transcript 01:31:34",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q075",
+      "q": "For image optimization, what did the teacher say to do instead of building your own service?",
+      "answer": "Reuse what exists: CDNs give image optimization out of the box; real-world systems reuse things rather than reinventing the wheel.",
+      "source": "transcript 01:32:36; board S43 01:32:45",
+      "kind": "heuristic",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q076",
+      "q": "Why is image optimization needed? Give the teacher's example.",
+      "answer": "Users differ in bandwidth, devices and processing power. Sachin Tendulkar uploads a 50 MB photo; a user in a tier-3 city on Jio burns a day's data scrolling 10 photos. So prepare different resolutions.",
+      "source": "transcript 01:33:49; board S43 01:32:45",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q077",
+      "q": "Who adds the w=360 parameter to the image URL, and why that component?",
+      "answer": "The frontend: it knows the screen dimensions, so it appends w=360 (width in pixels) to the URL from the backend before putting it in the IMG tag.",
+      "source": "transcript 01:34:52; board S44 01:34:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q078",
+      "q": "What does the CDN do for a request with w=360?",
+      "answer": "Check if the processed (w=360) version is cached -> else check if the original is cached -> else fetch the original from the origin; then resize to 360 px on the CDN, cache it and serve it. Next time the processed path is served directly.",
+      "source": "transcript 01:35:56; board S44 01:34:15",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q079",
+      "q": "Besides resizing, what other image processing can CDNs offer?",
+      "answer": "Colouring, grayscaling, transpose, rotation; some even recognition.",
+      "source": "transcript 01:36:44",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q080",
+      "q": "Could a proprietary image format that only the Instagram app can open make photos private?",
+      "answer": "No: the decoder must ship in the app, and once an APK/jar is out anyone can decompile and reverse-engineer it. DRM is a different thing.",
+      "source": "transcript 01:40:36",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q081",
+      "q": "Images uploaded but never posted waste storage. What then?",
+      "answer": "Storage is dirt cheap. If it matters, find images in the image DB with no post entry and clean them up; if that is hard, leave them.",
+      "source": "transcript 01:44:07",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q082",
+      "q": "Why is Kafka used when a post is published?",
+      "answer": "To tell the other services that a new post was published.",
+      "source": "transcript 01:44:39",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q083",
+      "q": "How does the image service know which CDN node is nearest to the user?",
+      "answer": "It doesn't - it is CDN-internal. The user does a DNS resolution and the resolver returns the nearest CDN IP (BGP); providers don't disclose the details (Cloudflare has a blog).",
+      "source": "transcript 01:44:57",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q084",
+      "q": "Do we need to know where S3 physically stores an image ID?",
+      "answer": "No; S3 (like the CDN) is a black box used through the AWS SDK - that is the API contract.",
+      "source": "transcript 01:46:56",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q085",
+      "q": "What does the hashtag page show, per the board mock?",
+      "answer": "The hashtag (#sunset), the count of photos (1.2m photos), and the top 100 photos as a grid.",
+      "source": "transcript 01:54:59; board S47 01:47:30",
+      "kind": "diagram",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q086",
+      "q": "What assumptions frame the hashtag service problem?",
+      "answer": "Millions of hashtags; a data science service (a black box) notifies us whenever it generates the top 100 photos for a hashtag; the goal is the best user experience when a hashtag is clicked.",
+      "source": "transcript 01:54:59; board S47 01:47:30",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q087",
+      "q": "What were the brainstorm topics for the hashtag service on the board?",
+      "answer": "Storage; large-volume counting; inter-service communication (posts svc to HashTag svc); super-fast response times.",
+      "source": "board S47 01:47:30; transcript 01:56:20",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q088",
+      "q": "Why is putting hashtag data in the photos table off the table?",
+      "answer": "You need to render the hashtag page, not photos; and there is no hashtag column - hashtags are part of the caption.",
+      "source": "transcript 01:57:20",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q089",
+      "q": "What document per hashtag was written on the board?",
+      "answer": "{ tag: sunset, total_photos: 1.2m, top_100: [ ... ] } stored in the hashtag DB.",
+      "source": "board S49 01:57:45; transcript 01:58:03",
+      "kind": "diagram",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q090",
+      "q": "What goes into the top_100 array - photo URLs?",
+      "answer": "No URLs: post IDs (post_id1, post_id2, ...), or alternatively the full post objects.",
+      "source": "transcript 01:59:19",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q091",
+      "q": "Compare storing post IDs vs full post objects in top_100, as noted on the board.",
+      "answer": "Post IDs: latest data (always from the source of truth), less space, but must talk to the post DB on every render. Full objects (denormalized): large space, fast retrieval from one document, but a consistency problem.",
+      "source": "transcript 02:03:02; board S53 02:03:15",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q092",
+      "q": "Besides less space, what other advantage of storing only IDs did the teacher name?",
+      "answer": "It is lightweight and easy to cache.",
+      "source": "transcript 02:03:02",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q093",
+      "q": "Why is bloating the document with full posts acceptable?",
+      "answer": "There are only 100 entries, so the extra space is fine in exchange for one-read fast retrieval.",
+      "source": "transcript 02:04:42",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q094",
+      "q": "What consistency problem do denormalized posts cause, and how can product choices sidestep it?",
+      "answer": "When a post changes (e.g. likes added) every copy must be updated. If the page shows only photos (no like/comment counts) and tapping opens the post page, consistency stops mattering. The choice depends on the guarantees/UX you provide.",
+      "source": "transcript 02:05:27",
+      "kind": "tradeoff",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q095",
+      "q": "A student pointed out Instagram shows all photos for a hashtag. What was the response?",
+      "answer": "Don't add new requirements: we are doing top 100; a different requirement needs a different design. Stick to the constraints.",
+      "source": "transcript 02:02:51",
+      "kind": "heuristic",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q096",
+      "q": "How should the photo count per hashtag be updated?",
+      "answer": "Not in real time: post service pushes to Kafka; a consumer extracts hashtags, holds posts in memory for a while (e.g. a batch of 1000) and commits aggregated counts (count += n) to the DB.",
+      "source": "transcript 02:07:03",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q097",
+      "q": "Why can't the Kafka topic be partitioned by hashtag, and what is it partitioned by?",
+      "answer": "A post has several hashtags; and it is the same post-published Kafka other services use - a second Kafka written by the post service would create a distributed consistency problem. So it is partitioned by user ID (or post ID).",
+      "source": "transcript 02:08:29",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q098",
+      "q": "Why does user_id partitioning break batching of hashtag counts?",
+      "answer": "Batching needs all posts of a hashtag on one server; with user_id partitioning three #sunset posts can land on three servers, so nothing batches and you write one at a time.",
+      "source": "transcript 02:10:05",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q099",
+      "q": "Why not use a Redis Pub/Sub channel per hashtag?",
+      "answer": "Millions of hashtags -> millions of channels: massive, expensive infra; and Redis Pub/Sub is real-time with no persistence, so if Redis/a subscriber goes down data is lost.",
+      "source": "transcript 02:11:13",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q100",
+      "q": "Describe the adapter that fixes the partitioning problem.",
+      "answer": "Hashtag extractor workers consume the user_id-partitioned topic, read the caption, extract hashtags, and write one event per hashtag to a second Kafka topic partitioned by hashtag; counting servers consume it, batch, and do count += n on the DB.",
+      "source": "transcript 02:13:58",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q101",
+      "q": "What example post was written below the posts box and what does it become?",
+      "answer": "p1 with #sunset, #sun, #nature; the extractor turns it into three events, one per hashtag.",
+      "source": "board S57 02:12:15; transcript 02:11:54",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q102",
+      "q": "Does partitioning by hashtag mean one partition per hashtag?",
+      "answer": "No - hash-based partitioning: the hashtag goes through a hash function to pick a partition; e.g. 3 partitions can hold millions of hashtags.",
+      "source": "transcript 02:14:42",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q103",
+      "q": "Why batch writes for large-volume counting, and how much faster is a bulk insert?",
+      "answer": "Without batching you do count++ every time: many micro-writes choke the DB and force over-provisioning. A bulk insert of 100 rows is about 100x faster than 100 single inserts.",
+      "source": "transcript 02:15:50",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q104",
+      "q": "Why can't the original post topic just be re-partitioned by hashtag?",
+      "answer": "It is the standard topic everything consumes (search, analytics, notifications...), so it cannot change; hence an adapter.",
+      "source": "transcript 02:16:44",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q105",
+      "q": "What accuracy is given up in the counting design, and why is it acceptable?",
+      "answer": "If nodes go down some posts may be recounted. Fine: the UI shows an approximate count (1.2m) and renders only 100, nobody checks; strong consistency can be relaxed at scale.",
+      "source": "transcript 02:17:20",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q106",
+      "q": "What does 'super-fast response time' require of the hashtag page data?",
+      "answer": "Everything in one document, so a single read renders the page; no calls to separate count/top-100/data-science services on the critical path - minimal network I/O.",
+      "source": "transcript 02:18:17",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q107",
+      "q": "Do we compute the top 100 or fetch it from data science on each request?",
+      "answer": "Neither: data science computes it (black box); we store a copy in our own DB, we do not call them per request.",
+      "source": "transcript 02:19:52",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q108",
+      "q": "How does the data science service notify us of a new top 100, and how does it land in our DB?",
+      "answer": "It pushes an event to Kafka (their Kafka); a simple processor (workers - not a whole new 'service') consumes the top-100 post IDs and updates our hashtag DB.",
+      "source": "transcript 02:21:54; board S60 02:21:30",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q109",
+      "q": "Why not call the data science service synchronously when a hashtag page is read?",
+      "answer": "Our uptime would depend on theirs (synchronous dependency). Model it asynchronously; Kafka is the glue (the idea behind CQRS).",
+      "source": "transcript 02:22:29",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q110",
+      "q": "Describe the final hashtag service architecture on the notes.",
+      "answer": "Write: Post Svc -> Kafka -> HashTag Extraction -> POST_HASHTAG topic -> Counting Servers -> DB. DS: Popularity Svc -> 'per hashtag popular photos' -> Their Kafka (not high throughput) -> Workers -> same DB. Read: user <-> GET /hashtag/<tag> <-> CDN -> HashTag API <-> Partitioned DB, with a Cache off the API.",
+      "source": "board S61 02:23:12; transcript 02:23:30",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q111",
+      "q": "What is the second topic called and can it live in the same Kafka?",
+      "answer": "POST_HASHTAG, partitioned by hashtag; it can be the same Kafka cluster, another topic - the point is separation of concerns.",
+      "source": "transcript 02:23:30",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q112",
+      "q": "How is the hashtag API's read made fast, CDN or cache?",
+      "answer": "Put the endpoint behind a CDN (it caches the JSON response) or add a cache - either one, the teacher picks CDN since the response changes rarely. Use a TTL and/or explicit invalidation when top 100 or count changes.",
+      "source": "transcript 02:24:49",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q113",
+      "q": "What were the key takeaways listed for the hashtag design, in order?",
+      "answer": "Kafka as a glue; adapter pattern; effective batching and counting; read and write path optimizations.",
+      "source": "board S61 02:23:12; transcript 02:34:37",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q114",
+      "q": "What approach do senior engineers use to design any system, per the teacher?",
+      "answer": "Identify the read path and the write path and tackle/optimize each separately, one at a time; read path is usually solved with cache/CDN.",
+      "source": "transcript 02:27:28",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q115",
+      "q": "What do you check along the write path?",
+      "answer": "Post service -> Kafka is one call (two would need distributed transactions); minimal work per step; number of workers = number of partitions; atomic/partial updates on the DB; DB provisioned enough and consumed at a decent pace.",
+      "source": "transcript 02:29:21; board S65 02:33:45",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q116",
+      "q": "On the read/write path notes, which DBs label the partitioned store, and what access pattern is written?",
+      "answer": "Partitioned DB: MySQL, MongoDB, DDB; 'Key value based access - for a key (hashtag) get the value (details)'. Requirement from storage: partial updates.",
+      "source": "board S62 02:25:03",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q117",
+      "q": "How do you 'blow up' the read path to check it?",
+      "answer": "Imagine huge load: DB spikes -> partition, add replicas; still not enough -> add a cache; then a CDN in front.",
+      "source": "transcript 02:31:35",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q118",
+      "q": "Walk through the 8-hashtag example on the write path.",
+      "answer": "A post with 8 hashtags -> 8 writes to the DB: micro-writes, not optimal; so batch, which needs all events of a hashtag on one server -> extract and re-ingest into Kafka partitioned by hashtag.",
+      "source": "transcript 02:32:52; board S64 02:32:57",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q119",
+      "q": "What did the 'challenge' notes say and what adapter steps are listed?",
+      "answer": "POST_PUBLISH is partitioned by post_id or user_id, but batching/counting needs an event per hashtag. Adapter: reads POST_PUBLISH events, extracts all hashtags, creates n events on POST_HASHTAG partitioned by hashtag; #consumers = #partitions; batch and partially update per hashtag.",
+      "source": "board S64 02:29:24; board S65 02:33:45",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q120",
+      "q": "Were the read and write sides separated into different services because they are read and write paths?",
+      "answer": "No - they were separated because they have different responsibilities: one is a web server (API), the others are asynchronous workers.",
+      "source": "transcript 02:37:15",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q121",
+      "q": "How many Kafka partitions should you use?",
+      "answer": "Pick n, measure throughput, increase partitions if it is too low.",
+      "source": "transcript 02:38:28",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q122",
+      "q": "A partition carries many different hashtags. How does a counting server count them?",
+      "answer": "Each message is a <hashtag, post_id> tuple; keep an in-memory hash map hashtag -> int, count++ per message, and write to the DB once the batch is big enough.",
+      "source": "transcript 02:39:37; board S67 02:39:00",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q123",
+      "q": "If the popularity service needs hashtag-level data, must it build its own extractor?",
+      "answer": "No - it can consume the POST_HASHTAG Kafka topic too.",
+      "source": "transcript 02:42:24",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q124",
+      "q": "Redis Pub/Sub was fine for chat. Why not here?",
+      "answer": "Chat needed real-time low-latency push. Here: no persistence (an offline counter misses messages); push-based delivery bombards a server on a hot hashtag, whereas Kafka consumers pull at their own pace and can batch; a slow DB would make push worse.",
+      "source": "transcript 02:44:19",
+      "kind": "tradeoff",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q125",
+      "q": "Why not have the popularity service call our API via webhooks?",
+      "answer": "Every choice is a trade-off: the data science team must write/manage the calls, and if our API is down the update is lost. It doesn't need to be synchronous, so decouple asynchronously via Kafka.",
+      "source": "transcript 02:47:20",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q126",
+      "q": "How do you keep concurrent count updates correct?",
+      "answer": "Choose a DB that offers atomic updates, e.g. MySQL or DynamoDB.",
+      "source": "transcript 02:49:21",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q127",
+      "q": "How is the top_100 array updated?",
+      "answer": "Replace the whole array with the 100 the data science team sends.",
+      "source": "transcript 02:50:03",
+      "kind": "qa",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q128",
+      "q": "Partitioning by user ID - does Kafka need one partition per user?",
+      "answer": "No: one topic with a fixed number of partitions, users hashed onto them; e.g. 1000 partitions for 1 million users, each partition handling about 1000 users.",
+      "source": "transcript 02:50:55",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q129",
+      "q": "Kafka is a cluster with replication - does that mean it never goes down? What availability does it give?",
+      "answer": "It can go down: about 99.9% availability, not four or five nines. Writes attempted while it is down are lost unless you handle them.",
+      "source": "transcript 02:52:05",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q130",
+      "q": "What three ways handle writes when Kafka is down?",
+      "answer": "Buffer in memory until it is back; accept losing the data; or write to a dead letter queue and re-ingest asynchronously.",
+      "source": "transcript 02:54:52; board S69 02:53:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q131",
+      "q": "How do SLAs map to the Kafka-based counting design?",
+      "answer": "The SLA is about how quickly messages are consumed. Parallelism is proportional to the number of partitions: measure throughput; if it does not meet the SLA, increase partitions and workers (online repartitioning or with downtime - have a scaling strategy).",
+      "source": "transcript 02:52:56",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q132",
+      "q": "What example did the teacher give of a system that must never lose data or be down?",
+      "answer": "Uber's SOS emergency button: if you press it during a ride and the service is down or the event lost, that is unacceptable.",
+      "source": "transcript 02:55:26",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q133",
+      "q": "A student suggested leaderless/multi-master databases to avoid leader-failover downtime. What was the response?",
+      "answer": "Failover of a few seconds is usually something you bear - very few systems give 100% uptime. Leaderless/multi-master replication brings its own complexity (conflict resolution): you get some, you lose some.",
+      "source": "transcript 02:56:23",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q134",
+      "q": "How long are messages kept on Kafka, and what is the horizon?",
+      "answer": "Forever unless a deletion policy (e.g. delete >30 days old). The horizon is where the last deletion ran - you can't read beyond it.",
+      "source": "transcript 02:57:24; board S70 02:57:00",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q135",
+      "q": "What does it mean for a Kafka consumer to commit?",
+      "answer": "After reading some messages the consumer tells Kafka to mark them committed for this consumer (a checkpoint). If it crashes, it can resume from the last commit, reprocessing the messages read after that commit.",
+      "source": "transcript 02:58:51",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q136",
+      "q": "What are the three positions a Kafka consumer can start reading from, and when is each used?",
+      "answer": "Horizon (oldest retained message) - for a brand-new consumer, e.g. a search service added later; last checkpoint/commit - for an existing consumer that crashed and resumes (the most common case); current/latest message - when losing the data in between is acceptable.",
+      "source": "transcript 03:00:32; board S70 02:57:00",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q137",
+      "q": "Does the retention period (e.g. six months vs 30 days) matter for a Kafka cluster?",
+      "answer": "Yes, a big difference: no deletion policy means data forever and large storage. A low-throughput system can afford long retention; at high volume and throughput a long retention blows up the disks, so you set a deletion policy.",
+      "source": "transcript 03:01:38",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q138",
+      "q": "How can you keep a copy of historical Kafka events while still deleting them from Kafka?",
+      "answer": "Have a consumer (or a Kafka plugin) archive the old events to S3/GCS/blob storage before the deletion runs.",
+      "source": "transcript 03:02:18",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q139",
+      "q": "To serve more requests, should you add servers or optimize the service?",
+      "answer": "First it is a management/engineering-cost decision: adding a couple of machines on AWS is usually much cheaper than engineers' salaries spent optimizing. Optimize only if the company decides to keep the server count fixed.",
+      "source": "transcript 03:04:57",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q140",
+      "q": "How do you find the bottleneck that limits a server to, say, 400 requests per second, and where do you run that tool?",
+      "answer": "Application-level profiling, which records how long every function call takes in a request. It is costly (money, data, response time), so you enable it only on a canary - e.g. split production about 90/10 behind the load balancer and profile the 10% instances.",
+      "source": "transcript 03:06:00",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q141",
+      "q": "Which profiling tools did the teacher name?",
+      "answer": "New Relic and Datadog (market leaders), Nagios (open source), and cProfile for Python (text output; Instagram uses it in production on some servers).",
+      "source": "transcript 03:08:12",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q142",
+      "q": "Should you add CPU or RAM to handle more requests on a server?",
+      "answer": "Understand the workload: of the four resources - CPU, memory, network, disk - see which is used most and add that. E.g. CPU-heavy encryption/decryption will not benefit from more RAM.",
+      "source": "transcript 03:09:43",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q143",
+      "q": "For a Go server running many goroutines, do you add CPU or RAM first?",
+      "answer": "CPU first, so more goroutines can be scheduled; then RAM if each goroutine holds data (e.g. 20 MB each), because more concurrent goroutines need that extra memory.",
+      "source": "transcript 03:10:47",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q144",
+      "q": "Should old/garbage hashtag documents be deleted, and how big is each document?",
+      "answer": "Typically no - a deleted hashtag could regain popularity and its data would be lost. Size: 32-byte tag string + 4-byte count + 100 x 4-byte post IDs = 436 bytes, round to 512 bytes (half a KB): 2 docs = 1 KB, 2000 = 1 MB, a billion about half a GB.",
+      "source": "transcript 03:12:21",
+      "kind": "number",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q145",
+      "q": "What lesson did the teacher draw from the hashtag size calculation?",
+      "answer": "Do the calculation as engineers: the jumps from thousand to million to billion are very significant even though we say them casually.",
+      "source": "transcript 03:13:49",
+      "kind": "heuristic",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q146",
+      "q": "What if the page had to show the top 1 million photos instead of 100?",
+      "answer": "That scales the requirement 1000x. Don't store a million in the document: keep only the first page there and put the rest in a paginated store, since nobody scrolls that far.",
+      "source": "transcript 03:15:57",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q147",
+      "q": "Is a persistent Kafka needed just for counting, or would in-memory queues do?",
+      "answer": "Kafka is not only for persistence - other services can consume the same events. In-memory distributed queues or RabbitMQ would also be fine if losing a minute of data is acceptable; either way you are using a partitioned message broker.",
+      "source": "transcript 03:16:58",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q148",
+      "q": "Kafka stores data - can it be used as the source of truth instead of a database?",
+      "answer": "No: access patterns need transactional properties and lookups (get post by ID), which Kafka does not give. Kafka is always a message broker; you could, but you should not.",
+      "source": "transcript 03:18:23",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q149",
+      "q": "Give a use case where Kafka is the first point of entry rather than the database.",
+      "answer": "High-volume, high-ingestion analytics such as YouTube watch-time events (or Google Analytics): the API server pushes each event to Kafka, then it is aggregated, processed and stored in specialized databases; writing directly to a DB would make it cry.",
+      "source": "transcript 03:18:45",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q150",
+      "q": "How does the analytics pattern differ from the usual order, and what did the teacher use in his own analytics systems?",
+      "answer": "Usually you store in the database and then push an event to Kafka; in analytics you accept writes into the stream first and decide later. He ingested into Kinesis rather than Kafka.",
+      "source": "transcript 03:20:36",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q151",
+      "q": "Does Kafka provide its own dead letter queue?",
+      "answer": "No. Use another queue such as RabbitMQ or SQS (SQS fits well): if the write to Kafka fails, write to that queue, assuming it is up.",
+      "source": "transcript 03:21:44",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q152",
+      "q": "What alternative to a separate dead letter queue was discussed?",
+      "answer": "Write the failed event to your database and process it later - the transactional outbox pattern.",
+      "source": "transcript 03:22:09",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q153",
+      "q": "Could MapReduce/Spark replace the counting servers?",
+      "answer": "Yes. The counting servers are just stateless consumers; a Spark cluster (it has Kafka connectors) could read, count, batch and write to the DB. The core idea is distributed computing; he kept the generic name 'counting servers' to avoid tying it to one tool (Kafka, Kinesis, Flume, Flink...).",
+      "source": "transcript 03:22:38",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q154",
+      "q": "What resource did the teacher suggest for starting data engineering?",
+      "answer": "Start with Spark using the O'Reilly Spark book; learn internals after you are comfortable; then Hadoop MapReduce, Flume, Flink. And implement things - theory alone is not enough.",
+      "source": "transcript 03:24:35",
+      "kind": "qa",
+      "difficulty": "easy"
+    }
+  ]
+}

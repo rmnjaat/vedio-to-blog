@@ -1,0 +1,111 @@
+# Storyboard — clip l09-hashtag-repartition   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l09-hashtag-repartition
+title: Re-keyed by hashtag
+lecture: 7
+section: "8.3 The adapter: re-partition by hashtag"
+status: reviewed
+why_motion: >
+  Redistribution. The same post events first sit scattered by user (three #sunset posts on three partitions, so three
+  counting servers each write one count++); then an extractor turns each post into one message per hashtag and the
+  messages are re-keyed, so every #sunset converges on one partition and one server writes count += 3. Watching the
+  three #sunset messages travel from three places into one place is the lesson; two stills hide which message went where.
+static_twin: "Fig 8·b (frame 0: user_id-keyed topic, three counting servers, hashtag db) and Fig 8·c (the poster: the adapter); board D-08 (b_022245.jpg), D-11 (b_023400.jpg)"
+ledger:
+  taught: [L-0242, L-0243, L-0244, L-0247, L-0249, L-0250, L-0251, L-0267, L-0269, L-0270]
+  context_only: [L-0240, L-0254, L-0297]
+fidelity_notes:
+  - "Post 31 with #sunset #sun #nature is the class's example (L-0247; board 'p1: #sunset #sun #nature'). Posts p40 (#sunset) and p52 (#sunset #sun) are illustrative, so that #sunset arrives from three users."
+  - "Three partitions per topic follow the class's example (L-0270: 'e.g. three partitions, three servers'). Which partition each hashtag hashes to (#sunset → 1st, #sun → 2nd, #nature → 3rd) is illustrative; `hash(tag)` names no partitioner. The clip never shows one partition per hashtag as a rule (L-0251): three partitions hold three tags here only because the example has three tags."
+  - "Naive beat: each server holds exactly one #sunset post, so 'three single writes' is literally true even though a server may sum within its own batch (L-0243 inline clarification: per-server batching still helps; re-keying makes the aggregation complete). The clip does not claim batching is impossible without re-keying."
+  - "One extractor per partition of the post topic (board D-11 '#consumers = #partitions'; L-0250 'multiple hashtag-extractor consumers')."
+  - "Messages in the hashtag topic are drawn as a tag chip; the post id of each (hashtag, post) tuple (L-0269) is written beside the chip while it waits at the extractor and is left off once it lands, for space. The page's Fig 8·d shows the full tuple."
+  - "The counting servers are the same three boxes before and after: first fed straight from the post topic, then from POST_HASHTAG. The direct feed is removed when the new feed is drawn in the same place; the three red count++ writes are replaced in place by the green += n writes. That a server keeps a hash map (L-0297) is left to §8.4 / Fig 8·d."
+  - "Search and notifications appear only as a faint 'also: search, notifications' on the post topic (L-0254 context: why the post topic is not re-keyed)."
+  - "Not in the clip: adding partitions later (A-HSD-03), over-counting on a crash (L-0255), Redis Pub/Sub (L-0245/L-0246), the word 'adapter' as the GoF pattern (L-0254 inline clarification: it is the class's label; frameworks call it re-keying)."
+  - "No numbers other than the counts of the example (3, 2, 1). No timing on screen."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1128, note: "header rows at y 44 / 84; everything under them translated down 28 px (C-07) so the header clears the post topic's outline; caption band at 1010"}
+duration_frames: 1194
+start_frame_equals: "Fig 8·b: pipe `post_publish` (key: user_id) with three partition lanes holding p31 #sunset #sun #nature, p40 #sunset, p52 #sunset #sun; three boxes counter 1/2/3 pulling from it (dashed); `hashtag db` cylinder; faint `also: search, notifications`."
+poster_frame: 1193
+reduced_motion_stills: [100, 295, 515, 890, 1075, 1193]
+glyphs:
+  post_topic: {shape: pipe with 3 partition lanes (wide) / 3 partition columns (phone), label: "post_publish (mono) + key: user_id (hand)", pos_wide: [36, 62, 568, 168]}
+  post_cards: {shape: chamfered card, label: "p31 (mono) #sunset #sun #nature (hand)", note: "one per partition"}
+  extractors: {shape: server-box ×3, label: "extractor (mono)", pos_wide: "x 650–880 at the three post lanes", appears: B2}
+  staged_messages: {shape: chamfered chip, label: "#sunset (hand) + p31 (mono ink2)", pos_wide: "x 910– beside the extractors", colour: blue}
+  hashtag_topic: {shape: pipe with 3 lanes / columns, label: "POST_HASHTAG (mono) + key: hashtag (hand) + hash(tag) gate (mono)", pos_wide: [36, 400, 568, 168], appears: B3}
+  counters: {shape: server-box ×3, label: "counter 1/2/3 (mono)", pos_wide: "x 650–880 at the three POST_HASHTAG lanes"}
+  db: {shape: cylinder-solid, label: "hashtag db (mono)", pos_wide: [1054, 390, 112, 180]}
+  arrows:
+    - {route: "counter k ⇢ post_publish (naive feed, a bus on wide, straight on phone)", dashed, head: post_publish, removed: "B3 start, replaced by the POST_HASHTAG feed"}
+    - {route: "counter k → hashtag db", solid, head: db, colour: "red thin in B1 (count++), green heavy in B4 (+= n)"}
+    - {route: "extractor k ⇢ post_publish", dashed, head: post_publish, appears: B2}
+    - {route: "extractor k ⇢ staged message", dashed blue thin, head: none, appears: "on emission, removed when the message leaves"}
+    - {route: "counter k ⇢ POST_HASHTAG", dashed, head: POST_HASHTAG, appears: B3}
+phone_layout: "portrait column: header + faint consumers; post_publish with partitions as three columns (vertical post cards); three extractors under the columns, their messages stacked under each; a corridor row; POST_HASHTAG with three columns filling from the bottom; `POST_HASHTAG` / `key: hashtag  hash(tag)` on two rows between the topic and the counters (between the first two pull lines); three counters in a row; hashtag db under them (writes L-shaped into its sides, straight into its top)."
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Three posts, three users. The topic is keyed by user_id."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0242]
+  - id: B1
+    step: 1
+    from: 105
+    to: 300
+    caption: "#sunset sits on three servers: three single writes."
+    events:
+      - {at: 112, dur: 8, what: "card p31 re-inked blue", colour: blue}
+      - {at: 114, dur: 24, what: "packet rides the feed p0 → counter 1 (pen re-inks the feed blue)", colour: blue}
+      - {at: 140, dur: 18, what: "red write counter 1 → db, mono count++", colour: red}
+      - {at: 166, dur: 46, what: "same for p40 → counter 2", colour: red}
+      - {at: 220, dur: 46, what: "same for p52 → counter 3", colour: red}
+    ledger: [L-0242, L-0243, L-0244]
+  - id: B2
+    step: 2
+    from: 300
+    to: 520
+    caption: "The extractor writes one message per hashtag. Post 31 becomes three."
+    events:
+      - {at: 300, dur: 12, what: "red writes and labels ghost to 38%; the direct feed fades"}
+      - {at: 312, dur: 24, what: "pen draws three extractor boxes + their pulls on post_publish; mono extractor written"}
+      - {at: 346, dur: 16, what: "card p31 re-inked blue, packet post_publish → extractor 1", colour: blue}
+      - {at: 366, dur: 66, what: "three messages written beside extractor 1, one at a time: #sunset p31, #sun p31, #nature p31", colour: blue}
+    ledger: [L-0247, L-0249, L-0267]
+  - id: B3
+    step: 3
+    from: 520
+    to: 896
+    caption: "A second topic, keyed by hashtag: all #sunset on one partition."
+    events:
+      - {at: 520, dur: 10, what: "the direct feed is gone; pen draws POST_HASHTAG; header, key: hashtag and hash(tag) written; counters' pulls drawn", note: "feed removed at 300 already"}
+      - {at: 580, dur: 26, what: "#nature p31 moves through hash(tag) into the 3rd lane", colour: blue}
+      - {at: 612, dur: 26, what: "#sun p31 → 2nd lane", colour: blue}
+      - {at: 644, dur: 26, what: "#sunset p31 → 1st lane", colour: blue}
+      - {at: 678, dur: 64, what: "extractor 2 reads p40, writes #sunset p40; it moves → 1st lane", colour: blue}
+      - {at: 750, dur: 114, what: "extractor 3 reads p52, writes #sunset p52 and #sun p52; #sun → 2nd lane, then #sunset → 1st lane (now three #sunset)", colour: blue}
+    ledger: [L-0243, L-0250, L-0251, L-0269]
+  - id: B4
+    step: 4
+    from: 896
+    to: 1080
+    caption: "One server, one batch: count += 3 instead of three count++."
+    events:
+      - {at: 906, dur: 12, what: "counter 1 reads its lane: the three #sunset chips re-ink blue", colour: blue}
+      - {at: 920, dur: 20, what: "heavy green write counter 1 → db replaces the ghost red one; mono += 3", colour: green}
+      - {at: 958, dur: 34, what: "counter 2: #sun ×2, green += 2", colour: green}
+      - {at: 1010, dur: 34, what: "counter 3: #nature, green += 1", colour: green}
+    ledger: [L-0243, L-0250, L-0270]
+  - id: B5
+    from: 1080
+    to: 1194
+    caption: "Same posts, re-keyed. That's the adapter."
+    on_screen: [end state = poster]
+    events:
+      - {at: 1088, dur: 30, what: "hand note written between the topics: adapter: re-key, then batch"}
+    motion: "one write, then a 2.5 s hold"
+    ledger: [L-0249, L-0250]

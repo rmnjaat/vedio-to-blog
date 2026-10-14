@@ -271,3 +271,166 @@ ERROR: stage qa failed
 [22:23:17] qa_critic attempt 1: OK (476s)
 calls: 3 ok, 0 failed
 [22:23:17] lec09: qa: blind reader, round 1
+[22:29:31] qa_blind1 attempt 1: OK (373s)
+calls: 1 ok, 0 failed
+[22:31:31] qa_grade1 attempt 1: OK (119s)
+calls: 1 ok, 0 failed
+[22:31:31] lec09: qa: round 1 grade: OK score 96.8% (149/154 correct, 4 partial, 0 wrong, 1 missing; half-credit 98.1%)
+[22:31:31] lec09: qa: content fixer
+[22:40:38] qa_fix_content attempt 1: OK (437s)
+calls: 1 ok, 0 failed
+[22:40:38] lec09: qa: design fixer (7 issues; holds the shared-site lock)
+[23:25:28] qa_fix_design attempt 1: OK (2599s)
+calls: 1 ok, 0 failed
+[23:25:28] lec09: qa: animation fixer (2 issues)
+[23:40:47] qa_fix_animation attempt 1: OK (744s)
+calls: 1 ok, 0 failed
+wrote public/clips/l09-cdn-miss-hit/poster-paper.png
+wrote public/clips/l09-cdn-miss-hit/poster-blackboard.png
+wrote public/clips/l09-cdn-miss-hit/poster-paper-phone.png
+wrote public/clips/l09-cdn-miss-hit/poster-blackboard-phone.png
+wrote public/clips/l09-presigned-upload/poster-paper.png
+wrote public/clips/l09-presigned-upload/poster-blackboard.png
+wrote public/clips/l09-presigned-upload/poster-paper-phone.png
+wrote public/clips/l09-presigned-upload/poster-blackboard-phone.png
+wrote public/clips/l09-signed-url-expiry/poster-paper.png
+wrote public/clips/l09-signed-url-expiry/poster-blackboard.png
+wrote public/clips/l09-signed-url-expiry/poster-paper-phone.png
+wrote public/clips/l09-signed-url-expiry/poster-blackboard-phone.png
+wrote public/clips/l09-hashtag-repartition/poster-paper.png
+wrote public/clips/l09-hashtag-repartition/poster-blackboard.png
+wrote public/clips/l09-hashtag-repartition/poster-paper-phone.png
+wrote public/clips/l09-hashtag-repartition/poster-blackboard-phone.png
+posters written to site/public/clips/; rebuild so the pages pick them up
+[23:43:06] lec09: validation qa_gates: GATES PASS
+wrote lectures/lec09/qa/page_text_r2.md: 12 pages, 39689 words
+pages: overview, 1-instagram-year-one, 2-cdn, 3-uploading-a-photo, 4-storing-the-post, 5-privacy, 6-extend-and-optimize, 7-hashtag-storage, 8-counting-hashtags, 9-hashtag-design, 10-running-the-pipeline, 11-what-to-keep
+FAIL [390-dark] console error: Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+1 failure(s)
+[23:49:51] lec09: qa: round 2 (blind reader, faithfulness re-check, critic final look)
+[23:51:27] qa_faith_verify attempt 1: OK (95s)
+[23:54:30] qa_critic_final attempt 1: OK (279s)
+[23:54:36] qa_blind2 attempt 1: OK (285s)
+calls: 3 ok, 0 failed
+[23:56:03] qa_grade2 attempt 1: OK (86s)
+calls: 1 ok, 0 failed
+# Lecture 07 (lec09) QA report - 2026-10-14 23:56:03
+
+Result: **FAIL** - 1 gate(s) failed after one fix round; see below
+
+| gate | result | detail |
+|---|---|---|
+| page_gates | PASS |  |
+| coverage | PASS | COVERAGE PASS |
+| exam_r2 | PASS | grade: OK score 99.4% (153/154 correct, 1 partial, 0 wrong, 0 missing; half-credit 99.7%) |
+| faithfulness | PASS | faith-verify: OK 16 re-checked |
+| critic | **FAIL** | critic: FAILED (2 errors) verdict pass_with_fixes, 12 issues |
+
+- Coverage: coverage lec09: 364/364 placed ids on the pages; ledger overall 364/366
+- Blind exam: round 1 ; after fixes  (gate: correct/total >= 0.95)
+- Critic: first verdict pass_with_fixes, final verdict pass_with_fixes
+- Faithfulness: 16 issues found, 16 resolved, 0 unresolved, len(v.get('new_issues' new - Faithfulness: 16 issues found, 16 resolved, 0 unresolved, [])) new
+- qa stage time: 100 min (this run)
+
+Files: exam.json, exam_grade.md, exam_grade_r2.md, faithfulness.md, faithfulness_verify.md, critic.md, critic_final.md, fixes_*.md, gates_final.txt, final_shots/.
+
+## What failed
+
+### gate.coverage
+```
+coverage lec09: 364/364 placed ids on the pages; ledger overall 364/366
+  ids per page: 1-instagram-year-one 12, 10-running-the-pipeline 39, 11-what-to-keep 23, 2-cdn 49, 3-uploading-a-photo 58, 4-storing-the-post 40, 5-privacy 29, 6-extend-and-optimize 20, 7-hashtag-storage 34, 8-counting-hashtags 47, 9-hashtag-design 36, overview 3
+COVERAGE PASS
+```
+
+### gate.critic
+```
+ERROR critic verdict is pass_with_fixes, not pass
+ERROR open blocker/high/medium issues: ['C-03']
+critic: FAILED (2 errors) verdict pass_with_fixes, 12 issues
+```
+
+### gate.exam_r2
+```
+grade: OK score 99.4% (153/154 correct, 1 partial, 0 wrong, 0 missing; half-credit 99.7%)
+```
+
+### gate.faithfulness
+```
+faith-verify: OK 16 re-checked
+```
+[23:56:03] lec09: qa: re-check found open issues; follow-up fixer, then one more re-check
+[00:28:59] qa_fix_followup attempt 1: OK (1064s)
+calls: 1 ok, 0 failed
+  qa.build1: done, skipped
+  qa.shots1: done, skipped
+[00:28:59] lec09: qa: examiner, faithfulness auditor, design critic (parallel)
+[00:28:59] qa_faithfulness: already done (sentinel), skipped
+[00:28:59] qa_critic: already done (sentinel), skipped
+[00:28:59] qa_examiner: already done (sentinel), skipped
+calls: 3 ok, 0 failed
+[00:28:59] lec09: qa: blind reader, round 1
+[00:28:59] qa_blind1: already done (sentinel), skipped
+calls: 1 ok, 0 failed
+[00:28:59] qa_grade1: already done (sentinel), skipped
+calls: 1 ok, 0 failed
+[00:28:59] lec09: qa: round 1 grade: OK score 96.8% (149/154 correct, 4 partial, 0 wrong, 1 missing; half-credit 98.1%)
+[00:28:59] lec09: qa: content fixer
+[00:28:59] qa_fix_content: already done (sentinel), skipped
+calls: 1 ok, 0 failed
+[00:28:59] lec09: qa: design fixer (7 issues; holds the shared-site lock)
+[00:28:59] qa_fix_design: already done (sentinel), skipped
+calls: 1 ok, 0 failed
+[00:29:00] lec09: qa: animation fixer (2 issues)
+[00:29:00] qa_fix_animation: already done (sentinel), skipped
+calls: 1 ok, 0 failed
+wrote public/clips/l09-cdn-miss-hit/poster-paper.png
+wrote public/clips/l09-cdn-miss-hit/poster-blackboard.png
+wrote public/clips/l09-cdn-miss-hit/poster-paper-phone.png
+wrote public/clips/l09-cdn-miss-hit/poster-blackboard-phone.png
+wrote public/clips/l09-presigned-upload/poster-paper.png
+wrote public/clips/l09-presigned-upload/poster-blackboard.png
+wrote public/clips/l09-presigned-upload/poster-paper-phone.png
+wrote public/clips/l09-presigned-upload/poster-blackboard-phone.png
+wrote public/clips/l09-signed-url-expiry/poster-paper.png
+wrote public/clips/l09-signed-url-expiry/poster-blackboard.png
+wrote public/clips/l09-signed-url-expiry/poster-paper-phone.png
+wrote public/clips/l09-signed-url-expiry/poster-blackboard-phone.png
+wrote public/clips/l09-hashtag-repartition/poster-paper.png
+wrote public/clips/l09-hashtag-repartition/poster-blackboard.png
+wrote public/clips/l09-hashtag-repartition/poster-paper-phone.png
+wrote public/clips/l09-hashtag-repartition/poster-blackboard-phone.png
+posters written to site/public/clips/; rebuild so the pages pick them up
+[00:33:19] lec09: validation qa_gates: GATES PASS
+wrote lectures/lec09/qa/page_text_r2.md: 12 pages, 39690 words
+pages: overview, 1-instagram-year-one, 2-cdn, 3-uploading-a-photo, 4-storing-the-post, 5-privacy, 6-extend-and-optimize, 7-hashtag-storage, 8-counting-hashtags, 9-hashtag-design, 10-running-the-pipeline, 11-what-to-keep
+ok: no failures
+[00:40:22] lec09: qa: round 2 (blind reader, faithfulness re-check, critic final look)
+[00:41:41] qa_faith_verify attempt 1: OK (79s)
+[00:44:03] qa_blind2 attempt 1: OK (221s)
+[00:44:24] qa_critic_final attempt 1: OK (242s)
+calls: 3 ok, 0 failed
+[00:45:33] qa_grade2 attempt 1: OK (68s)
+calls: 1 ok, 0 failed
+# Lecture 07 (lec09) QA report - 2026-10-15 00:45:33
+
+Result: **PASS** - the page is finished and verified
+
+| gate | result | detail |
+|---|---|---|
+| page_gates | PASS |  |
+| coverage | PASS | COVERAGE PASS |
+| exam_r2 | PASS | grade: OK score 100.0% (154/154 correct, 0 partial, 0 wrong, 0 missing; half-credit 100.0%) |
+| faithfulness | PASS | faith-verify: OK 16 re-checked |
+| critic | PASS | critic: OK verdict pass, 13 issues |
+
+- Coverage: coverage lec09: 364/364 placed ids on the pages; ledger overall 364/366
+- Blind exam: round 1 ; after fixes  (gate: correct/total >= 0.95)
+- Critic: first verdict pass_with_fixes, final verdict pass
+- Faithfulness: 16 issues found, 16 resolved, 0 unresolved, len(v.get('new_issues' new - Faithfulness: 16 issues found, 16 resolved, 0 unresolved, [])) new
+- qa stage time: 16 min (this run)
+
+Files: exam.json, exam_grade.md, exam_grade_r2.md, faithfulness.md, faithfulness_verify.md, critic.md, critic_final.md, fixes_*.md, gates_final.txt, final_shots/.
+[00:45:33] lec09: qa PASS: lecture lec09 is finished
+[00:45:33] lec09: == stage qa done (150 min)
+[00:45:34] lec09: finished (150 min): knowledge base in lectures/lec09/, page at site/src/content/lectures/lec09/, QA in lectures/lec09/qa/REPORT.md

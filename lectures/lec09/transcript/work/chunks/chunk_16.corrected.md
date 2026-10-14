@@ -1,0 +1,67 @@
+**[02:59:23] Teacher:** Okay. So you periodically keep on committing to Kafka. And if after consuming of you, you crash, when you start, you can start from here. In some use cases, you may want to start from here. It's very different from where we do, do we want to start? So how far you want to go? It's more about till your last commit or from horizon or [unclear: "in from right inside"], [check: speaker - Student 4 may already be speaking in this turn]
+
+> **Student Question [~02:59:46] - Student 4:** Any insights on, is there kind of design related considerations in terms of how far you need to go back?
+
+**[02:59:54] Teacher (answer):** It is use case specific. How far do you want to go back? Because for example, in most cases in, to be honest, in most cases, you start from horizon when you're spinning up an entire new consumer for Kafka, let's say you never had search service consuming from Kafka. Now we're adding search service as a consumer. That's when you start from horizon, right? In some cases, in most cases, you typically start from the last checkpoint when you have already existing. Actually, this is how most cases fit in, but you might still find some exceptions, but this is how most cases fit in.
+
+[03:00:32] So then let's say you already have a Kafka and now you want to add a new consumer to this Kafka, let's say search service. Now, what would be better for this search service? For it, it would be better if it starts from the first ever messages, which is there. So it starts from horizon, but if let's say the service was already up and running and it just crashed. And when it resumed, should it resume from the first ever message? No. From the last checkpoint, it would resume. Right. Now, in some cases it's okay that I don't want to resume from the last checkpoint. If I lose the data, I lose the data. It's perfectly fine. I'll start from the, from the current message that, that basically comes into Kafka. So these are three possible ways to do it. Horizon, last checkpoint or whatever the current is.
+
+<!-- topic-candidate [03:01:20]: Kafka retention, deletion policy and archiving to S3 -->
+
+> **Student Question [03:01:20] - Student 4:** So the horizon itself, does it have a big impact on the size of the cluster or anything that we need to consider in terms of, you know, somebody says, okay, keep it for six months, for example, as opposed to three 30 days. Is that a big difference? For example, we have to worry about it.
+
+**[03:01:36] Teacher:** Big difference. Big difference.
+
+**[03:01:37] Student 4:** Okay.
+
+**[03:01:38] Teacher (answer):** Great question. Thanks for bringing that up because if you are not having, let's say any deletion policy, what does this mean? Data forever, which means you need large amount of space to store it, right? That becomes a problem. So if your system is low throughput system, low amount of data coming in, but you are, you still have Kafka to have your use cases served, you can, you can afford to keep the data because it's not going to be huge. But if you have huge amount of data flowing at very high throughput, then having a longer retention period means your disk will blow up. So you typically have a deletion policies in that case.
+
+[03:02:18] But now, but let's say if you still want to have a copy of your data, I'm just digressing a bit, but it's important to know. Let's say you have Kafka, you have historical data, but it's high throughput, high volume service. So which means you, but you still want the data, that data is in Kafka. You can have a consumer of Kafka who is consuming from the old ones and archiving it to S3, those events, and then deleting it from here. So that is also one of the ways to go about it. Kafka now has plugins to do it that before deleting it, it takes a bunch of events and archives it to S3 or Blob Storage or GCS or anything. And then it triggers the deletion if those events are important.
+
+**[03:03:06] Student?:** Okay. Thank you.
+
+**[03:03:07] Teacher:** Everything has everything. So you can pick your favorite. But in most cases, you would most probably start with the last checkpoint. Most cases. If it's a new one, you would start from horizon. And in some cases, it's okay to skip this data. Then you start from the most recent. I've seen very few cases doing from here. Very few. Most do this for the last checkpoint.
+
+**[03:03:32] Student?:** Makes sense. Thank you.
+
+**[03:03:34] Teacher:** Great. DK?
+
+<!-- topic-candidate [03:03:37]: Scaling a service - more servers vs optimizing, application level profiling -->
+
+> **Student Question [03:03:37] - Student? (DK):** So Arpit, I have a question related to the SLA here. So just now you were discussing things about SLA that we can, you know, increase the number of workers at the hashtag extraction service. So let's say, if let's say I'm trying to upload an image and the server, you know, is calling the [?S3 | asr: "SE"] service to you generate those [?pre-signed URLs | asr: "pre-URLs"].
+>
+> [03:03:59] Yeah. So now think about it that way that, you know, I have benchmarked that service and got to is can handle or a single pod can handle, let's say 400 requests per second. Okay. Now let's say if I want to, or allow, let's say based on that, if suppose I'm getting thousand requests per second, I can use three servers and my, and my, you know, request should be served accordingly. Like for those thousands, thousand requests, three servers are sufficient. Now let's say if I want to increase a number of requests, should I always go for increasing server or should I try to identify that? What is that area? Is serving [?400 | asr: "foreign"] requests, can I, let's say, increase the RAM or the CPU so that, you know, it, the same server can, you know, serve more number of requests, let's say from 400 to 500, 600, how to identify that, what should be that, you know, bottleneck. I mean, how can I identify that bottleneck due to which the service are serving only [?400 | asr: "foreign"] requests? What are your thoughts on that?
+
+**[~03:04:57] Teacher (answer):** Got it. Got it. One thing when you're scaling up, I'm assuming that your S3s can handle the request. Like your stateful component on which it is dependent, it is able to handle now. They're just talking about either horizontal scalability or vertical scalability. That's what your question boils down to. So what happens over here is always try, like at that, it's an engineering cost. So in some cases, if your organization has some amount of money left in the bank or rather decent amount money left in the bank, they would like to throw it on AWS, add more machines to get things done spending engineers time into optimizing things. Right. That is the first stage of decision making where your management says that, hey, should you spend time optimizing the service or should we throw money at AWS and get more servers? Because typically throwing money at AWS, getting two more servers is very cheap as compared to salaries of engineers. Correct. So that is first point.
+
+[03:06:00] Now, assume that your company says, no, let's keep the server same and now we want to optimize it. That is where your problem comes in, where you want to get the max out of the server or the pod that you have. Now how do you find it? You need, the only way to do it is by profiling the application, right? Have you done profiling using New Relic, Datadog or any sort of OpenTelemetry system? Not active profiling [check: "not active profiling" may be the student answering] that, you know, see, by profiling, I tried to say that the CPU percentage or the memory, not just CPU, code wise, code level application, basically application, basically application level profiling, in which it tells you, in which it tells you, for example, you made an HTTP call, it invoked a handler, that handler called, let's say 5,000 different functions. That application level profiling tool will exactly tell you how much time every single took and it would split it and you would know which one is the bottleneck over there. Can you optimize on something?
+
+[03:07:04] So you need and you may not turn on application level profiling for all of the production grade systems, but on a canary machine, on a few set of machines so that you know which part is taking time, because application level profiling that when you put, imagine you capturing how much time every single function call took. It itself is a costly thing. And costly with respect to money also, data also, this also and the response time also. This as in the money that you pay to your profiling tools. So it's very costly.
+
+[03:07:39] So what you typically do is you bifurcate your production system into 19 to 10 ratio [check: "19 to 10" - 90 to 10? "those 10% instances" follows]. And put a load balancer behind it. Load balancer seamlessly routes requested to each one of them, round robin or whatever strategy. And you monitor those 10% instances using application profiling. You take a hit on response time for some time, but then you monitor that, that which function is taking how much time. And then you find that bottleneck. This is where New Relic, Datadog, these tools come in, or Nagios. These tool comes in. They do application level profiling.
+
+[03:08:12] And unless you have it measured, you can just assume that, oh, this might be taking time, but when you have the data, it would help you drill down onto that exact function that is taking the most amount of time. And then you optimize it. Right. New Relic, Datadog, these two are market leaders at the moment. New Relic is the biggest one out there and open source alternative is Nagios. Anything on open source, simple one, cProfile. If you are into Python, check out cProfile, that would give you a text based output, but it's still decent enough. That would help you debug which function is taking most time. So cProfile is your friend. If you're in Python stack, I've used it very recently. It for one of, or for two of the use cases, but not in production. I, it was on my local machine. So I'm, I've never used it in production anyway. Instagram uses cProfile in production on one of their servers. They have a blog on it, so you might find that interesting as well. And yeah, these are the points on that that I remember, that I could recall.
+
+<!-- topic-candidate [03:09:16]: More CPU or more RAM - general guideline, goroutines -->
+
+> **Student Question [03:09:16] - Student?:** Got it, got it. So now one, one again, one point here. So is there any general guidelines? So let's say my server is, you know, giving 100 requests per second. If I want to just increase the number of requests on the server, so I should, should I increase the CPU or should the RAM? Is there any general guideline for that, that, you know, rather requests serve karni ke liye CPU zyada, something like that, or, you know, not really, you should have more memory for the server when you are selecting some, you know, AWS EC2 instance.
+
+**[~03:09:43] Teacher (answer):** So by default adding more RAM, obviously throwing more RAM, throwing more CPU will increase, will increase the number of requests that you can handle. That's true. But it might be possible that adding one might not help you handle more requests. For example, if you're doing encryption decryption based workloads, which is very CPU heavy, and you throw more RAM at it, would it work? So understand your workflow. At the end, you have four things. As I always say, CPU, memory, network and disk. See which one are you utilizing the most and throw more of it at the server.
+
+> **Student Question [03:10:23] - Student?:** Got it. Got it. And one last thing here, if you're running lots of parallel requests, let's say you are doing a lots of, let's say you are running Golang server and, you know, you are doing a lots of parallel processing through goroutines. So if I, and if let's say that server is handling, let's say 200 requests per second. So what is the way that I can increase those number of goroutine and that should also perform? It should be the RAM or it should be the CPU? Who's responsible for the...
+
+**[03:10:47] Teacher (answer):** CPU, right? Because you need more CPU so that it can schedule large number of goroutines there. You need more CPU first of all, right? But then depending on what you are doing in goroutine, you might need more RAM.
+
+> **Student Question [03:11:00] - Student?:** Got it, got it. If it is more processing then I have to increase the RAM also.
+
+**[03:11:03] Teacher (answer):** First CPU, but if you are, let's say you are holding a lot of data in RAM, then you need to add more RAM because now you are handling more requests, because you are having more CPU, you are handling more requests. So if let's say each goroutine takes up let's say 20 MB of memory for your processing, for the things that you are doing. Now if you are now supporting more goroutines, you need that extra memory to help because you are handling more goroutines. They also need 20 MB extra, right? You need that. Yeah, yeah, sure.
+
+**[~03:11:33] Student?:** Thanks for that. Thank you.
+
+<!-- topic-candidate [03:11:37]: Hashtag DB garbage collection question -->
+
+> **Student Question [03:11:37] - Student 2:** Hey, so one question around GC or the hashtag DB, just a TTL thing would work out, right? Like seven to eight days.
+
+**[03:11:47] Student?:** I didn't get it. What?
+
+**[03:11:49] Teacher:** For hashtag service?

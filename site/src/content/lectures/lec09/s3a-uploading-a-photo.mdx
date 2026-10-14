@@ -1,0 +1,154 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import Cite from '../../../components/Cite.astro';
+import Nb from '../../../components/Nb.astro';
+import { BrainstormList, SimpleSketch, ThreePaths } from '../../../figures/lec09/s3a-figs';
+
+{/* §3 Uploading a photo, part a (3.1–3.3). Part b (3.4–3.5) is s3b-uploading-a-photo.mdx. */}
+
+<Section id="s3" no="3" title="Uploading a photo" crumb="3 Uploading a photo"
+  dek="5 million photos a day. Where they live, why they should never pass through your API servers, and the pre-signed URL that every image upload (GitHub’s included) is built on."
+  meta="About 34 min · class 00:30–00:57, Q&A 00:57–01:04">
+
+Instagram takes 5 million photo uploads a day. A user taps “Share” on a 5 MB HD photo and expects to see it in their feed immediately, and their followers expect to see it too.
+
+The CDN from the last chapter will serve that photo for the rest of its life. This chapter is about the one moment before that: getting the bytes from a phone into storage, quickly, cheaply, and without opening the storage to the world.
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="The job, and where the bytes live" crumb="3.1 The job"
+  dek="The checklist for the upload service, and the cheapest place to keep five million photos a day."
+  meta="About 2 min · class 00:30–00:32">
+
+The first system to design is Instagram’s image upload service, and it is worth doing slowly. The board listed what has to be thought through: storage, data flow (the important one), separation of concerns, privacy (how Instagram keeps images private, which is not what you think), extensibility and optimization. [[L-0061]] That list is the plan for this chapter and the next three.
+
+<Figure id="fig-3a" no="Fig 3·a" k="L-0061 L-0062 L-0063"
+  caption="The class’s checklist for the upload service, from the board at 00:30, with the requirement written above it. Each item links to the part of this page that covers it.">
+  <BrainstormList />
+</Figure>
+
+The CDN had to come first because it is the foundation for building a very good image upload service: every design decision below assumes that photos are read through one. [[L-0062]] The requirement on the board is a single number: **5 million photo uploads per day**. [[L-0063]]
+
+Where do the photos go? Into blob storage: S3 on AWS, GCS on Google Cloud. The idea raised in class came with several reasons (you can store compressed images there, and it is easy to build on, with plenty of help online), but the deciding one is simpler. You could keep images in other places too; blob storage wins because it is dirt cheap. [[L-0064]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Three tempting ways to upload" crumb="3.2 Three ways"
+  dek="Chunks over a held connection, a copy through the API server, a dedicated upload service. Each one is a step, and each is rejected for a stated reason."
+  meta="About 7 min · class 00:32–00:39">
+
+How does the photo get from the phone into S3? There is a set of API servers listening for the app, and the photo has to be sent somewhere. Three answers come up, in this order, and the order is the lesson.
+
+**1 · A persistent connection, sent in chunks.** An image feels like too much data for a plain request and response, so the tempting design opens a persistent connection and streams the photo to the API server in chunks. [[L-0065]]
+
+<PauseAndThink
+  q="A user shares a 5 MB HD photo. Should the app open a persistent connection and send it in chunks?"
+  choices={[{ label: 'No: one ordinary HTTP request carries it', correct: true }, { label: 'Yes: an image is too big for one request-response' }]}
+  right="Right. Keep it one request; save chunking for files measured in gigabytes."
+  wrong="Not quite. 5 MB fits comfortably in one request; the chunks would be complexity with no payoff."
+  k="L-0065 L-0066 L-0067">
+
+No. About 5 MB is peanuts for one HTTP request (S3 itself takes a single PUT of up to 5 GB). Chunking and persistent connections add complexity this size doesn’t need. It is easy to build complex systems and exponentially difficult to build simple ones, which is this chapter’s rule.
+
+</PauseAndThink>
+
+How big is the photo, really? An HD photo from an iPhone is probably about 5 MB, and 5 MB is peanuts for an HTTP server: you can send it in one request without any problem. Chunking it is overkill, an unnecessary complication. [[L-0066]] For scale, S3 accepts a single PUT of up to 5 GB; its multipart upload, which sends parts independently and in parallel, is meant for much larger objects. <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/upload-objects.html">docs.aws.amazon.com</Cite> [[L-0065]]
+
+<RuleBox rule="It’s easy to build complex systems. It’s ==exponentially difficult to build simple ones==." k="L-0067">
+
+Engineers are trained to think in a complex way, so the complicated design is the one that shows up first. The simple answer here is one plain HTTP request, sent straight to storage with a short-lived signed permission. No chunking, no async copy, no upload fleet.
+
+<Desk><SimpleSketch /></Desk>
+<Phone><SimpleSketch layout="phone" /></Phone>
+
+</RuleBox>
+
+Keep things simple, then: it has to be an extremely simple solution. [[L-0067]]
+
+**2 · Through the API server.** The next design is the obvious one. The user makes an API call with the photo to the API server, and the API server copies it to S3. [[L-0068]]
+
+Could the API server accept the photo and copy it to S3 later, in a background job? On Instagram, no. When you upload, you want to see the photo right there, right now, and send it to your followers then and there. An app that says “image posted” and shows it an hour later, after the asynchronous processing, is poor user experience. [[L-0069]] So if the post has to be instant, the photo goes from the API server to S3 immediately, synchronously, and must show up. [[L-0070]]
+
+<PauseAndThink
+  q="Photos go phone → API server → S3, synchronously. What is the real problem?"
+  choices={[{ label: 'A server can crash mid-upload and lose the photo' }, { label: '5 MB uploads eat the API servers’ bandwidth and memory', correct: true }]}
+  right="Right. Retries handle crashes; nothing handles a saturated network card except not sending the bytes there."
+  wrong="Not quite. A failed upload is cheap to retry. The cost that never goes away is the bytes themselves crossing your API servers."
+  k="L-0068 L-0070 L-0071 L-0072">
+
+Bandwidth and memory. A crash is not the problem: the server returns a 5xx and the client retries. But a steady stream of 5 MB requests saturates the network cards (every card has a physical limit), slows every other API call on those servers, and raises their memory needs. A dedicated upload service moves the problem; a pre-signed URL removes it ([3.3](#s3-3)).
+
+</PauseAndThink>
+
+The first worry people raise is a crash: the API server dies in the middle of the upload and the user’s photo is lost. That is not a problem. The server sends a 5xx, and the user’s app retries. Simple. [[L-0071]]
+
+The real problem is the bytes. A constant stream of 5 MB requests eats the API servers’ network bandwidth. Every network card has a physical limit on how much data it can move, so the photos use up capacity that other, smaller API calls need, and those calls suffer. The memory each API server needs goes up too. [[L-0072]] The board put the question as “Should upload *not* go through your API server?”, with the *not* squeezed in afterwards.
+
+<Figure id="fig-3b" no="Fig 3·b" k="L-0065 L-0066 L-0068 L-0069 L-0070 L-0071 L-0072 L-0073 L-0074 L-0075"
+  caption="Three ways to get one photo into S3. The filled chip is the photo’s bytes: it appears only where the 5 MB actually travels. Rows b and c redrawn from the class board at 00:44 (the box first labelled API, then ImgUpld); row a is new.">
+  <Desk><ThreePaths /></Desk>
+  <Phone><ThreePaths layout="phone" /></Phone>
+</Figure>
+
+**3 · A dedicated upload service.** If the API servers’ bandwidth needs protecting, don’t send them the photo. Send it to a separate, specialized image upload service instead (say, one with a bigger network card) that proxies the upload to S3’s PUT API. [[L-0073]] One suggestion for how, left unevaluated in class: the service holds a configuration that proxies the request to S3 whenever the image upload path is hit. [[L-0075]] It lowers the network bandwidth load on the core API servers, perhaps also by sitting closer to the user (a half-finished thought that was never developed further). [[L-0074]]
+
+It is a real step forward. But every byte still crosses a server you run, twice. Can we do better?
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="The pre-signed URL" crumb="3.3 Pre-signed URL"
+  dek="Ask your service for permission, then send the photo straight to S3. The bytes never touch a server you run, and the bucket stays closed."
+  meta="About 6 min · class 00:37–00:45">
+
+Can the photo reach S3 without passing through any server you run, and without opening the bucket to the world?
+
+The idea raised in class was **pre-signed URLs**. First, hit the API server to fetch a pre-signed URL, passing what it needs, such as the image name and where in S3 it should go. Then upload the image with that URL directly to S3, which accepts both PUT and POST for this, within the URL’s validity, before it expires. The load comes off the API server. [[L-0076]] The upload no longer goes via the API server or the image upload service at all: the client sends the photo straight to S3. [[L-0077]]
+
+What does that buy? It saves the network bandwidth of the service, and it avoids transferring the data twice. Through a service, the photo goes 5 MB in and 5 MB out, and you pay for 2× the data transfer. Direct, it is one 5 MB transfer. [[L-0078]] (On AWS, the extra same-Region hop itself is usually not billed twice; the gain is the upload servers you no longer need, with their bandwidth and capacity for every 5 MB image. <Cite href="https://aws.amazon.com/blogs/architecture/overview-of-data-transfer-costs-for-common-architectures/">aws.amazon.com</Cite>)
+
+There is a money argument too, usually put like this. AWS egress cost is a big pain: anything that goes out of or comes into your EC2 instance is billed, egress and ingress, so you think you are only uploading 5 MB, but every hop you introduce costs relatively huge money. [[L-0079]]
+
+<SourceNote href="https://aws.amazon.com/blogs/architecture/overview-of-data-transfer-costs-for-common-architectures/" k="L-0079">
+
+On AWS, inbound internet traffic and same-Region traffic between EC2 and S3 are free: AWS doesn’t charge for data coming in from the internet, and S3 doesn’t charge for transfer to AWS services in the same Region or to CloudFront <Cite href="https://aws.amazon.com/s3/pricing/">aws.amazon.com</Cite>. What is billed is data out to the internet, cross-AZ and cross-Region traffic, and NAT gateway processing, a per-GB charge for traffic through the gateway. A VPC gateway endpoint lets instances reach S3 in the same Region without that charge. So check which of these an extra hop actually adds. The pre-signed design is still justified by bandwidth and server load.
+
+</SourceNote>
+
+What is a pre-signed URL? As the name suggests, a URL that is pre-signed and has an expiration. It is a very interesting concept, and everyone uses it. [[L-0080]] On the board it went in under “Bandwidth concern”, as “Presigned URL with expiration”, with a long arc drawn from the user straight to S3/GCS, over the ImgUpld box. [[L-0080]] An upload with one has two phases.
+
+**The prepare phase.** The client talks to the image upload service and asks it to generate a random image ID. That’s all the ID is: an entry. The service then creates a short-lived pre-signed URL for that exact path, for example <code style={{whiteSpace:'normal'}}>s3://<wbr/>images/<wbr/>&lt;random_id>.png</code>, and sends the pre-signed URL to the user. [[L-0081]]
+
+**The upload phase.** The user makes a POST request with the image to the pre-signed URL it received, and the image goes straight into S3. [[L-0082]] (That is S3’s presigned *POST*, a form POST with policy fields plus the file, which is exactly what GitHub does in [3.4](#s3-4). The more common presigned URL is a PUT URL with the signature in its query string and the raw file as the body; both upload directly to S3. <Cite href="https://docs.aws.amazon.com/boto3/latest/guide/s3-presigned-urls.html">docs.aws.amazon.com</Cite>)
+
+<AnimationClip clip="l09-presigned-upload" no="Clip 3·1"
+  k="L-0068 L-0072 L-0076 L-0077 L-0078 L-0081 L-0082 L-0084 L-0085"
+  lead="Your upload service handles 5 MB photos. How many times do those bytes cross a network your servers sit on, before and after pre-signed URLs?"
+  caption="Through the API server, every photo crosses its network card twice and the card fills. With a pre-signed URL the app asks only for permission, then sends the photo straight to S3." />
+
+Why go to this trouble, instead of simply making the bucket open for uploads? Because then anyone could upload lots of their own data to your bucket for free, and you would pay: S3 bills on the amount of data stored. You *can* open it, but in this use case you don’t need to, and you still get to upload straight to S3. [[L-0083]] By default, new S3 buckets don’t allow public access at all, and the Block Public Access settings override any policy or ACL that would make data public. <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html">docs.aws.amazon.com</Cite>
+
+The backend asks for a pre-signed URL for a specific path, valid for a set time: 10 seconds, 20, 30, 60, whatever you choose. The subtle part is what is open. It is not the path that is open; it is the pre-signed URL. Anyone holding that URL can send content that S3 stores at that path. [[L-0084]] (Concretely, the backend signs the URL for that path with its own credentials and a short expiry; whoever holds it can upload there until it expires. <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html">docs.aws.amazon.com</Cite>) AWS calls presigned URLs bearer tokens for that reason: anyone who has one can use it, repeatedly, until it expires, and a bucket policy can reject signatures older than a limit with the `s3:signatureAge` condition. <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html">docs.aws.amazon.com</Cite>
+
+The whole flow, then: the client calls the image upload service; the service asks S3 to create a pre-signed URL; the pre-signed URL is sent to the user; the user sends the image directly to S3 over that URL. [[L-0085]] (The “ask S3” step is normally local signing by the AWS SDK with the service’s credentials, covering bucket, key, method and expiry, not a network call. S3 checks the signature only when the client uses the URL. <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html">docs.aws.amazon.com</Cite>)
+
+That makes the architecture both flexible and efficient. No bulky upload servers taking in images, <Nb>1 × 5 MB</Nb> transferred instead of <Nb>5 + 5 MB</Nb>, less infrastructure to manage, and native security on the AWS side from the pre-signed URL itself, so there is a lot less you have to manage yourself. [[L-0086 L-0078]] That security goes further than it looks: a presigned POST policy can carry conditions such as `content-length-range` and `Content-Type`, so the backend can cap the upload’s size and restrict its type even though it never sees the bytes. <Cite href="https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/generate_presigned_post.html">docs.aws.amazon.com</Cite>
+
+<TradeoffTable caption="Three ways to get a photo into S3: via the API server, via a dedicated upload service, or directly with a pre-signed URL"
+  k="L-0072 L-0073 L-0077 L-0078 L-0083 L-0086 L-0105"
+  columns={[{ label: 'Via the API server' }, { label: 'Dedicated upload service' }, { label: 'Pre-signed direct upload' }]}
+  rows={[
+    { label: 'Bytes through your servers', k: 'L-0072 L-0073 L-0077', cells: [{ text: 'Every 5 MB, on the same network cards as every other API call', bad: true }, 'Every 5 MB, on a fleet built for it', 'None: the photo goes from the phone to S3'] },
+    { label: 'Transfers per photo', k: 'L-0078', cells: ['Two: 5 MB in, 5 MB out', 'Two: 5 MB in, 5 MB out', 'One: 5 MB, phone to S3'] },
+    { label: 'Servers to run', k: 'L-0073 L-0086', cells: ['API servers sized for uploads too', 'A separate upload fleet with bigger network cards', 'Only what signs URLs: less infrastructure'] },
+    { label: 'What stops strangers using your bucket', k: 'L-0083 L-0086', cells: ['The bucket stays closed; only your servers write', 'The bucket stays closed; only your servers write', 'A signed URL for one path that expires; the policy can cap size and type'] },
+    { label: 'Can you inspect the image in the request', k: 'L-0105', cells: ['Yes: it passes through you', 'Yes: it passes through you', 'No: moderation runs after the upload (3.5)'] },
+  ]} />
+
+</Section>

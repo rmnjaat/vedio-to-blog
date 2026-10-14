@@ -1,0 +1,266 @@
+import Section from '../../../components/Section.astro';
+import NotationKey from '../../../components/NotationKey.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { LectureMarks, WithoutCdn, UserCdnOrigin, InBetween, PropertyRequest, UrlRewrite } from '../../../figures/lec09/s2-cdn';
+
+{/* §2 A CDN as a black box (2.1–2.6). Writer w1. Chapter page /lectures/lec09/2-cdn/.
+    The NotationKey (once per lecture) and this lecture's own marks open this chapter, the first with real figures.
+    The nearest-edge question (class 01:44) is folded into 2.6, next to the other CDN questions.
+    Wide figures pass Figure's `max` so they show at about 1:1; below 640px the <Phone> layout takes over. */}
+
+<Section id="s2" no="2" title="A CDN as a black box" crumb="2 CDN"
+  dek="One building block that changes almost every public-facing system. What a CDN does, configured and traced request by request, as an engineer uses it rather than as Akamai builds it."
+  meta="About 26 min · class 00:05–00:30 and Q&A 01:44–01:46">
+
+<NotationKey />
+
+<Figure id="fig-l09-key" max={640} caption="This lecture’s own marks, on top of the course notation above. The two clouds differ only by the bucket mark: a plain cloud is a CDN, a cloud with a bucket is S3. The photo’s bytes are drawn only where the bytes actually travel; a thin line without the chip is a call that carries metadata.">
+  <Desk><LectureMarks /></Desk>
+  <Phone><LectureMarks layout="phone" /></Phone>
+</Figure>
+
+An Instagram-sized app serves its photos from its own API servers. A 10 MB photo of a beach, stored on a server in Singapore, is opened by a user in the US, and then by a million more.
+
+This chapter puts one component in front of those servers and follows a request through it, step by step, until there is nothing magic left.
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What a CDN is, and life without one" crumb="2.1 What a CDN is"
+  dek="Images are big and almost never change. Your API servers shouldn’t be the ones sending them."
+  meta="About 5 min · class 00:05–00:11">
+
+A lot of people, unfortunately, don’t know how a CDN works. Yet this one simple building block changes almost every public-facing system out there, and fits beautifully into the scheme of things. [[L-0017]]
+
+This chapter treats it the way an engineer uses it: as a black box, to be used effectively. Its internals, such as the BGP protocol, stay out, because nobody here is going to build Akamai or Cloudflare from scratch. <ForwardChip label="skipped here" k="L-0017">CDN internals and BGP (a deep dive could come later)</ForwardChip> [[L-0003]]
+
+Take a concrete site: `arpitbhayani.me`, the instructor’s website. Some part of it should be served faster, say the image at <code style={{whiteSpace:'normal'}}>arpitbhayani.me/<wbr/>system-design/<wbr/>logo.png</code>. It could just as well be a JSON response, some bytes, an HTML page or a video; an image is simply the example everyone resonates with. Later in this chapter the CDN gets its own domain, say `https://a.mycdn.net`. [[L-0022]]
+
+First, life without a CDN. Someone opens the image URL. The browser resolves `arpitbhayani.me` to an IP address: the origin’s own, where a load balancer sits. The load balancer forwards the request to one of the backend servers, which sees the path, reads the image and sends it back to the user. <ForwardChip label="from" when="Lecture 5" lec="lec08" k="L-0023">load balancers</ForwardChip> [[L-0023]]
+
+<Figure id="fig-2a" no="Fig 2·a" k="L-0023 L-0024 L-0025 L-0027" caption="Without a CDN. DNS sends the browser to the origin’s load balancer, an API server reads the 10 MB image from its disk and sends it back across the world. The bytes leave through the same network card (red) that every other API call needs. New figure; the class described this path aloud at 00:08.">
+<Desk><WithoutCdn /></Desk>
+<Phone><WithoutCdn layout="phone" /></Phone>
+</Figure>
+
+Look at what that costs. The backend server’s bandwidth is being spent on something almost static: how often does an image change once it is there? Hardly ever. [[L-0024]]
+
+And images are huge: 1, 2, 3, 5, 10 MB. Spending 10 MB of an API server’s bandwidth to serve one of them is “a crime”. You want your API servers lean and fast. [[L-0025]]
+
+Distance makes it worse. If the server sits in Singapore and a user in the US opens the image, transferring 10 MB to the US slows everything down. What if that image were cached near the user? [[L-0027]]
+
+So let something else do the transfer. Instead of the backend moving the bytes, another component takes care of it, distributes the content geographically and caches it near the user. That is exactly what a CDN is. [[L-0026]]
+
+<RuleBox rule="A CDN ==transparently sits between your user and your origin==." k="L-0018 L-0038">
+
+That is all it does. For any path, it serves the cached bytes if it has them; otherwise it fetches the same path from the origin, caches the response and serves it. Nothing is pushed to it: it pulls.
+
+<InBetween />
+
+</RuleBox>
+
+<Figure id="fig-2b" max={360} wide={false} no="Fig 2·b" k="L-0018 L-0019 L-0020 L-0026" caption="User, CDN, origin. The user only ever talks to the CDN; the CDN is the only one that calls the origin, and only on a miss. Redrawn from the class board at 00:06 (D-02, first copy).">
+<UserCdnOrigin />
+</Figure>
+
+Many people think a CDN is just there to cache things, without knowing how, and imagine that they push their content to it. A CDN is not something you push things to. Most CDNs offer APIs nowadays, but that is not their main job. Their job is to sit transparently between the user and the origin. [[L-0019]]
+
+**Origin** is a generic term for wherever the content lives: an S3 bucket, a backend server, literally anything you want served through your CDN. [[L-0020]]
+
+In the simplest setup the origin needs to be publicly accessible, with some security policies on top, depending on the CDN you use. Most CDNs can also authenticate to a private origin: CloudFront, for instance, reaches a private S3 bucket through origin access control <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html">docs.aws.amazon.com</Cite>, and since November 2024 its VPC origins can serve applications in a private VPC subnet <Cite href="https://aws.amazon.com/blogs/networking-and-content-delivery/introducing-cloudfront-virtual-private-cloud-vpc-origins-shield-your-web-applications-from-public-internet/">aws.amazon.com</Cite>. [[L-0021]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="One mapping: the CDN property" crumb="2.2 CDN property"
+  dek="You configure one line: this CDN hostname maps to that origin. Every path follows."
+  meta="About 6 min · class 00:10–00:16">
+
+But how is a CDN actually configured? The best way to find out is to do it: log into any CDN (Akamai, Cloudflare, AWS CloudFront, pick your favourite), sign up for a free trial and configure one yourself. Nothing beats practical experience. [[L-0028]]
+
+All it asks for is one origin URL. After that, it just seamlessly works. [[L-0029]]
+
+That configuration is a mapping, called a **CDN property**: your subdomain on the provider, say `a.mycdn.net`, mapped to an origin, `arpitbhayani.me`. It means that any request arriving at `a.mycdn.net` is forwarded to `arpitbhayani.me`. The name varies by provider: Akamai calls this configuration a property, Amazon CloudFront calls it a distribution <Cite href="https://techdocs.akamai.com/property-mgr/docs/key-concepts-terms">techdocs.akamai.com</Cite>. [[L-0030]]
+
+What goes behind it is the part of the site that is near static and huge in size, such as the images. [[L-0031]]
+
+Now follow a request. The user’s page asks for <code style={{whiteSpace:'normal'}}>a.mycdn.net/<wbr/>system-design/<wbr/>logo.png</code> instead of <code style={{whiteSpace:'normal'}}>arpitbhayani.me/<wbr/>system-design/<wbr/>logo.png</code>. The browser doesn’t know whether a host is a CDN, and doesn’t need to: it does a DNS resolution of whatever hostname is in the URL and sends the request to that IP address. [[L-0032]]
+
+Resolving `a.mycdn.net` returns the CDN provider’s IP address. That is classic DNS configuration, done on Route 53 or at your domain provider, such as GoDaddy or Namecheap. To use a hostname of your own, you add a DNS CNAME pointing to the CDN’s edge hostname, and from then on the CDN’s DNS servers answer with the IP of a suitable edge server <Cite href="https://techdocs.akamai.com/property-mgr/docs/key-concepts-terms">techdocs.akamai.com</Cite>. [[L-0033]]
+
+<StepThrough id="fig-2c" no="Fig 2·c" label="One request through a CDN property" grow
+  k="L-0030 L-0032 L-0033 L-0034 L-0035 L-0036"
+  stepK={['L-0032 L-0033', 'L-0030 L-0034', 'L-0034 L-0035', 'L-0036', 'L-0036']}
+  caption="Time runs down. Lanes: the browser, DNS, the CDN (a.mycdn.net) and the origin (arpitbhayani.me); the card on top is the CDN property. Redrawn from the class board at 00:12–00:15 (D-02, second copy); the board’s red box around the path is drawn as a graphite outline, because red means failure on this site."
+  steps={[
+    'The browser only sees a hostname. It asks DNS for <code>a.mycdn.net</code>, and DNS answers with the <strong>CDN provider’s IP</strong>. The browser has no idea it is a CDN.',
+    'The browser sends <code style="white-space:normal">GET /system-design/<wbr>logo.png</code> to that IP. The CDN looks up the origin configured for this property: <code style="white-space:normal">a.mycdn.net → arpitbhayani.me</code>.',
+    'It swaps the host and keeps the path: <code style="white-space:normal">a.mycdn.net/<wbr>system-design/<wbr>logo.png</code> becomes <code style="white-space:normal">arpitbhayani.me/<wbr>system-design/<wbr>logo.png</code>. So any path under the property works without configuring it.',
+    'The CDN itself requests that URL from the origin. The origin answers as it always does; it can’t tell the CDN from any other client.',
+    '<span class="term green">The CDN caches the bytes and returns them</span> to the browser.',
+  ]}>
+<Desk><PropertyRequest /></Desk>
+<Phone><PropertyRequest layout="phone" /></Phone>
+</StepThrough>
+
+The request reaches the CDN, and the CDN’s logic is simple. It received a request for `a.mycdn.net` with some path. It checks its mapping: what origin is `a.mycdn.net` configured to? `arpitbhayani.me`. So it discards its own hostname, puts the origin in its place, and requests the same path from the origin. [[L-0034]]
+
+That is why you never configure individual URLs on a CDN. Literally any path under the property works, because the CDN carries the path over to the origin. [[L-0035]]
+
+Geographical distribution and the rest are advanced configuration. The bare minimum a normal engineer building a system needs is this: the CDN sitting transparently in between. [[L-0039]]
+
+<MarginNote title="See it yourself" why="skip if you have configured a CDN before" k="L-0028">
+
+Put any CDN’s free tier in front of a site you own, or a public image (an image from the demo site will do), and watch the first and second loads in your browser’s DevTools. Even if it costs a dollar or two, that is peanuts for the understanding you get. Theory is fine; the practical experience is what matters.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Miss, hit, and “it’s all bytes”" crumb="2.3 Miss and hit"
+  dek="The first request goes to the origin. Every request after that doesn’t."
+  meta="About 5 min · class 00:14–00:19">
+
+The first person in the world opens <code style={{whiteSpace:'normal'}}>a.mycdn.net/<wbr/>system-design/<wbr/>logo.png</code>. The request reaches the CDN, and the CDN first checks: do I have anything cached for this path? No, it is the first request. So the CDN itself makes the request to <code style={{whiteSpace:'normal'}}>arpitbhayani.me/<wbr/>system-design/<wbr/>logo.png</code>. The origin generates the response as it always does and sends it to the CDN, which caches it and sends it to the user. [[L-0036]]
+
+<AnimationClip clip="l09-cdn-miss-hit" no="Clip 2·1" k="L-0036 L-0037 L-0038 L-0043"
+  lead="A thousand people open the same photo in one minute. How many requests reach the origin?"
+  caption="The first request misses and the CDN fetches the same path from the origin; every later request is a hit. The origin hears from the CDN again only when the cached copy expires." />
+
+The CDN keeps the response only if it is cacheable: the origin’s headers (`Cache-Control` with `max-age` or `s-maxage`, or `no-store` and `private`) and the CDN’s own cache policy decide whether, and for how long. CloudFront, for instance, takes the lifetime from `max-age` (or from `s-maxage`, which it uses in place of `max-age` while browsers keep using `max-age`), bounded by the CDN’s minimum and maximum TTL; with no policy and no header, its default is 24 hours <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html">docs.aws.amazon.com</Cite>. [[L-0036]]
+
+The next request for the same path goes to the CDN, just like always. This time the CDN already has the image cached and serves it directly. Had it not, it would go to the origin, grab the image and serve it. [[L-0037]]
+
+That is all a CDN does. You configure a CDN property and an origin; for any path, it serves the cached data if it has it, and otherwise fetches the same path from the origin and serves that. [[L-0038]]
+
+Notice what never happens on a hit: the request doesn’t even enter your backend infrastructure. That saves your backend servers’ bandwidth and cuts the cost of the infrastructure. You need a couple of servers instead of hundreds, because only a few requests reach the backend, each time the cache invalidates and nothing more. [[L-0043]]
+
+That is why you pay a CDN: it gives you efficiency and takes load off the backend. As a rule of thumb, you keep your infrastructure cost down while paying almost the same amount to the CDN, and get extra performance on top; the actual savings depend on your traffic and your hit ratio. [[L-0044]]
+
+There is one more thing the trace shows: the CDN doesn’t care whether the response is an image or a video. Whatever it gets back, it caches as a set of bytes, and that is the beauty of it. API responses, JSON responses, text files, images, videos, fragments: all of them can be cached on a CDN. What a CDN won’t do is cache everything automatically. Cloudflare, for example, caches by file extension and doesn’t cache HTML or JSON by default, and it skips responses marked `private`, `no-store`, `no-cache` or `max-age=0`, or carrying a `Set-Cookie` header <Cite href="https://developers.cloudflare.com/cache/concepts/default-cache-behavior/">developers.cloudflare.com</Cite>; cache rules or the origin’s headers make other responses eligible <Cite href="https://developers.cloudflare.com/cache/how-to/cache-rules/">developers.cloudflare.com</Cite>. [[L-0040]]
+
+So the common belief that only images can be cached on a CDN is wrong. For a CDN it is literally just a set of bytes. <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s1-5" k="L-0041">a CDN caches API responses too</ForwardChip> [[L-0041]]
+
+Giphy leverages this beautifully and caches a lot on its CDN (there is a video on how, on the instructor’s YouTube channel). It serves its GIFs, stickers and clips through Fastly, which handles tens of billions of requests a day, with peaks of about 400,000 requests per second <Cite href="https://www.fastly.com/customers/giphy">fastly.com</Cite>. [[L-0042]]
+
+And the origin doesn’t have to be a site you own. Any URL can sit behind a CDN: you could configure `facebook.com` as the backend of a CDN, and nobody would judge you. For the CDN, it is just a URL. [[L-0045]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="See it on a real site" crumb="2.4 Real site"
+  dek="A custom hostname, an origin with a path in it, and plain string concatenation."
+  meta="About 3 min · class 00:19–00:22">
+
+The demo site from 2.1 shows all of this. Copy the link of any image on it and you get a URL on `edge.arpitbhayani.me`. That is the site’s CDN property, the same thing as `a.mycdn.net`, just given a fancy custom name instead of the default one. Those images come from the CDN; the request never reaches the backend server. [[L-0046]]
+
+The origin there is configured as a path, not just a domain: `arpitbhayani.me/static`. So when a request for <code style={{whiteSpace:'normal'}}>edge.arpitbhayani.me/<wbr/>img/<wbr/>arpit.png</code> reaches the CDN and misses, the CDN requests <code style={{whiteSpace:'normal'}}>arpitbhayani.me/<wbr/>static/<wbr/>img/<wbr/>arpit.png</code>, caches the response and responds. [[L-0047]]
+
+<Figure id="fig-2d" max={720} no="Fig 2·d" k="L-0046 L-0047 L-0048 L-0049" caption="The URL rewrite on the demo site. The CDN host is replaced by the configured origin, which here ends in /static; the path after it is carried over unchanged. New figure, recreated from the live demo at 00:19–00:21.">
+<Desk><UrlRewrite /></Desk>
+<Phone><UrlRewrite layout="phone" /></Phone>
+</Figure>
+
+It is normal string concatenation, a string replacement: plug the request path in after the origin, make the call, cache the response and send it back. As simple as that. [[L-0048]]
+
+```python
+origin = "https://arpitbhayani.me/static"   # set once, in the CDN property
+cdn_path = "/img/arpit.png"                 # whatever the browser asked edge.arpitbhayani.me for
+fetch(origin + cdn_path)                    # what the CDN does on a miss
+```
+
+It follows that only paths that exist under `/static` work through this CDN. Ask the edge for anything else and the CDN dutifully fetches `/static/<that path>` from the origin, which doesn’t have it. [[L-0049]]
+
+</Section>
+
+<Section id="s2-5" no="2.5" title="Who puts the CDN URL in the page" crumb="2.5 CDN URL"
+  dek="The browser fetches exactly the URL it is given. Choosing that URL is the backend’s job."
+  meta="About 4 min · class 00:24–00:28">
+
+How does the user even know the CDN URL? The backend sends it. Whether it is an API response or a server-rendered HTML page, the image URL you pass in it *is* the CDN URL. The user’s browser doesn’t know whether it is a CDN; it just sees a URL. The demo site’s `index.html`, for instance, already contains <code style={{whiteSpace:'normal'}}>edge.arpitbhayani.me/<wbr/>img/<wbr/>…</code> in its image tags. [[L-0054]]
+
+Whatever URL the backend puts in the `IMG` tag is the one the browser renders. Front ends are, bluntly, “utterly stupid”: they render whatever URL they are given. So compiling the CDN URL and sending it is the backend’s responsibility; you don’t send CDN configuration to the front end. [[L-0056]]
+
+The setup for a site like `abc.com` is then: configure `abc.com` as the origin on Akamai, Cloudflare or CloudFront, get a CDN hostname back, and replace the content URLs in your pages with it. The site never “calls” the CDN at runtime: the browser requests the CDN URL it was handed, and the CDN goes to the origin. Nor is there an automatic way to do it en masse: you change the URLs you send, explicitly, which is not a big deal once your code builds its URLs in one place. [[L-0057]]
+
+<PauseAndThink k="L-0054 L-0056 L-0057 L-0154"
+  q="Instagram has just put its photos behind a CDN at instacdn.net. Nothing in the app was changed. The next time a user opens a profile, do the photos come from the CDN?"
+  choices={[{ label: 'No: the backend has to start sending CDN URLs', correct: true }, { label: 'Yes: DNS and the CDN route existing image URLs automatically' }]}
+  right="Right. The CDN only sees requests for URLs the backend handed out."
+  wrong="Not quite. DNS for your old hostname still points at your origin; nothing sends traffic to the CDN until the URLs change.">
+
+No. The browser fetches exactly the URL it is given and doesn’t know a CDN exists. Until the backend puts `instacdn.net/...` URLs in its API responses or HTML, every image request still goes to the origin. There is no automatic mass rewrite and the site never “calls” the CDN; you change the URLs you send, explicitly. [§4.4](#s4-4) shows Instagram’s post service doing exactly that, per request.
+
+</PauseAndThink>
+
+If this question puzzles you, the gap is not in CDNs but in how the web works. Configure a CDN once, then look at what your backend actually sends to the browser and what the browser does with it. For Instagram, that backend is the post service: its API response carries the CDN URL the backend builds, and [§4.4](#s4-4) comes back to exactly this question. [[L-0055 L-0154]]
+
+</Section>
+
+<Section id="s2-6" no="2.6" title="Private content, changed images, and the nearest edge" crumb="2.6 Private, changed, nearest"
+  dek="Three questions everyone running a CDN asks in the first week."
+  meta="About 6 min · class 00:22–00:30 and Q&A 01:44–01:46">
+
+**Private content.** Does a CDN only work for public resources? No. Private content can be served too, and how depends on the CDN you use. [[L-0050]]
+
+One idea raised in class: Netflix serves most of its traffic through a CDN, and serving private content brings in tokens and authentication. Netflix in fact runs its own CDN, Open Connect; qualifying ISPs can host Open Connect Appliances inside their networks at no charge, so much of Netflix’s traffic is served from inside the viewer’s own ISP <Cite href="https://openconnect.netflix.com/en/">openconnect.netflix.com</Cite>. [[L-0051]]
+
+Before going deep into private content, though, play around with a CDN and get your hands dirty; the questions answer themselves much faster that way. Making photos private is part of the upload design in [chapter 5](#s5), and the CDN comes back in the next lecture. <ForwardChip label="coming later" when="Lecture 8" lec="lec06" k="L-0052">the CDN, discussed again</ForwardChip> [[L-0052]]
+
+For a private bucket, the CDN has to interface with it, AWS private buckets for example, so that the content stays private and can still be served. With many CDNs you configure AWS keys on the CDN for that seamless access. It is a plugin-like feature: some CDNs support AWS, others support other cloud providers, and not every CDN supports every cloud. AWS’s own CDN needs no keys: with origin access control, the bucket policy allows the CloudFront service for that one distribution, and CloudFront signs every request it makes to the bucket <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html">docs.aws.amazon.com</Cite>. The “publicly exposed origin” picture of 2.1 is an oversimplification, and a useful one: it makes CDNs easy to think about. [[L-0053]]
+
+**Changed images.** You replace `logo.png` at the origin. How does the CDN pick up the change? It doesn’t, until the TTL expires, or unless you use the API the CDN provides to explicitly invalidate the cache for that particular path. If you can do that, do that. A third option avoids the question: give each new version a new file name, such as `logo.v2.png`. CloudFront recommends versioned file names for files that change often; they also beat browser and proxy caches and cost nothing to invalidate <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html">docs.aws.amazon.com</Cite>. [[L-0058]]
+
+Invalidating is not pushing. You don’t push the new image to the CDN; you make an API call saying “this path is invalidated”, that is all. The next request for the path is a cache miss, and the CDN goes to the origin and fetches it again. [[L-0059]]
+
+**Live content.** Can a CDN cache live content, such as a live match? Yes, but that is a topic for later. <ForwardChip label="coming later" when="a later session (said as ‘6.3’)" k="L-0060">live content on a CDN</ForwardChip> [[L-0060]]
+
+**The nearest edge.** How does Instagram’s image service know which CDN node is nearest to a user? It doesn’t, and it doesn’t need to: that is CDN-internal. The user’s device fires an ordinary DNS resolution, and the resolver resolves the domain to the nearest CDN IP address, which is done with the BGP protocol. More precisely, CDNs do this in one of two ways: their own DNS answers differently per location (Akamai-style mapping), or they use anycast, where one IP address is announced from every point of presence via BGP and internet routing picks the nearest <Cite href="https://techdocs.akamai.com/property-mgr/docs/key-concepts-terms">techdocs.akamai.com</Cite>. With anycast many machines share one IP, so a Cloudflare user gets the same address anywhere in the world but lands on a nearby data centre <Cite href="https://blog.cloudflare.com/a-brief-anycast-primer/">blog.cloudflare.com</Cite>. [[L-0206]]
+
+Exactly how a CDN routes you isn’t publicly disclosed. Cloudflare has a blog post on it that, conveniently, calls the details proprietary; only the providers, Akamai, Cloudflare and the rest, know them. The mechanisms are public, though (Cloudflare documents anycast, Akamai its DNS mapping), and the post still gives you a rough idea of how it happens. [[L-0207]]
+
+Akamai was the first to do this. Cloudflare hired a few people from Akamai to do it, the story goes, though only as “something around that has happened”: hearsay, kept here with its hedge. [[L-0208]]
+
+<MarginNote title="Further reading on CDN routing" why="skip unless you are curious about BGP" k="L-0207">
+
+Cloudflare’s [anycast primer](https://blog.cloudflare.com/a-brief-anycast-primer/) explains how one IP address can be served from many places at once. Akamai’s [property and edge-hostname concepts](https://techdocs.akamai.com/property-mgr/docs/key-concepts-terms) show the DNS-mapping side: your hostname is a CNAME to an Akamai edge hostname, and Akamai’s DNS picks the servers.
+
+</MarginNote>
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Trace the first and the second request for a.mycdn.net/img/x.png when the origin is example.com/static. Which URL does the CDN fetch, and when?">
+
+DNS resolves `a.mycdn.net` to the CDN’s IP, so both requests reach the CDN. The first is a miss: the CDN swaps its host for the configured origin and keeps the path, fetching <code style={{whiteSpace:'normal'}}>example.com/<wbr/>static/<wbr/>img/<wbr/>x.png</code>, then caches the response and returns it. The second is a hit, served from the cache; the CDN fetches from the origin again only after the cached copy expires or is invalidated.
+
+  </RecallItem>
+  <RecallItem q="You changed logo.png at the origin. Name two ways to make users see the new one, and the one thing that does not work.">
+
+Wait for the TTL to expire, or call the CDN’s API to invalidate that path (prefer this when you can); or publish the new version under a new name such as `logo.v2.png`. What doesn’t work is pushing the new image to the CDN: nothing is pushed to a CDN. Invalidation only tells it the path is stale, and the next request refetches it.
+
+  </RecallItem>
+  <RecallItem q="Your API returns JSON that barely changes. What must be true before a CDN will actually cache it?">
+
+The response must be cacheable: the origin sends headers that allow it (`Cache-Control` with a `max-age` or `s-maxage`, and no `private`, `no-store` or `Set-Cookie`), or a cache rule on the CDN makes it eligible, since many CDNs don’t cache JSON by default. And the backend has to hand out the CDN URL for it; the browser only fetches what it is given.
+
+  </RecallItem>
+</RecallQuestions>
+
+So the CDN serves Instagram’s photos. Now get them into storage in the first place, without your API servers carrying the bytes.
+
+<SectionEnd next={{ title: '3 · Uploading a photo', href: '#s3' }}
+  concepts={[{ label: 'origin', href: '#s2-1' }, { label: 'CDN property', href: '#s2-2' }, { label: 'cache miss and hit', href: '#s2-3' }, { label: 'origin path', href: '#s2-4' }, { label: 'CDN URL from the backend', href: '#s2-5' }, { label: 'invalidation', href: '#s2-6' }, { label: 'nearest edge', href: '#s2-6' }]} />
+
+</Section>

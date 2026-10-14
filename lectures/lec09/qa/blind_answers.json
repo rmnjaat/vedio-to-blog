@@ -1,0 +1,926 @@
+[
+ {
+  "id": "Q001",
+  "answer": "1) Instagram's year-one architecture, 2) how a CDN works, 3) uploading photos at scale, 4) a hashtag service.",
+  "evidence": "Overview: 'The board's agenda had four items: Instagram's year-one architecture, how a CDN works, uploading photos at scale, and a hashtag service.'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Because of Facebook: it saw massive growth, so everyone asked what it ran (PHP, MySQL, Memcache) and built their own companies on the same stack; colleges then taught PHP, MySQL and the LAMP stack. It was widely, though not universally, copied (Instagram itself chose Django). The general pattern: one company grows massively, reveals its stack, and everyone starting after it copies it without asking whether they need it.",
+  "evidence": "Ch1 §1.2: 'Those years were PHP: PHP, MySQL and Memcache. The reason was Facebook... everyone asked what it ran and built their own companies on the same stack; colleges then taught PHP, MySQL and the LAMP stack.'",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "In its first year Instagram grew to 14 million users with only 3 engineers (board: '1 year, 14 million, 3 engineers'; the board doesn't say what the 14 million counts). That was insane at the time.",
+  "evidence": "Ch1 §1.1: 'fourteen million, with three engineers... (The board doesn't say what the fourteen million counts, only \"1 year, 14 million, 3 engineers\".)'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Top row: Nginx in front of Django, with Celery beside it (nginx, django, celery). Below: the stores Cassandra, PostgreSQL, Memcached, Redis and RabbitMQ. Both Django and Celery talk to every store (the board's ten crossing lines, redrawn on the page as two buses: Django's on top, Celery's below). All of it on AWS; 'why famous? 1 year, 14 million, 3 engineers' noted beside it. (A faint addition from sources, not on the board: photos on S3 behind CloudFront.)",
+  "evidence": "Ch1 Fig 1·a: 'Nginx in front of Django, Celery beside it, and both talking to every store. The board's ten crossing lines are drawn here as two buses (Django's on top, Celery's below)'; labels cassandra, postgresql, memcached, redis, rabbitmq, all on AWS.",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "A hedged prediction: it has been 10-11 years since the industry last revamped its stack, so within the next five years a new one should arrive, maybe based on Rust - it could be a language, a whole stack, or a set of libraries that make things simpler. Go was supposed to be that stack but 'failed to capture the market' (an opinion): it is still going strong, but it is not the default choice for a day-zero architecture.",
+  "evidence": "Ch1 §1.2: 'within the next five years a new one should arrive, maybe based on Rust... Go was supposed to be that stack, but it \"failed to capture the market\"... not the default choice for a day-zero architecture.'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "A CDN sits transparently between the user and the origin. The origin is a generic term for wherever the content lives: an S3 bucket, a backend server, literally anything you want served through the CDN. The CDN serves cached bytes if it has them; on a miss it fetches the same path from the origin. In the simplest setup the origin must be publicly accessible (with security policies, depending on the CDN).",
+  "evidence": "Ch2 §2.1: 'A CDN transparently sits between your user and your origin.' 'Origin is a generic term for wherever the content lives: an S3 bucket, a backend server, literally anything you want served through your CDN.'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "A CDN is not something you push things to. Most CDNs offer APIs nowadays, but that is not their main job; their job is to sit transparently between the user and the origin. It pulls: on a miss it fetches from the origin itself.",
+  "evidence": "Ch2 §2.1: 'A CDN is not something you push things to. Most CDNs offer APIs nowadays, but that is not their main job. Their job is to sit transparently between the user and the origin.' 'Nothing is pushed to it: it pulls.'",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "The backend's bandwidth is spent on something almost static (an image hardly ever changes), and images are huge (1, 2, 3, 5, 10 MB) - spending 10 MB of an API server's bandwidth to serve one is 'a crime'. The bytes leave through the same network card every API call needs; you want API servers lean and fast. Distance makes it worse: a server in Singapore sending 10 MB to a user in the US slows everything down.",
+  "evidence": "Ch2 §2.1 + Fig 2·a: 'images are huge: 1, 2, 3, 5, 10 MB. Spending 10 MB of an API server's bandwidth to serve one of them is \"a crime\". You want your API servers lean and fast.'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "A CDN property: a single mapping of your subdomain on the provider (e.g. a.mycdn.net) to an origin (e.g. arpitbhayani.me); all it asks for is one origin URL. Any request to a.mycdn.net is forwarded to the origin. Akamai calls it a property, CloudFront a distribution. To use your own hostname you add a DNS CNAME pointing to the CDN's edge hostname.",
+  "evidence": "Ch2 §2.2: 'All it asks for is one origin URL... That configuration is a mapping, called a CDN property: your subdomain on the provider, say a.mycdn.net, mapped to an origin, arpitbhayani.me.'",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Through ordinary DNS: the browser resolves whatever hostname is in the URL; a.mycdn.net resolves to the CDN provider's IP address (classic DNS configuration on Route 53 or your domain provider such as GoDaddy/Namecheap; a CNAME to the CDN's edge hostname), and the browser sends the request to that IP. It neither knows nor needs to know it is a CDN.",
+  "evidence": "Ch2 §2.2: 'The browser doesn't know whether a host is a CDN... it does a DNS resolution of whatever hostname is in the URL and sends the request to that IP address. Resolving a.mycdn.net returns the CDN provider's IP address.'",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "1) The browser asks DNS for a.mycdn.net and gets the CDN's IP. 2) It sends GET /system-design/logo.png to the CDN. 3) The CDN checks whether it has anything cached for this path - no, first request (miss). 4) It looks up the origin configured for the property (a.mycdn.net -> arpitbhayani.me), discards its own host, keeps the path. 5) The CDN itself requests arpitbhayani.me/system-design/logo.png; the origin generates the response as it always does. 6) The CDN caches the bytes and returns them to the user.",
+  "evidence": "Ch2 §2.2 Fig 2·c steps; §2.3: 'do I have anything cached for this path? No, it is the first request. So the CDN itself makes the request to arpitbhayani.me/system-design/logo.png... which caches it and sends it to the user.'",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "The host changes: the CDN discards its own hostname (a.mycdn.net) and puts the configured origin (arpitbhayani.me) in its place. The path stays exactly the same. That is why any path under the property works without configuring individual URLs.",
+  "evidence": "Ch2 §2.2: 'It swaps the host and keeps the path: a.mycdn.net/system-design/logo.png becomes arpitbhayani.me/system-design/logo.png.'",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "It is a cache hit: the CDN already has the image cached and serves it directly; the request never enters the backend. The origin hears from the CDN again only when the cached copy expires (or is invalidated).",
+  "evidence": "Ch2 §2.3: 'This time the CDN already has the image cached and serves it directly.' Clip 2·1: 'Every later request is a hit. The origin never hears about it. When the copy expires, one request refills it.'",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "No. The CDN caches whatever it gets back as a set of bytes: API responses, JSON, text files, images, videos, fragments. Caveat: it won't cache everything automatically - the response must be cacheable per the origin's headers (Cache-Control max-age/s-maxage; not no-store/private) and the CDN's policy; e.g. Cloudflare doesn't cache HTML or JSON by default and skips private/no-store/no-cache/max-age=0/Set-Cookie responses unless cache rules make them eligible.",
+  "evidence": "Ch2 §2.3: 'API responses, JSON responses, text files, images, videos, fragments: all of them can be cached on a CDN. What a CDN won't do is cache everything automatically.'",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "On a hit the request doesn't even enter your backend, saving the backend servers' bandwidth and cutting infrastructure cost: you need a couple of servers instead of hundreds, since only a few requests reach the backend (each time the cache invalidates). It gives efficiency and takes load off the backend. Rule of thumb: you keep infra cost down while paying almost the same to the CDN, and get extra performance on top; actual savings depend on traffic and hit ratio.",
+  "evidence": "Ch2 §2.3: 'You need a couple of servers instead of hundreds... you keep your infrastructure cost down while paying almost the same amount to the CDN, and get extra performance on top; the actual savings depend on your traffic and your hit ratio.'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "Yes. The origin doesn't have to be a site you own; any URL can sit behind a CDN. You could configure facebook.com as the backend of a CDN and nobody would judge you - for the CDN it is just a URL.",
+  "evidence": "Ch2 §2.3: 'you could configure facebook.com as the backend of a CDN, and nobody would judge you. For the CDN, it is just a URL.'",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "The origin was configured as a path, not just a domain: arpitbhayani.me/static. On a miss for edge.arpitbhayani.me/img/arpit.png, the CDN fetched https://arpitbhayani.me/static/img/arpit.png (string concatenation: origin + path), cached it and responded.",
+  "evidence": "Ch2 §2.4: 'The origin there is configured as a path, not just a domain: arpitbhayani.me/static. So when a request for edge.arpitbhayani.me/img/arpit.png reaches the CDN and misses, the CDN requests arpitbhayani.me/static/img/arpit.png'",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "No. Private content can be served too; how depends on the CDN. For a private bucket the CDN has to interface with it, e.g. you configure AWS keys on the CDN (a plugin-like feature; not every CDN supports every cloud); CloudFront uses origin access control without keys. Serving private content (e.g. Netflix) brings in tokens and authentication.",
+  "evidence": "Ch2 §2.6: 'Does a CDN only work for public resources? No. Private content can be served too, and how depends on the CDN you use.'",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "The backend sends it: in the API response or server-rendered HTML, the image URL passed is the CDN URL. The browser just renders whatever URL it gets in the IMG tag (front ends are 'utterly stupid'); compiling the CDN URL is the backend's responsibility. For Instagram, the post service builds it per request in its response.",
+  "evidence": "Ch2 §2.5: 'How does the user even know the CDN URL? The backend sends it. Whether it is an API response or a server-rendered HTML page, the image URL you pass in it is the CDN URL.'",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "There is no automatic en-masse way: you change the URLs you send, explicitly (not a big deal once your code builds its URLs in one place). The site never 'calls' the CDN; until the backend hands out CDN URLs, image requests still go to the origin.",
+  "evidence": "Ch2 §2.5: 'Nor is there an automatic way to do it en masse: you change the URLs you send, explicitly, which is not a big deal once your code builds its URLs in one place.'",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "It doesn't, until the TTL expires, or unless you use the CDN's API to explicitly invalidate the cache for that path (if you can, do that). A third option: give each new version a new file name (logo.v2.png). Invalidating is not pushing: you only say the path is invalidated; the next request misses and the CDN refetches from the origin.",
+  "evidence": "Ch2 §2.6: 'It doesn't, until the TTL expires, or unless you use the API the CDN provides to explicitly invalidate the cache for that particular path. If you can do that, do that... Invalidating is not pushing.'",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "Storage, data flow, separation of concerns, privacy (not what you think), extensibility, optimization.",
+  "evidence": "Ch3 §3.1 / Fig 3·a: 'storage, data flow (the important one), separation of concerns, privacy..., extensibility and optimization.'",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "5 million photo uploads per day.",
+  "evidence": "Ch3 §3.1: 'The requirement on the board is a single number: 5 million photo uploads per day.'",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "In blob storage: S3 on AWS or GCS on Google Cloud. Reasons raised: you can store compressed images, it is easy to build on with plenty of help online; but the deciding reason is that blob storage is dirt cheap.",
+  "evidence": "Ch3 §3.1: 'Into blob storage: S3 on AWS, GCS on Google Cloud... blob storage wins because it is dirt cheap.'",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "Rejected: an iPhone HD photo of about 5 MB is peanuts for an HTTP server and can be sent in one request; chunking and persistent connections are overkill, an unnecessary complication (S3 accepts a single PUT of up to 5 GB; multipart is for much larger objects). The rule: it's easy to build complex systems and exponentially difficult to build simple ones; keep it extremely simple.",
+  "evidence": "Ch3 §3.2: '5 MB is peanuts for an HTTP server: you can send it in one request without any problem. Chunking it is overkill, an unnecessary complication.'",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "On Instagram you want to see the photo right there, right now, and send it to your followers then and there; an app that says 'image posted' and shows it an hour later after async processing is poor user experience. So if the post must be instant, the photo must go to S3 synchronously.",
+  "evidence": "Ch3 §3.2: 'When you upload, you want to see the photo right there, right now... An app that says \"image posted\" and shows it an hour later... is poor user experience.'",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "No - that is not a problem: the server sends a 5xx and the user's app retries.",
+  "evidence": "Ch3 §3.2: 'That is not a problem. The server sends a 5xx, and the user's app retries. Simple.'",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Bandwidth (and memory): a constant stream of 5 MB requests eats the API servers' network bandwidth; every network card has a physical limit, so photos use capacity that smaller API calls need and those calls suffer; each API server's memory needs also go up. Each photo crosses the server twice (5 MB in, 5 MB out).",
+  "evidence": "Ch3 §3.2: 'The real problem is the bytes. A constant stream of 5 MB requests eats the API servers' network bandwidth. Every network card has a physical limit... The memory each API server needs goes up too.'",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "The long arc is the photo going from the user straight to S3 in one request with a signed, short-lived permission (the pre-signed URL); the API server under the arc is crossed out because the bytes never pass through it. The page does not give any text written next to 'Bandwidth concern'; the only related board text it quotes is the question 'Should upload not go through your API server?', with 'not' squeezed in afterwards.",
+  "evidence": "Ch3 §3.2 figure 'Simple is hard': 'The user sends the photo along one long arc straight to S3, with a signed, short-lived permission; the API server under the arc is crossed out because the bytes never pass through it.'",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "It saves the network bandwidth of the service, and it avoids transferring the data twice: through a service it's 5 MB in + 5 MB out (paying for 2x the data transfer); direct it is one 5 MB transfer.",
+  "evidence": "Ch3 §3.3: 'It saves the network bandwidth of the service, and it avoids transferring the data twice. Through a service, the photo goes 5 MB in and 5 MB out, and you pay for 2× the data transfer.'",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "A URL that is pre-signed and has an expiration: the backend signs a URL for one specific path with its own credentials and a short expiry; whoever holds it can upload to that path until it expires (AWS calls them bearer tokens).",
+  "evidence": "Ch3 §3.3: 'As the name suggests, a URL that is pre-signed and has an expiration.'",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "1) Prepare: the client calls the image upload service (passing metadata like image name / where it should go). 2) The service generates a random image ID. 3) It creates a short-lived pre-signed URL for that exact path, e.g. s3://images/<random_id>.png ('asking S3' is normally local signing by the SDK). 4) The pre-signed URL is sent to the user. 5) Upload: the user sends the image (POST, or PUT) directly to S3 with that URL, before it expires.",
+  "evidence": "Ch3 §3.3: 'The prepare phase... asks it to generate a random image ID... creates a short-lived pre-signed URL for that exact path... sends the pre-signed URL to the user. The upload phase. The user makes a POST request with the image to the pre-signed URL'",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Because then anyone could upload lots of their own data to your bucket for free and you would pay - S3 bills on the amount of data stored. You can open it, but you don't need to and still get to upload straight to S3.",
+  "evidence": "Ch3 §3.3: 'Because then anyone could upload lots of their own data to your bucket for free, and you would pay: S3 bills on the amount of data stored.'",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "10 seconds, 20, 30, 60 - whatever you choose. It is not the path that is open; it is the pre-signed URL: anyone holding that URL can send content that S3 stores at that path, until it expires (repeatedly - a bearer token).",
+  "evidence": "Ch3 §3.3: 'valid for a set time: 10 seconds, 20, 30, 60, whatever you choose. The subtle part is what is open. It is not the path that is open; it is the pre-signed URL.'",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Flexible and efficient: no bulky upload servers taking in images; 1 x 5 MB transferred instead of 5 + 5 MB (saves bandwidth); less infrastructure to manage; native security on the AWS side from the pre-signed URL itself, so less to manage yourself (and a presigned POST policy can cap size and restrict content type).",
+  "evidence": "Ch3 §3.3: 'No bulky upload servers taking in images, 1 × 5 MB transferred instead of 5 + 5 MB, less infrastructure to manage, and native security on the AWS side from the pre-signed URL itself'",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "Only metadata: the image's name, its size (183,938 bytes = 179 KB), its content type image/png, and an authentication token; it registers the intent to upload. It did not carry the image itself.",
+  "evidence": "Ch3 §3.4: 'That first request carries only metadata: the image's name, its size (183,938 bytes, which is 179 KB), its content type image/png and an authentication token. The image itself is not sent yet.'",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "1) 201 POST github.com …assets - registers the intent to upload, metadata only; the reply carries S3's upload_url, the signed form fields and the CDN href. (A 200 OPTIONS to the S3 host was on screen but is not a step.) 2) 204 POST …user-asset-6210df.s3… - the form fields plus the file (~173 KB) straight to S3. 3) 200 PUT github.com …/221335625 - tells GitHub the upload is done; the image markdown (starting with !) goes into the comment. Later, opening the image is a GET on the CDN (miss, then hit).",
+  "evidence": "Ch3 §3.4 Fig 3·c: '201 POST github.com assets · 200 OPTIONS …user-asset… (s3) · 204 POST …user-asset-6210df.s3… · 200 PUT github.com 221335625' and its steps.",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "To S3, not GitHub: …-6210df.s3.amazonaws.com (github-production-user-asset-…, a host on s3.amazonaws.com) - just the normal endpoint of GitHub's S3 bucket.",
+  "evidence": "Ch3 §3.4: 'It contains a signed upload URL, and that URL is not GitHub's: it is S3's.' 'The upload URL in the response is just the normal endpoint of GitHub's S3 bucket.'",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "href was what the image URL is going to be - a CDN URL on user-images.githubusercontent.com (GitHub's CDN alias). Its path held a '47-something' number, which was the uploader's GitHub user ID, followed by the random image ID 221335625.",
+  "evidence": "Ch3 §3.4: 'an asset href... a CDN URL, on user-images.githubusercontent.com... the path contains the image ID, 221335625'; Ch4 §4.1: 'the S3 key started with a number, \"47-something\", before the random ID. That number was the uploader's GitHub user ID.'",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "key (the path in the bucket where the image will land), acl (public-read), policy (the signed part, with the expiry inside), and X-Amz-Algorithm, X-Amz-Credential, X-Amz-Date, X-Amz-Signature (content type is also among the form data sent).",
+  "evidence": "Ch3 §3.4: 'form: { key, acl, policy, X-Amz-… }' and the field-by-field list.",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "The policy is signed with the key held on the API server and embeds the expiration, so S3 checks validity statelessly from the request itself: no database to store the time, no timer; once the time has passed it simply refuses the upload. JWTs work the same way.",
+  "evidence": "Ch3 §3.4: 'policy is the signed part... It is signed with the key held on the API server, and it embeds the expiration. So S3 needs no database to store the time and no timer: once the time has passed, it simply refuses the upload. JWTs work the same way.'",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "A POST to github-production-user-asset-…, a host on s3.amazonaws.com (S3's URL). The form body holds the fields copied from the first response (key, ACL, policy, algorithm, content type and so on) plus the file - the actual image bytes, about 173 KB of PNG. S3 answers 204.",
+  "evidence": "Ch3 §3.4: 'The frontend makes a POST to github-production-user-asset-…, a host on s3.amazonaws.com... with form data copied from the first response (key, ACL, policy, algorithm, content type and so on) plus the file'",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "It goes to the CDN (user-images.githubusercontent.com). The first time, the CDN doesn't have the path, so it goes to the origin GitHub configured for it (the S3 bucket), reads the key, caches it and forwards it to the user; the next load comes from the CDN and is noticeably faster.",
+  "evidence": "Ch3 §3.4: 'The first time, the CDN doesn't have that path, so it goes to the origin GitHub configured for it, the S3 bucket, reads the key, caches it and forwards it to the user.'",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "Submitting the issue is publishing an Instagram post: first the image is uploaded to S3, ready to be published; then a separate call publishes the post that refers to it.",
+  "evidence": "Ch3 §3.4: 'Submitting the issue is the last piece, and it is publishing an Instagram post. First the image is uploaded to S3, ready to be published; then a separate call publishes the post that refers to it.'",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Moderation is a different system, done with asynchronous processing. If moderation must happen in the request context, before the photo may be published, you can't upload directly to S3; that's why most moderation happens after the image is published, or almost on the fly (S3 'object created' event notifications are a natural trigger).",
+  "evidence": "Ch3 §3.5: 'Content moderation is a different system, done with asynchronous processing. If moderation must happen in the request context... then you can't upload directly to S3.'",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "So the frontend knows what URL to render: S3 is not public - you can't just call the S3 URL and get the data; reading is allowed only for the CDN. The CDN URL comes from the image upload service: same path, prefixed with the CDN endpoint instead of the bucket.",
+  "evidence": "Ch3 §3.5: 'So the frontend knows what URL to render. S3 is not public: you can't just call the S3 URL and get the data. Reading is allowed only for the CDN.'",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Mainly geography: CDN edges are close to users (Akamai has at least 18 locations in India vs AWS's two, now three, data centres), possibly other optimizations; storage differs (CDNs may keep content on local disks/SSDs; S3 doesn't store on SSDs - too costly); and they promise different things (S3 durability, 'nine nines'; CDN better response time). Benchmark to find out.",
+  "evidence": "Ch3 §3.5: 'The key reason is geography, though there may be other optimizations too; benchmark it and find out.'",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "It does not generate signed URLs. For public objects it needs nothing. For a private bucket you upload an AWS access key and secret key to the CDN, and it does a normal authenticated S3 read with the AWS SDK (SigV4-signed request), not via a URL. CloudFront instead uses origin access control (no keys handed over). CDNs have native S3 integrations.",
+  "evidence": "Ch3 §3.5: 'It doesn't. It holds the access and secret keys and does a normal S3 read with the AWS SDK, not via a URL.'",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Almost everyone adds an image URL column (the CDN URL). The teacher called it suboptimal ('wrong would be a strong word'): store only the random image ID and derive the URL. On the board the url column was circled, then struck out.",
+  "evidence": "Ch4 §4.1: 'Every cohort, almost every person, designs the table with that image URL column. The lecture calls it suboptimal rather than wrong... On the board the url column was circled, then struck out.'",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "If something is derivable, don't store it - store the crux of the information and derive the rest when needed ('always, always, always'; a line to put on a t-shirt).",
+  "evidence": "Ch4 §4.1 rule: 'If something is derivable, don't store it. Store the crux of the information and derive the rest when it is needed.'",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Instagram's acquisition by Facebook: it had to leave its CDN (said in class to be Cloudflare; the page notes it was actually CloudFront) and move to Facebook's CDN. With stored CDN URLs that means going through the entire DB rewriting every post's image URL, plus handling where new uploads are served from during the move.",
+  "evidence": "Ch4 §4.2: 'after Facebook acquired it, it could no longer use that CDN and had to move to Facebook's. Had every post stored its CDN URL, that move would mean going through the entire database...'",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "It binds you to a cloud provider instead: if Amazon raises prices 4x you must move and rewrite every row (vendors do this - Bing APIs became 4-10x costlier). And with a private bucket an S3 URL can't be served directly anyway; you'd have to string-manipulate it into a CDN URL. Storing the crux is always better.",
+  "evidence": "Ch4 §4.2: 'Storing the S3 URL instead is no better, because you may have to change cloud provider. Say Amazon raises its prices 4x...'",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "id - from an ID generator; user_id - author of the post; image_id - random photo id from the image service; caption; url - struck out (derivable: don't store it). (The page's SQL also includes created_at.)",
+  "evidence": "Ch4 Fig 4·a: 'id → from an id generator · user_id → author of the post · image_id → random photo id from the image svc · url → derivable: don't store it'",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "s3://insta-images/<user_id>/<image_id> - built from user_id and image_id (one folder per user).",
+  "evidence": "Ch4 Fig 4·a: 'the photo's S3 path can be computed: s3://insta-images/<user_id>/<image_id>'",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "In the API handler that builds the URL: pick a random number; if it is between 0 and 0.2 (20% of the time) use CDN A, otherwise CDN B. One line, no migration; then compare performance.",
+  "evidence": "Ch4 §4.2: 'pick a random number, and if it lies between 0 and 0.2, which happens 20% of the time, use CDN A, otherwise CDN B.'",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "In the API server (post service) business logic, at read time, on every request: the handler reads the row, builds the (signed) URL - CDN prefix + user ID + image ID + .png, possibly per a CDN experiment - and sends it in the JSON. It is never stored.",
+  "evidence": "Ch4 §4.2/§4.4: 'Generate the URL in the API server... the handler reads the row, takes its columns, creates the (signed) URL and sends it in the JSON response.' 'It is never stored.'",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Build the S3 path from the user ID and image ID and call S3 to delete it, once and for all. With a stored CDN URL you'd have to trim the CDN part off and patch the rest ('the worst way to build a system').",
+  "evidence": "Ch4 §4.2: 'To delete a user's image, build the S3 path from the user ID and the image ID and call S3 to delete it, once and for all.'",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "1) The user asks the image service to prepare an upload; it generates a random image ID and signs a URL for it. 2) The user uploads the photo to S3 with that URL. 3) Once complete, the client calls the post service (with the image ID and caption), which creates the entry in the posts DB; it can also check the image ID belongs to the same user.",
+  "evidence": "Ch4 §4.3: 'The upload-and-post flow now has three calls...'",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Only the image ID stored in the post. It gives a clean separation of concerns: media handling isn't mixed into the post, so video/reels upload services can be added next to the image service and the concept of a post (and posts table) stays the same.",
+  "evidence": "Ch4 §4.3: 'The two are connected only through the image ID stored in the post, which gives a clean separation of concerns'",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "It can check that the image ID in the request belongs to the same user.",
+  "evidence": "Ch4 §4.3: 'the post service can also check that the image ID in the request belongs to the same user.'",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "The post service (which writes the post to MySQL) publishes a 'post published' event to Kafka; CDC from MySQL into Kafka was also drawn (not discussed). Consumers: search, notification, analytics and feed, each pulling at its own pace. Partition key: user_id.",
+  "evidence": "Ch6 §6.1 Fig 6·a: 'post svc · write the post · mysql · post published · CDC · kafka · key: user_id · search · notification · analytics · feed'",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q063",
+  "answer": "The IMG tag (or image view on Android/iOS) makes a GET request to the CDN URL (instacdn.net). If the CDN has the image it returns it; otherwise (first view, a miss) it reads it from S3, caches it and sends it back. The next viewer gets a hit and S3 isn't touched.",
+  "evidence": "Ch4 §4.4: 'the tag makes a GET request to it... If the CDN has the image, it returns it; otherwise it reads it from S3, caches it and sends it back to the user.'",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "No - it is pseudo privacy. Photos are served through the CDN, so anyone holding a valid signed URL can open it until it expires (e.g. a follower copies it and sends it to a friend). 'Privacy is a myth.' It makes barging in difficult, not impossible.",
+  "evidence": "Ch5 §5.1/5.3: 'Instagram images are not private, and the idea that they are is a big myth.' 'This is pseudo privacy.'",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "Serving them straight from your own service would make costs shoot up; you always serve through the CDN for the best user experience. Truly private serving (every request through API servers) would need at least 50-100x more servers.",
+  "evidence": "Ch5 §5.1: 'Serving them straight from your own service would make costs shoot up, and you always serve through the CDN to give users the best experience'",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "On the owner's own private profile (confirmed private): inspect a photo, copy its image URL (an fbcdn.net address with oh and oe parameters), paste it into an incognito window - the image opens.",
+  "evidence": "Ch5 §5.1: 'Inspect a photo, copy its image URL, paste it into an incognito window, and the image opens.'",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "CDN domain (fbcdn.net; real host instagram.fblr22-1.fna.fbcdn.net), a CDN path (/ul/), the image name including the random ID, then query parameters: ig_cache_key (Instagram cache key), oh (hash/signature), oe (most probably the expiry), nc_sid etc. (CDN's own). The query parameters make photos 'private' - more exactly they make the URL expire and tamper-proof; real privacy is the API server deciding who gets the URL.",
+  "evidence": "Ch5 §5.2: 'Put simply, the query parameters are what make the photos private. More exactly, they make the URL expire and make it tamper-proof'",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Removing some parameters made the CDN respond 'Bad URL timestamp' (it expected the expiry parameter); editing them (e.g. oe) breaks the signature and the check fails. With the parameters passed, the image loads.",
+  "evidence": "Ch5 §5.2: 'removing some of these parameters made the request fail with \"Bad URL timestamp\", a response generated by the CDN, which expected the expiry parameter.'",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "It has no authentication of its own and is 100% stateless about users; it relies on timed signatures (like a JWT): an expiry baked into the URL with a signature over it; the CDN validates the signature and checks the expiration.",
+  "evidence": "Ch5 §5.2: 'A CDN has no authentication of its own and is 100% stateless... What it relies on instead are timed signatures, and they work exactly like a JWT.'",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "In the API server: if the account is private and you don't follow it, it doesn't send the JSON response carrying the photo URLs at all. Only it has the database; the CDN never does.",
+  "evidence": "Ch5 §5.3: 'If the account is private and you don't follow it, the API server doesn't send that response at all. Only the API server can make that call, because only it has the database'",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Without a CDN: every request (image upload and download) goes through your API server, which checks on every request whether this user may read this image. Instagram can't afford it: it would need at least 50-100x more servers due to the image data volume (an estimate); it reportedly already runs over 100,000 servers.",
+  "evidence": "Ch5 §5.3: 'A truly private platform can't use a CDN... Routing every image request through API servers would need at least 50 to 100x more servers'",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "An expiration time baked into the URL's metadata plus a signature over it so nobody can change the time; the CDN validates the signature and checks the expiry. They work exactly like a JWT; the signature is sometimes called a 'certificate'.",
+  "evidence": "Ch5 §5.2: 'timed signatures, and they work exactly like a JWT... An expiration time is baked into the URL's metadata, and a signature is attached over it'",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "The URL is rendered through an IMG tag; the request goes to the CDN; the CDN extracts the query parameters; checks the signature is valid and the URL hasn't expired; returns the image if both hold, otherwise a bad-URL error. Closing note (board): 'the URL is short lived because certs are short lived'.",
+  "evidence": "Ch5 §5.2: 'The URL is rendered through an IMG tag; the request goes to the CDN; the CDN extracts the query parameters, checks that the signature is valid and that the URL hasn't expired, and returns the image if both hold, otherwise a bad-URL error.' §5.1 board quote.",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "With Kafka as the glue: when a post is published, the post side pushes a message onto Kafka (topic keyed by user_id); it is consumed by multiple services - search, analytics, notification, feed - each at its own pace.",
+  "evidence": "Ch6 §6.1: 'Whenever a post is published, the post side pushes a message onto Kafka. That message is consumed by multiple services'",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "Use the image optimization the CDN offers out of the box (query parameters such as w=360); pay a bit of money and the problem is solved - reuse what exists rather than reinventing the wheel.",
+  "evidence": "Ch6 §6.2: 'Optimization is not building a service on your own... almost every CDN offers image optimization on the CDN itself'",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Not every user has high-speed bandwidth. Example: Sachin Tendulkar uploads a 50 MB photo (board note: 5 MB), and someone in a tier-3 city on Jio scrolling ten of his photos loses their entire day's data.",
+  "evidence": "Ch6 §6.2: 'Imagine Sachin Tendulkar uploading a photo 50 MB big, and someone in a tier-3 city on Jio internet scrolling through ten of his photos: their entire day's data is gone.'",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "The frontend (app), because it knows the screen's dimensions; it appends w=360 to the URL from the backend before putting it into the IMG tag / image view.",
+  "evidence": "Ch6 §6.2: 'the frontend, which knows the screen's dimensions, takes the image URL it got from the backend and appends a query parameter, w=360'",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "It first checks for the already-processed image (the path with ?w=360); if not, checks for the original; if it has neither, fetches the original from the origin (S3), resizes on the CDN server, caches the result (and the original) and serves it. The next identical request is a hit.",
+  "evidence": "Ch6 §6.2: 'On a resize request the CDN first checks whether it already has the processed image. If not, it checks for the original...'",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "Colour, grayscale, transpose, rotate; some also offer recognition.",
+  "evidence": "Ch6 §6.2: 'CDNs can colour, grayscale, transpose and rotate images, and some also offer recognition.'",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "No: the decoder must ship in the app (APK), and anyone can decompile it and extract it; there is no secure proprietary format - shipped code is public. DRM is a very different thing.",
+  "evidence": "Ch5 §5.4: 'There is no such thing as a secure proprietary format. Once you ship your code... anyone can decompile it'",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Storage is dirt cheap, so it is fine to leave them; if it becomes a concern, image entries with no post entry were never published, so find and clean them up (or an S3 lifecycle rule deletes objects after a set age).",
+  "evidence": "Ch4 §4.3: 'Storage is dirt cheap, so it is fine to leave them; if it does become a concern... you can find them and clean them up.'",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Other services (search, analytics, notification, feed) must be told a new post was published; one Kafka message is consumed by all of them, each iterating at its own pace - Kafka is the glue/backbone for extensibility.",
+  "evidence": "Ch6 §6.1: 'those other services must be told that a new post was published.' 'every consuming service iterates at its own speed and pace from the topic.'",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "It doesn't, and doesn't need to - it is CDN-internal: the device does an ordinary DNS resolution, which resolves the domain to the nearest CDN IP (via BGP; DNS mapping or anycast).",
+  "evidence": "Ch2 §2.6: 'It doesn't, and it doesn't need to: that is CDN-internal.'",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "No. S3 is a black box reached through the AWS SDK; the path is the API contract, where the bytes physically live isn't your concern.",
+  "evidence": "Ch4 §4.3: 'You don't need to know. S3 is a black box for this system'",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "The hashtag, the count of photos (e.g. #sunset, 1.2m photos), and a grid of the top 100 photos.",
+  "evidence": "Ch7 §7.1 Fig 7·a: 'hashtag · count of photos · top 100 photos'",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "There are millions of hashtags; a data-science team's service generates the top 100 photos per hashtag and notifies you whenever it does (a black box you don't build). The page shows exactly the top 100; goal is best UX; scale isn't discussed.",
+  "evidence": "Ch7 §7.1: 'There are millions of hashtags. And a data-science team runs a service that generates the top 100 photos for each hashtag and notifies you'",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Storage; counting, at large volume; inter-service communication (post service to hashtag service); super-fast response time (most important). For a moment the board also carried 'atomicity, partial update'.",
+  "evidence": "Ch7 §7.1: 'storage; counting, at large volume; inter-service communication...; and, more important than all of them, a super-fast response time.'",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Design storage from the page you must render, not from tables you already have; and the photos table has no hashtag column - hashtags are part of the caption.",
+  "evidence": "Ch7 §7.2: 'The photos table is out of the question. Think about the page you have to render. Besides, the photos table has no hashtag column'",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "{ tag, total_photos, top_100: [post IDs] } - one document per hashtag, e.g. tag: sunset, total_photos: 1.2m.",
+  "evidence": "Ch7 §7.2: 'tag: sunset · total_photos: 1.2m · top_100: [ … ] · one document, one read'",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "No - post IDs. Everything else (incl. the photo URL) is derivable from the post ID, and it reduces the document's space; image IDs alone would be ambiguous since building a path needs the user too.",
+  "evidence": "Ch7 §7.2: 'Post IDs. Why a photo URL?... A post ID is the data from which everything else can be derived'",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Post IDs: less space, very lightweight to cache, always the latest data (read from the source of truth), but two reads per render (hashtag DB, then post service); nothing to update when a post changes. Whole posts (denormalized): more space, bloats the DB (100 entries may be fine), one read and very fast retrieval, only as fresh as the copy; every copy must be updated when a post changes.",
+  "evidence": "Ch7 §7.3 text and table 'Top 100 as post IDs or as whole posts'.",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Freshness: every render reads the post table, the source of truth, so the page always shows the latest data; and the small document is very lightweight to cache.",
+  "evidence": "Ch7 §7.3: 'because the document is small it is very lightweight to cache. Every render reads the post table, the source of truth, so the page always shows the latest data.'",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "There are only 100 entries per hashtag, so the bloat might be fine, and retrieval is very fast: one read of one document, no extra call to the post DB.",
+  "evidence": "Ch7 §7.3: 'It bloats the database, though with only 100 entries per hashtag that might be just fine... retrieval is very fast'",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "When a post changes (e.g. more likes), every copy in every hashtag document must be updated - a pain point. Sidestep: don't show like/comment counts on the hashtag page, only the photos; tapping one opens the post page, so the copy has nothing to go stale.",
+  "evidence": "Ch7 §7.3: 'You might not show like and comment counts on the hashtag page at all... then the simple denormalized copy works without any worry about consistency.'",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "True, but out of scope: this design does the top 100. Don't add new requirements halfway through; they need a different design. Stick to the stated constraints.",
+  "evidence": "Ch7 §7.3: 'True, and out of scope: this design does the top 100. Don't add new requirements to a system halfway through designing it'",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "Not in real time per post: consume posts from Kafka, batch them in memory per hashtag, and write count += n (not count++ per post), using a DB with atomic increments.",
+  "evidence": "Ch8 §8.1/8.3: 'the updates can be applied in batches' 'update the counts with count += n... instead of count++ for every post.'",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "A post carries several hashtags, so it has no single key; and the post topic is already read by search, notifications, analytics - the counter must read it too, otherwise the post service writes to two Kafkas (distributed-consistency problem). It is partitioned by user_id (or post_id).",
+  "evidence": "Ch8 §8.2: 'First, a post you publish carries several hashtags... Second, the counting consumer has to read the topic the post service already publishes every post to... So the post topic is partitioned by user ID or post ID.'",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Posts of one hashtag from different users land on different partitions and counting servers; each server holds just one #sunset, so there is nothing to batch and each writes count++ one at a time - DB load doesn't go down.",
+  "evidence": "Ch8 §8.2: 'They sit on three partitions and reach three different servers. Each server holds one #sunset, so there is nothing to batch'",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "There are millions of hashtags - each can't be a channel, overkilling the infrastructure (the page notes this cost argument is overstated); and Redis Pub/Sub persists nothing - if Redis goes down (or a subscriber is down) data is lost; it's push-based real-time pub/sub.",
+  "evidence": "Ch8 §8.3: 'There are millions and millions of hashtags; each one cannot be a channel... what if that Redis goes down? Then there is data loss'",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Hashtag-extractor consumers (one per partition) read the user_id-keyed post topic, extract hashtags from each caption, and write one (hashtag, post) message per hashtag to a second topic, POST_HASHTAG, keyed by hashtag (repartitioning and reindexing). Counting servers consume it, batch per hashtag, and write count += n. The post topic stays untouched.",
+  "evidence": "Ch8 §8.3: 'A hashtag extractor reads the caption, extracts the hashtags and writes one message per hashtag into the new topic.'",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "post_1729: #sunset #sun #nature - it becomes n events for n hashtags, i.e. three (hashtag, post) tuples such as <#sunset, post_1729>, on POST_HASHTAG.",
+  "evidence": "Ch8 Fig 8·c labels: 'post_1729: #sunset #sun #nature · n events for n hashtags · <#sunset, post_1729>'",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "No. It's hash-based partitioning: the key goes through a hash function that picks one partition, so three partitions can hold millions of hashtags.",
+  "evidence": "Ch8 §8.2: 'Partitioning by hashtag does not mean one partition per hashtag. It is hash-based partitioning, so three partitions can hold millions of hashtags.'",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "count++ per event floods the database with micro writes that choke it and force over-provisioning; one bulk write is far faster - about 100x faster than one row at a time (safer wording: 'many times faster', depends on DB and rows).",
+  "evidence": "Ch8 §8.4: 'A bulk insert is about 100× faster than inserting one row at a time'",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Search, analytics and notifications already consume and depend on that topic; and a post has several hashtags so no single key.",
+  "evidence": "Ch8 §8.3: 'You can't: search, analytics and notifications already consume that topic and depend on it.'",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Exact counts: if a server crashes after the DB write but before the commit, it rereads the batch and counts twice (at-least-once). Acceptable since nobody needs an exact count - page says 1.2m, renders 100, users won't check; at scale you relax constraints, there's always an error rate.",
+  "evidence": "Ch8 §8.4: 'some posts may get counted more than once. That is acceptable, because nobody needs an exact count.'",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "Everything must be in one pre-computed document so the page renders in one shot, with the bare minimum of network I/O: GET /hashtag/<tag> answered in a single pre-computed response; no calls to other services.",
+  "evidence": "Ch7 §7.4: 'You want to render this page in one shot, so every piece of information needs to be in one document... do the bare minimum of network I/O.'",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Neither: data science computes it (black box) and notifies via their Kafka; we store a copy in our own hashtag DB and read from there.",
+  "evidence": "Ch9 §9.1; Ch7 §7.4: 'the top 100 photos are stored in the hashtag database itself, instead of calling the data-science service at read time.'",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Their popularity service pushes an event onto their Kafka; a few of our workers (low throughput) consume it, take the top 100 post IDs and replace the entire array in the hashtag document.",
+  "evidence": "Ch9 §9.1: 'it pushes an event onto Kafka, their Kafka... Your workers consume that event, take the top 100 post IDs out of it and update them in the hashtag database.'",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Your page's uptime (and latency) would depend on theirs; the page must render from one read of your own DB; anything that doesn't need to be synchronous shouldn't be.",
+  "evidence": "Ch9 §9.1: 'a synchronous dependency makes the uptime of your service depend on the uptime of theirs.'",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Write: post svc -> Kafka -> hashtag extraction -> <hashtag, post> on POST_HASHTAG (key hashtag) -> counting servers (count += n) -> partitioned DB. Popularity: popularity svc -> their Kafka (not high throughput) -> workers replace the top 100 -> same DB. Read: user GET /hashtag/<tag> -> CDN -> (on miss) hashtag API -> reads one doc from the partitioned DB, optional cache. Takeaways: Kafka as glue, adapter pattern, effective batching and counting, read/write path optimizations.",
+  "evidence": "Ch9 §9.2 Fig 9·a.",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "POST_HASHTAG; yes, it can live in the same Kafka cluster - just another topic, kept separate for separation of concerns.",
+  "evidence": "Ch8 §8.3: 'That second topic can live in the same Kafka cluster: it is just another topic.'",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Either a CDN or a cache in front of the API; the lecture picks the CDN any day since the response barely changes, and with a CDN you don't need the cache. Keep it fresh with a TTL and/or explicit invalidation; the origin sends Cache-Control s-maxage.",
+  "evidence": "Ch9 §9.2: 'CDN or cache? Put either in front of the API... The lecture's choice is the CDN, any day'",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "Kafka as a glue; the adapter pattern; effective batching and counting; read and write path optimizations.",
+  "evidence": "Ch9 Fig 9·a caption / Ch11: 'Kafka as a glue, the adapter pattern, effective batching and counting, and read and write path optimizations.'",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "Understand the system's read paths and write paths and tackle one at a time; at every hop think of the implementation, blow it out of proportion (what if it gets a huge load?), fix and re-architect.",
+  "evidence": "Ch9 §9.3 rule: 'Understand your read paths and your write paths, and tackle one at a time.'",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Post service -> Kafka must be a single call (two would need a distributed transaction); as many workers as the topic has partitions; into the DB: atomic and partial updates, enough provisioning, a decent consumption pace; no micro writes - batch. Board note: ingestion in Kafka; requirements from storage? partial updates.",
+  "evidence": "Ch9 §9.3: 'Something as simple as post service → Kafka must be a single API call... Into the database: atomic updates, partial updates.'",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "MySQL, MongoDB, DDB (DynamoDB). Access pattern: key value based access - for a key (hashtag), get the value (details).",
+  "evidence": "Ch9 Fig 9·b labels: 'partitioned db · MySQL, MongoDB, DDB... key value based access: for a key (hashtag), get the value (details)'",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Ask: what if that one database gets high spikes? Decide on partitioning and replicas; add a cache; if not enough, add a CDN in front.",
+  "evidence": "Ch9 §9.3: 'What if that one database gets high spikes? Decide whether to partition it, and whether you need replicas. Add a cache... add a CDN in front of it.'",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "Naive: extract the 8 hashtags and make 8 DB writes - lots of micro writes. To batch, everything for one hashtag must reach one server, so extract and re-ingest into another Kafka partitioned by hashtag; the owning server batches its tuples and writes.",
+  "evidence": "Ch9 §9.3: 'Take a post with eight hashtags. The naive way extracts the eight hashtags... and makes eight writes'",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Challenge: the POST_PUBLISH topic is partitioned by post_id or user_id. Adapter: hashtag extraction (#consumers = #partitions) turns each post into n events for n hashtags, <#sunset, post_1729>, onto POST_HASHTAG keyed by hashtag (repartitioning and reindexing); counting servers do count += n, batch and partially update per hashtag, into the partitioned db.",
+  "evidence": "Ch8 §8.2: 'The notes write the challenge down plainly: the POST_PUBLISH topic is partitioned by post_id or user_id.' Fig 8·c labels.",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "No. They're separate because they have different responsibilities (web server vs asynchronous workers); the read/write split was not the reason.",
+  "evidence": "Ch9 §9.3: 'They were treated as separate concerns; the read/write split itself was not the reason.'",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "They can't match the number of hashtags: define n partitions, measure throughput, increase if below need. Caveat: adding partitions changes key-to-partition mapping and existing data isn't moved. Workers = partitions.",
+  "evidence": "Ch8 §8.4: 'Define n partitions, measure the throughput you get, and if it's less than you need, increase the number of partitions.'",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "Each message carries the hashtag and post ID, so it groups by hashtag: a hash map hashtag -> integer starting at 0, +1 per message; when the batch is big enough, write one increment per hashtag to the DB, then commit the offset.",
+  "evidence": "Ch8 §8.4: 'keep a hash table from hashtag to an integer that starts at zero, add one for every message read, and once the batch is big enough, write the counts'",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "No - it can consume POST_HASHTAG, the <hashtag, post> topic, itself.",
+  "evidence": "Ch9 §9.1: 'They don't have to rebuild the extraction you already did: they can consume POST_HASHTAG'",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "Chat needed real-time push for minimal latency. Counting doesn't need real time but needs persistence and own-pace consumption: with Pub/Sub a down counting server misses messages forever, push lets a hot hashtag bombard one server, and a slow DB makes the pile-up worse.",
+  "evidence": "Ch8 §8.5: 'Counting doesn't need real time, and real-time Pub/Sub gives you no persistence'",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "A good approach but: the data science team would have to implement and manage calls into your API (not their job; they'd rather write to Kafka), and if your API is down when they call, the update is lost and they won't reprocess it. A trade-off.",
+  "evidence": "Ch9 §9.1: 'The data science team would have to implement and manage the calls... if your hashtag API happens to be down when they call, the update is lost'",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Pick a database that provides atomic increments (e.g. MySQL, DynamoDB); partitioning by hashtag gives each counter a single writer. Caveat: DynamoDB atomic counters aren't idempotent; use a conditional update where miscounts can't be tolerated.",
+  "evidence": "Ch8 §8.4: 'pick a database that gives atomic increments'",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Most likely data science sends a complete top 100 each time; you simply replace the entire array. Nothing is read back and re-sorted.",
+  "evidence": "Ch9 §9.1: 'you simply replace the entire array in the document.'",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "No - one topic with many partitions, e.g. 1,000 partitions for 1 million users, each handling about 1,000 users.",
+  "evidence": "Ch8 §8.2: 'say 1,000 partitions for 1 million users'",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "No - it can go down; Kafka gives about 99.9% availability, not four or five nines.",
+  "evidence": "Ch10 §10.1: 'It can go down. Kafka gives you about 99.9% availability'",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "If data is critical: push to a dead letter queue and later re-ingest into Kafka; if loss is acceptable: drop it; or buffer in memory for some time and write when Kafka is back, dropping if it doesn't return in time.",
+  "evidence": "Ch10 §10.1 three ways list.",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "For this pipeline the SLA is how quickly you consume from Kafka; parallelism is proportional to partitions: measure throughput; if it doesn't meet the SLA, increase partitions and workers (online repartitioning or with downtime).",
+  "evidence": "Ch10 §10.3: 'the SLA is about how quickly you can consume messages from Kafka.'",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "Uber's SOS emergency button.",
+  "evidence": "Ch10 §10.1: 'Take Uber's SOS emergency button'",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "You can, but it brings its own complexity: multi-master replication and conflict resolution - you get some, you lose some.",
+  "evidence": "Ch10 §10.1: 'You can, but it brings its own complexity: multi-master replication, and with it conflict resolution.'",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "Forever unless you configure a deletion policy (e.g. delete messages older than 30 days); the horizon is the time the last deletion ran, and you can't read before it. (Page note: Kafka's actual default retention is 7 days.)",
+  "evidence": "Ch10 §10.2: 'messages stay forever unless you configure a deletion policy... the time at which the last deletion ran is your horizon'",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "After reading messages, the consumer tells Kafka it is committing; Kafka marks it has committed up to that message (a checkpoint) so it can later resume from its last commit.",
+  "evidence": "Ch10 §10.2: 'a consumer tells Kafka it is committing. Kafka marks that this consumer has committed up to this message'",
+  "found": true
+ },
+ {
+  "id": "Q136",
+  "answer": "The horizon - for a brand-new consumer reading history; the last checkpoint - for an existing consumer after a crash (most common); the current/latest message - if losing data is fine. Kafka's default for a new group is latest, so set earliest.",
+  "evidence": "Ch10 §10.2: 'The three places are the horizon, the last checkpoint, and the current (latest) message.'",
+  "found": true
+ },
+ {
+  "id": "Q137",
+  "answer": "Yes, a big difference: no deletion = data forever = lots of storage; low-throughput systems can afford it, but at high throughput long retention blows up disk, so set deletion policies.",
+  "evidence": "Ch10 §10.2: 'A big difference... a longer retention period means your disk will blow up'",
+  "found": true
+ },
+ {
+  "id": "Q138",
+  "answer": "Have a consumer read old events, archive them to S3, then delete them from Kafka; or plugins that archive batches to S3/Blob/GCS before deletion (built-in tiered storage).",
+  "evidence": "Ch10 §10.2: 'have a consumer read the old events, archive them to S3 and then delete them from Kafka.'",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "First a management call on engineering cost: often cheaper to add servers than spend engineers' salaries; if optimizing instead, profile to find the bottleneck.",
+  "evidence": "Ch10 §10.5: 'two more servers are typically very cheap compared with engineers' salaries.'",
+  "found": true
+ },
+ {
+  "id": "Q140",
+  "answer": "Application-level profiling (New Relic, Datadog, OpenTelemetry) timing each function; run it only on a canary or slice of production (e.g. 90/10 split behind the load balancer, profile the 10%).",
+  "evidence": "Ch10 §10.5: 'The usual way is to split production, say 90/10... and to monitor the 10% with application profiling.'",
+  "found": true
+ },
+ {
+  "id": "Q141",
+  "answer": "New Relic and Datadog (market leaders), Nagios (open-source alternative named in class), cProfile for Python; OpenTelemetry-based systems also mentioned.",
+  "evidence": "Ch10 §10.5: 'New Relic and Datadog are the market leaders... the open-source alternative named in class was Nagios... cProfile'",
+  "found": true
+ },
+ {
+  "id": "Q142",
+  "answer": "Understand your workload: of CPU, memory, network and disk, see which you use most and add more of that; e.g. CPU-heavy encryption gains nothing from more RAM.",
+  "evidence": "Ch10 §10.5: 'there are four things, CPU, memory, network and disk: see which one you use the most, and add more of that.'",
+  "found": true
+ },
+ {
+  "id": "Q143",
+  "answer": "CPU first (to schedule more goroutines), then RAM depending on what each goroutine holds (e.g. 20 MB each).",
+  "evidence": "Ch10 §10.5: 'For a Go server doing lots of parallel work in goroutines, add CPU first... Then... add RAM'",
+  "found": true
+ },
+ {
+  "id": "Q144",
+  "answer": "Typically you wouldn't delete them (the tag may become popular later and its data would be gone), and each document is small: 32 B tag + 4 B count + 400 B IDs = 436 B ≈ 512 B; with 64-bit IDs ≈ 836 B ≈ 1 KB.",
+  "evidence": "Ch7 §7.4: 'You typically wouldn't delete them... That makes 436 bytes per document; round it to 512 bytes'",
+  "found": true
+ },
+ {
+  "id": "Q145",
+  "answer": "As an engineer, do the calculation: jumps from thousand to million to billion are very large yet easy to treat as nothing (a billion docs ≈ 500 GB, not half a gig).",
+  "evidence": "Ch7 §7.4: 'as an engineer, do the calculation. The jumps from a thousand to a million, and from a million to a billion, are very large'",
+  "found": true
+ },
+ {
+  "id": "Q146",
+  "answer": "The requirement scales hugely (said 1,000x; page corrects to 10,000x). Keep the first page in the hashtag document and the rest in a paginated store (e.g. a linked list), served only when someone scrolls that far.",
+  "evidence": "Ch7 §7.4: 'keep the first page in the hashtag document, and put the rest in a paginated store'",
+  "found": true
+ },
+ {
+  "id": "Q147",
+  "answer": "An in-memory distributed queue would do if losing a minute on crash is OK - it's the same thing, a partitioned message broker (RabbitMQ fine, Kafka fine); but Kafka also persists info other services can use.",
+  "evidence": "Ch8 §8.5: 'Then you are doing exactly the same thing. RabbitMQ is fine, Kafka is fine: what you are using is a partitioned message broker.'",
+  "found": true
+ },
+ {
+  "id": "Q148",
+  "answer": "No: the access pattern needs transactional properties and lookups (get a post by ID), which Kafka lacks; Kafka is a broker, never the source of truth ('you can, but you should not'). Jay Kreps disagrees.",
+  "evidence": "Ch10 §10.4: 'Kafka is always a message broker; it should never be your source of truth.'",
+  "found": true
+ },
+ {
+  "id": "Q149",
+  "answer": "Google Analytics or YouTube watch-time analytics: every event hits the API server, goes to Kafka first, then aggregated and stored later.",
+  "evidence": "Ch10 §10.4: 'Imagine building Google Analytics, or YouTube's watch-time analytics'",
+  "found": true
+ },
+ {
+  "id": "Q150",
+  "answer": "Usually DB first, then an event on Kafka; for analytics, Kafka first, DB later. He used Kinesis (not Kafka) as first point of ingestion.",
+  "evidence": "Ch10 §10.4: 'in every one of them the events were ingested into Kinesis first'",
+  "found": true
+ },
+ {
+  "id": "Q151",
+  "answer": "No; use another queue that has one, e.g. RabbitMQ or SQS, as a fallback.",
+  "evidence": "Ch10 §10.1: 'Kafka gives you no dead letter queue for this. Use another queue that has one, say RabbitMQ or SQS'",
+  "found": true
+ },
+ {
+  "id": "Q152",
+  "answer": "Write failed messages to your own database and process/replay later (called transactional outbox in class; page: more precisely a fallback store).",
+  "evidence": "Ch10 §10.1: 'skip the second queue and write the failed message into your own database, then process it later.'",
+  "found": true
+ },
+ {
+  "id": "Q153",
+  "answer": "Yes - a Spark cluster with Kafka connectors could do the counting and batched writes; implementation is up to you.",
+  "evidence": "Ch8 §8.5: 'You could replace them with a Spark cluster, which has Kafka connectors'",
+  "found": true
+ },
+ {
+  "id": "Q154",
+  "answer": "O'Reilly's book on Spark ('Effective Spark' from memory; likely Learning Spark); start with Spark, then Flume, Flink.",
+  "evidence": "Ch8 §8.5: 'To learn Spark, start with O'Reilly's book on it.'",
+  "found": true
+ }
+]

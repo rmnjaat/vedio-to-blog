@@ -1,0 +1,38 @@
+[
+ {
+  "id": "l09-cdn-miss-hit",
+  "section": "2.3",
+  "title": "One fetch, then thousands of hits",
+  "seconds": 28,
+  "ledger": ["L-0036", "L-0037", "L-0038", "L-0043"],
+  "predict": "A thousand people open the same photo in one minute. How many requests reach the origin?",
+  "caption": "The first request misses and the CDN fetches the same path from the origin; every later request is a hit. The origin hears from the CDN again only when the cached copy expires."
+ },
+ {
+  "id": "l09-presigned-upload",
+  "section": "3.3",
+  "title": "The bytes leave your servers' path",
+  "seconds": 32,
+  "ledger": ["L-0068", "L-0072", "L-0076", "L-0077", "L-0078", "L-0081", "L-0082", "L-0084", "L-0085"],
+  "predict": "Your upload service handles 5 MB photos. How many times do those bytes cross a network your servers sit on, before and after pre-signed URLs?",
+  "caption": "Through the API server, every photo crosses its network card twice and the card fills. With a pre-signed URL the app asks only for permission, then sends the photo straight to S3."
+ },
+ {
+  "id": "l09-signed-url-expiry",
+  "section": "5.2",
+  "title": "A forwarded URL, before and after it expires",
+  "seconds": 33,
+  "ledger": ["L-0162", "L-0164", "L-0168", "L-0169", "L-0172", "L-0177", "L-0178"],
+  "predict": "A follower forwards a photo URL with a five-minute expiry. The friend opens it after two minutes, and again after ten. What happens each time?",
+  "caption": "The CDN checks the URL's signature and expiry, not the person: a forwarded URL works until it expires, and changing the expiry breaks the signature."
+ },
+ {
+  "id": "l09-hashtag-repartition",
+  "section": "8.3",
+  "title": "The same posts, re-keyed by hashtag",
+  "seconds": 35,
+  "ledger": ["L-0242", "L-0243", "L-0244", "L-0247", "L-0249", "L-0250", "L-0251", "L-0267", "L-0269", "L-0270"],
+  "predict": "Post 31 carries three hashtags. How many messages does it become, and on how many counting servers can #sunset land?",
+  "caption": "Keyed by user, #sunset is spread over three servers that write one at a time. An extractor re-publishes one event per hashtag on a topic keyed by hashtag, so one server batches it: count += 3."
+ }
+]

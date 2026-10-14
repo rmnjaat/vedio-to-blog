@@ -1,0 +1,152 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { PostConsumers, ReuseSketch, ResizeSteps, PhotosEndToEnd } from '../../../figures/lec09/s6-figs';
+
+{/* §6 Extend and optimize (6.1–6.3): the last two items of the board's checklist, then the recap of the photo feature. */}
+
+<Section id="s6" no="6" title="Extend and optimize" crumb="6 Extend and optimize"
+  dek="Tell every other service that a post exists, and let the CDN shrink a 50 MB photo for a phone on a slow network. Both by reusing what already exists."
+  meta="About 9 min · class 01:31–01:39, Q&A 01:44">
+
+A post goes live. Search must index it, followers’ feeds must show it, notifications must fire, analytics must count it. And a fan on a 4G phone with a 360-pixel screen is about to download the original photo, all 50 MB of it.
+
+Two items are left on the checklist of [3.1](#s3-1): extensibility and optimization. Neither needs a new service of your own.
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Kafka, the glue" crumb="6.1 Kafka"
+  dek="One event when a post is published, and every interested service pulls it at its own pace."
+  meta="About 2 min · class 01:31–01:32, Q&A 01:44">
+
+A post was published. Who needs to know?
+
+Extensibility gets only a quick pass here, because it comes back in much more depth later in the course. [[L-0179]] Elsewhere on this site (cross-references, not topics named in class): <ForwardChip when="Lecture 8" lec="lec06" k="L-0179">fanning one event out to many consumers</ForwardChip> <ForwardChip when="Lecture 9" lec="lec07" k="L-0179">change data capture into Kafka, in depth</ForwardChip>
+
+The short version: Kafka is the glue that stitches almost all social networks together. [[L-0180]] Whenever a post is published, the post side pushes a message onto Kafka. That message is consumed by multiple services (search, analytics, notification, feed and so on) and each does its own job. [[L-0181]] Why a message at all? Because those other services must be told that a new post was published. [[L-0205]]
+
+<Figure id="fig-6a" no="Fig 6·a" k="L-0180 L-0181 L-0182 L-0205"
+  caption="One post, many consumers. The post service writes the post and drops one event on Kafka; each consumer pulls it. The dashed line from MySQL is CDC: drawn on the board, never discussed in class. Redrawn from the class board at 01:15.">
+  <Desk><PostConsumers /></Desk>
+  <Phone><PostConsumers layout="phone" /></Phone>
+</Figure>
+
+This is what makes Kafka the right tool here: every consuming service iterates at its own speed and pace from the topic. Social media is all about extensibility, and Kafka becomes the one central backbone that connects everything. [[L-0182]] The mechanics (topics, partitions, consumer groups, each group at its own position) are the ones from <ForwardChip label="from" when="Lecture 2" lec="lec01" sec="s3-6">Kafka essentials</ForwardChip>, and the course keeps going deeper into Kafka from here. [[L-0183]]
+
+The board also drew a second way into the same topic: change data capture from MySQL, which turns committed rows into events. <ForwardChip label="from" when="Lecture 5" lec="lec08" sec="s4-5">CDC, as a sneak peek</ForwardChip> And it asked one question that matters a great deal later: what is the partition key of this topic? The answer written down was `user_id`. Keep it in mind; [8.2](#s8-2) shows what that choice costs once hashtags need counting. [[L-0181 L-0242]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="Let the CDN resize the photo" crumb="6.2 Resize on the CDN"
+  dek="A 10,000-pixel original, a 360-pixel phone, and one query parameter that makes the CDN do the work."
+  meta="About 5 min · class 01:32–01:37">
+
+The last item is optimization, and the first thing to say about it is what it is not. Optimization is not building a service on your own. [[L-0184]] The next lecture builds an image optimization service from scratch; today is about what the CDN gives you out of the box. [[L-0185]] <ForwardChip when="Lecture 8" lec="lec06" k="L-0185">build your own image optimization service</ForwardChip>
+
+<RuleBox rule="Building real-world systems means ==reusing what already exists==, not reinventing the wheel every time." k="L-0184 L-0194">
+
+Kafka already decouples every consumer from the post; the CDN already resizes images. Pay a little and the problem is solved.
+
+<Desk><ReuseSketch /></Desk>
+<Phone><ReuseSketch layout="phone" /></Phone>
+
+</RuleBox>
+
+Serving images and videos is a CDN’s most common use case, so almost every CDN offers image optimization on the CDN itself, and you don’t have to build that service yourself. [[L-0186]] (Many do: Cloudflare, Fastly and Akamai each sell it, usually as a separately enabled and billed feature. <Cite href="https://developers.cloudflare.com/images/transform-images/transform-via-url/">developers.cloudflare.com</Cite>) Not every CDN has it built in. For Amazon CloudFront, AWS offers *Dynamic Image Transformation for Amazon CloudFront*, a solution you deploy in your own account (Lambda functions using the sharp library, or ECS Fargate containers) with CloudFront caching in front. <Cite href="https://docs.aws.amazon.com/solutions/dynamic-image-transformation-for-amazon-cloudfront/">docs.aws.amazon.com</Cite>
+
+Why optimize at all? Because not every user has high-speed bandwidth. Imagine Sachin Tendulkar uploading a photo 50 MB big, and someone in a tier-3 city on Jio internet scrolling through ten of his photos: their entire day’s data is gone. [[L-0187]] (The board’s note says 5 MB, the spoken example 50 MB; at 5–50 MB per photo, sending the original to every follower is a very bad idea either way.) One way to fix it is to compress the image and prepare versions optimized for the resolutions of different devices. [[L-0188]]
+
+The CDN way is simpler. Just as a CDN accepts keys in the query string to make things private (§5), it accepts a set of query parameters for image processing. One of them is the width: `w`, `width` or `ow`, depending on the CDN, the pixel width the resulting photo should have. [[L-0189]] Say the user uploaded a 10,000 × 10,000 pixel photo and the device is only 360 pixels wide. There is no reason to send it the full-size image. [[L-0190]]
+
+So the frontend, which knows the screen’s dimensions, takes the image URL it got from the backend and appends a query parameter, `w=360`, before putting it into the `IMG` tag, the DOM or the image view. The frontend is smart now. [[L-0191]] (Two cautions from Cloudflare’s docs: every distinct width a client asks for is a separate transformation, and billed as one, so snap widths to a few sizes; and transformation parameters are not a privacy control: anyone can edit a `blur` parameter out of a URL. <Cite href="https://developers.cloudflare.com/images/transform-images/transform-via-url/">developers.cloudflare.com</Cite>)
+
+```js
+// the app: the backend sends the plain CDN URL, the app adds the width it will draw
+const src = `${post.photoUrl}?w=${Math.round(screenWidthPx)}`; // …/1729_4275.jpg?w=360
+img.src = src;
+```
+
+<p class="lead-in">What the CDN does with that request. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-6b" no="Fig 6·b" label="?w=360 through the CDN" grow
+  k="L-0189 L-0190 L-0191 L-0192"
+  stepK={['L-0189 L-0190 L-0191', 'L-0192', 'L-0192', 'L-0192', 'L-0192', 'L-0192']}
+  caption="Time runs down. Lanes: the app, the CDN with its cache (it looks for the resized copy, then the original), and S3. Blue is a request, green a reply; the filled chips are the photo, large and resized. New figure, from the class notes at 01:34 (instacdn.net/ul/1729_4275.jpg?w=360)."
+  steps={[
+    'The app knows its screen is 360 px wide, so it appends <code>w=360</code> to the URL the backend gave it and requests that.',
+    'The CDN first looks for the already-processed image: the path with <code>?w=360</code>. None yet.',
+    'Then for the original. Not cached either.',
+    'So it fetches the original from the origin, S3.',
+    'It resizes on the CDN server, <span class="term green">caches</span> the result and sends the small one to the app.',
+    'The next request for the same width is a <span class="term green">hit</span> on the resized copy.',
+  ]}>
+  <Desk><ResizeSteps /></Desk>
+  <Phone><ResizeSteps layout="phone" /></Phone>
+</StepThrough>
+
+On a resize request the CDN first checks whether it already has the processed image. If not, it checks for the original. If it has neither, it goes to the origin and reads the original, applies the requested processing (`w=360`) on the CDN server, caches the result and serves it to the user. The next identical request finds the processed path and is served straight from it. [[L-0192]]
+
+Resizing is only the start. CDNs can colour, grayscale, transpose and rotate images, and some also offer recognition. Pick your favourite CDN and look at its image processing capabilities. [[L-0193]] In today’s world you rarely need to build your own image upload or optimization service: the CDN gives you the tools out of the box, you pay a bit of money, and the problem is solved. [[L-0194]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="The whole upload service in one picture" crumb="6.3 End to end"
+  dek="Everything from the CDN to here on one page, and the habit that built it."
+  meta="About 2 min · class 01:37–01:39">
+
+That completes the photo side of Instagram. Each item on the checklist turned into a decision:
+
+- **What a CDN does** ([2](#s2)), seen on a real site.
+- **Storage** ([3.1](#s3-1)): blob storage, because it is cheap.
+- **Data flow** ([3.2](#s3-2)–[3.4](#s3-4)): uploading through the API servers copies every photo twice and needs 2× the bandwidth, so the app uploads straight to S3 with a pre-signed URL, exactly as GitHub does.
+- **Separation of concerns** ([4](#s4)): posts and images kept apart, and no derived values stored, so the CDN can change on the fly and experiments are a code change.
+- **Privacy** ([5](#s5)): a photo is 100% private only if every byte goes through your API servers instead of the CDN.
+- **Extensibility** ([6.1](#s6-1)): when a post is published, a message on Kafka for every other service to consume.
+- **Optimization** ([6.2](#s6-2)): the CDN’s own parameters; read your CDN’s documentation for what it can do.
+
+[[L-0195]]
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0152 L-0195"
+  caption="Instagram photos, end to end. A uploads straight to S3 and posts through the post service; B gets CDN URLs from the post service and the photos from the CDN; Kafka tells everyone else. Each box links to the chapter that covers it. New figure, assembled from the boards of chapters 3–6.">
+  <Desk><PhotosEndToEnd /></Desk>
+  <Phone><PhotosEndToEnd layout="phone" /></Phone>
+</Figure>
+
+The figure is the easy part. Anyone can draw these boxes; what makes the design work is the nitty-gritty at every step: which server the bytes cross, what the URL contains, what is stored and what is derived. Drawing boxes is the easiest thing to do. Build things the way the real world builds them, think about the implementation and the specifics at every single step, and that is what makes you better than most. [[L-0152]]
+
+<h3 id="s6-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Why is “a post was published” a message on Kafka rather than four API calls from the post service?" k="L-0181 L-0182 L-0205">
+
+Other services (search, notifications, analytics, feed) must learn that the post exists, and one message on Kafka is consumed by all of them, and each iterates at its own speed and pace; adding a fifth consumer touches nothing in the post service. That is why Kafka is called the backbone of a social network’s extensibility.
+
+  </RecallItem>
+  <RecallItem q="A 10,000-pixel photo, a 360-pixel screen: who decides the width, who does the resizing, and what is cached?" k="L-0190 L-0191 L-0192">
+
+The frontend decides: it knows the screen and appends `w=360` to the URL the backend sent. The CDN does the resizing, on its own servers, after fetching the original from the origin if it doesn’t have it. It caches the resized copy, so the next request for the same width is a hit.
+
+  </RecallItem>
+  <RecallItem q="Give two reasons the lecture prefers CDN image transforms over building your own service today." k="L-0184 L-0186 L-0194">
+
+Almost every CDN already offers image optimization, because serving images is its main use case, so the tool exists out of the box: you pay a bit of money and the problem is solved. And building real-world systems means reusing what already exists instead of reinventing the wheel.
+
+  </RecallItem>
+</RecallQuestions>
+
+The post Kafka you just drew is about to matter a lot: Instagram also wants a page for every hashtag.
+
+<SectionEnd next={{ title: '7 · The hashtag page: what to store', href: '#s7' }}
+  concepts={[{ label: 'Kafka as glue', href: '#s6-1' }, { label: 'extensibility', href: '#s6-1' }, { label: 'CDN image optimization', href: '#s6-2' }, { label: 'w=360', href: '#s6-2' }, { label: 'reuse, don’t rebuild', href: '#s6-2' }, { label: 'the upload service, end to end', href: '#s6-3' }]} />
+
+</Section>

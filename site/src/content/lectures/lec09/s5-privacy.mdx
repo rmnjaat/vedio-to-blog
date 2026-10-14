@@ -1,0 +1,206 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { IncognitoTest, SignedUrl, PrivacyRule } from '../../../figures/lec09/s5-privacy';
+
+{/* §5 Who can see a private photo? (5.1–5.4). Writer w3. Chapter page /lectures/lec09/5-privacy/.
+    Q&A folded in (outline): OTT authorization (01:39:52) → 5.4 ForwardChip; proprietary format, DRM, piracy law,
+    complaints (01:40:17–01:43:26) → 5.4. The "privacy is a myth" teaser (01:03:31, L-0118) opens 5.1.
+    Fact-check: SN-04 (L-0163) in 5.1, SN-05 (L-0175) in 5.3; inline L-0160, L-0167, L-0168, L-0169, L-0201, L-0202;
+    L-0170, L-0176, L-0200, L-0203 attributed. Clip l09-signed-url-expiry (5.2): predict line and caption from
+    logs/animate_l09-signed-url-expiry.result.md. */}
+
+<Section id="s5" no="5" title="Who can see a private photo?" crumb="5 Private photos"
+  dek="The elephant in the room. A CDN knows nothing about followers, so what makes a private account private, and what would real privacy cost?"
+  meta="About 18 min · class 01:18–01:31, Q&A 01:39–01:43">
+
+A’s account is private. B follows A; C doesn’t. Every one of A’s photos is served from the same CDN, through URLs built the way [§4.4](#s4-4) builds them, and that CDN has never heard of B or C. So who can see A’s photos, and what is doing the checking?
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Are private photos private?" crumb="5.1 Are they private?"
+  dek="A photo on a CDN can be opened by anyone who holds its URL, for as long as the URL is valid."
+  meta="About 5 min · class 01:18–01:23">
+
+Storage, data flow and separation of concerns are done. Next on the board’s list is privacy, the elephant in the room for Instagram and for most social platforms. [[L-0159]] It comes with a claim worth testing: Instagram images are not private, and the idea that they are is a big myth. Seeing how privacy is really implemented on social media is where the CDN shows its magic. [[L-0118]]
+
+Start with the blunt version. “When something is out on the internet, it is out on the internet.” There is nothing called privacy: even private Instagram posts aren’t private, “I can access that”, and all it takes is short-term access “as a basic hacker”. [[L-0160]] That qualification is the whole point. Short-term access means holding a valid signed URL, for example one a follower copied, before it expires; private posts are not openly fetchable by anyone who guesses a path <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html">docs.aws.amazon.com</Cite>. [[L-0160]]
+
+Why would a URL be enough? Say A’s account is private and B is allowed to see A’s photos, however the follow flow works. Those photos are still served through the CDN. Serving them straight from your own service would make costs shoot up, and you always serve through the CDN to give users the best experience, which means the photo is cached on the CDN. [[L-0161]] And if a photo is on the CDN, anyone who has its URL can access it. [[L-0162]]
+
+Access by URL lasts only while the cached photo’s TTL or certificate is valid. Once it expires, the URL is invalidated and no one can open it; until then, anyone holding the URL can. The board put it as “the URL is short lived because certs are short lived”. [[L-0163]]
+
+<SourceNote href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html" site="docs.aws.amazon.com (CloudFront signed URLs)" k="L-0163">
+
+The URL is short-lived because the backend signs it with a short expiry. The CDN checks that expiry on every request and rejects the URL afterwards, however long the photo stays in its cache. The signing keys themselves are long-lived key-group keys, not short-lived certificates. The check happens as each request arrives: a download that started just before the expiry still completes, but a retry or a range request after the expiry time fails.
+
+</SourceNote>
+
+So if your profile is private and one of your followers does an inspect element, copies a photo’s URL and sends it to a friend who doesn’t follow you, that friend can see the photo. Beware whom you grant access. [[L-0164]]
+
+<PauseAndThink k="L-0162 L-0164 L-0166 L-0168 L-0172 L-0174"
+  q="A’s account is private. B follows A and copies the URL of one of A’s photos into a chat with C, who doesn’t follow A. C clicks it a minute later. What does C see?"
+  choices={[{ label: 'The photo', correct: true }, { label: 'An error: the CDN knows C doesn’t follow A' }]}
+  right="Right. The CDN checks the URL, not the person."
+  wrong="Not quite. The CDN is stateless about users. The only gate it applies is the signed expiry in the URL.">
+
+The photo. The CDN has no idea who C is or who follows whom; it only checks that the URL’s signature is valid and its expiry hasn’t passed. Privacy is enforced earlier, by the API server deciding who receives the URL at all ([§5.3](#s5-3)). Once a valid URL is handed on, anyone holding it can open it until it expires. That is why it is called pseudo privacy.
+
+</PauseAndThink>
+
+None of this is theory, and you can check it with the tool that is your best friend throughout this course: the browser’s dev tools, in Chrome, Firefox or whatever you use. They show how real systems work. [[L-0165]] The live demo used a real private profile, its owner’s own, confirmed private by people looking at it. Inspect a photo, copy its image URL, paste it into an incognito window, and the image opens. “Privacy is a myth, my friend.” [[L-0166]]
+
+<Figure id="fig-5a" no="Fig 5·a" k="L-0161 L-0162 L-0164 L-0166"
+  caption="a: a follower’s view of a private profile, and the photo URL in the inspector. b: the same URL in a private window, opened by someone who doesn’t follow the account: it loads. Nothing failed, which is the point. Recreated from the live demo at 01:21–01:23; no account content is shown.">
+  <Desk><IncognitoTest /></Desk>
+  <Phone><IncognitoTest layout="phone" /></Phone>
+</Figure>
+
+<MarginNote title="See it yourself" why="skip if you don’t use Instagram" k="L-0165 L-0171">
+
+On your own private account, right-click a photo, choose Inspect, and copy the `src` of its `img` element. Paste it into a private window: it loads. Now delete one of the query parameters, the one called `oe`, and reload. You get an error from the CDN instead of the photo ([§5.2](#s5-2) explains why).
+
+</MarginNote>
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Anatomy of a signed URL" crumb="5.2 A signed URL"
+  dek="The URL from the demo, piece by piece, and the two parameters that let a stateless CDN refuse it."
+  meta="About 5 min · class 01:23–01:26 and 01:29–01:31">
+
+Lay the URL from the demo out piece by piece. First the CDN domain, `fbcdn.net`: Instagram moved to Facebook’s CDN after the acquisition. Then a CDN path, then the image name, a combination that includes the random ID, and then a set of query parameters. Put simply, the query parameters are what make the photos private. [[L-0167]] More exactly, they make the URL expire and make it tamper-proof; what keeps a private account private is the API server deciding who receives the URL at all, in [§5.3](#s5-3). (Instagram moved there from Amazon CloudFront, not Cloudflare: see the note in [§4.2](#s4-2) <Cite href="https://highscalability.com/instagram-architecture-14-million-users-terabytes-of-photos/">highscalability.com</Cite>.) [[L-0167]]
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0167 L-0169 L-0170"
+  caption="The URL shape from the class notes, with the parts named. oh and oe travel together: change either one and the CDN’s check fails. The demo’s real host was Facebook’s CDN.">
+  <Desk><SignedUrl /></Desk>
+  <Phone><SignedUrl layout="phone" /></Phone>
+</Figure>
+
+Why parameters, and not a login? A CDN has no authentication of its own and is 100% stateless. It doesn’t know that you are user B, that you follow user A, or that this is why you may see A’s photos. [[L-0168]] That is stateless about *users*, not without access control: CDNs do offer signed URLs, signed cookies and token authentication <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html">docs.aws.amazon.com</Cite>. Other CDNs offer the same idea under different names. Cloudflare’s token authentication, for example, checks a URL parameter of the form `verify=<issue-time>-<MAC>`: it recomputes an HMAC of the path and the timestamp with a shared secret, and blocks the request if the MAC differs or the token is older than the allowed lifetime <Cite href="https://developers.cloudflare.com/waf/custom-rules/use-cases/configure-token-authentication/">developers.cloudflare.com</Cite>. [[L-0168]]
+
+What it relies on instead are timed signatures, and they work exactly like a JWT. If you haven’t met JWTs, read about them. An expiration time is baked into the URL’s metadata, and a signature is attached over it so that no one can change that time; the CDN validates the signature and checks the expiration. [[L-0169]] That signature is sometimes called a “certificate”; technically it is a signature. In CloudFront, for instance, you register public keys in a trusted key group and sign URLs with the matching private key (RSA 2048 or ECDSA 256). CloudFront verifies the signature, then checks the expiry in the policy, and a query parameter added after signing makes the URL fail with HTTP 403 <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html">docs.aws.amazon.com</Cite>. [[L-0169]]
+
+In the Instagram URL, `oe` is most probably the expiry (a guess, offered as one), `oh` is the hash, `ig_cache_key` is an Instagram cache key, and there are further parameters that are specific to Facebook’s CDN and undocumented. Every CDN has something like this, so pick your favourite CDN and read its docs. [[L-0170]] In the demo, removing some of these parameters made the request fail with “Bad URL timestamp”, a response generated by the CDN, which expected the expiry parameter. With the parameters passed, the image loads. [[L-0171]]
+
+So the CDN reads keys like `oe` and `oh` from the URL to find the expiry. If that is, say, five minutes, a request arriving after five minutes is not served. [[L-0177]] The whole check is short. The URL is rendered through an `IMG` tag; the request goes to the CDN; the CDN extracts the query parameters, checks that the signature is valid and that the URL hasn’t expired, and returns the image if both hold, otherwise a bad-URL error. [[L-0178]]
+
+```python
+# illustrative: oe is most probably the expiry, oh the hash
+# (a guess; Facebook's CDN doesn't document its parameters)
+def serve(url, now):                      # what the CDN does, per request
+    expiry, sig = url.params["oe"], url.params["oh"]
+    if not valid_signature(url.without("oh"), sig) or now > expiry:
+        return error("bad URL")            # edited or expired: either way, refused
+    return cached_or_fetch(url.path)       # no idea who is asking
+```
+
+<AnimationClip clip="l09-signed-url-expiry" no="Clip 5·1" k="L-0162 L-0164 L-0168 L-0169 L-0172 L-0177 L-0178"
+  lead="A follower forwards a photo URL with a five-minute expiry. The friend opens it after two minutes, and again after ten. What happens each time?"
+  caption="The CDN checks the URL's signature and expiry, not the person: a forwarded URL works until it expires, and changing the expiry breaks the signature." />
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Where privacy is enforced, and what real privacy costs" crumb="5.3 Where privacy lives"
+  dek="The API server decides who receives a URL. Anything stronger means giving up the CDN, and Instagram can’t."
+  meta="About 3 min · class 01:26–01:29">
+
+So what does a private account actually do? To render a profile, the viewer needs the JSON response that carries the photo URLs. If the account is private and you don’t follow it, the API server doesn’t send that response at all. Only the API server can make that call, because only it has the database; the CDN never does. [[L-0172]]
+
+<RuleBox rule="Privacy is enforced in the ==API server==, which decides who receives a photo’s URL; the CDN only checks the URL’s signature and expiry." k="L-0172 L-0160">
+
+“When something is out on the internet, it is out on the internet.” Anyone *given* a valid URL can open it until it expires. The only real gate is the decision about who gets the URL in the first place.
+
+<Desk><PrivacyRule /></Desk>
+<Phone><PrivacyRule layout="phone" /></Phone>
+
+</RuleBox>
+
+Take a real private profile with 15–20 photos. A follower who opens it sees them because the JSON response sends those 15–20 photos, each with its full FBCDN URL. A non-follower gets no such response, so nothing renders and the account shows as private. [[L-0173]]
+
+This is **pseudo privacy**. It makes barging in difficult, not impossible, and it isn’t 100% private. Anyone who has a photo URL can share it with friends, who can view it until the key expires; if a friend scrapes your photos and shares them, your privacy is gone. “It’s no magic. It’s just making it difficult for you to explore.” [[L-0174]]
+
+A truly private platform can’t use a CDN. Every request, image upload and image download alike, has to go through your API server, which checks on every request whether this user may read this particular image, because only the API server, with the database, knows who may read what. [[L-0175]]
+
+<SourceNote href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html" site="docs.aws.amazon.com (CloudFront signed URLs)" k="L-0175">
+
+Between Instagram’s pseudo privacy and “no CDN at all” there is a spectrum: very short-lived signed URLs, URLs bound to the viewer’s IP range, signed cookies, authentication at the edge, or encrypted media. CloudFront signed URLs, for example, can use a custom policy that limits access to the viewer’s IP range as well as a short expiry, and <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html">signed cookies</Cite> can protect many files without changing their URLs. Serving every byte through your own authorised servers is the extreme end, and signed URLs stay bearer tokens until they expire.
+
+</SourceNote>
+
+Instagram can’t afford that extreme at its scale. Routing every image request through API servers would need at least 50 to 100x more servers, because of the sheer volume of image data moving through them. It reportedly already runs a fleet of more than 100,000 servers: “That’s what I’ve last heard. I’m not really sure. They keep on changing it.” Neither figure is public; the multiplier is an estimate, but the direction is not in doubt. [[L-0176]]
+
+<TradeoffTable caption="How private is private? Three ways to serve a private account’s photos"
+  columns={[{ label: 'Signed URLs via the CDN (Instagram)', glyph: 'cdn' }, { label: 'Tighter signed URLs or cookies', glyph: 'cdn' }, { label: 'Every byte through your API', glyph: 'apiram' }]}
+  rows={[
+    { label: 'Who decides access', k: 'L-0172', cells: ['The API server, by sending the URL or not', 'The API server, plus a tighter check at the CDN', 'The API server, on every request'] },
+    { label: 'What a leaked URL gets you', k: 'L-0174', cells: ['The photo, until the expiry', 'Less: a shorter window, maybe only from the viewer’s IP range', 'Nothing without the viewer’s own login'] },
+    { label: 'Servers needed', k: 'L-0176', cells: ['The API fleet you already run', 'About the same', { text: '50–100x more (an estimate)', bad: true }] },
+    { label: 'User experience', k: 'L-0161 L-0175', cells: ['Fast: photos come from a nearby edge', 'Fast', 'Slower, and every photo costs you bandwidth'] },
+  ]} />
+
+<p class="lead-in">The middle column is from the note above: <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html">CloudFront signed URLs</Cite>.</p>
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="Why not a secret format?" crumb="5.4 A secret format?"
+  dek="Shipped code is public code. What DRM is for instead, and why it is a different thing."
+  meta="About 4 min · class Q&A 01:39–01:44">
+
+One idea raised in class: store private images in a proprietary format that only the Instagram app can open. To render such a photo, Instagram would have to ship the decoder in its Android code, and once it is out in the APK anyone can decompile it and extract it. “There is no rocket science.” [[L-0197]]
+
+There is no such thing as a secure proprietary format. Once you ship your code, your jar, anyone can decompile it and reverse-engineer the format; once it is out in public, it is public. [[L-0199]] DRM, the protection Udemy uses for its videos, for example, is a very different thing from a proprietary format. [[L-0198]]
+
+DRM is worth reading about. The most interesting part is how the person who leaked a piece of content gets caught, and that the evidence counts as formal proof. [[L-0201]] The two halves are separate tools: DRM restricts playback, but it can’t attribute a leak once a screen is recorded; leakers are identified with forensic watermarking, which embeds an invisible, viewer-specific mark in each copy <Cite href="https://www.vdocipher.com/glossary/forensic-watermarking/">vdocipher.com</Cite>. [[L-0201]]
+
+Per the instructor, in India, pirating content when there is DRM proof that you did it means jail for three years, with no bail; the laws are strict now and everything is traceable. [[L-0202]] The legal basis: in *Knit Pro International v. State of NCT of Delhi* (20 May 2022), India’s Supreme Court held that copyright infringement under Section 63, punishable by six months to three years plus a fine, is a cognizable and non-bailable offence <Cite href="https://www.livelaw.in/amp/top-stories/supreme-court-copyright-infringement-section-63-cognizable-knit-pro-international-vs-state-of-nct-of-delhi-2022-livelaw-sc-505-199775">livelaw.in</Cite>. [[L-0202]]
+
+<MarginNote title="DRM, for paid content" why="skip unless you ship paid content" k="L-0200 L-0203">
+
+Implementing DRM is half the job. On the lecture’s own platform, DRM went in, then came the hacker’s hat: attacking the system, finding a loophole, fixing it, again and again for ten days straight. The result is a platform where whoever does mischief can be caught. [[L-0200]] And it gets used: three formal piracy complaints were registered from it in the month before this class, and Google is taking serious action too. [[L-0203]]
+
+</MarginNote>
+
+A related question: do video streaming (OTT) platforms authorise the viewer first and only then grant access to the CDN? That was left for a later week of the course.
+
+<ForwardChip block when="week 6, after this series" k="L-0196">OTT platforms: authorization before CDN access, and video delivery</ForwardChip>
+
+Privacy settled, two items remain on the board’s list: extensibility and optimization.
+
+<h3 id="s5-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0162 L-0164 L-0177" q="A follower copies one of your photo URLs and posts it in a group chat. Who can see it, and until when?">
+
+Everyone in the chat, follower or not, until the expiry baked into the URL passes (`oe` in Instagram’s case). The CDN only checks the URL’s signature and expiry; it doesn’t know who is asking. After the expiry the CDN refuses it, however long the photo stays cached.
+
+  </RecallItem>
+  <RecallItem k="L-0168 L-0169 L-0172" q="Why does the CDN check a signature and an expiry instead of asking “does this user follow A?”">
+
+The CDN is stateless about users and has no access to Instagram’s database, so it can’t know who follows whom. The follow check happens in the API server, which simply doesn’t send a non-follower the photo URLs. The signed expiry, which works like a JWT, lets the CDN reject old or edited URLs without keeping any state.
+
+  </RecallItem>
+  <RecallItem k="L-0197 L-0199 L-0201" q="Why won’t a proprietary image format keep photos private, and what does DRM add?">
+
+To show the photo the app must ship the decoder, and anyone can decompile the APK and extract it: shipped code is public. DRM is a different tool: it restricts playback, and with forensic watermarking a leaked copy can be traced to the viewer who leaked it, which counts as formal proof.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '6 · Extend and optimize', href: '#s6' }}
+  concepts={[{ label: 'pseudo privacy', href: '#s5-3' }, { label: 'signed URL', href: '#s5-2' }, { label: 'timed signature', href: '#s5-2' }, { label: 'stateless CDN', href: '#s5-2' }, { label: 'Bad URL timestamp', href: '#s5-2' }, { label: 'DRM', href: '#s5-4' }, { label: 'forensic watermarking', href: '#s5-4' }]} />
+
+</Section>

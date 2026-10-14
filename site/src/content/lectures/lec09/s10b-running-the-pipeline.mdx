@@ -1,0 +1,118 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { CanaryProfile, FourResources, TwoOrders } from '../../../figures/lec09/s10b-running-the-pipeline-figs';
+
+{/* §10 Running the pipeline, part b (10.4–10.5, recall, hand-off). Part a (the opener, 10.1–10.3) is s10a-running-the-pipeline.mdx. */}
+
+<Section id="s10-4" no="10.4" title="Kafka is a broker, and sometimes the front door" crumb="10.4 Kafka as a front door"
+  dek="Why Kafka is not your database, and the one kind of system where it is the first thing a write touches."
+  meta="About 5 min · Q&A 03:17–03:21">
+
+Kafka keeps the data anyway, for days or forever. Why not use it as the database, the way you use S3 or MySQL?
+
+Because of the access pattern. You need transactional properties, which a database has and Kafka doesn’t, and you need lookups: get a post by its ID. Can you do that on Kafka? No. [[L-0352]] Kafka has no indexes or lookups by key, and its transactions make a batch of writes atomic, not queries. <Cite href="https://kafka.apache.org/43/design/design/">kafka.apache.org</Cite>
+
+Kafka is always a message broker; it should never be your source of truth. You can, but you should not. [[L-0353]] That is the lecture’s view, and a common one, but not everyone shares it: Jay Kreps, Kafka’s co-creator, argues that it’s okay to store data in Kafka. With retention set to forever or log compaction, the data is kept for all time and Kafka can be a system of record, at the price of “raising the bar for how you run it”. For lookups by ID you would still need a database. <Cite href="https://www.confluent.io/blog/okay-store-data-apache-kafka/">confluent.io</Cite>
+
+There is one kind of system where Kafka is the first thing a write touches. Imagine building Google Analytics, or YouTube’s watch-time analytics: a massive stream of events coming in. Every event hits your API server, the API server pushes it to Kafka, and only then is it aggregated, processed and stored in specialised databases. Here Kafka is the **first point of entry**, not a persistent database. [[L-0354]]
+
+<Figure id="fig-10b" no="Fig 10·b" k="L-0354 L-0355 L-0356"
+  caption="Two orders. Top: the usual one, the database first and an event after it. Bottom: high-volume ingestion, where every event lands on Kafka first and is aggregated later; the red branch is the direct write that isn’t taken, because the database couldn’t take the raw rate. New figure, from the Q&A at 03:18–03:21.">
+  <Desk><TwoOrders /></Desk>
+  <Phone><TwoOrders layout="phone" /></Phone>
+</Figure>
+
+Why not write those events straight into the database? At that volume and rate the database “might cry”. And you may not yet know how you want to structure the data: for analytics that is decided afterwards. So you accept the write in one of your API servers, put it into Kafka, and process it asynchronously; the database comes later. [[L-0355]]
+
+Notice that this is the exception. Everywhere else you see the other way round: store in the database first, then push an event onto Kafka, as the post service does. Kafka first is for high-volume ingestion. [[L-0356]]
+
+<MarginNote title="Analytics pipelines in practice" why="skip unless you build event pipelines" k="L-0357">
+
+In the lecture’s experience of building a bunch of analytics systems, every one of them ingested the events into Kinesis first (Kinesis, not Kafka) and consumed them from there. The principle was the same each time: first accept the writes that come from the users, then figure out what to do with them. [[L-0357]]
+
+</MarginNote>
+
+</Section>
+
+<Section id="s10-5" no="10.5" title="More servers, or faster code?" crumb="10.5 Servers or code"
+  dek="When a fleet runs hot: a management call on cost first, then profiling a slice of production, then the resource your workload actually uses."
+  meta="About 8 min · Q&A 03:03–03:11">
+
+A pod that signs upload URLs is benchmarked at 400 requests per second. You need 1,000, so three servers. Next year you need 3,000. Do you keep adding servers, or find the bottleneck that holds each one at 400 and raise it? Assume the stateful component it depends on (S3, say) can handle the load. Framed that way, it boils down to horizontal versus vertical scalability. [[L-0331]] More precisely, finding the bottleneck to get more out of the same machine is *optimisation*; vertical scaling means moving to a bigger machine with more CPU or RAM. So there are really three options, and the rest of this section is about the third.
+
+The first decision isn’t technical: it is a management call on engineering cost. An organisation with a decent amount of money in the bank will often rather throw it at AWS for more machines than spend engineers’ time optimizing, because two more servers are typically very cheap compared with engineers’ salaries. [[L-0332]]
+
+Now say the company wants to keep the same servers and get the most out of them. The only way to do that is to profile the application, with New Relic, Datadog or an OpenTelemetry-based system. Not CPU percentage or memory: application-level profiling. You make an HTTP call, it invokes a handler, the handler calls, say, 5,000 different functions, and the profiler tells you exactly how much time each one took, so you can see which one is the bottleneck. [[L-0333]]
+
+That kind of profiling is costly: in the money you pay the profiling tools, in data, and in response time, because capturing the time of every single function call is itself expensive. So you don’t turn it on for all your production machines, only on a canary machine or a few. [[L-0334]] That is true of tracing profilers like cProfile. Modern sampling and continuous profilers are built to run everywhere: Datadog says its continuous profiler runs in production across all services with minimal CPU and memory impact. <Cite href="https://docs.datadoghq.com/profiler/">docs.datadoghq.com</Cite>
+
+The usual way is to split production, say 90/10, behind a load balancer that routes requests round robin or by whatever strategy, and to monitor the 10% with application profiling. You take a hit on response time for some time, but you learn which function takes how much time, and you find the bottleneck. [[L-0335]] <ForwardChip label="from" when="Lecture 5" lec="lec08" k="L-0335">load balancers and routing strategies</ForwardChip>
+
+<Figure id="fig-10c" no="Fig 10·c" k="L-0333 L-0334 L-0335 L-0336"
+  caption="Profile a slice of production. The load balancer sends 10% of requests to a canary that runs the application profiler and answers more slowly while it does; the other 90% are untouched. The profile shows the time of every function under the handler, so the one that takes most of it (red) stands out. New figure; the class described the split without drawing it.">
+  <Desk><CanaryProfile /></Desk>
+  <Phone><CanaryProfile layout="phone" /></Phone>
+</Figure>
+
+Unless you have measured it, you can only assume that something might be taking time. With the data, you can drill down to the exact function that takes the most time, and optimize that. [[L-0336]]
+
+Which tools? New Relic and Datadog are the market leaders at the moment, New Relic the biggest one out there, and the open-source alternative named in class was Nagios. [[L-0337]] (Nagios is open-source infrastructure, host and service monitoring rather than an application profiler; the open-source way to time functions is OpenTelemetry tracing or a sampling profiler. “The biggest” is a market-share opinion that wasn’t verified. <Cite href="https://www.nagios.org/about/">nagios.org</Cite>)
+
+If you are in a Python stack, `cProfile` is the simple one: its output is text-based, but still decent enough to show which function takes the most time. Run it on a local machine, not in production; the recent uses the lecture draws on, a couple of cases, were all local. [[L-0338]] In the Python 3.15 docs, `cProfile` is a backward-compatible alias of `profiling.tracing`, and the docs recommend `profiling.sampling` for production debugging and the tracing profiler for development and testing. <Cite href="https://docs.python.org/3/library/profile.html">docs.python.org</Cite>
+
+```python
+import cProfile, pstats
+
+# on a laptop or a canary, not the whole fleet
+cProfile.run("handle_request(req)", "out.prof")
+pstats.Stats("out.prof").sort_stats("cumulative").print_stats(10)
+```
+
+Instagram, by the lecture’s account, goes further: it runs cProfile in production on one of its servers and has written a blog post about it. [[L-0339]]
+
+Then hardware. Should a server get more RAM or more CPU to serve more requests? Throwing more of either generally helps, but adding one may not: a CPU-heavy encryption and decryption workload gains nothing from more RAM. Understand your workload. In the end there are four things, CPU, memory, network and disk: see which one you use the most, and add more of that. [[L-0340]]
+
+<Figure id="fig-10d" no="Fig 10·d" k="L-0340"
+  caption="Add more of what you use most. For a CPU-heavy encryption and decryption workload the CPU bar is at its limit (red) and the others are low, so more CPU helps and more RAM gains nothing. New figure, from the Q&A at about 03:10.">
+  <Desk><FourResources /></Desk>
+  <Phone><FourResources layout="phone" /></Phone>
+</Figure>
+
+For a Go server doing lots of parallel work in goroutines, add CPU first, so it can schedule a larger number of goroutines. Then, depending on what the goroutines do, add RAM: if each one holds, say, 20 MB for its processing, then supporting more goroutines needs that extra memory too. [[L-0341]] Goroutines themselves are cheap: each starts with a stack of a few kilobytes, so hundreds of thousands can exist in one process, and `GOMAXPROCS` (by default the number of cores) caps how many run at once. Adding CPU helps CPU-bound goroutines; for I/O-bound ones, memory or the downstream I/O is usually the limit. <Cite href="https://go.dev/doc/faq">go.dev</Cite>
+
+<h3 id="s10-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Kafka is down for 90 seconds. Which of buffer, drop and fallback queue suits the hashtag counter, and which suits an SOS button?" k="L-0314 L-0319 L-0320">
+
+The hashtag counter can buffer in memory and drop what doesn’t fit, or simply drop: a count that misses a minute of posts is acceptable, and you don’t always need another component. An SOS button can’t lose an event, so it needs a fallback queue (SQS, say) or a store it can replay from, and a system built to be highly available in the first place.
+
+  </RecallItem>
+  <RecallItem q="You add a search consumer to a topic with 30 days of retention and Kafka’s default settings. What does it read first, and what must you change?" k="L-0324 L-0328">
+
+With the defaults it starts at the latest message (`auto.offset.reset = latest`) and skips the 30 days of history. A brand-new consumer that must index everything should start at the horizon, the earliest retained offset, so set `auto.offset.reset = earliest`. After that, it commits as it goes and resumes from its last checkpoint after a crash.
+
+  </RecallItem>
+  <RecallItem q="Your fleet runs hot. What does the lecture say to decide before profiling, and how do you profile without slowing every user?" k="L-0332 L-0334 L-0335">
+
+First a management decision: more servers are often cheaper than engineers’ time. If you optimize instead, profile at the application level, but only on a slice of production: split it 90/10 behind the load balancer and profile the 10% (or a canary), accepting a response-time hit there while you find the slowest function.
+
+  </RecallItem>
+</RecallQuestions>
+
+That’s the whole design, built and operated. One page to keep it.
+
+<SectionEnd next={{ title: '11 · What to keep', href: '#s11' }}
+  concepts={[{ label: 'Kafka availability', href: '#s10-1' }, { label: 'fallback queue', href: '#s10-1' }, { label: 'horizon and checkpoint', href: '#s10-2' }, { label: 'SLA = consumption speed', href: '#s10-3' }, { label: 'Kafka as first point of entry', href: '#s10-4' }, { label: 'profiling a canary', href: '#s10-5' }]} />
+
+</Section>

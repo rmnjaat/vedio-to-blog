@@ -1,0 +1,33 @@
+import MarginNote from '../../../components/MarginNote.astro';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec09.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec09.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 07 · week 4, day 1 · running case: Instagram"
+      title: Instagram photos and hashtags
+      dek: "Upload and serve photos the way Instagram and GitHub do with pre-signed URLs and a CDN, then build a hashtag page with counting on Kafka."
+      contents: 1 Instagram's first year · 2 A CDN as a black box · 3 Uploading a photo · 4 Storing the post ·
+                5 Who can see a private photo? · 6 Extend and optimize · 7 The hashtag page: what to store ·
+                8 Counting hashtags · 9 The whole hashtag design · 10 Running the pipeline · 11 What to keep.
+    The outline gives the header no figure. "Instagram so far" teaches nothing new, so it carries no ids. */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 1 of week 4, and it opens the course’s block on social networks. The idea for the day is to understand how real social networks are built. The board’s agenda had four items: Instagram’s year-one architecture, how a CDN works, uploading photos at scale, and a hashtag service. [[L-0001]]
+
+The session starts with the first of those, Instagram’s year-one architecture, and this page follows the agenda’s order. [[L-0004]]
+
+The hashtag service, in the second half, looks like a very simple problem, and scale is not even discussed. Yet going just one level deep into designing it, and thinking about how it would be implemented, uncovers hidden components, and a lot of assumptions get busted. [§7](#s7) opens on that promise. [[L-0002]]
+
+**How this lecture connects.** It leans on four earlier ones, each linked where it is used: Lecture 2 for the CDN as a cache level and the Kafka essentials, Lecture 4 for Slack’s Redis Pub/Sub, Lecture 5 for load balancers, and Lecture 6 for how Instagram mints its IDs. Lecture 8, the next day, continues the social-network block.
+
+</MarginNote>
+
+### Instagram so far
+
+In Lecture 6, Instagram was an ID scheme: 64-bit IDs that pack time, a logical shard and a sequence, minted by a function inside its database, so no API server knows anything about IDs.
+
+Here Instagram is a product. Its photos have to load fast on a slow phone, some accounts are private, and every hashtag has a page of its own. Each chapter of this lecture opens on one of those problems, and the first one asks what Instagram was running when it became famous.
+
+</div>

@@ -1,0 +1,226 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { PostsAndPath, DerivableRule, ImageAndPostServices, ProfileLoad } from '../../../figures/lec09/s4-storing-the-post';
+
+{/* §4 Storing the post (4.1–4.4). Writer w3. Chapter page /lectures/lec09/4-storing-the-post/.
+    Q&A folded in (outline): orphan uploads (01:43:57) → 4.3; how S3 finds an image by ID (01:46:13) → 4.3;
+    the serving flow answers 00:24:50's "how does the user get the CDN URL" → 4.4.
+    Fact-check: SN-03 (L-0127, L-0144) in 4.2; inline L-0129, L-0141; L-0134, L-0139, L-0140 attributed; A-IUT-13 in 4.3. */}
+
+<Section id="s4" no="4" title="Storing the post" crumb="4 Storing the post"
+  dek="The column almost everyone adds to the posts table, why it is the one to leave out, and how a post finds its photo without it."
+  meta="About 18 min · class 01:04–01:18, Q&A 01:43–01:47">
+
+The photo is in S3 under a random image ID, put there by the pre-signed upload of [§3.3](#s3-3). Now the user writes a caption and taps “Share”. Something has to remember that this user posted this photo with these words, and it has to be stored so that the photo can be shown to anyone who opens the profile. Design Instagram’s posts table.
+
+This is the third item on the board’s list from [§3.1](#s3-1), separation of concerns, and it turns out to hinge on one column.
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="The posts table, and the column that shouldn’t be there" crumb="4.1 The posts table"
+  dek="User, caption, created_at, and the photo. The photo is where almost everyone goes wrong."
+  meta="About 6 min · class 01:04–01:10">
+
+What would your posts table look like? What would you store? Ask that of almost any class and the first columns come quickly: the user ID of whoever posted, the post’s text or caption, and when it was created, a `created_at`. All three are right. [[L-0120 L-0121]]
+
+Tags are a tempting fourth column, and on Instagram they aren’t a column at all. Hashtags are part of the caption: there is no explicit tags field. That detail comes back when the hashtag page is designed in [§7](#s7). [[L-0122]]
+
+Then the photo. The first instinct is to store its URL, and the first URL that comes to mind is the pre-signed URL the client got during the upload. That one expires in seconds, so the better version of the instinct is the actual CDN URL, which is what people would store. The naive table then has a post ID, the user who created the post and an image URL. Which URL, the S3 one or the CDN one? Images are served through the CDN, so the naive answer is the CDN URL. [[L-0123 L-0126]]
+
+<PauseAndThink k="L-0120 L-0123 L-0124 L-0125 L-0127 L-0132 L-0137"
+  q="Your posts table has <code>id</code>, <code>user_id</code> and <code>caption</code>. Images are served from the CDN. Should you add a <code>photo_url</code> column holding the CDN URL?"
+  choices={[{ label: 'Yes: it’s what the app renders, so store it' }, { label: 'No: store the image ID and build the URL', correct: true }]}
+  right="Right. The URL is a function of two IDs and today’s CDN choice."
+  wrong="Not quite. Almost every cohort adds this column. It works until the day the CDN changes, and then every row is wrong.">
+
+No. Store the crux, `user_id` and `image_id`, and derive the URL in the API handler. A stored URL turns every CDN switch, cloud move, 20% CDN experiment or delete into a migration over every row. Instagram had to change CDNs after its acquisition ([§4.2](#s4-2)); derived URLs make that a config change. If something is derivable, don’t store it.
+
+</PauseAndThink>
+
+Every cohort, almost every person, designs the table with that image URL column. The lecture calls it suboptimal rather than wrong (“wrong would be a strong word”), and the reason is one rule worth remembering above most others in this course: [[L-0124]]
+
+<RuleBox rule="If something is ==derivable==, don’t store it." k="L-0125">
+
+Store the crux of the information and derive the rest when it is needed. It came with an “always, always, always”, and once more later as a line to put on a t-shirt: not storing the derived value is what lets you switch the CDN whenever you want, or point straight at S3, without touching a single row. It makes life simple.
+
+<Desk><DerivableRule /></Desk>
+<Phone><DerivableRule layout="phone" /></Phone>
+
+</RuleBox>
+
+So in the posts table, whatever URL you want to hand out is generated in business logic, and only the crux is stored. [[L-0125 L-0131]] The crux is already there. In the upload flow the image service generated a random image ID, the entry the pre-signed URL was signed for. Store just that random image ID instead of a URL. On the board the `url` column was circled, then struck out. [[L-0132]]
+
+The table that is left has four columns: `id`, which comes from an ID generator; `user_id`, the author of the post; `image_id`, the random photo ID from the image service; and `caption`. [[L-0133]]
+
+<ForwardChip block label="from" when="Lecture 6" lec="lec03" sec="s7" k="L-0133">how Instagram mints the post’s 64-bit <code>id</code> inside its sharded PostgreSQL</ForwardChip>
+
+```sql
+CREATE TABLE posts (
+  id         BIGINT PRIMARY KEY,   -- from an ID generator
+  user_id    BIGINT,               -- author of the post
+  image_id   VARCHAR(32),          -- random photo id from the image service
+  caption    TEXT,                 -- hashtags live in here
+  created_at TIMESTAMP
+);
+```
+
+For the URL to be derivable, the bucket has to be laid out so the path can be built on the fly. Don’t dump every image in the bucket’s root folder; organise it per user, as <code style={{whiteSpace:'normal'}}>&lt;user_id>/<wbr/>&lt;random_photo_id></code> inside `s3://insta-images/`, so that all the photos of one user sit in one folder, and every user has a folder of their own. [[L-0135]]
+
+<Figure id="fig-4a" no="Fig 4·a" max={760} k="L-0123 L-0132 L-0133 L-0134 L-0135 L-0137"
+  caption="The posts table with its url row struck out. The S3 path is built from two columns that are already there: user_id and image_id. Redrawn from the class board at 01:13.">
+  <Desk><PostsAndPath /></Desk>
+  <Phone><PostsAndPath layout="phone" /></Phone>
+</Figure>
+
+GitHub lays out its uploads the same way. In the attachment demo of [§3.4](#s3-4), the href was <code style={{whiteSpace:'normal'}}>user-images.githubusercontent.com/<wbr/>4745789/<wbr/>221335625-….png</code>: the key started with a number, “47-something” in class and `4745789` on screen, before the random image ID `221335625`. That number was the uploader’s GitHub user ID. [[L-0136]]
+
+Given just the user ID and the image ID, then, you can generate the full path. There is no reason to store the bulky path again in the post; generate it on the fly. [[L-0137]]
+
+```python
+def photo_url(post, cdn):
+    path = f"{post.user_id}/{post.image_id}.png"
+    return f"https://{cdn}/" + path
+```
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="What if you change CDN, cloud, or delete a photo?" crumb="4.2 Change CDN or cloud"
+  dek="Acquisitions, price hikes, cost reviews and deletes: each one is a migration if you stored the URL, and one line of code if you didn’t."
+  meta="About 6 min · class 01:06–01:13">
+
+Instagram is acquired by Facebook, which runs its own CDN. In the lecture’s telling, Instagram most probably used Cloudflare as its CDN; after Facebook acquired it, it could no longer use that CDN and had to move to Facebook’s. Had every post stored its CDN URL, that move would mean going through the entire database and changing the image URL of every single post on Instagram. [[L-0127]] It would also mean handling where newly uploaded photos are served from, in the middle of the move. [[L-0144]]
+
+<SourceNote href="https://highscalability.com/instagram-architecture-14-million-users-terabytes-of-photos/" site="highscalability.com" k="L-0127 L-0144">
+
+Instagram’s photos were originally served by Amazon CloudFront in front of S3, not Cloudflare. After the Facebook acquisition they moved to Facebook’s CDN (`fbcdn.net`, the host you will see in [§5.2](#s5-2)). The lesson stands: with stored URLs, that move would have meant rewriting every post.
+
+</SourceNote>
+
+Storing the S3 URL instead is no better, because you may have to change cloud provider. Say Amazon raises its prices 4x: there is little you can do except move. [[L-0128]] Vendors do this. Microsoft changed the billing of its Bing APIs and made every call 4 to 10x more costly once everyone had started using them. “The world works on money.” [[L-0129]] The increase took effect on 1 May 2023 and ran from roughly 3x to 10x depending on the tier; Microsoft’s stated reason was the investment it keeps making in Bing <Cite href="https://www.computerworld.com/article/1618921/microsoft-more-than-triples-bing-search-api-prices-to-recoup-investments.html">computerworld.com</Cite>. [[L-0129]]
+
+So structure the system so that you are not binding yourself to any one vendor or provider. [[L-0130]] A note on the board adds that LinkedIn stores an ID and computes the path too, and that CDNs do the same internally. LinkedIn’s storage scheme isn’t publicly documented, so treat that part as reported rather than confirmed. [[L-0134]]
+
+Generating the path at read time is what buys the flexibility. From the stored columns you can return a raw S3 path or a CDN path, change your CDN, A/B test two CDNs, or run two at once. [[L-0138]] In the instructor’s experience it is common for senior management to wake up about once every two years, find the CDN bill too high and ask to switch CDN, or to put 20% of the traffic on another one. If the URL is stored, that is impossible to implement: you have to hand out a URL, and the stored one names a single CDN. [[L-0139]] As a senior engineer you will face decisions like these, a switch of CDN and of cloud provider, and you have to work with them. [[L-0140]]
+
+A stored S3 URL like <code style={{whiteSpace:'normal'}}>instaimages.com/<wbr/>&lt;user_id>/<wbr/>&lt;photo></code> can’t be served directly anyway. To serve it you would build the CDN URL on the fly: pull the URL apart with string manipulation and glue the pieces onto the CDN host. Storing the crux is always better than storing the URL. [[L-0141]] That holds because this design keeps the bucket private; in general S3 objects can be served directly, public or through a presigned URL <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html">docs.aws.amazon.com</Cite>, and the conclusion is the same. [[L-0141]]
+
+Generate the URL in the API server, then. When a post is read, the handler reads the row, takes its columns, creates the (signed) URL and sends it in the JSON response. [[L-0142]] The 20% experiment becomes one line in that handler: pick a random number, and if it lies between 0 and 0.2, which happens 20% of the time, use CDN A, otherwise CDN B. That moves 20% of requests to the other CDN, and you compare how it performs. [[L-0143]]
+
+```python
+import random
+
+def photo_url_for(post):
+    cdn = "cdn-a.example.net" if random.random() < 0.2 else "cdn-b.example.net"
+    return photo_url(post, cdn)
+```
+
+Deletes get the same benefit. To delete a user’s image, build the S3 path from the user ID and the image ID and call S3 to delete it, once and for all. With a stored CDN URL you don’t know the S3 path: you would trim the CDN part off the URL and patch the rest, “the worst way to build a system”. [[L-0145]]
+
+<TradeoffTable caption="Store a URL, or derive it? What each choice costs when things change"
+  columns={[{ label: 'Stored CDN URL' }, { label: 'Stored S3 URL' }, { label: 'Stored user_id + image_id' }]}
+  rows={[
+    { label: 'Switch CDN provider', k: 'L-0127', cells: [{ text: 'Rewrite every row, and decide where new uploads are served from', bad: true }, 'Rewrite the string manipulation that turns it into a CDN URL', 'Change the CDN host in the handler'] },
+    { label: 'Move 20% to a second CDN', k: 'L-0139 L-0143', cells: ['Impossible: the row names one CDN', 'Only by rewriting each URL per request', 'random() < 0.2 picks CDN A, else CDN B'] },
+    { label: 'Change cloud', k: 'L-0128', cells: ['Rewrite every row', 'Rewrite every row', 'Point the path builder at the new store'] },
+    { label: 'Delete from S3', k: 'L-0145', cells: ['Trim the CDN part off and guess the path', 'Strip the host back off the stored URL', 'Build the path from the two IDs and delete'] },
+    { label: 'Raw S3 path, A/B tests, two CDNs', k: 'L-0138', cells: ['No', 'No', 'Any of them, at read time'] },
+    { label: 'Bytes per row', k: 'L-0137', cells: ['A full URL', 'A full URL', 'Two short IDs'] },
+  ]} />
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Posts and images, kept apart" crumb="4.3 Posts and images apart"
+  dek="A post service next to the image service, joined by nothing but the image ID."
+  meta="About 3 min · class 01:13–01:15, Q&A 01:44–01:47">
+
+Instagram is “all about images”, or it was. The table above already separates the two things a post is made of, and the services follow. A **post service** handles the API calls to create (submit) a post and to read one. [[L-0146]]
+
+The upload-and-post flow now has three calls. The user asks the image service to prepare an upload; it generates a random image ID and signs a URL for it. The user uploads the photo to S3 with that URL. Once the upload is complete, the client calls the post service, which creates the entry in the posts database, using the random image ID the client kept from the first call. [[L-0147]] The board adds one safeguard: the post service can also check that the image ID in the request belongs to the same user. [[L-0148]]
+
+<Figure id="fig-4b" no="Fig 4·b" k="L-0146 L-0147 L-0148 L-0149 L-0150 L-0151"
+  caption="① A asks the image service to prepare an upload and gets a signed URL and an image ID. ② The photo goes straight to S3. ③ A asks the post service to create the post with that image ID. Nothing else connects the two halves. Redrawn from the class board at 01:13–01:15; the board also drew a line from the image service to S3 (it “talks to S3”); this redraw leaves it out only because the SDK normally signs the URL locally, with no call ([3.3](#s3-3)).">
+  <Desk><ImageAndPostServices /></Desk>
+  <Phone><ImageAndPostServices layout="phone" /></Phone>
+</Figure>
+
+Separating images from posts matters. The two are connected only through the image ID stored in the post, which gives a clean separation of concerns instead of one merged thing. [[L-0149]] Today Instagram is not only images; it is videos, shorts, reels and stories, so you don’t want media handling mixed into the post. [[L-0150]] Next to the image upload service you may add a video upload service and a reels upload service, and the concept of a post stays the same. It doesn’t have to change: that is the beauty of separation of concerns. [[L-0151]]
+
+Two questions come up once the split is clear. First, what about photos that are uploaded and never posted? They waste storage. Storage is dirt cheap, so it is fine to leave them; if it does become a concern, you already have a database of image entries, and the ones with no post entry were never published, so you can find them and clean them up. [[L-0204]] S3 can also do the cleanup for you: a lifecycle rule deletes objects after a set age, and rules apply to a group of objects, such as a prefix used for uploads that aren’t published yet, so no custom job is needed <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html">docs.aws.amazon.com</Cite>. [[L-0204]]
+
+Second, if only the image ID is stored and the path is generated, how does S3 find the photo? You don’t need to know. S3 is a black box for this system, reached through the AWS SDK, just as the CDN is a black box. The path is the API contract; where S3 physically keeps the bytes isn’t your concern. [[L-0209]]
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="Serving A’s photos to B" crumb="4.4 Serving A’s photos"
+  dek="The URL that is never stored, built on every read, and why that makes a second CDN painless."
+  meta="About 3 min · class 01:15–01:18">
+
+The class notes headed this “Overall Flow:”, in six steps. User A uploads a photo using the image service. A posts the photo, which creates an entry in the post table. User B visits A’s profile: `GET /users/A/posts`. The response carries a `url` that is generated dynamically by the backend, such as `https://instacdn.net/A/1234.png`. The image URLs are rendered in an `IMG` tag. The photos are loaded from `instacdn`. [[L-0153 L-0154 L-0155 L-0156 L-0157]] The rest of this section walks through each step.
+
+User B opens A’s profile. A uploaded a photo through the image upload service and then posted it, which created a row in the posts table. B’s app now makes an API call, something like `GET /users/A/posts`, asking for all of A’s posts. [[L-0153]]
+
+This is the answer to the question left open in [§2.5](#s2-5): how does the user get the CDN URL at all? Through this call. The post service’s response carries the CDN URL, and the backend generates it. [[L-0154]]
+
+<p class="lead-in">Here is B loading A’s profile, call by call. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-4c" no="Fig 4·c" label="B loads A’s profile, call by call" grow k="L-0153 L-0154 L-0155 L-0156 L-0157"
+  caption="Time runs down. Lanes are B’s app, the post service, the posts database, the CDN at instacdn.net and S3. The small filled box is the photo itself. Redrawn from the class board at 01:15–01:17."
+  stepK={['L-0153', 'L-0155', 'L-0154 L-0155 L-0156', 'L-0156', 'L-0157', 'L-0157']}
+  steps={[
+    'B opens A’s profile. The app asks the post service for A’s posts: <code>GET /users/A/posts</code>.',
+    'The post service selects A’s rows, <code>WHERE user_id = A</code>. They hold IDs, image IDs and captions. No URLs.',
+    'For each row it builds the CDN URL in business logic, the CDN prefix plus the user ID plus the image ID plus <code>.png</code>, perhaps following a CDN experiment, and returns it in the JSON in place of the image ID. <span class="term green">This is how the app learns the CDN URL.</span>',
+    'The app puts the URL in an <code>IMG</code> tag (an image view on Android or iOS), and the tag makes a GET request to it, on the CDN.',
+    'First view: a miss. The CDN reads the photo from S3, caches it and sends it back.',
+    'The next viewer gets a <span class="term green">hit</span>. S3 isn’t touched.',
+  ]}>
+  <Desk><ProfileLoad /></Desk>
+  <Phone><ProfileLoad layout="phone" /></Phone>
+</StepThrough>
+
+When the request reaches the post service, it selects the posts where `user_id = A` and builds the response with the user ID and the caption, but in place of the image ID it returns a URL such as <code style={{whiteSpace:'normal'}}>instacdn.net/<wbr/>A/<wbr/>12345.png</code>. The backend generates that URL dynamically, in business logic, possibly according to a CDN experiment it is running. It is never stored. [[L-0155]]
+
+The frontend puts the returned URL in an `IMG` tag, or the image view on Android and iOS, and the tag makes a GET request to it. Building the URL is plain string concatenation: the fixed CDN prefix, the user ID, the random image ID and `.png`. [[L-0156]] The request goes to the CDN, `instacdn.net`. If the CDN has the image, it returns it; otherwise it reads it from S3, caches it and sends it back to the user. [[L-0157]]
+
+Now the payoff. Because the backend generates the URL, you can add another CDN tomorrow, say Cloudflare, and have the backend hand out <code style={{whiteSpace:'normal'}}>cloudflare.cdn.net/<wbr/>A/<wbr/>abc.png</code> for some of the requests. You balance between the two CDNs seamlessly, with no migration. This is why you never store the derived value. [[L-0158]]
+
+Anyone who loads A’s profile gets a CDN URL for every photo. So what happens when A’s account is private?
+
+<h3 id="s4-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0139 L-0143" q="Instagram must move 20% of photo traffic to a second CDN by Friday. What does your posts table need for that to be a one-line change?">
+
+Nothing beyond `user_id` and `image_id`, and no URL column. The handler builds the URL on every read, so the change is one line in it: if `random() < 0.2` use CDN B’s host, otherwise CDN A’s. With a stored URL every row names one CDN, and the split is impossible without rewriting rows.
+
+  </RecallItem>
+  <RecallItem k="L-0128 L-0141" q="Why is a stored S3 URL no better than a stored CDN URL here?">
+
+It ties you to one cloud instead of one CDN: a 4x price rise, or any move, means rewriting every row. And in this design the bucket is private, so the S3 URL can’t be served anyway; you would have to pull it apart with string manipulation to build the CDN URL. Store the crux and build either URL when asked.
+
+  </RecallItem>
+  <RecallItem k="L-0149 L-0151" q="What links a post to its image, and name one product change that this separation makes painless.">
+
+Only the image ID stored in the post. Media handling lives in the image service, so adding videos or reels means adding a video or reels upload service; the post, and the posts table, stay exactly as they are.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '5 · Who can see a private photo?', href: '#s5' }}
+  concepts={[{ label: 'posts table', href: '#s4-1' }, { label: 'derivable values', href: '#s4-1' }, { label: 'per-user S3 layout', href: '#s4-1' }, { label: 'vendor lock-in', href: '#s4-2' }, { label: 'CDN A/B split', href: '#s4-2' }, { label: 'separation of concerns', href: '#s4-3' }, { label: 'orphan uploads', href: '#s4-3' }, { label: 'URL built per read', href: '#s4-4' }]} />
+
+</Section>
