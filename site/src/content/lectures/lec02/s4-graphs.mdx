@@ -1,0 +1,219 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { AdjacencyList, Cohort, FraudEdge, ThreeHopsGraph, ThreeHopsSql, Rule4 } from '../../../figures/lec02/s4-graphs';
+
+{/* §4 Graph databases (4.1–4.4). Chapter page /lectures/lec02/4-graph-databases/.
+    Class 00:30–00:40, Q&A 00:47–00:50 and 02:49 folded into 4.4.
+    Fact-check: SN-03 (L-0130), SN-04 (L-0132; also L-0393/L-0394), SN-05 (L-0134); inline L-0096 (A-DC-18);
+    woven additions A-DC-17 (FlockDB, after L-0087), A-DC-18 (Amazon item-to-item CF, after L-0094).
+    Unverifiable, attributed: L-0098, L-0100, L-0101, L-0102, L-0103. */}
+
+<Section id="s4" no="4" title="Graph databases" crumb="4 Graph databases"
+  dek="The most misunderstood family. Not for anything you can draw as a graph, but for real graph algorithms: recommendations, and fraud checks inside 200 ms (as relayed in class)."
+  meta="About 14 min · class 00:30–00:40, Q&A 00:47–00:50, 02:49">
+
+Slack's membership is users joined to channels, and you can draw it as a graph: people on one side, channels on the other, an edge for every join. So should it live in a graph database? That is this page's question. The class asked the same thing about Twitter's follow/following, and the answer it gave applies to both.
+
+This chapter covers what a graph database actually is, the two jobs it does well (recommendations, and fraud detection under a hard time limit), and why a relational database struggles with those jobs.
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="What a graph database is, and the wrong instinct" crumb="4.1 The wrong instinct"
+  dek="Drawable as a graph is not the same as needing a graph database. What one actually stores, and what it is for."
+  meta="About 4 min · class 00:30–00:33, 00:38">
+
+Build Twitter's follow/following relationship. There is a user node, there are relations between users, and you can draw the whole thing as a graph. So the instinct is to reach for a graph database. Graph databases are among the most misunderstood databases out there, and this is where the misunderstanding starts: they might not be the best choice here. [[L-0083]]
+
+<PauseAndThink k="L-0083 L-0085 L-0086 L-0087 L-0088 L-0089 L-0090"
+  q="Follow/following is literally a graph: people are nodes, follows are edges. Is that a good reason to store it in a graph database?"
+  choices={[{ label: 'Yes: the data is a graph, so use a graph database' }, { label: 'No: use one when you need graph algorithms', correct: true }]}
+  right="Right: drawable as a graph is not the same as needing graph algorithms."
+  wrong="Looking like a graph is the lecture's “worst way to think”: storing edges doesn't need a graph engine.">
+
+No. A follow list is a lookup by user, and anything can be drawn as a graph. Graph databases are memory hungry and hard to scale, so in the lecture's words this “could be catastrophic”, meaning really expensive: the Hulk opening a glass jar. Reach for one when you need core graph algorithms: 2nd- and 3rd-degree connections, recommendations by cohort, or a fraud check that spots a new edge outside someone's usual cluster inside the 200 ms SLA relayed in class.
+
+</PauseAndThink>
+
+Start with what one is. A graph database is the graph data structure from the data-structures course in college, nothing more exotic. Take the adjacency-list representation you studied, store it as is, expose data APIs on top of it, and that became the graph database. Nothing special. [[L-0084]]
+
+<Figure id="fig-4a" no="Fig 4·a" max={340} k="L-0084 L-0090"
+  caption="The graph on top is stored as the adjacency list underneath: each node with the list of nodes it connects to. A graph database keeps that list as is and puts data APIs on top. Bottom right: using one only to keep follow lists.">
+  <AdjacencyList />
+</Figure>
+
+What these databases specialise in is graph algorithms, the sophisticated ones. [[L-0085]] Open a person's profile on LinkedIn and it tells you how far away they are: a 1st, 2nd, 3rd or 4th connection. That is a sophisticated graph algorithm. Modelling social behaviour is another, and recommendations are a third (4.2). [[L-0086]]
+
+So a lot of people think that whenever a use case can be visualised as a graph, it belongs in a graph database. In the lecture's view that is the worst way to think about it. Modelling follow/following on a graph database “could be catastrophic”: a strong word, the instructor admitted, but meaning really expensive. Follow/following is a trivial use case. [[L-0087]] Twitter's own history fits the point: it kept who-follows-whom in FlockDB, a store built for adjacency lists, and listed multi-hop graph-walking queries as an explicit non-goal <Cite href="https://github.com/twitter-archive/flockdb">FlockDB</Cite>.
+
+There is also the cost of running one. Scaling a graph database is very difficult. They are extremely memory intensive, most of them are built on a legacy stack (the lecture's word), and even the ones written in a modern language are not very optimal. [[L-0088]]
+
+That doesn't mean you should avoid them. What they offer is the core graph algorithms, and whenever you need those, a graph database is the tool:
+
+<RuleBox rule="Use a graph database when you need ==core graph algorithms==, not because the data ==looks like a graph==." k="L-0089">
+
+If you can picture something as a graph, more often than not that is *not* where a graph database belongs. Where you need the actual graph algorithms (degrees of connection, cohorts, a new edge outside a cluster), use one.
+
+<Desk><Rule4 /></Desk>
+<Phone><Rule4 layout="phone" /></Phone>
+
+</RuleBox>
+
+Storing follow lists in one is like using the Hulk to open a glass jar. It gives you so much more than this tiny, trivial use case needs. [[L-0089 L-0090]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Recommendations" crumb="4.2 Recommendations"
+  dek="Where graph databases thrive: everyone who bought the same thing is a cohort, and what one of them buys next is a suggestion for the rest."
+  meta="About 3 min · class 00:33–00:35">
+
+So where should you use one? Recommendations. Basic collaborative filtering is one of the applications where graph databases thrive, and in the lecture's view recommendations are the most common use. [[L-0091]] <ForwardChip label="watch" when="the instructor's YouTube channel" k="L-0092">a detailed video on recommendations with graph databases; the class covered more than the video</ForwardChip>
+
+**Collaborative filtering** is a popular way to drive recommendations. Say you bought something on Amazon, and you and I are similar users. Then Amazon should recommend what you bought to me. [[L-0093]]
+
+The hard part is knowing who is similar, and in a graph that becomes simple. An e-commerce company first builds **cohorts** of users who buy similar things. Take a product node, say iPhone: everyone who bought an iPhone is a similar set of people. Now if one of them buys AirPods, Amazon can recommend AirPods to everyone else in the cohort. [[L-0094]]
+
+<Figure id="fig-4b" no="Fig 4·b" max={352} k="L-0093 L-0094 L-0095"
+  caption="Everyone joined to the iPhone node is one cohort. When u3 buys AirPods (blue), the dashed arrows recommend AirPods to the other four. One level deep, as in class.">
+  <Cohort />
+</Figure>
+
+That is one level, kept simple to picture. Real cohort building goes two or three levels deep, and that becomes really difficult to model. [[L-0095]] As the class put it, most machine-learning teams and organisations do exactly this, and recommendations are a classic case driven through graph databases because they need these capabilities. Some teams do. Many large recommenders compute offline without a graph database: Amazon's own moved to item-to-item collaborative filtering, where item B is related to item A if buyers of A are unusually likely to buy B, and the related-item lists for every product are recomputed daily <Cite href="https://www.amazon.science/the-history-of-amazons-recommendation-algorithm">amazon.science</Cite>. [[L-0096]]
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Fraud detection in 200 ms" crumb="4.3 Fraud detection"
+  dek="A card payment confirmed by phone before the instructor put his phone down. A new edge outside a closely knit cluster, checked inside a 200 ms SLA, as relayed in class."
+  meta="About 3 min · class 00:35–00:38">
+
+The use case that shows a graph database's true power is a more important and more interesting one: **fraud detection**, in the lecture's words the best use case for graph databases. [[L-0097]]
+
+<MarginNote title="From the instructor: a call from the bank" why="the story behind the example" k="L-0098">
+
+About a year and a half before the class, the instructor bought a Grammarly subscription. He entered his credit card details and triggered the OTP, and immediately got a call from HDFC Bank: was he trying to make this transaction? He said yes, the person on the call allowed it, and the payment went through. When the call ended he wondered how they had worked it out so quickly.
+
+</MarginNote>
+
+The bank had worked it out quickly, right after the OTP and before the payment went through (the instructor's own story, in the note above). [[L-0098]] Here is how a graph makes that fast. Suppose someone has made every one of their transactions in the domestic space, and suddenly one is international. It is the odd one out: it sits outside their closely knit circle of transactions. In graph terms it is a **new edge** forming outside the cluster you already have, and a graph database can tell very quickly that this new edge is suspicious. [[L-0099]]
+
+<Figure id="fig-4c" no="Fig 4·c" k="L-0099 L-0100 L-0101 L-0103"
+  caption="The cluster: one customer's history as a tight cluster of domestic merchants, and a sudden overseas transaction as a new red edge outside it. The 200 ms check: it runs between the OTP and the decision, inside the 200 ms SLA described in class; the executive's call comes after the decision.">
+  <Desk><FraudEdge /></Desk>
+  <Phone><FraudEdge layout="phone" /></Phone>
+</Figure>
+
+As the instructor describes it, this is what financial companies do every day. Every transaction you make is categorised along something like 50 or 60 parameters that he knows of: country, region, the type of products you buy, the type of things you interact with, and much more. They ingest all of it into a graph, so almost every person has their own independent graph ready. Whenever a new edge appears outside that graph, they compute a degree of suspicion and predict whether the transaction is suspicious. [[L-0100]]
+
+In the instructor's account, relayed from a bank's engineering lead (see the note below), all of this has to happen within a **200 millisecond SLA**. [[L-0101]] In the instructor's account, within those 200 ms the bank makes its decision and redirects the case to a customer executive. The executive then calls you to confirm that you are the one making the transaction, and once you approve, you can proceed. The 200 ms covers the automated decision; the call comes after it. In his telling, the whole system is powered by graph analysis. [[L-0103]]
+
+<MarginNote title="Where the 200 ms comes from" why="skip unless you need the provenance" k="L-0102">
+
+The instructor said he was sure of the number because of where it came from: a VP of engineering at JP Morgan Chase, a participant in an earlier cohort of this course, explained this use case. The details are sensitive, and he couldn't share them. Treat the figure as relayed from one bank's engineering lead, not as a published number.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="Graphs versus joins, and where a graph database sits" crumb="4.4 Graphs vs joins"
+  dek="Why not do all this on a relational database? Self-joins per level, where a graph database usually sits in a system, and the products you will hear about."
+  meta="About 4 min · class 00:39–00:40, Q&A 00:47–00:50, 02:49">
+
+A fair question: how does a graph actually help, and why can't a relational database solve these use cases? The instructor turned it round: how would you power fraud detection on top of a relational database?
+
+The class answer had three parts. First: to find something three levels deep in a graph database, one simple graph query, a traversal, gives you the answer. In a relational database, going N levels deep takes N self-joins, and it can't be one generic query: depending on the depth, you write or rewrite the query and then fire it. That is painful. [[L-0132]]
+
+<SourceNote href="https://www.postgresql.org/docs/current/queries-with.html" site="postgresql.org" k="L-0132">
+
+One join per level is true for a hand-written query of fixed depth. SQL can walk any depth in one query with a recursive CTE: PostgreSQL's `WITH RECURSIVE` lets a query refer to its own output and is “typically used to deal with hierarchical or tree-structured data”. Graph databases make deep traversals simpler to write and often faster. The same applies to the hierarchy in the practice note below.
+
+</SourceNote>
+
+<Figure id="fig-4d" no="Fig 4·d" panels={2} k="L-0132 L-0133 L-0394"
+  caption="The same three hops, A to D. In a graph it is one traversal. Written level by level in SQL it takes one copy of the edges table per hop, joined in a chain, and the query changes with the depth.">
+  <Panel><ThreeHopsGraph /></Panel>
+  <Panel><ThreeHopsSql /></Panel>
+</Figure>
+
+Second, N self-joins on a table may not be very optimal when the data is huge. [[L-0133]] Third, as the class put it, a relational database keeps your data on one data node: sharding exists, but graph databases give it to you out of the box. [[L-0134]]
+
+<SourceNote href="https://docs.aws.amazon.com/neptune/latest/userguide/intro.html" site="docs.aws.amazon.com" k="L-0134">
+
+Most graph databases scale reads with replicas but keep a single writer per graph. Amazon Neptune has one primary instance that performs all writes, plus up to 15 read replicas, and in Neo4j only primaries can be the writer <Cite href="https://neo4j.com/docs/operations-manual/current/clustering/introduction/">neo4j.com</Cite>. Partitioning one graph across shards is hard; Neo4j has recently added sharded property databases, but that is not the standard setup.
+
+</SourceNote>
+
+<MarginNote title="From practice: a multi-level-marketing hierarchy" why="a learner's case of the same problem" k="L-0393 L-0394">
+
+One learner's work modelled a multi-level-marketing hierarchy that was getting painful in a relational database, and suggested a graph database. The instructor agreed: if it is painful and you need to find the 3rd, 5th or 10th level of the tree, a graph database might make much more sense, because joins, queries and self-joins become a pain. [[L-0393]] Querying 10 levels deep means nine self-joins on the database, which is messy, and something you typically don't want to do. [[L-0394]] (The recursive-query note above applies here too.)
+
+</MarginNote>
+
+How does a graph database store adjacency lists when every node has a different number of neighbours? Through its storage engine, as a separate layer. The lists are not kept in memory but serialized on disk, stored in a simple way. It depends on the database, but think of it, bluntly, as a comma-separated list of IDs. [[L-0127]] That makes a graph database basically a key-value store, as was suggested in class, and the instructor agreed: every database can be modelled on top of a key-value store, the point of the “NAND gate” note in [2.4](#s2-4). [[L-0128]]
+
+### Where it sits in a system
+
+Can a user-facing application use a graph database as its live store? In class the answer was no: you can't use it transactionally. You ingest the data into it asynchronously, and then derive something out of it. [[L-0130]]
+
+<SourceNote href="https://neo4j.com/docs/operations-manual/current/introduction/" site="neo4j.com" k="L-0130">
+
+Feeding a graph database asynchronously for analytics is common, but it is not a rule. Transactional graph databases such as Neo4j (“Transactions comply with the ACID consistency model”) and Amazon Neptune serve online, user-facing queries over billions of relationships in milliseconds <Cite href="https://docs.aws.amazon.com/neptune/latest/userguide/intro.html">docs.aws.amazon.com</Cite>.
+
+</SourceNote>
+
+It was added in class that applications typically build those models on top of relational or non-relational databases, and the instructor said “Correct”. [[L-0131]]
+
+### The products you will hear about
+
+The class named a few (the board listed all but BadgerDB):
+
+- **Neo4j**, one of the first graph databases to come out. One of the first, the instructor stressed, not the best. [[L-0104]]
+- **Neptune**, AWS's own managed graph database offering. Like always, in the instructor's words, “AWS copies everything”. [[L-0105]]
+- **Dgraph**, written in Go. In the instructor's experience it works very well, though it falters a bit at high scale. He used it very extensively, and it was one of the first projects he went through to understand Go. [[L-0106]]
+- **BadgerDB**, an embedded database from the Dgraph team. [[L-0107]]
+- **TigerGraph**, a proprietary graph database. A lot of financial companies use it rather than rely on open-source software for this. [[L-0108]]
+
+<MarginNote title="Further reading" why="skip unless you're evaluating one" k="L-0135">
+
+For real-world write-ups, search for “fraud detection graph databases” or “graph databases in recommendation engine”: there are plenty of articles.
+
+</MarginNote>
+
+That completes the four families, each defined by what it gives up. The next chapter asks why giving up relations lets data spread out so easily, and when you shouldn't give them up.
+
+<h3 id="s4-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0083 L-0087 L-0088 L-0089" q="Why is follow/following a poor reason to adopt a graph database?">
+
+Being drawable as a graph isn't a need for graph algorithms. A follow list is a trivial lookup, and graph databases are memory hungry and hard to scale, so the lecture calls it potentially “catastrophic”, meaning really expensive: the Hulk opening a glass jar. Twitter kept its follow graph in FlockDB, which deliberately didn't do multi-hop queries. Use a graph database when you need core graph algorithms.
+
+  </RecallItem>
+  <RecallItem k="L-0099 L-0100 L-0101" q="What makes fraud detection a graph problem rather than a lookup?">
+
+The question is not “what is this card's record?” but “is this transaction a new edge outside the customer's usual cluster?”. A customer with only domestic transactions who suddenly pays an overseas merchant forms an edge outside a closely knit graph, and the graph can flag that quickly enough for the bank's 200 ms SLA described in class.
+
+  </RecallItem>
+  <RecallItem k="L-0132 L-0133" q="Name two ways to get a 5-levels-deep answer from a relational database, and their costs.">
+
+Write it level by level: five self-joins (one per level, as taught), with the query rewritten for every depth, and costly on huge data. Or use a recursive CTE (`WITH RECURSIVE`), which walks any depth in one query but is still usually slower and harder to write than a graph traversal.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '5 · Why they scale, and when to pick SQL', href: '#s5' }}
+  concepts={[{ label: 'adjacency list', href: '#s4-1' }, { label: 'graph algorithms', href: '#s4-1' }, { label: 'collaborative filtering', href: '#s4-2' }, { label: 'cohort', href: '#s4-2' }, { label: 'fraud detection', href: '#s4-3' }, { label: 'self-join', href: '#s4-4' }, { label: 'recursive CTE', href: '#s4-4' }]} />
+
+</Section>

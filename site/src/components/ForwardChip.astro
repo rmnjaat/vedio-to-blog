@@ -1,15 +1,18 @@
 ---
+import { xlecHref } from '../lib/xlec';
 // "Coming later" chip: a topic the class deferred on purpose. The deferral marks the edge of this lesson.
 // Usage (MDX):
 //   inline, inside a paragraph:   … is a topic of its own. <ForwardChip when="week 3" k="L-0098">designing a load balancer</ForwardChip>
 //   on its own line (block):      <ForwardChip block when="week 2" k="L-0008">how concurrency in a database falls apart</ForwardChip>
 //   a bare label (lists):         <ForwardChip label="next week" when="Saturday" />
 // Renders "coming later · week 3: designing a load balancer" in the chips' casual hand, with a thin ruled border.
-interface Props { when?: string; label?: string; block?: boolean; k?: string }
-const { when, label = 'coming later', block = false, k } = Astro.props;
+//   with a link once the later lecture is published: <ForwardChip when="Lecture 05" lec="lec08" sec="s4">…</ForwardChip>
+interface Props { when?: string; label?: string; block?: boolean; k?: string; lec?: string; sec?: string }
+const { when, label = 'coming later', block = false, k, lec, sec } = Astro.props;
 const head = [label, when].filter(Boolean).join(' · ');
+const href = lec ? xlecHref(lec, sec) : undefined;
 const topic = Astro.slots.has('default') ? (await Astro.slots.render('default')).trim() : '';
 ---
 {block
-  ? <p class="fwd-line"><span class="fwd hand" data-k={k}><span class="fwd-arrow" aria-hidden="true">→</span><span class="fwd-when">{head}</span>{topic && <Fragment>: <Fragment set:html={topic} /></Fragment>}</span></p>
-  : <span class="fwd hand" data-k={k}><span class="fwd-arrow" aria-hidden="true">→</span><span class="fwd-when">{head}</span>{topic && <Fragment>: <Fragment set:html={topic} /></Fragment>}</span>}
+  ? <p class="fwd-line"><span class="fwd hand" data-k={k}><span class="fwd-arrow" aria-hidden="true">→</span>{href ? <a class="fwd-when" href={href}>{head}</a> : <span class="fwd-when">{head}</span>}{topic && <Fragment>: <Fragment set:html={topic} /></Fragment>}</span></p>
+  : <span class="fwd hand" data-k={k}><span class="fwd-arrow" aria-hidden="true">→</span>{href ? <a class="fwd-when" href={href}>{head}</a> : <span class="fwd-when">{head}</span>}{topic && <Fragment>: <Fragment set:html={topic} /></Fragment>}</span>}

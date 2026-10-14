@@ -1,0 +1,38 @@
+[
+  {
+    "id": "l02-column-scan",
+    "section": "3.2",
+    "title": "One average, two layouts",
+    "seconds": 28,
+    "ledger": ["L-0053", "L-0056", "L-0057", "L-0058", "L-0059", "L-0062"],
+    "predict": "Five columns, 10,000 rows. How much does each layout read to answer one average?",
+    "caption": "SELECT avg(price) on 10,000 rows: the row store reads every row whole and discards three columns; the column store opens two files. With 100 columns it is 100 against 2."
+  },
+  {
+    "id": "l02-three-ways-to-persist",
+    "section": "7.3",
+    "title": "When \"saved\" and \"shown\" happen",
+    "seconds": 34,
+    "ledger": ["L-0206", "L-0209", "L-0214", "L-0218", "L-0220", "L-0389", "L-0390"],
+    "predict": "Persistence lags ten minutes. On which path does a refresh hide a message you already saw?",
+    "caption": "One message sent three ways: ① saved, then shown; ② shown at once and saved after the Kafka lag, so a refresh inside the lag hides it; ③ shown and never saved."
+  },
+  {
+    "id": "l02-mesh-to-pubsub",
+    "section": "8.4",
+    "title": "Links grow, then collapse into one pipe",
+    "seconds": 33,
+    "ledger": ["L-0265", "L-0276", "L-0277", "L-0278", "L-0280", "L-0281", "L-0282", "L-0283"],
+    "predict": "Add a fifth server. How many new links does the mesh need, and how many does the Pub/Sub need?",
+    "caption": "Each new server must link to every other, so the links and each server's wasted slots climb; a real-time Pub/Sub in the middle leaves one link per server and keeps nothing."
+  },
+  {
+    "id": "l02-missed-message",
+    "section": "9.3",
+    "title": "Lost in real time, fixed by a timer",
+    "seconds": 29,
+    "ledger": ["L-0284", "L-0344", "L-0379", "L-0332", "L-0334", "L-0345"],
+    "predict": "WS2 blinked for one second while A posted. When does E see the message?",
+    "caption": "The message is stored through Kafka, but Redis pushes it while WS2 is disconnected and keeps nothing; E's client fetches the last 50 on a timer and the message appears."
+  }
+]

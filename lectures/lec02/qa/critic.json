@@ -1,0 +1,114 @@
+{
+ "lecture": "lec02",
+ "verdict": "pass_with_fixes",
+ "issues": [
+  {
+   "id": "C-01",
+   "severity": "high",
+   "owner": "design",
+   "where": "6-slack-schema, step-through fig-6b (captioned Fig 6·c), desktop; step/1440-light-fig-6b-s6.png, sweep/1440-light/6-slack-schema/006.png",
+   "problem": "At 1440 the drawing is clipped at the bottom of the sheet. The answer row that step 6 is about (the green 'from | channel_id | msg' box) is cut off at the sheet edge, so the last step's narration ('What survives…') points at nothing. The 390 redraw is complete (step/390-light-fig-6b-s6.png), so this is a desktop sheet-height or overflow bug.",
+   "fix": "Size the desktop sheet to the full viewBox height (or drop overflow:hidden on the drawing column), so the step-6 row and its 'one channel_id, always' label show. Re-shoot every step at 1440 and 1024.",
+   "status": "open"
+  },
+  {
+   "id": "C-02",
+   "severity": "high",
+   "owner": "design",
+   "where": "8-scaling-websockets, step-through fig-8f on phone; step/390-light-fig-8f-s7.png",
+   "problem": "On phone the last label, 'also: a periodic meta call listing my channels', is cut in half by the bottom of the sheet. The phone version is also the desktop drawing scaled to fit, not a redraw: six lanes squeezed into 358px, with lane headers ('A–D / sub c1') at about the 12px floor and 'c2 only: nothing' sitting on the ws3 lifeline.",
+   "fix": "Extend the viewBox so the closing label fits. Better, draw a phone version: four lanes (A, ws1, redis, ws2), with ws3 and the api lane moved into a note, and step 5–7 labels stacked under the lanes. Follow the pattern of fig-6b's phone redraw.",
+   "status": "open"
+  },
+  {
+   "id": "C-03",
+   "severity": "medium",
+   "owner": "design",
+   "where": "10-deleting-and-ordering, step-through fig-10b, desktop; step/1440-light-fig-10b-s6.png, step/1440-light-fig-10b-s3.png",
+   "problem": "In step 6 the struck-out '01-01-1970' runs straight into 'never trust the client's clock' with no gap. The two labels read as one string. In every step the rotated 'time' axis label also overlaps step marker ①. The phone redraw stacks these correctly.",
+   "fix": "Put 'never trust the client's clock' on its own line under the clock glyph, as the 390 version does, or give it at least 12px of clearance. Move the 'time' label above the axis arrow, clear of the step-marker column.",
+   "status": "open"
+  },
+  {
+   "id": "C-04",
+   "severity": "medium",
+   "owner": "design",
+   "where": "Phone swim-lane step-throughs fig-8f, fig-8h, fig-10b; sweep/390-light/8-scaling-websockets/030.png, 031.png, 035.png, 036.png",
+   "problem": "On phone the lanes are drawn full length (about 650px) at step 1, when only the top row has content. The sticky Prev/Next bar sits over the top of the drawing as the figure scrolls in, so the step-1 arrow is hidden. The next screen is empty lifelines above the controls. Lecture 1 critic issue 6 again: the changed arrow and its sentence are never on screen together.",
+   "fix": "On phone, crop the viewBox to the rows reached so far (grow it with each step), or shorten the lifelines to end just under the current step. The sticky bar then lands right under the newest arrow.",
+   "status": "open"
+  },
+  {
+   "id": "C-05",
+   "severity": "medium",
+   "owner": "design",
+   "where": "3-column-stores, fig-3b; fig/1440-light-fig-3b.png",
+   "problem": "The dashed 'row 2' line between the column files runs straight through the row-number labels, so every '2' renders as '-2-'. That row is the one the figure is about ('row 2 = line 2 of every file').",
+   "fix": "Break the dashed line around each label (stop it 6px before the number and restart 6px after), or set the line at mid-height of the row and the numbers on the left edge, clear of the stroke.",
+   "status": "open"
+  },
+  {
+   "id": "C-06",
+   "severity": "medium",
+   "owner": "design",
+   "where": "Notation key fig-l02-key vs fig-7c, fig-9b, clips l02-three-ways-to-persist and l02-missed-message; fig/1440-light-fig-l02-key.png, sweep/1440-light/7-sending-a-message/009.png, clip/1440-light-l02-missed-message-fig-poster.png",
+   "problem": "The key defines kafka as a pipe with two small circles, but no figure draws it that way. Fig 7·c and Fig 9·b use a plain pipe, and both clips use a pipe with a filled square ('■ kafka'). The key promises a mark the reader never sees, and the plain pipe is hard to tell from the redis pipe without its label.",
+   "fix": "Pick one kafka glyph and use it in the key, every static figure and both clip compositions. The clips' '■ kafka' end cap is the most distinct choice.",
+   "status": "open"
+  },
+  {
+   "id": "C-07",
+   "severity": "medium",
+   "owner": "design",
+   "where": "5-sql-or-nosql §5.2 and 1-nosql-is-not-one-thing §1.1; sweep/1440-light/5-sql-or-nosql/002.png–003.png, sweep/1440-light/1-nosql-is-not-one-thing/002.png",
+   "problem": "These are figure deserts against the sample's paragraph, figure, paragraph rhythm. §5.2 (the backstory) is about two screens of prose with no drawing. §1.1 has six paragraphs in a row before Fig 1·a. Every other section of the lecture holds the rhythm.",
+   "fix": "Add one small sketch to each. For §5.2, a two-pan scale or timeline: 'financial first → correctness' vs 'ingestion → scale'. For §1.1, a 'NoSQL' blanket over named stores (Cassandra · MongoDB · DynamoDB · Neo4j), each tagged with its workload. Keep both at notation-key scale.",
+   "status": "open"
+  },
+  {
+   "id": "C-08",
+   "severity": "medium",
+   "owner": "design",
+   "where": "9-the-whole-system fig-9d; 1-nosql-is-not-one-thing fig-1a (right panel); sweep/1440-light/9-the-whole-system/016.png, sweep/1440-light/1-nosql-is-not-one-thing/003.png",
+   "problem": "The replication arrows point the opposite way to the data. In Fig 9·d the '② copy' arrows run from nodes 2 and 3 up into node 1, so the copy appears to flow into node 1, not out of it. In Fig 1·a the dashed 'catches up' arrow runs from node 2 to node 1. Under the convention (arrow from the initiator, head at the receiver of the action), both read as the replica pushing to the primary. In Fig 9·d the 'write m42' label also touches node 1's lid.",
+   "fix": "Draw the data movement: node 1 → node 2 and node 1 → node 3 ('copy'), and node 1 → node 2 ('catches up'). If the replica-pull reading is wanted, label the arrow 'pull' and keep a separate data arrow. Nudge 'write m42' 8px up.",
+   "status": "open"
+  },
+  {
+   "id": "C-09",
+   "severity": "low",
+   "owner": "content",
+   "where": "6-slack-schema, caption of the step-through (Fig 6·c); sweep/1440-light/6-slack-schema/006.png",
+   "problem": "The caption opens with 'Time runs down', copied from the swim-lane figures. This figure is a stack of schema drafts, not a timeline. The numbering also jumps from Fig 6·a to Fig 6·c in reading order.",
+   "fix": "Start the caption with 'Each step is one draft of messages…' and drop the timeline sentence. Renumber so the figures read 6·a, 6·b, 6·c in order.",
+   "status": "open"
+  },
+  {
+   "id": "C-10",
+   "severity": "low",
+   "owner": "design",
+   "where": "Left course rail on every page; sweep/1440-light/overview/000.png, 1024-light-overview-top.png",
+   "problem": "The rail shows Lecture 02, 'Medium under load' (folder lec01, the finished reference lecture), as 'coming soon'. This may only be a QA build that contains lec02 alone, but in that state a reader can't reach the lecture this one keeps pointing back to.",
+   "fix": "Check this in the full site build. If it still shows there, make 'coming soon' reflect which lectures are published, not which ones were included in the current build.",
+   "status": "open"
+  },
+  {
+   "id": "C-11",
+   "severity": "low",
+   "owner": "design",
+   "where": "7-sending-a-message fig-7c desktop vs phone; sweep/1440-light/7-sending-a-message/009.png, fig/390-light-fig-7c.png",
+   "problem": "The phone redraw marks 'saved first' and 'saved later' in green. The desktop drawing has no green at all, so the colour that means 'saved/ack' appears at one width only.",
+   "fix": "Add the green 'saved' ticks to the desktop drawing, next to the DB on path ① and the worker writes on path ②.",
+   "status": "open"
+  },
+  {
+   "id": "C-12",
+   "severity": "low",
+   "owner": "animation",
+   "where": "Clip l02-mesh-to-pubsub poster; clip/1440-dark-l02-mesh-to-pubsub-fig-poster.png",
+   "problem": "The red toy-limit tick sits on top of the 'D' slot, and 'toy limit' is lettered right above it, so the D chip and the limit line collide in the final frame.",
+   "fix": "Move the limit tick 6px right of the D chip, into the gap before the grey slot, as the static fig-8a draws it.",
+   "status": "open"
+  }
+ ]
+}

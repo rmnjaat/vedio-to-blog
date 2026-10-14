@@ -1,0 +1,99 @@
+{
+ "lecture": "lec02",
+ "page": {
+  "title": "Slack in real time",
+  "kicker": "Lecture 04 · week 2, day 2 · running case: Slack",
+  "dek": "Tour the non-relational database families by what each gives up, then design how Slack gets one message to everyone in a channel in real time.",
+  "description": "Lecture 04: document, key-value, column-oriented and graph databases and when to pick SQL, then Slack's real-time chat: schema, message guarantees, scaling WebSocket servers with a real-time Pub/Sub."
+ },
+ "clip_prefix": "l02-",
+ "overview_part": "s0-header",
+ "overview_sections": [
+  "about"
+ ],
+ "chapters": [
+  {
+   "no": "1",
+   "slug": "1-nosql-is-not-one-thing",
+   "title": "“NoSQL” is not one thing",
+   "summary": "Name the database, not the family. The two meanings of consistency, what non-relational stores give up to scale, and why relational databases scale too.",
+   "writer": "w1",
+   "parts": [{"file": "s1-nosql", "sections": ["1.1", "1.2", "1.3"]}]
+  },
+  {
+   "no": "2",
+   "slug": "2-documents-and-key-value",
+   "title": "Documents and key-value stores",
+   "summary": "Two families defined by how you may touch the data: query inside a document, or only ever get and put by key, and what each restriction buys.",
+   "writer": "w1",
+   "parts": [{"file": "s2-documents-kv", "sections": ["2.1", "2.2", "2.3", "2.4"]}]
+  },
+  {
+   "no": "3",
+   "slug": "3-column-stores",
+   "title": "Column-oriented databases",
+   "summary": "Same table, two layouts on disk. Why an analytics query reads two files instead of every row, why warehouses compress so well, and why they are never the primary copy.",
+   "writer": "w1",
+   "parts": [{"file": "s3-columns", "sections": ["3.1", "3.2", "3.3", "3.4"]}]
+  },
+  {
+   "no": "4",
+   "slug": "4-graph-databases",
+   "title": "Graph databases",
+   "summary": "The most misunderstood family. Not for anything you can draw as a graph, but for real graph algorithms: recommendations and fraud checks inside 200 ms.",
+   "writer": "w2",
+   "parts": [{"file": "s4-graphs", "sections": ["4.1", "4.2", "4.3", "4.4"]}]
+  },
+  {
+   "no": "5",
+   "slug": "5-sql-or-nosql",
+   "title": "Why they scale, and when to pick SQL",
+   "summary": "No relations means no checks, so data can spread out. Every database has a backstory, and a broad rule for choosing between correctness and ingestion.",
+   "writer": "w2",
+   "parts": [{"file": "s5-sql-or-nosql", "sections": ["5.1", "5.2", "5.3"]}]
+  },
+  {
+   "no": "6",
+   "slug": "6-slack-schema",
+   "title": "Slack: the problem and the schema",
+   "summary": "Cut “design Slack” down to real-time text chat, then build the tables: a membership noun, direct messages as two-person channels, and a checkpoint for unread counts.",
+   "writer": "w2",
+   "parts": [{"file": "s6-slack-schema", "sections": ["6.1", "6.2", "6.3", "6.4", "6.5"]}]
+  },
+  {
+   "no": "7",
+   "slug": "7-sending-a-message",
+   "title": "Sending a message: guarantees first",
+   "summary": "Where messages live, and how one gets there. Send over HTTP or the open WebSocket? Three ways to persist a message, Slack, WhatsApp and Zoom, and why the edge server stays dumb.",
+   "writer": "w3",
+   "parts": [{"file": "s7-sending", "sections": ["7.1", "7.2", "7.3", "7.4", "7.5"]}]
+  },
+  {
+   "no": "8",
+   "slug": "8-scaling-websockets",
+   "title": "Scaling WebSocket servers",
+   "summary": "One channel's members land on different servers. A TCP link, then a mesh that eats each server's connections, then a real-time Pub/Sub and a balancer that keeps an organisation together.",
+   "writer": "w4",
+   "parts": [
+    {"file": "s8a-websockets", "sections": ["8.1", "8.2", "8.3"]},
+    {"file": "s8b-websockets", "sections": ["8.4", "8.5", "8.6"]}
+   ]
+  },
+  {
+   "no": "9",
+   "slug": "9-the-whole-system",
+   "title": "The whole system",
+   "summary": "One WebSocket per product, the overall architecture, what happens when a real-time message is lost, how exposed the edge servers can be, and how a write survives a dead node.",
+   "writer": "w5",
+   "parts": [{"file": "s9-whole-system", "sections": ["9.1", "9.2", "9.3", "9.4", "9.5"]}]
+  },
+  {
+   "no": "10",
+   "slug": "10-deleting-and-ordering",
+   "title": "Deleting, ordering, and what to keep",
+   "summary": "Two follow-up features answered with the same blocks: deleting a message and putting messages in order. Then the habits to keep and where this lecture stops.",
+   "writer": "w5",
+   "parts": [{"file": "s10-deleting-ordering", "sections": ["10.1", "10.2", "10.3"]}]
+  }
+ ]
+}

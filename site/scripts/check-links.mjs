@@ -8,6 +8,7 @@
 //   relative path    resolved against the page's URL, then checked as above
 // External URLs (http:, https:, mailto:) are not fetched. A bare "#" is allowed (placeholder link).
 // The base defaults to the `base` in astro.config.mjs.
+// In an isolated build (--dist .builds/…) links into a lecture that is not in the build only need its MDX file.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +36,8 @@ const idsOf = (file) => {
 const urlOf = (file) => base + path.relative(dist, file).split(path.sep).join('/').replace(/index\.html$/, '');
 const decode = (s) => s.replace(/&amp;/g, '&').replace(/&#38;/g, '&');
 
-let checked = 0;
+let checked = 0, skipped = 0;
+const isolated = path.relative(site, dist).split(path.sep)[0] === '.builds';
 const broken = [];
 for (const file of files) {
   const html = fs.readFileSync(file, 'utf8').replace(/(<script\b[^>]*>)[\s\S]*?(<\/script>)/g, '$1$2'); // skip inline script bodies
@@ -54,6 +56,14 @@ for (const file of files) {
       let p = decodeURIComponent(u.pathname);
       if (!p.startsWith(base)) { broken.push(`${urlOf(file)}: ${ref}  (outside the base ${base})`); continue; }
       p = p.slice(base.length);
+      // isolated build (site/.builds/…): a link into another lecture, which is not in this build, is checked only for
+      // its lecture's MDX file; the full build (dist) checks the page and #fragment
+      const other = /^lectures\/(lec\d+)\//.exec(p);
+      if (isolated && other && !fs.existsSync(path.join(dist, 'lectures', other[1]))) {
+        if (fs.existsSync(path.join(site, 'src/content/lectures', other[1] + '.mdx'))) skipped++;
+        else broken.push(`${urlOf(file)}: ${ref}  (no lecture ${other[1]})`);
+        continue;
+      }
       const cand = [path.join(dist, p), path.join(dist, p, 'index.html')];
       target = cand.find((c) => fs.existsSync(c) && fs.statSync(c).isFile());
       if (!target) { broken.push(`${urlOf(file)}: ${ref}  (no file)`); continue; }
@@ -66,6 +76,7 @@ for (const file of files) {
   }
 }
 console.log(`check-links: ${files.length} pages, ${checked} internal links and assets checked under base ${base}`);
+if (skipped) console.log(`  ${skipped} links into other lectures (not in this isolated build) checked only for the lecture's MDX file`);
 for (const b of broken) console.log('  BROKEN ' + b);
 console.log(broken.length ? `${broken.length} broken` : 'ok: zero broken links');
 process.exit(broken.length ? 1 : 0);

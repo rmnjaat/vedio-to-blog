@@ -107,9 +107,17 @@ def lecture_state(id_, file_):
 
 
 lectures = [l.split("\t") for l in open("pipeline/lectures.tsv").read().split("\n") if l.strip()]
+# show course numbers and titles in course order (file ids are filename order, not course order)
+course = {}
+if ex("lectures/course.json"):
+    _c = json.load(open("lectures/course.json"))
+    course = {c["id"]: c for c in (_c if isinstance(_c, list) else _c.get("lectures", []))}
+lectures.sort(key=lambda r: course.get(r[0], {}).get("position", 99))
 rows, totals = [], {"done": 0, "doing": 0, "todo": 0}
 for id_, f in lectures:
     s, note = lecture_state(id_, f)
+    if ex(f"lectures/{id_}/qa/PASS"):
+        note = "✓ QA passed · live on the site"
     for v in s.values():
         totals[v] += 1
     rows.append((id_, f, duration_h(id_), s, note))
@@ -131,7 +139,8 @@ def cell(v):
 
 
 lec_rows = "".join(
-    f'<tr><th scope="row"><b>{id_}</b><small>{dur} · {html.escape(f[:14])}…</small></th>'
+    f'<tr><th scope="row"><b>Lecture {course.get(id_, {}).get("position", "?")}</b>'
+    f'<small>{html.escape(course.get(id_, {}).get("title", f[:14]))} · {id_} · {dur}</small></th>'
     + "".join(cell(s[k]) for k, _ in STAGES)
     + f'<td class="note">{html.escape(note)}</td></tr>'
     for id_, f, dur, s, note in rows)

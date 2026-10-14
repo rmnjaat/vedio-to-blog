@@ -1,0 +1,111 @@
+# Storyboard — clip l02-mesh-to-pubsub (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l02-mesh-to-pubsub
+title: Mesh to Pub/Sub
+lecture: 4            # course position (folder lec02)
+section: "8.4 A real-time Pub/Sub in the middle"
+status: reviewed      # draft | approved | built | reviewed  (render-check rounds: lectures/lec02/animations/l02-mesh-to-pubsub/review.md)
+why_motion: >
+  Accumulation, then redistribution. The mesh's cost is a growth rate: each new server must open one TCP link per
+  server already there, and every link also takes a slot on every server. Watching the link counter and the red part
+  of WS1's slot bar climb as servers arrive one at a time, and then everything collapse to one link per server, is
+  the lesson. Fig 8·b step 3 and Fig 8·c show only the four-server state.
+static_twin: "Fig 8·b step 1 end state (ws1 with A-D, ws2 with E, one tcp link) + Fig 8·c's slot bar; end state = Fig 8·d with five servers; boards D-05 (b_020445.jpg), D-06 (b_021900.jpg), D-13 (b_023009.jpg)"
+ledger:
+  taught:
+    - L-0265  # every WS server has to be connected to every other: a mesh
+    - L-0276  # the real overhead: 4 users + 3 peers = 7 connections, 3 only for inter-server traffic
+    - L-0277  # the server's job is to serve users; the mesh wastes its connections on server talk
+    - L-0278  # put a Pub/Sub in the middle: one connection per server instead of one to every other
+    - L-0280  # overhead drops to one: A, B, C, D + one Pub/Sub connection
+    - L-0281  # a real-time Pub/Sub sends to everyone subscribed right now
+    - L-0282  # zero persistence: it keeps nothing, just pushes
+    - L-0283  # flow: WS1 delivers to B, C, D locally, then sends to the Pub/Sub, which pushes to the subscribers
+  context_only:
+    - L-0242  # connection limit, assume four (the toy limit on the bar)
+    - L-0258  # one plain TCP connection WS1-WS2 (B0's starting state)
+    - L-0261  # F on WS3 (B1's third server)
+    - L-0263  # "you have to do it, there is no other way" (prose / Fig 8·c bubble)
+    - L-0284  # no delivery guarantee for a server not connected at publish time (clip l02-missed-message)
+fidelity_notes:
+  - "4 users per server is the class's toy limit (L-0242): a red cap tick after slot 4 with hand 'toy limit'. Real servers hold far more; the prose says so."
+  - "The 7 connections, 3 of them for other servers, are the class's numbers for four servers (L-0276). The link counts 1, 3, 6, 10, the fifth server, and WS1's '4 + 4 = 8' are arithmetic from L-0265 (every server to every other), marked 'illustrative' beside ws5; the class drew four servers (D-05)."
+  - "Only WS1's slot bar is drawn (Fig 8·c); the caption and alt say every link takes a slot on both ends, which is L-0276 applied to each server."
+  - "No claim about ports: the limit is drawn as slots only (SN-06 corrects the ports claim in prose)."
+  - "Users follow the board: B, A above ws1 and C, D at its left; E on ws2 (D-05); F on ws3 (L-0261). ws4 and ws5 have no users drawn (the board's fourth box is empty)."
+  - "The push goes to every connected server, as 8.4 teaches it (L-0283: 'pushes it to everyone subscribed'); per-channel subscriptions come in 8.5 and are not shown, so ws4 and ws5 also receive the copy."
+  - "Redis is labelled mono 'redis' + hand 'real-time pub/sub' (the board's 'Redis / Realtime PubSub'); no throughput or latency numbers. The glyph kit's broadcast tick on the pipe is left out (it would sit on the label); the pipe's dotted lanes stay empty, which is the 'keeps nothing' cue."
+  - "No delivery guarantee (L-0284) is not shown: that is l02-missed-message's job."
+  - "Not claimed: that a mesh is never used, how many servers Slack runs, or any number of real connections."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1010, note: "portrait re-flow at <= 640 px: servers on a two-column grid (ws1 top-left, ws2 top-right, ws4/ws3 second row, ws5 bottom centre), users as letters above; the pipe runs vertically between the columns (Fig 8·d phone); counter on top, WS1's bar in a band under the grid; lettering 30, captions 32"}
+duration_frames: 1165   # 38.8 s; 77.7 s at 0.5x
+start_frame_equals: "Fig 8·b step 1 end state: ws1 (B, A above, C, D left) — tcp — ws2 (E above); mono 'links: 1' on top; WS1's bar: 4 blue slots A B C D, red cap tick 'toy limit', 1 red peer slot; mono '4 + 1 = 5'"
+poster_frame: 1164
+reduced_motion_stills: [92, 248, 444, 668, 928, 1164]
+glyphs:
+  edge_servers: {shape: edge-server box (chamfered box + two-prong plug mark), labels: [ws1, ws2, ws3, ws4, ws5], wide_centres: [[270,150],[930,150],[1060,365],[140,365],[600,455]], size: [150,70], phone_centres: [[115,250],[605,250],[605,470],[115,470],[360,640]], phone_size: [160,60]}
+  users: {shape: mono letter on a short stub line (board form), ws1: "B, A above; C, D left (phone: A B C D above)", ws2: "E above", ws3: "F below"}
+  tcp_links: {shape: one plain line, no head, graphite, label: "mono 'tcp' once (on ws1-ws2)", route: "new server centre -> each older server centre (under the boxes)"}
+  counter: {text: "mono 'links: N'", pos: "top centre", note_line: "hand under it: 'every server to every other' (B3), then 'one per server (mesh: 10)' (B4)"}
+  slot_bar: {shape: "row of slots under mono 'ws1': 4 blue (A B C D), red cap tick in its own gap (14 px clear of D and of the first peer slot; phone 12) + hand 'toy limit', then one red slot per peer link; in B4 one graphite slot", totals: "mono '4 + k = n' right of the bar (phone: under it), red hand 'k serve no user' (B2-B3), hand '4 users + 1 link' (B4)"}
+  pubsub_pipe: {shape: "pipe (two long lines, round ends) with two empty dotted lanes", wide: "horizontal, x 110-1090, y 235-275", phone: "vertical, x 335-385, y 200-560", labels: "mono 'redis' + hand 'real-time pub/sub'"}
+  elbows: {shape: "short straight connector from each server to the pipe, graphite, no head", note: "B5 re-inks ws1's blue with head at the pipe (publish) and the others blue with heads at the servers (Redis pushes)"}
+  message: {shape: "blue square (packet) riding the WS stubs, the connectors and the pipe", heads: "publish: head at the pipe; push: heads at the servers"}
+beats:
+  - id: B0
+    from: 0
+    to: 100
+    caption: "Two servers, one TCP link. WS1: four users plus one link."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0276]
+  - id: B1
+    from: 100
+    to: 255
+    caption: "A third server must link to both others: 3 links."
+    events:
+      - {at: 108, dur: 34, what: "ws3 inked (box pen, label written, F stub + letter)"}
+      - {at: 144, dur: 30, what: "tcp link pen ws3 -> ws1; counter 2; WS1's bar gains red slot 6; total '4 + 2 = 6'", colour: red}
+      - {at: 180, dur: 30, what: "tcp link pen ws3 -> ws2; counter 3"}
+    ledger: [L-0265]
+  - id: B2
+    from: 255
+    to: 450
+    caption: "Four servers: 6 links. 3 of WS1's 7 connections serve no user."
+    events:
+      - {at: 263, dur: 26, what: "ws4 inked"}
+      - {at: 297, dur: 92, what: "links ws4 -> ws1, ws2, ws3 one by one; counter 4, 5, 6; WS1's bar red slot 7 at ws1's link"}
+      - {at: 395, dur: 24, what: "total '4 + 3 = 7'; red hand '3 serve no user'", colour: red}
+    ledger: [L-0265, L-0276, L-0277]
+  - id: B3
+    from: 450
+    to: 675
+    caption: "A fifth server needs 4 more links. Every server links to every other."
+    events:
+      - {at: 458, dur: 38, what: "ws5 inked, hand 'illustrative' beside it"}
+      - {at: 500, dur: 108, what: "links ws5 -> ws1..ws4 one by one; counter 7..10; red slot 8, '4 + 4 = 8', '4 serve no user'", colour: red}
+      - {at: 614, dur: 26, what: "hand under the counter 'every server to every other'"}
+    ledger: [L-0265, L-0276, L-0277]
+  - id: B4
+    from: 675
+    to: 935
+    caption: "Put a real-time Pub/Sub in the middle: one link per server."
+    events:
+      - {at: 683, dur: 14, what: "all ten tcp links erase together; red slots, red note and mesh note fade (replaced in place)"}
+      - {at: 701, dur: 78, what: "pipe pen in the middle; mono 'redis', hand 'real-time pub/sub' written"}
+      - {at: 783, dur: 73, what: "one connector per server, ws1..ws5, one at a time; counter 1..5; WS1's bar gains one graphite slot"}
+      - {at: 860, dur: 42, what: "hand 'one per server (mesh: 10)' under the counter; '4 + 1 = 5' + hand '4 users + 1 link'"}
+    ledger: [L-0278, L-0280]
+  - id: B5
+    from: 935
+    to: 1165
+    caption: "WS1 publishes once. The Pub/Sub pushes it on and keeps nothing."
+    events:
+      - {at: 945, dur: 20, what: "blue square A -> ws1 along A's stub", colour: blue}
+      - {at: 969, dur: 18, what: "ws1 -> B, C, D (local delivery, three squares)", colour: blue}
+      - {at: 991, dur: 18, what: "ws1 -> pipe: connector re-inked blue, head at the pipe (publish)", colour: blue}
+      - {at: 1013, dur: 26, what: "the pipe pushes copies to ws2, ws3, ws4, ws5: connectors re-inked blue, heads at the servers", colour: blue}
+      - {at: 1041, dur: 16, what: "ws2 -> E, ws3 -> F; green ticks at E and F", colour: green}
+      - {at: 1063, dur: 24, what: "hand 'keeps nothing' beside the empty pipe; hold >= 2.5 s on the poster"}
+    ledger: [L-0281, L-0282, L-0283]

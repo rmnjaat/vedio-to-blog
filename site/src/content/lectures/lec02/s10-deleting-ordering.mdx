@@ -1,0 +1,188 @@
+import LectureLink from '../../../components/LectureLink.astro';
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { DeleteOnDevices, DeleteInStore, OutOfOrder, RealisticRule } from '../../../figures/lec02/s10-deleting-ordering-figs';
+
+<Section id="s10" no="10" title="Deleting, ordering, and what to keep" crumb="10 Deleting and ordering"
+  dek="Two follow-up features answered with the same blocks, deleting a message and putting messages in order, then the habits to keep and where this lecture stops."
+  meta="About 15 min · class Q&A 02:50–03:02, 02:30–02:31, 02:47–02:48, 03:06–03:14">
+
+A user deletes a message they regret. Another user sees two messages in the wrong order. Does the design of chapter 9 need new machinery for either? Both questions came up in the class's late Q&A, and both are answered with the blocks already on the board.
+
+</Section>
+
+<Section id="s10-1" no="10.1" title="Deleting a message" crumb="10.1 Deleting"
+  dek="Where the message lives decides how it is deleted."
+  meta="About 4 min · class Q&A 02:50–02:54">
+
+Asked in class: shouldn't deletion be synchronous with both flows, the real-time one and the refresh, so that nobody sees a deletion notification and then sees the message again after a refresh? The instructor's first answer was a question: do you really get a deletion notification at all? [[L-0395]]
+
+Start from where the messages live. WhatsApp, as the class put it, does not store anything. More exactly, WhatsApp deletes a message from its servers once it is delivered; an undelivered message is held encrypted for up to 30 days while delivery is retried. <Cite href="https://www.whatsapp.com/legal/privacy-policy">whatsapp.com</Cite> [[L-0396]] So WhatsApp-style deletion is just one more message, “delete this message permanently”, and each side deletes it from the user's local storage. [[L-0397]] Slack-style deletion deletes the message in the backend store and tells the users it is deleted; to communicate that in real time, you also notify them that it is now gone. [[L-0398]]
+
+<Figure id="fig-10a" no="Fig 10·a" panels={2} k="L-0396 L-0397 L-0398 L-0399"
+  caption="Two ways to delete. Left: the copies live on the devices, so a delete event goes from one phone to the other and each drops its own copy. Right: the message lives in the backend, so the stored row is deleted and then everyone is told in real time over the edge servers.">
+  <Panel><DeleteOnDevices /></Panel>
+  <Panel><DeleteInStore /></Panel>
+</Figure>
+
+The same blocks answer any question of this kind: depending on the guarantees, you alter the approach. [[L-0399]]
+
+If it is that easy, why did WhatsApp take so long to ship deletion? Because doing it at WhatsApp's scale is humongous. There is the hierarchy, deciding whether it is needed at all and how best to do it, the product decisions and a staggered rollout, all between a product manager's idea and the implementation. [[L-0401]] If the requirements are known and the system follows this architecture, deletion is a small change. The instructor's estimate: about 100–200 lines, at most 200–300 lines of backend code, one event stored and one notification sent. [[L-0402]]
+
+<MarginNote title="From the instructor: 3.5 months" why="skip unless you’re estimating one" k="L-0400">
+
+Even after doing the whole analysis on this page, it took the instructor's team of three engineers three and a half months to build a real-time text chat system. Small changes on a known architecture are cheap; the first build takes time. [[L-0400]]
+
+</MarginNote>
+
+<MarginNote title="Build it: delete" why="skip if you’ve built a chat" k="L-0403">
+
+Work with WebSockets yourself and mimic a “message deleted” flow: send the event, and watch the message disappear in the UI on the other client. [[L-0403]]
+
+</MarginNote>
+
+</Section>
+
+<Section id="s10-2" no="10.2" title="Who said messages arrive in order?" crumb="10.2 Ordering"
+  dek="Show messages as they arrive, let the database's order win, and don't re-architect for an edge case."
+  meta="About 8 min · class Q&A 02:54–03:02">
+
+Asked in class: how should we think about ordering messages, and about exactly-once semantics?
+
+The answer opened with a question back: why add exactly-once semantics at all? Nobody said it is required here. [[L-0404]] Nor does anyone say messages must arrive on screen strictly in order. The front end can insert a message in the middle; what's the problem? Ordering matters where messages are processed one after another. [[L-0405]]
+
+Two cases. **Case 1:** A sends message 1 and then message 2, and message 2 reaches B first. Render them in the order they arrive. On refresh the order gets fixed, because the order in which messages are stored in the database is the source of truth. [[L-0406]] **Case 2:** keep the front-end state, a React array for example, ordered by timestamp. When an older message arrives late, insert it in the middle of the array instead of appending it at the end, and accept a brief flicker if that is okay for the user experience. [[L-0407]]
+
+<StepThrough id="fig-10b" no="Fig 10·b" label="Out-of-order messages figure" grow k="L-0406 L-0407 L-0410 L-0411 L-0412 L-0413 L-0415"
+  caption="Time runs down. Lanes are user A, the database and B's screen. Messages m1 “hey” and m2 “standup in 5”; t1 and t2 are the database's insertion times."
+  stepK={['L-0410 L-0412', 'L-0406', 'L-0406 L-0411', 'L-0407', 'L-0407', 'L-0412 L-0413 L-0415']}
+  steps={[
+    'A sends 1 then 2. The database stores them in that order, by its own clock: <code>t1 &lt; t2</code>.',
+    'Case 1: message 2 arrives first. Show them in the order they arrive.',
+    'A refresh, or a job that fetches the last 50, puts them in the database’s order.',
+    'Case 2: keep the screen’s list ordered by timestamp. Message 2 arrives first.',
+    'Message 1 arrives late and is inserted in place, above 2, with a brief flicker.',
+    'The order is the database’s insertion time, never a client clock.',
+  ]}>
+  <Desk><OutOfOrder /></Desk>
+  <Phone><OutOfOrder layout="phone" /></Phone>
+</StepThrough>
+
+<MarginNote title="From practice: reshuffled messages" why="skip unless you’ve seen this" k="L-0408">
+
+One learner noticed that on Microsoft Teams the receiver sometimes gets missing, duplicate or out-of-order messages, which later reshuffle themselves into order. [[L-0408]]
+
+</MarginNote>
+
+This architecture can explain the duplicates. A system may broadcast to the receiver first and persist later, or it may retry on the WebSocket server when it thinks a message was not delivered although it actually was. [[L-0409]] In this lecture's design the message is stored first, and only once storage is certain is the other user told the message exists. [[L-0410]] Order then fixes itself in one of two ways: on a page refresh, which calls the source-of-truth API, or with a background job. For example, every minute, call the actual HTTP backend for the last 50 messages, check they are all on the screen, and reorder if needed. [[L-0411]]
+
+<h3 id="s10-2-clock">Which clock?</h3>
+
+Which parameter decides the order the messages are stored in?
+
+<PauseAndThink k="L-0412 L-0413 L-0414 L-0415 L-0417"
+  q="To put a channel's messages in order, should each message carry the sender's device timestamp?"
+  choices={[{ label: 'Yes: the sender knows when they hit send' }, { label: 'No: order by the database’s insertion time', correct: true }]}
+  right="Right: one clock, the database’s, is the source of truth."
+  wrong="Client clocks can be wrong, or set to 1 January 1970 on purpose. Never rely on them.">
+
+No. A client can set its clock to anything (“I can just change my clock to 1 January 1970”), and real messages are never sent at exactly the same instant anyway. The database's insertion order is the truth: if latency shows a later message first, a refresh or a background job puts it right. Vector clocks with CRDTs are the heavy way to true ordering, and they cost more than the edge case is worth.
+
+</PauseAndThink>
+
+It is always the database insertion time, by whatever clock the database has at the moment of the insert. [[L-0412]] Slack's own API has the same shape: a message's `ts` value is essentially its ID and is guaranteed unique within a channel or conversation, giving one server-assigned order per channel. <Cite href="https://docs.slack.dev/messaging/retrieving-messages">docs.slack.dev</Cite> [[L-0412]]
+
+A tempting idea, suggested in class: order the messages by a timestamp sent from the client. Why would you send timestamps from the client? You should never rely on them when processing messages in the database, because a user can just change their clock, to 1 January 1970 if they like. Whatever time is on the database is the source of truth. [[L-0413]] Nor do you need the client's precision. Messages like “hey”, “hi”, “hello” are never sent at exactly the same time from one client: typing and sending always leave some gap. [[L-0414]] If network latency makes a later message arrive first, that is fine. Whatever order the database received is the source of truth. [[L-0415]]
+
+Is there a way to true ordering? The overly complicated way: CRDTs to merge and resolve conflicts, and vector clocks on the client side, each client with its own vector clock persisted in the database. [[L-0416]] Even then, a vector clock gives only a partial, causal order. It can say that one message happened before another, or that two were concurrent, but it doesn't order the concurrent ones by itself, so they still need a tie-break. <Cite href="https://en.wikipedia.org/wiki/Vector_clock">wikipedia.org</Cite> [[L-0416]] It isn't worth it here. Maintaining vector clocks and doing the merges when you read slows down your entire system, and no one does that: you don't re-architect a system for one edge case. [[L-0417]] Vector clocks are the answer if you truly need that guarantee, but a globally consistent vector clock per client is a massive problem; look up an implementation to see how complicated it gets. [[L-0419]]
+
+<RuleBox rule="==Design realistic systems.==" k="L-0418 L-0412">
+
+Theoretically you can find a hundred loopholes in any design; practically there are a few, and it is okay to live with them. For each one, ask how likely it is and whether you really need it. If yes, implement it. Ordering is the example: take the database's clock as the order, and let a refresh fix the rest.
+
+<Desk><RealisticRule /></Desk>
+<Phone><RealisticRule layout="phone" /></Phone>
+
+</RuleBox>
+
+Think in realistic terms: do you really need it? If yes, then implement it. [[L-0418]]
+
+</Section>
+
+<Section id="s10-3" no="10.3" title="What to keep" crumb="10.3 What to keep"
+  dek="The habits that recurred, and where this lecture stops."
+  meta="About 4 min · class 02:30–02:31, 02:47–02:48, 03:06–03:14">
+
+All these systems are interconnected. Make a few changes here and there and you get a brand-new system: one pattern fits everywhere. [[L-0440]]
+
+So write the hello worlds of the WebSocket server, the Balancer and the real-time Pub/Sub. Don't take this page at face value; implement everything, because the devil lies in the details. [[L-0348]] Every single thing you see in system design is implementable. [[L-0351]] The class closed on the same advice: implement everything as a small hello world, especially Redis Pub/Sub, where ten minutes of use shows you how it pushes and that it keeps nothing. [[L-0441]]
+
+<MarginNote title="From the instructor: the happiest day" why="skip unless you need the push" k="L-0350">
+
+Building a load balancer is superbly simple. The instructor regularly hears from past learners, one of them the evening before this class, that they implemented their own load balancer and it was the happiest day of their lives. [[L-0350]]
+
+</MarginNote>
+
+<h3 id="s10-3-heuristics">Ten lines to keep</h3>
+
+One line from each chapter, each linking back to where it was taught:
+
+1. Never believe a generic statement at face value, even from the teacher: demand that it be specific and contextual ([§1.3](#s1-3)). [[L-0025]]
+2. The more complex you make the queries, the less you can distribute the data ([§2.3](#s2-3)). [[L-0045]]
+3. Transactional use cases fit row-oriented storage; analytics, which picks a few columns out of many, fits column-oriented storage ([§3.3](#s3-3)). [[L-0066]]
+4. Whenever you need core graph algorithms, go for a graph database ([§4.1](#s4-1)). [[L-0089]]
+5. Very broadly: correctness and consistency out of the box, SQL; a high ingestion rate and sharding out of the box, NoSQL ([§5.3](#s5-3)). [[L-0125]]
+6. Name things as nouns, and piggyback on existing entities rather than writing ifs and elses ([§6.5](#s6-5)). [[L-0181]]
+7. Different guarantees, different architecture: what is a bad idea for Slack is fine for WhatsApp ([§7.3](#s7-3)). [[L-0219]]
+8. Start with the problem, solve it with basic fundamentals, then make it better ([§8.2](#s8-2)). [[L-0264]]
+9. One architecture covers almost every messaging system: change only the guarantees ([§9.2](#s9-2)). [[L-0340]]
+10. Design realistic systems: build a fix for a loophole only if it is likely and you need it ([§10.2](#s10-2)). [[L-0418]]
+
+<h3 id="s10-3-stops">Where this lecture stops</h3>
+
+Each of these was deferred in class:
+
+- <ForwardChip label="comes in Lecture 05" lec="lec08" k="L-0349" /> Next week is about distributed systems. On Saturday, how to approach distributed systems, with load balancers and a code walkthrough of one: <LectureLink lec="lec08">Lecture 05</LectureLink>. On Sunday, distributed ID generators, with pre-reads shared on the day of this class: Lecture 06. [[L-0349 L-0441]]
+- <ForwardChip label="comes in Lectures 09 and 10" k="L-0003" /> Today only scratched the surface of the non-relational families; each is used again later. Lecture 09 builds a Redis-like cache, and Lecture 10 builds storage from files and column formats. [[L-0003]]
+- <ForwardChip label="later in the course" k="L-0391" /> Live streaming, such as Hotstar, is very different from real-time text chat and out of scope here. A few bits and pieces of it come in week six or seven, past these ten sessions. [[L-0391]]
+- <ForwardChip label="not covered" k="L-0430" /> End-to-end encryption. Asked how group members' public keys would be pushed from the database, the instructor said he has no experience with public-key encryption: he knows the Signal protocol a bit, and WhatsApp uses a variant of it, but he couldn't say what information it needs. For the record, WhatsApp completed its rollout of the Signal Protocol, covering one-to-one and group chats, attachments, voice notes and calls, in April 2016. <Cite href="https://signal.org/blog/whatsapp-complete/">signal.org</Cite> [[L-0430]]
+- <ForwardChip label="not covered" k="L-0436" /> WebTransport. Raised in class as an upcoming alternative to WebSocket; the instructor hadn't heard of it and said he would look into it. It sends data over HTTP/3 with multiple streams and unreliable, UDP-like datagrams, and MDN lists it as Baseline 2026, working across the latest major browsers since March 2026. <Cite href="https://developer.mozilla.org/en-US/docs/Web/API/WebTransport_API">developer.mozilla.org</Cite> [[L-0436]]
+
+<h3 id="s10-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="How does deleting a message differ between a WhatsApp-like and a Slack-like design, and why?" k="L-0396 L-0397 L-0398">
+
+Where the copies live decides it. WhatsApp keeps no delivered messages on its servers, so deleting is an event, “delete this message permanently”, and each device drops its own copy. Slack keeps messages in the backend, so you delete the stored row and then notify the channel's users in real time that it is gone.
+
+  </RecallItem>
+  <RecallItem q="Two messages reach B out of order. What does the UI do, and what fixes it for good?" k="L-0406 L-0407 L-0411">
+
+Either show them as they arrive, or keep the list sorted by timestamp and insert the late one in place, accepting a brief flicker. What fixes it for good is the database's order: a refresh calls the source-of-truth API, or a background job fetches the last 50 messages every minute and reorders.
+
+  </RecallItem>
+  <RecallItem q="Why should message order come from the database's clock and not the client's?" k="L-0412 L-0413 L-0415">
+
+A client's clock can be wrong, or deliberately set to 1 January 1970, so client timestamps can't be trusted. The database's insertion time is one clock for the whole channel, and whatever order the database received is the source of truth, even if latency showed a later message first.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd
+  concepts={[{ label: 'two ways to delete', href: '#s10-1' }, { label: 'out-of-order messages', href: '#s10-2' }, { label: 'the database clock', href: '#s10-2-clock' }, { label: 'design realistic systems', href: '#s10-2' }, { label: 'hello worlds', href: '#s10-3' }]} />
+
+</Section>

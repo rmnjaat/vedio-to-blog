@@ -1,0 +1,114 @@
+# Storyboard — clip l02-column-scan (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l02-column-scan
+title: One average, two layouts
+lecture: 4            # course position (folder lec02)
+section: "3.2 One query, two layouts"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  The lesson is how much gets read per row: a rate. A still can mark which cells are read; only the sweep shows
+  the row store's read head passing over every unneeded cell of every row (and, slowed down, why it cannot skip:
+  it has to reach the row boundary), while the column store reads two files and the other three stay untouched.
+  Widening the table to 100 columns then grows the row store's read and leaves the column store's alone.
+static_twin: "Fig 3·a (D-01 redraw: stock_ticks header, row strips R1–R3, column blocks) and Fig 3·b (one file per column)"
+ledger:
+  taught:
+    - L-0053  # row store: a row's five columns are stored together, so even a two-column select reads the whole row
+    - L-0056  # the query SELECT avg(price) WHERE ts = '…'; board frames it as a 100-column table
+    - L-0057  # about 10,000 listed companies, about 10,000 rows for the day; each row read, price and ts picked
+    - L-0058  # symbol, name, exchange read for nothing; board: "reading all columns & discarding 98 of them"
+    - L-0059  # it must pass over them: without the row boundary it can't pick the next row's columns
+    - L-0062  # column store reads only the price and timestamp files; no IO for symbol, name, exchange
+  context_only:
+    - L-0055  # the "very naive" one-file-per-column model behind the lower lane (labelled "(naive)")
+    - L-0052  # the stock_ticks table and its five columns
+    - L-0071  # naming columns in SELECT still reads every column in a row store (prose + P1)
+fidelity_notes:
+  - "Counters count columns read, not bytes. No IO size, speed-up or compression is claimed; A-DC-11's 'about 5%' stays in prose."
+  - "10,000 rows is the class's number (L-0057), drawn as three strips R1–R3 plus mono '× 10,000' under the row labels."
+  - "The 100-column widening is the board's framing (D-01: 'a table with 100 columns', 'discarding 98 of them'). The strips keep their length and are subdivided into 100 thin cells: not to scale. price is put at column 2 and ts at column 100 (illustrative positions)."
+  - "The column store is the class's 'very naive' one-file-per-column model (L-0055), labelled '(naive)' from frame 0. Files are drawn side by side (the board stacks them) so the five names fit; each file has three cells for R1–R3."
+  - "B2's slowed replay runs on R3 (the plan said R2) so the 'row boundary' label has room under the strip end. The caption is L-0059 in plain words; no claim about fixed-width rows, pages or offsets."
+  - "timestamp is written 'ts' everywhere, as the board's query does."
+  - "The plan's 'values read: 50,000 / 20,000' counter was replaced by a per-row 'reads 5, uses 2' (then 'reads 100, uses 2'): no illustrative arithmetic on screen. The plan's B4 bars were replaced by the strips themselves widening to 100 cells, so the poster keeps the read pattern. The plan's B2 red flash became the slowed R3 replay to the row boundary (L-0059); the red hatch from B1 already marks the wasted cells."
+  - "Dark theme: the wasted-cell hatch is inked heavier on the blackboard so it stays red; the two used columns in the 100-cell comb get a blue cap above and below the strip so they stay visible at phone size (their width is still one cell)."
+  - "Not claimed: inserts, warehouses, compression, pricing (3.3–3.4); how a real engine lays out pages."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1040, note: "portrait re-flow at <= 640 px: query on two lines, row store on top, files in a 3 + 2 grid below, '2 files read' in the empty grid slot; lettering 30, captions 32"}
+duration_frames: 1030   # 34.3 s; 68.7 s at 0.5x
+start_frame_equals: "query line SELECT avg(price) WHERE ts = '…' with stock_ticks; 'row store': header symbol price name exchange ts over three 5-cell strips R1–R3 and '× 10,000'; 'column store (naive)': five 3-cell files symbol price name exchange ts. All graphite."
+poster_frame: 1029
+reduced_motion_stills: [92, 322, 512, 722, 912, 1029]
+glyphs:
+  query: {shape: mono text, label: "SELECT avg(price) WHERE ts = '…'", pos: "top-left", note: "price and ts underlined blue at B1"}
+  table_name: {shape: mono text ink2, label: "stock_ticks", pos: "query line, right (wide) / under the query (phone)"}
+  row_strips: {shape: long rectangles of 5 cells, labels: [R1, R2, R3], header: [symbol, price, name, exchange, ts], pos_wide: [330, 132, 830, 170]}
+  read_head: {shape: blue vertical bar (6 px), route: "left to right along a strip or a file", colour: blue}
+  cell_states: {used: "blue fill + solid blue (price, ts)", wasted: "red diagonal hatch (symbol, name, exchange)"}
+  row_boundary: {shape: ink tick through R3's right end, label: "row boundary"}
+  column_files: {shape: short 3-cell blocks, labels: [symbol, price, name, exchange, ts], under: ["no IO", "read", "no IO", "no IO", "read"]}
+  counters: {row: "mono 'reads 5, uses 2' -> 'reads 100, uses 2' + red hand 'discarding 98 of them'", column: "hand '2 files read'"}
+  comb: {shape: "each strip subdivided into 100 thin cells", header: ["price", "100 columns", "ts"]}
+  arrows: "none: the only movement is the read head"
+beats:
+  - id: B0
+    from: 0
+    to: 100
+    caption: "One query: avg(price) for one day, about 10,000 rows."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0056, L-0057]
+  - id: B1
+    from: 100
+    to: 330
+    caption: "Row store: every row is read whole, symbol, name and exchange too."
+    events:
+      - {at: 110, dur: 16, what: "price and ts underlined in the query; their header labels turn blue", colour: blue}
+      - {at: 122, dur: 46, what: "read head sweeps R1 (linear); price, ts fill blue, symbol, name, exchange hatch red"}
+      - {at: 170, dur: 46, what: "same on R2"}
+      - {at: 218, dur: 46, what: "same on R3"}
+      - {at: 270, dur: 22, what: "counter 'reads 5, uses 2' written"}
+    ledger: [L-0053, L-0057, L-0058]
+  - id: B2
+    from: 330
+    to: 520
+    caption: "It can't jump to the next price: it must find where the row ends."
+    events:
+      - {at: 342, dur: 110, what: "slow read head on R3; each cell re-inked as it passes (red wasted, blue used)"}
+      - {at: 456, dur: 8, what: "ink tick at R3's right end"}
+      - {at: 460, dur: 24, what: "'row boundary' written under it"}
+      - {at: 520, dur: 14, what: "re-ink fades back"}
+    ledger: [L-0059]
+  - id: B3
+    from: 520
+    to: 730
+    caption: "Column store: open two files, price and ts. No IO for the other three."
+    events:
+      - {at: 530, dur: 36, what: "head reads price file (3 cells blue); 'read' written under it", colour: blue}
+      - {at: 590, dur: 36, what: "head reads ts file; 'read' written", colour: blue}
+      - {at: 652, dur: 20, what: "'no IO' written under symbol, name, exchange"}
+      - {at: 676, dur: 22, what: "'2 files read'"}
+    ledger: [L-0062]
+  - id: B4
+    from: 730
+    to: 920
+    caption: "100 columns: a row store reads 100 to use 2. A column store: 2 files."
+    events:
+      - {at: 738, dur: 10, what: "5-cell fills, dividers and header labels removed (replaced in place)"}
+      - {at: 750, dur: 20, what: "header 'price · 100 columns · ts' written (price, ts blue)"}
+      - {at: 774, dur: 56, what: "read head sweeps all three strips at once (linear), subdividing them into 100 cells: 2 blue (capped above and below the strip), 98 red"}
+      - {at: 836, dur: 22, what: "counter becomes 'reads 100, uses 2'"}
+      - {at: 862, dur: 26, what: "red hand 'discarding 98 of them'", colour: red}
+    ledger: [L-0056, L-0058, L-0062]
+  - id: B5
+    from: 920
+    to: 1030
+    caption: "Same data, same query: the layout decides how much is read."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0053, L-0062]
+chapters: [{label: "row store", frame: 110}, {label: "row boundary", frame: 340}, {label: "column store", frame: 530}, {label: "100 columns", frame: 740}]
+page_context:
+  predict: "Five columns, 10,000 rows. How much does each layout read to answer one average?"
+  caption: "SELECT avg(price) on 10,000 rows: the row store reads every row whole and discards three columns; the column store opens two files. With 100 columns it is 100 against 2."
+  after: "Same data, same query: the row store does five columns of IO per row to use two, the column store reads two files. That gap is what warehouses are built on (3.3)."

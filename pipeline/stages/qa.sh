@@ -105,4 +105,14 @@ mins=$(( ($(date +%s) - T0) / 60 ))
   [ "$fails" -eq 0 ] || { echo; echo "## What failed"; for f in "$LOGDIR"/gate.*.txt; do grep -q . "$f" || continue; echo; echo "### $(basename "$f" .txt)"; echo '```'; tail -15 "$f"; echo '```'; done; }
 } > "$Q/REPORT.md"
 cat "$Q/REPORT.md" | tee -a "$LOGDIR/run.log"
-if [ "$fails" -eq 0 ]; then date "+%F %T" > "$Q/PASS"; say "qa PASS: lecture $ID is finished"; else rm -f "$Q/PASS"; die "qa FAILED after the fix round: see $Q/REPORT.md"; fi
+if [ "$fails" -eq 0 ]; then date "+%F %T" > "$Q/PASS"; say "qa PASS: lecture $ID is finished"
+elif [ ! -e "$DONE/qa.followup" ] && ! echo "$rows" | grep -qE '^\| (page_gates|coverage) \| \*\*FAIL'; then
+  # second (last) fix round: one fixer takes every open critic/faithfulness/exam problem, then the re-check runs again
+  rm -f "$Q/PASS"; say "qa: re-check found open issues; follow-up fixer, then one more re-check"
+  batch qa_fix_followup 1 "$(job qa_fix_followup pipeline/prompts/fix_followup.md "$SITE_SH gates $ID $Q/gates_followup.txt" \
+      site "$DONE/qa.fix_followup" "${COMMON_VARS[@]}" MAX_TURNS=500 LOCK=pipeline/.locks/site-shared EXPECT="$Q/fixes_followup.md")" \
+    || die "follow-up fixer failed"
+  date "+%F %T" > "$DONE/qa.followup"
+  rm -f "$DONE"/qa.{posters,build2,shots2,blind2,faith_verify,critic_final,grade2}
+  exec "$0"
+else rm -f "$Q/PASS"; die "qa FAILED after two fix rounds: see $Q/REPORT.md"; fi

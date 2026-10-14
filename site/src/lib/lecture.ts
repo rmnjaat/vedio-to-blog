@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getCollection, getEntry, render, type CollectionEntry } from 'astro:content';
 import { LECTURES, pad, numberOf } from '../data/course';
 import { url } from './url';
+import { lectureOnDisk } from './xlec';
 
 export type Lecture = CollectionEntry<'lectures'>;
 
@@ -70,13 +71,22 @@ export function resolver(entry: Lecture) {
 export interface NavLecture { number: number; id: string; label: string; title?: string; href?: string; chapters?: Chapter[] }
 
 /** The course's lectures in course order (lectures/course.json) for the navigation; a lecture without an MDX file
-    is "coming soon". The number shown is the course position. */
+    is "coming soon" (in an isolated build, so is one outside the build unless it is published). The number shown is the course position. */
 export async function courseNav(): Promise<NavLecture[]> {
   const written = new Map((await getCollection('lectures')).map((e) => [e.id, e]));
   const ids = new Set(LECTURES.map((l) => l.id));
   const extra = [...written.keys()].filter((id) => !ids.has(id)).sort().map((id) => ({ id, number: numberOf(id, written.get(id)?.data.number), title: undefined as string | undefined }));
   return [...LECTURES, ...extra].map((l) => {
     const e = written.get(l.id);
+    // isolated build (VTB_ONLY): a lecture outside the build that is published still links (read from its MDX file)
+    const d = !e ? lectureOnDisk(l.id) : null;
+    if (d && d.status === 'published') return {
+      number: l.number, id: l.id, label: `Lecture ${pad(l.number)}`, title: d.title, href: lectureHref(l.id),
+      chapters: d.chapters.map((c) => ({
+        no: c.no, slug: c.slug, title: d.contents.find((x) => x.no === c.no)?.title ?? c.slug, summary: c.summary ?? '',
+        parts: c.parts, href: url(`lectures/${l.id}/${c.slug}/`), sections: [],
+      })),
+    };
     return {
       number: l.number, id: l.id, label: `Lecture ${pad(l.number)}`,
       title: e?.data.title ?? l.title, href: e ? lectureHref(l.id) : undefined, chapters: e ? chaptersOf(e) : undefined,

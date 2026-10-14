@@ -1,0 +1,230 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { PubSubMiddle, SubscribeChannels, RedisThenNewChannel, AskBalancer, ServerDies } from '../../../figures/lec02/s8b-websockets-figs';
+
+<Section id="s8-4" no="8.4" title="A real-time Pub/Sub in the middle" crumb="8.4 Real-time Pub/Sub"
+  dek="One connection per server instead of one per peer. What “real-time” means here, why it isn’t Kafka, and what a server misses if it isn’t connected."
+  meta="About 6 min · class 02:07–02:10, Q&A 02:38–02:40 and 02:45–02:46">
+
+The recap board retold 8.1–8.3 as one chain. Each server can handle 4 users, so the 5th user forms a WebSocket with another server. A message from A reaches B through the local connection pool, but a message from A reaches E only when it reaches Edge Server 2. So we bridge the gap, with a TCP connection between the two servers. [[L-0251]]
+
+Now scale the mesh up. With 100 edge servers, does every server connect to every other? The recap board answered its own question: “Not a great idea! Can we do better?”
+
+A way to make it better: don’t keep all these TCP connections between servers. Put a Pub/Sub in the middle instead, and every WebSocket server creates a single connection to it, rather than one to every other server. [[L-0278]]
+
+It has to be a **real-time** Pub/Sub, such as Redis, not Kafka. Kafka would slow it down. [[L-0279]] The TCP connection overhead for inter-server communication is now reduced to just one: in the example, WS1 holds four connections for A, B, C and D and one to the real-time Pub/Sub. [[L-0280]]
+
+<AnimationClip clip="l02-mesh-to-pubsub" no="Clip 8·1"
+  k="L-0265 L-0276 L-0277 L-0278 L-0280 L-0281 L-0282 L-0283"
+  lead="Add a fifth server. How many new links does the mesh need, and how many does the Pub/Sub need?"
+  caption="Each new server must link to every other, so the links and each server’s wasted slots climb; a real-time Pub/Sub in the middle leaves one link per server and keeps nothing." />
+
+Here is the same picture standing still, with each server’s slots counted.
+
+<Figure id="fig-8d" no="Fig 8·d" k="L-0278 L-0279 L-0280 L-0281 L-0282 L-0283"
+  caption="One Pub/Sub in the middle. Each server keeps its user slots plus one graphite slot for its link to Redis; the red peer slots are gone. Redrawn from the class board at 02:08–02:19 (D-06), without the Balancer, which comes in 8.6; the question at the top is the recap board’s at 02:30 (D-13).">
+  <Desk><PubSubMiddle /></Desk>
+  <Phone><PubSubMiddle layout="phone" /></Phone>
+</Figure>
+
+<MarginNote title="A ready-made version" why="skip unless you are building this on Socket.IO" k="L-0278">
+
+This is what Socket.IO’s Redis adapter does: it broadcasts packets between multiple Socket.IO servers through Redis Pub/Sub (a sharded variant needs Redis 7.0 or later). The adapter does not sign, encrypt or authenticate these messages, so Redis must stay inside trusted infrastructure. <Cite href="https://github.com/socketio/socket.io-redis-adapter">github.com</Cite>
+
+</MarginNote>
+
+What is a real-time Pub/Sub? It is very simple. It says: send this message to everyone who is subscribed to it right now. [[L-0281]] It gives you zero persistence. Unlike Kafka, it doesn’t store the message at the moment it relays it; it just pushes it to the subscribers. [[L-0282]]
+
+So when A sends a message to Slack channel 1, WS1 first checks which of its own users are in channel 1, finds B, C and D, and delivers to them. Then it sends the message to the real-time Pub/Sub, which pushes it to everyone subscribed. [[L-0283]]
+
+The message goes to WS2, WS3 and WS4 right there and then. A server that wasn’t connected at that moment doesn’t receive it. A real-time Pub/Sub does not guarantee delivery; its only guarantee is to send the message to everyone connected to it at that moment. [[L-0284]] Redis’s documentation puts it the same way: Pub/Sub delivery is at-most-once, so if a subscriber errors or disconnects, the message is lost for good. When a missed message matters, Redis Streams persist messages and support at-least-once delivery. <Cite href="https://redis.io/docs/latest/develop/pubsub/">redis.io</Cite> What Slack does about a lost real-time message is part of chapter 9 ([9.3](#s9-3)). [[L-0284]]
+
+Redis is a great example of a real-time Pub/Sub tool. [[L-0285]] The same kind of real-time Pub/Sub comes back later in the course. <ForwardChip when="Lecture 05" lec="lec08" sec="s4-5">reactive configuration</ForwardChip> <ForwardChip when="Lecture 10">reloading a dictionary on every server</ForwardChip>
+
+<h3 id="s8-4-why-redis">Why Redis?</h3>
+
+Why Redis Pub/Sub, when cloud providers offer other streaming services? Anything that gives real-time Pub/Sub would do. The requirement is real-time Pub/Sub, not Redis: whichever provider, database, tool or framework offers it, or one you build yourself. [[L-0369]] The instructor picked Redis because he has used Redis to build this exact same system; that is his own experience, not a ranking of tools. [[L-0370]] Persistence isn’t needed from this Pub/Sub. If a tool gives it, good enough, but what is required is sending messages in real time to everyone subscribed. [[L-0371]]
+
+Does a message then expire after some time? There is no expiration, because there is no persistence: no one stores the message anywhere. It is received and sent on to everyone subscribed. [[L-0372]]
+
+<h3 id="s8-4-vs-kafka">Redis Pub/Sub vs Kafka</h3>
+
+Another question from class: can we conclude that Redis Pub/Sub and Kafka are kind of the same? No. [[L-0384]] Nor is the difference simply that “Kafka is asynchronous”; that framing wasn’t accepted either. [[L-0385]] The difference is in who moves the message and what is kept. Kafka is pull-based: consumers pull messages from Kafka. Redis Pub/Sub pushes messages to everyone connected. [[L-0386]] Kafka gives you persistence of historical messages; Redis gives you zero persistence on Pub/Sub. [[L-0387]]
+
+So is one of them superior? Nothing is superior and nothing is inferior. For real time, Redis is superior; for persistence, Kafka is. There is no one answer: it is very contextual. [[L-0388]]
+
+<TradeoffTable caption="Redis Pub/Sub vs Kafka: who moves the message, what is kept, and what each is used for in this design"
+  k="L-0386 L-0387 L-0388"
+  columns={[{ label: 'Redis Pub/Sub', glyph: 'broadcast' }, { label: 'Kafka', glyph: 'stream' }]}
+  rows={[
+    { label: 'Who moves the message', k: 'L-0386', cells: ['Redis pushes it to every subscriber connected now', 'Consumers pull it from Kafka'] },
+    { label: 'What is kept', k: 'L-0387', cells: ['Nothing: zero persistence', 'Historical messages, for a retention window (time or size), not forever by default'] },
+    { label: 'A subscriber that was offline', k: 'L-0284 L-0387', cells: [{ text: 'Misses it: at-most-once', bad: true }, 'Reads it later, if it is still within retention'] },
+    { label: 'Speed', k: 'L-0279 L-0388', cells: ['Real time', 'Would slow the path between edge servers'] },
+    { label: 'Use here', k: 'L-0388', cells: ['Between edge servers (this section)', 'Asynchronous persistence (7.3, chapter 9)'] },
+  ]} />
+
+Kafka’s history is bounded: messages are not deleted when they are consumed, but they are kept only for a configurable time- or size-based retention period. <Cite href="https://kafka.apache.org/43/design/design/">kafka.apache.org</Cite> [[L-0387]]
+
+</Section>
+
+<Section id="s8-5" no="8.5" title="Redis channels for Slack channels" crumb="8.5 Redis channels"
+  dek="Each server subscribes to the Redis channels of its own users’ Slack channels, so a message reaches only the servers that need it. And what happens when a channel is created."
+  meta="About 6 min · class 02:10–02:14, recap 02:25, Q&A 02:35–02:38 and 02:43">
+
+Look at Fig 8·d again. Why should a message for C1 go to WS3 and WS4 at all? It shouldn’t.
+
+First, a clash of words. Redis Pub/Sub has channels, and Slack has channels. There are very few words to go around, so from here on this page always says **Slack channel** or **Redis channel**. [[L-0286]]
+
+Broadcasting every message to all the WebSocket servers is wasteful. A message for Slack channel 1 should go only to the servers that have members of that channel, such as WS2, where E and F are connected, and not to WS3 or WS4. [[L-0287]]
+
+Redis channels make that possible; search for “Redis Pub/Sub” to read how they work. When a WebSocket server spins up, it establishes a connection with the Redis Pub/Sub backbone and asks to be subscribed to Redis channels. [[L-0288]] When a user connects to the server and tells it its membership (“I am part of channel 1”), the server fires a Redis subscribe command and subscribes itself to that channel. [[L-0289]]
+
+```bash
+# WS1, when A connects and says "I'm part of C1"
+SUBSCRIBE c1
+# WS1, after delivering to B, C and D itself
+PUBLISH c1 "standup in 5"
+```
+
+It is the server that subscribes, not the user. The user has a WebSocket connection with the server; the server has one Redis connection, one TCP connection, with Redis. [[L-0290]]
+
+In the running example, A, B, C and D on WS1 are in Slack channel C1, so WS1 is subscribed to Redis channel C1. WS2, with E and F, also in C1, is subscribed to C1 too. Users G and H, on WS3, belong to Slack channel C2. [[L-0291]]
+
+End to end: A sends a message to WS1. WS1 sends it to B, C and D. WS1 sends it to Redis Pub/Sub on channel 1. Redis sends it to the server subscribed to channel 1, WS2, and WS2 sends it to its connected members of the channel, E and F. [[L-0292]] The message is literally pushed to WS2. WS2 does not pull it. [[L-0293]] This way, with minimal overhead of TCP connections, the WebSocket servers communicate, and each message reaches only the servers that need it. [[L-0294]]
+
+The recap board stated the idea in two lines: every Slack channel has one Pub/Sub channel, and each edge server subscribes to the Pub/Sub channels for the Slack channels its connected users are part of. Membership information lives with the edge servers, because users tell them which channels they are in when they connect, and the edge servers fire the subscribe commands to Redis. Spoken, WS1 might subscribe to C1, C2 and C3, and WS2 to C2, C3 and C5. On the board, one edge server holds A in c1, c2 and c3, B in c2, c4 and c5, C in c1 and c3, and D in c4, and sends one `SUB(c1,c2,c3,c4,c5)`. [[L-0336]]
+
+<Figure id="fig-8e" no="Fig 8·e" k="L-0289 L-0290 L-0291 L-0336 L-0337"
+  caption="One edge server collects its users’ Slack channels and subscribes once to the matching Redis channels. Redrawn from the class recap board at 02:25 (D-10), including its note “* can be optimized”.">
+  <SubscribeChannels />
+</Figure>
+
+In this design the Slack channels the edge servers subscribe to coincide with the Redis channels, one for one, but the board adds “* can be optimized”: the implementation may vary. [[L-0337]]
+
+What if one Redis Pub/Sub seems like too little? Have a cluster of it, sharded, with intelligent balancing. [[L-0295]] One thing to know when you do: in a Redis Cluster, a classic `PUBLISH` goes to every node. Since Redis 7.0, sharded Pub/Sub (`SSUBSCRIBE`/`SPUBLISH`) assigns channels to slots the way keys are assigned and keeps each message within its shard, so only sharded Pub/Sub scales by adding shards. <Cite href="https://redis.io/docs/latest/develop/pubsub/">redis.io</Cite> [[L-0295]]
+
+The same question came up in class from the other side: with lots of users across many organisations, how do you keep track of which servers subscribe to which channels? That is exactly why it isn’t one Redis instance. It is several, a cluster of Redis. [[L-0380]] (Why most of that traffic never reaches Redis at all is 8.6.)
+
+<h3 id="s8-5-changes">How servers learn about channel changes</h3>
+
+How are the servers kept aware of channel changes, when a channel is created or someone joins or leaves? From the user, who is the one taking the action. You always join a channel while you are online, so the client sends an event to its edge server: “now I’m subscribed to this channel.” [[L-0362]] Does that event have to go to every server? No. Each edge server handles the “I am part of this channel” events of its own users. [[L-0363]]
+
+Creating a channel shows the whole loop. Say A creates channel 3 with A and D in it. A makes an API call to create channel 3, which updates the database. [[L-0364]] Then a notification is broadcast through the Redis Pub/Sub to all the edge servers: a new channel has been created for this organisation, and these users are part of it. The newly added users receive it in real time, as the “new channel added” animation in their channel list. [[L-0365]] Once notified, each added client tells its edge server “I’m now also part of channel 3”. The edge server updates its in-memory store and fires a call to Redis to subscribe to channel 3 as well. [[L-0366]] The client can also send a periodic meta call to its edge server, listing the channels it is part of: the periodic resend from [8.1](#s8-1). [[L-0367]]
+
+<StepThrough id="fig-8f" no="Fig 8·f" label="One message through Redis, then a new channel" grow
+  k="L-0250 L-0283 L-0287 L-0292 L-0293 L-0294 L-0364 L-0365 L-0366 L-0367"
+  stepK={['L-0292', 'L-0283 L-0250', 'L-0292 L-0293 L-0287', 'L-0292 L-0294', 'L-0364', 'L-0365', 'L-0366 L-0367']}
+  caption="Time runs down. The lanes are user A, three edge servers with the Slack channels they subscribe to, the Redis Pub/Sub and the API server (on a phone, WS3 is a note). Blue is the message, green a delivery or a saved write, graphite the channel bookkeeping; dashed means nobody waits for it. New figure, built from the class board at 02:12–02:14 and the Q&A at 02:36–02:38."
+  steps={[
+    'A posts in Slack channel C1. WS1 receives it.',
+    'WS1 delivers to its own C1 members first: B, C and D.',
+    'WS1 publishes on Redis channel <code>c1</code>. Redis <span class="term blue">pushes</span> it to WS2, the only other server subscribed to <code>c1</code>. WS3 is subscribed to <code>c2</code> only and gets nothing.',
+    'WS2 <span class="term green">delivers</span> to E and F. Minimal connections, and only the servers that need it.',
+    'A creates channel <code>c3</code> with D: an API call updates the database.',
+    'A “new channel” notification goes through Redis to the edge servers, and A and D see it in real time. Who publishes it wasn’t specified in class; it is drawn from the API server here.',
+    'The clients tell WS1 they are in <code>c3</code>. WS1 updates its memory and subscribes to <code>c3</code>.',
+  ]}>
+  <Desk><RedisThenNewChannel /></Desk>
+  <Phone><RedisThenNewChannel layout="phone" /></Phone>
+</StepThrough>
+
+Whether an edge server should simply trust the channel list a client sends is a question for chapter 9 ([9.4](#s9-4)), once private channels exist.
+
+</Section>
+
+<Section id="s8-6" no="8.6" title="The Balancer" crumb="8.6 The Balancer"
+  dek="A service that tells each client which edge server to connect to, and keeps an organisation on one server so its messages rarely touch Redis."
+  meta="About 6 min · class 02:14–02:19, recap 02:27–02:29, Q&A 02:41–02:44">
+
+One step has been skipped all along. When A opened the Slack app, it connected to WS1. How did A get WS1’s address?
+
+Start from the goal: try to put all the users who are part of the same set of channels on the same WebSocket servers. [[L-0296]] That takes a layer that sits not between the users and the servers, but on top. When a user opens the Slack app, the client talks to it and asks “where do I connect?”. It answers with the IP address of a WebSocket server, and the client connects to that server. [[L-0297]] It is like DNS, but it is not DNS. It is a normal service whose job is to balance the connections, which here means telling each client where to connect. [[L-0298]]
+
+<Figure id="fig-8g" no="Fig 8·g" k="L-0297 L-0298 L-0301 L-0341 L-0342 L-0381"
+  caption="① A asks where to connect, ② the Balancer answers with an address, ③ A opens its WebSocket to that server. The other servers are faded. Redrawn from the class board at 02:15–02:19 (D-06), where the Balancer was a purple box labelled “Balance Connectn”.">
+  <Desk><AskBalancer /></Desk>
+  <Phone><AskBalancer layout="phone" /></Phone>
+</Figure>
+
+What should it answer? Naively, give each organisation its own WebSocket server. Organisations on Slack have 200, 500, 10,000 or 20,000 employees, and that is nothing for one WebSocket server. [[L-0299]] If all the users of an organisation connect to the same server, there is no need to send their messages to Redis at all: the server delivers them among themselves. [[L-0300]] So the service’s job is to hand out the WebSocket server to connect to in a way that reduces the number of messages that must go through the Redis Pub/Sub. A user who logs in or starts the Slack app asks it for a server’s IP address, gets one and connects. [[L-0301]]
+
+In the recap the class gave it a name: the **Balancer**. The instructor’s generic name for such a component is “orchestrator”. It is not a load balancer. A user asks it, gets an edge server’s IP address and connects to that edge server. [[L-0341]] It tries to put all the users of a particular organisation on the same edge server. [[L-0342]] When a user comes up and says “I’m part of this organisation; where should I connect?”, the Balancer always returns the IP address of the same edge server, so everyone in that organisation connects to that one server. That minimises the IO on Redis, which is left carrying only the worst case. [[L-0381]]
+
+What if this server goes down? “Oh my God, life ended.” No. Nothing serious happens. Its users talk to the Balancer again and get another server’s IP address to connect to. It is the Balancer’s responsibility to notice that the server is down and move all those users to another server. [[L-0302]] In the worst case, for some time after that, an organisation’s users are spread across servers and their messages travel through Redis. That is perfectly fine. [[L-0303]] The Balancer may also rebalance load across the servers periodically, intermittently killing one (the class didn’t say whether a connection or a server) so that all of a particular user’s traffic moves to another server, to minimise the IO over Redis. [[L-0304]]
+
+<StepThrough id="fig-8h" no="Fig 8·h" label="A server dies" grow
+  k="L-0300 L-0302 L-0303 L-0304"
+  stepK={['L-0302', 'L-0302', 'L-0303', 'L-0303', 'L-0304 L-0300']}
+  caption="Time runs down. The lanes are one organisation’s users, the Balancer, three edge servers and the Redis Pub/Sub. Red is the failure, blue the WebSocket connections and the message. New figure, built from the class board at 02:16–02:18."
+  steps={[
+    'WS1 <span class="term red">dies</span>. Its users lose their connections.',
+    'They ask the Balancer again. It notices WS1 is gone.',
+    'It hands out other servers. For a while the organisation is split across WS2 and WS3.',
+    'Their messages now go through Redis: WS2 delivers to B and publishes, Redis pushes to WS3. That’s fine for a while.',
+    'Later the Balancer regroups them on one server, and Redis is out of the path again.',
+  ]}>
+  <ServerDies />
+</StepThrough>
+
+So WebSockets scale without hiccups. A real-time Pub/Sub, like Redis and not Kafka, removes the overhead of maintaining extra TCP connections, and one service hands out the WebSocket server IPs so as to minimise the IO that has to happen over Redis. Be protective of that IO. [[L-0305]]
+
+<MarginNote title="Build it: Redis Pub/Sub" why="skip if you have used it" k="L-0306">
+
+Write a hello world with Redis Pub/Sub; the class highly recommends it. It only takes a small Redis server running locally and three clients connected to it to see how it behaves, including that a client that isn’t connected misses the message.
+
+</MarginNote>
+
+<MarginNote title="How Slack actually does it" why="skip unless you want the production version" k="L-0307">
+
+The instructor built this design himself and says this is exactly how people build and scale WebSockets. [[L-0307]] Slack’s published architecture differs in detail. Stateful, in-memory Channel Servers own channels through consistent hashing, about 16 million channels per host at peak, and Gateway Servers hold users’ WebSocket subscriptions and subscribe to those Channel Servers. The client first gets its token and connection details from the web app backend, then opens a WebSocket to the nearest edge region, where an Envoy proxy forwards it to a Gateway Server, which loads the user’s channels and subscribes to them. Slack reports delivering messages across the world in 500 ms. <Cite href="https://slack.engineering/real-time-messaging/">slack.engineering</Cite> <ForwardChip when="Lecture 09">consistent hashing</ForwardChip>
+
+</MarginNote>
+
+<h3 id="s8-6-routing">A tempting idea: a routing service</h3>
+
+Suggested in class: a separate service that tells each WebSocket server which client to send each message to. [[L-0376]] Making a call to that service every time, to find where a message goes, is far too expensive, and then it is not real time any more. [[L-0376]]
+
+What if that service cached the users’ data? Still slow: it is still a network call every time just to find where to send. It depends; you could build it that way, or even call the database. But for real-time communication the instructor would keep the system very simple and store this routing information on the edge server itself. [[L-0377]] Adding a service for the sake of it, just to tell you where to forward a message, is overkill when the edge server can hold that information. [[L-0378]]
+
+That is the method of the whole chapter. Work on the fundamentals: when you hit a problem or a roadblock, find the simplest solution for it. [[L-0308]] As soon as you add complexity, your system will not scale at all. Keep things simple. [[L-0309]]
+
+The pieces exist. Chapter 9 puts them on one page, from the browser’s single socket to the database.
+
+<h3 id="s8-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="With a 4-connection server linked to 3 peers, how many connections serve users, and why is that the mesh’s real cost?" k="L-0276 L-0277">
+
+Four of its seven connections serve users; three only talk to other servers. A WebSocket server’s job is to serve users, and every server in a mesh must hold a persistent link to every other one, so the more servers you add, the more of each server’s limited connections go to its peers. Latency and a server going down are not the problem: the first is still real time, the second is fault tolerance.
+
+  </RecallItem>
+  <RecallItem q="Why must the inter-server Pub/Sub be real time, and what does a server miss if it is briefly disconnected?" k="L-0279 L-0281 L-0284">
+
+The path between edge servers carries live messages, and Kafka would slow it down: consumers pull from it and it keeps history the path doesn’t need. A real-time Pub/Sub such as Redis pushes each message to everyone subscribed right now and stores nothing. So a server that isn’t connected when a message is published never gets that message: delivery is at most once.
+
+  </RecallItem>
+  <RecallItem q="What does the Balancer optimise, and what happens to an organisation’s messages right after a server dies?" k="L-0301 L-0302 L-0303">
+
+It hands out edge servers so that as few messages as possible go through Redis, ideally putting a whole organisation on one server, where messages never touch Redis. When that server dies, its users ask the Balancer again and may be spread over several servers; until the Balancer regroups them, their messages travel through Redis, which is perfectly fine.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '9 · The whole system', href: '#s9' }}
+  concepts={[{ label: 'connection limit', href: '#s8-1' }, { label: 'membership on the edge', href: '#s8-1' }, { label: 'one TCP link', href: '#s8-2' }, { label: 'mesh overhead', href: '#s8-3' }, { label: 'real-time Pub/Sub', href: '#s8-4' }, { label: 'Redis vs Kafka', href: '#s8-4-vs-kafka' }, { label: 'Redis channels', href: '#s8-5' }, { label: 'the Balancer', href: '#s8-6' }]} />
+
+</Section>

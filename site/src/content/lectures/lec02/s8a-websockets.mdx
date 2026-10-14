@@ -1,0 +1,187 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import { FourConnections, TcpLinks, Mesh, SevenConnections, StartSimpleRule } from '../../../figures/lec02/s8a-websockets-figs';
+
+<Section id="s8" no="8" title="Scaling WebSocket servers" crumb="8 Scaling WebSockets"
+  dek="One channel’s members land on different servers. Start with one TCP link, watch a mesh eat each server’s connections, then put a real-time Pub/Sub in the middle and a Balancer in front that keeps an organisation together."
+  meta="About 33 min · class 01:46–02:19, recap 02:25 and 02:30, Q&A 02:35–02:46">
+
+A channel, C1, has five members, A to E. One WebSocket server can hold four connections. A sends “standup in 5”. How does E, connected to another server, get it?
+
+Chapter 7 settled that receiving goes over the WebSocket. This chapter scales the servers that hold those WebSockets. It starts with the simplest thing that works, a TCP link between two servers, and improves it only when the problem demands: first a real-time Pub/Sub in the middle, then a service that decides which server each user connects to.
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="One channel, two servers" crumb="8.1 Two servers"
+  dek="Toy numbers: four connections per server, five users in one channel. What each server knows, and the message that can’t reach E."
+  meta="About 6 min · class 01:46–01:55, recap 02:30">
+
+Receiving is settled ([7.5](#s7-5)): it goes over the WebSocket. Next comes scaling the WebSocket servers, one of the most interesting parts of the design. It starts from very basic assumptions with small numbers. Change the numbers and you get the real-world case. [[L-0239]]
+
+Why does this part deserve the care? Whenever a company uses WebSockets, or any persistent connection, the features it drives through them are its most critical ones: Discord’s chat, video streaming. If the WebSocket servers are gone, real-time chat stops working. [[L-0240]] Those features live there because of the connection itself. An expensive TCP connection is kept open between the client and the backend, so it doesn’t have to be re-established every time. That gives low-latency communication and makes the product experience rich. [[L-0241]]
+
+Like every other server, a WebSocket server has a limit on how many connections it can handle. To keep the explanation small, assume the limit is four. Real servers hold far more. [[L-0242]]
+
+Now take one channel, channel 1 (C1), with five users: A, B, C, D and E. When A sends a message on C1, B, C, D and E must all receive it. [[L-0243]] A, B, C and D connect first and fill WebSocket server 1 (WS1). When E connects, WS1 is full, so E connects to a second server, WS2. These are persistent WebSocket connections, there for high-performance, low-latency communication. [[L-0244]]
+
+<p class="lead-in">Here are the two servers, one step at a time. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-8a" no="Fig 8·a" label="Four connections, five users"
+  k="L-0242 L-0243 L-0244 L-0245 L-0247 L-0248 L-0249 L-0250 L-0251 L-0252"
+  stepK={['L-0242', 'L-0243 L-0244', 'L-0250', 'L-0251 L-0252']}
+  caption="The strip inside each server is its connection slots: blue when a user holds one, with a red tick at the toy limit of four. Below the line, always visible, is what each server keeps in memory. Redrawn from the class board at 01:49–02:04 (D-05), with the membership lists from the same board and the 02:30 recap’s local connection pool (D-12) folded in."
+  steps={[
+    'Assume a WebSocket server can hold <span class="term red">four connections</span>. Real servers hold far more.',
+    'A, B, C and D fill WS1, so E connects to WS2.',
+    'A sends <code>standup in 5</code> to C1. WS1 knows who is in C1, skips the sender and sends it to B, C and D.',
+    'But E is in C1 too, on another server. How does it get the message?',
+  ]}>
+  <FourConnections />
+</StepThrough>
+
+How does WS1 know who is connected to it? A WebSocket server built with Socket.io, or any equivalent library, knows which users are connected to it: the handshake tells it. The recap board drew this as a *local connection pool* inside each edge server, next to the Socket.IO server that manages it. [[L-0245]]
+
+<MarginNote title="Build it: Socket.io" why="skip if you have written one" k="L-0246">
+
+If you have never written a hello world with Socket.io, do write one. It is the quickest way to see for yourself that the server knows who is connected to it.
+
+</MarginNote>
+
+Knowing who is connected is not enough, because a message is sent to a channel, not to users. So after the connection is established, the client first sends meta information: its membership, the channels it is part of. A might say “I am part of C1, C2 and C3.” [[L-0247]] Each WebSocket server keeps this, in memory or maybe on disk, whichever: which users are connected to it and which channels they belong to. WS1 knows that A, B, C and D are in C1, and WS2 knows that E is in C1, as the lists under each server on the board show. [[L-0248]]
+
+Memberships change, so the server is kept *eventually consistent* with them. Whenever a user joins or leaves a channel, the information is sent to the server, and users also resend their membership periodically. [[L-0249]]
+
+With that in place, delivery within one server is a lookup. A sends a message meant for C1 to WS1. WS1 looks up who is in C1, finds A, B, C and D, skips A because A sent it, and sends the message to B, C and D. [[L-0250]]
+
+Here is the problem. E is also in C1, but E is connected to WS2, and nothing has told WS2 about the message. Somehow it has to reach E. [[L-0251]] Picture a group of friends having fun in one hotel room while two of their friends sit in another room. How would those two know what the others are doing, and be part of the fun? [[L-0252]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="Start simple: one TCP link" crumb="8.2 One TCP link"
+  dek="The class’s ideas for reaching E, from the API server to Kafka, and the bare minimum that works: two machines simply talk."
+  meta="About 5 min · class 01:55–02:02">
+
+How will the message reach E? The class tried several ideas before the bare answer. Try it yourself first.
+
+<PauseAndThink k="L-0253 L-0255 L-0256 L-0257 L-0258 L-0259 L-0264"
+  q="A, B, C and D are on WebSocket server 1, E is on server 2, all in C1. A posts. What is the simplest thing that gets the message to E?"
+  choices={[{ label: 'Put Kafka (or a relay service) between the servers' }, { label: 'Open one plain TCP connection from WS1 to WS2', correct: true }]}
+  right="Right: two machines can just talk; that’s the bare minimum."
+  wrong="A broker or relay adds a hop, consumers and latency. Start with the simplest thing that works.">
+
+One TCP connection. WS1 already knows its own users. It opens a plain TCP link (not a WebSocket) to WS2 and relays the message. WS2 sees it is for C1, finds E, and sends it on. Kafka would slow a real-time path and need consumers running, and a relay server is another machine for two that can already talk. Start from first principles, and improve only when the problem demands it, which 8.3 does.
+
+</PauseAndThink>
+
+The first idea, suggested in class: route the message through the API server, which is connected to both WebSocket servers, though, as the suggestion itself admitted, that would be slow. It wasn’t taken up; the question stayed how the message gets from WS1 to WS2. [[L-0253]]
+
+Another: cache user information on each WebSocket server. But each server already knows who is connected to it. What else would you cache, and where? [[L-0254]]
+
+When you are stuck like this, go to first principles. How do you even approach an unknown situation like this one? [[L-0255]]
+
+A third suggestion was a messaging service, such as Kafka, between the WebSocket servers. [[L-0256]] Why a messaging service? It slows things down, you need a bunch of consumers running, and each server would be consuming a lot from it. Start simple. [[L-0256]]
+
+A fourth: another server connecting the two WebSocket servers, relaying a copy of the message. [[L-0257]] Why do you need another server? These two machines can talk to each other directly. You create TCP connections all the time. [[L-0257]]
+
+That is the answer. WS1 establishes one TCP connection with WS2: a normal TCP connection, not a WebSocket connection. It sends the message over it. WS2 sees the message is for C1, looks up which of its users want C1’s messages, finds E, and sends it to E. [[L-0258]]
+
+<StepThrough id="fig-8b" no="Fig 8·b" label="TCP links between WebSocket servers"
+  k="L-0258 L-0259 L-0260 L-0261"
+  stepK={['L-0258 L-0259 L-0260', 'L-0261']}
+  caption="Steps 1–2; the third step is in 8.3. Blue is the message, green a delivery; the red slot after a server’s cap tick is a connection it spends on another server. Redrawn from the class board at 01:57–02:01 (D-05), with the recap’s “we bridge the gap” (D-13) as step 1’s label."
+  steps={[
+    'WS1 opens one plain <code>tcp</code> connection to WS2 and relays the message. WS2 finds E and <span class="term green">delivers</span>. Each server spends one <span class="term red">slot</span> on the link.',
+    'F joins C1 on WS3. WS1 opens a second link, and everyone in C1 gets the message.',
+  ]}>
+  <TcpLinks />
+</StepThrough>
+
+A TCP connection between two machines is the bare minimum when you want them to talk to each other. Why introduce more complexity than that? [[L-0259]]
+
+Each WebSocket server now holds a WebSocket connection for each of its connected users, plus one TCP connection to talk to the other server. That solves the problem: A’s message for C1 reaches B, C and D directly and E over the link, so everyone in the channel gets it. [[L-0260]]
+
+Now spice it up. User F joins C1, but for whatever reason establishes the WebSocket connection with a third server, WS3. WS1 builds a TCP connection to WS3 as well. A’s next message goes to B, C and D locally, over one link to WS2 and E, and over the other to WS3 and F. Everyone in C1 gets it. [[L-0261]]
+
+Look at the order the class worked in. It started with a problem, solved it with basic fundamentals, and only then started thinking about making it better. That is how to approach any problem. [[L-0264]]
+
+<RuleBox rule="Start with the problem, solve it with ==basic fundamentals==, then make it better." k="L-0264 L-0259">
+
+A TCP connection between two machines is the bare minimum, so don’t add anything more until the problem demands it. The rest of this chapter is the “make it better” part: the links become one real-time Pub/Sub ([8.4](#s8-4)), and a Balancer keeps most messages off even that ([8.6](#s8-6)).
+
+<Desk><StartSimpleRule /></Desk>
+<Phone><StartSimpleRule layout="phone" /></Phone>
+
+</RuleBox>
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="The mesh, and its real cost" crumb="8.3 The mesh"
+  dek="Every server linked to every other. Nine answers about what is wrong with that, and the one that matters: connections meant for users."
+  meta="About 6 min · class 02:00–02:07">
+
+Keep adding servers and keep linking. Connected this way, every WebSocket server has to be connected to every other WebSocket server, no matter how many servers there are. That is a **mesh**. [[L-0265]]
+
+<Figure id="fig-8b-mesh" no="Fig 8·b, step 3" k="L-0265"
+  caption="Four servers, every pair linked: six links, the four sides and both diagonals, and three red peer slots on every server. Redrawn from the class board at 02:04 (D-05, final form), where the fourth server was left unlabelled.">
+  <Mesh />
+</Figure>
+
+What is the disadvantage of this architecture? The class answered one idea at a time. Try it before reading them.
+
+<PauseAndThink k="L-0262 L-0265 L-0267 L-0271 L-0274 L-0276 L-0277"
+  q="Every WebSocket server now holds a TCP link to every other. A server can hold 4 connections in this toy, and there are 4 servers. What is the real cost of the mesh?"
+  choices={[{ label: 'Latency, and messages lost when a server is down' }, { label: 'Peer links eat the connections meant for users', correct: true }]}
+  right="Right: 4 users plus 3 peer links is 7 connections, and 3 serve no user."
+  wrong="The delay is still real time, and a down server is a fault-tolerance question. The cost is connections.">
+
+The connections. A server’s job is to serve users, but each one now holds a persistent link to every peer: with 4 users and 3 peers that is 7 connections, 3 of which carry no user. At 100 servers each one spends 99 links on talking among servers. Latency is fine, a server going down is a fault-tolerance problem, and handshakes happen once per link, not per message. Name the overhead before you fix it.
+
+</PauseAndThink>
+
+The answers given in class, each with what became of it:
+
+*E and F get the message a little later.* They do, but it still happens in real time, which is fine. [[L-0262]]
+
+*WS1 has to maintain too many connections:* TCP links to the other servers on top of A, B, C and D. The first reply was that you have to do it; there is no other way to communicate. [[L-0263]] Keep this one in mind: in substance it names the real cost, although in class the “you are the closest” went to a later answer (the last one below).
+
+*Each server must keep all those connections alive, and re-establish any that die.* Why is that an overhead? The question was put back to the class, and the probing went on. [[L-0266]]
+
+*If a server goes down, its connection is gone and its messages are missed.* That’s okay, and it is not the overhead in question: a server going down is fault tolerance. [[L-0267]]
+
+*Every message is sent to every server, even ones that don’t need it.* That can be minimised and optimised with a global state, and even then a much bigger overhead remains. [[L-0268]]
+
+*Make the inter-server communication asynchronous, so a server that was down can catch up.* Again: down is fault tolerance, not the overhead being discussed. [[L-0270]]
+
+*Server discovery, when you scale WebSocket servers horizontally.* That’s a different problem, and still not the overhead. [[L-0272]]
+
+*A three-way handshake for every message sent to another server.* No: the TCP connection is established once, and messages are just relayed over it. It isn’t re-established for every message. [[L-0274]]
+
+*One connection per server limits horizontal scaling, since a server can’t have infinite connections.* The first counter: a server can still have a good amount, say a million connections, and you would never have more than 10,000 servers anyway, so 10,000 connections are created with ease. Then: “you are the closest”. [[L-0273]]
+
+Chasing these while the real cost sits in plain view is like worrying about a small mouse while a dinosaur stands behind you, staring at you. [[L-0269]] Notice, too, what went wrong in the hunt: three people used the word “overhead”, and no one explained what the overhead actually was. Before jumping into a solution, understand and explain the problem. [[L-0271]]
+
+So, the problem. A WebSocket server exists to support WebSocket connections, and in the class’s words every server has a limited number of ports on which it can accept connections, so a WebSocket server can hold only so many. [[L-0275]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc9293" k="L-0275">
+
+Ports are not the limit: every client connects to the same listening port, and a TCP connection is identified by the pair of sockets, the client’s address and port plus the server’s address and port. What bounds a WebSocket server is its file descriptors, memory and CPU, so it can still hold only a finite number of connections.
+
+</SourceNote>
+
+With the mesh, every server has to connect to every other, so a lot of each server’s persistent TCP connections are hogged just to stay connected to the other servers. With four users connected to a server and three peer servers, it holds seven connections, and three of them are only for inter-server communication. [[L-0276]] A WebSocket server’s job is to serve users. The mesh wastes many of its TCP connections on talking among servers. [[L-0277]]
+
+<Figure id="fig-8c" no="Fig 8·c" k="L-0276 L-0277 L-0263"
+  caption="Where WS1’s seven connections go: four serve users, three only reach other servers. The speech bubble is the tempting reading (“you have to do it”); at 100 servers every one would spend 99 links on its peers. New figure.">
+  <SevenConnections />
+</Figure>
+
+So how do you make it better? [8.4](#s8-4).
+
+</Section>

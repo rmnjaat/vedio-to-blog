@@ -1,0 +1,11 @@
+---
+// A reference to another lecture in the text: a link when that lecture is published, plain text otherwise.
+// Resolved from the lecture's MDX file (lib/xlec.ts), so it also links in isolated builds.
+// Usage (MDX): <LectureLink lec="lec01" sec="s3-5">Lecture 02 (§3.5–3.7)</LectureLink>
+//   lec: the folder id; sec: optional section ("s3-5") or chapter ("s3") id; without it, the lecture overview.
+import { xlecHref } from '../lib/xlec';
+interface Props { lec: string; sec?: string }
+const { lec, sec } = Astro.props;
+const href = xlecHref(lec, sec);
+---
+{href ? <a class="xlec" href={href}><slot /></a> : <slot />}

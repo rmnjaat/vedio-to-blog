@@ -1,0 +1,142 @@
+---
+title: "Slack in real time"
+kicker: "Lecture 04 · week 2, day 2 · running case: Slack"
+dek: "Tour the non-relational database families by what each gives up, then design how Slack gets one message to everyone in a channel in real time."
+description: "Lecture 04: document, key-value, column-oriented and graph databases and when to pick SQL, then Slack's real-time chat: schema, message guarantees, scaling WebSocket servers with a real-time Pub/Sub."
+reviewed: 14 Oct 2026
+status: published
+ledger: lectures/lec02/ledger/ledger.jsonl
+contents:
+  - no: "1"
+    title: "“NoSQL” is not one thing"
+    href: "#s1"
+    children:
+      - { no: "1.1", title: "Name the database, not the family", href: "#s1-1" }
+      - { no: "1.2", title: "Two meanings of consistency", href: "#s1-2" }
+      - { no: "1.3", title: "Relational databases scale too", href: "#s1-3" }
+  - no: "2"
+    title: "Documents and key-value stores"
+    href: "#s2"
+    children:
+      - { no: "2.1", title: "Document databases", href: "#s2-1" }
+      - { no: "2.2", title: "The lines are blurry", href: "#s2-2" }
+      - { no: "2.3", title: "Key-value stores: one key at a time", href: "#s2-3" }
+      - { no: "2.4", title: "Key-value is an access pattern", href: "#s2-4" }
+  - no: "3"
+    title: "Column-oriented databases"
+    href: "#s3"
+    children:
+      - { no: "3.1", title: "Rows and columns on disk", href: "#s3-1" }
+      - { no: "3.2", title: "One query, two layouts", href: "#s3-2" }
+      - { no: "3.3", title: "Analytics, never the primary copy", href: "#s3-3" }
+      - { no: "3.4", title: "Compression and cost", href: "#s3-4" }
+  - no: "4"
+    title: "Graph databases"
+    href: "#s4"
+    children:
+      - { no: "4.1", title: "What a graph database is, and the wrong instinct", href: "#s4-1" }
+      - { no: "4.2", title: "Recommendations", href: "#s4-2" }
+      - { no: "4.3", title: "Fraud detection in 200 ms", href: "#s4-3" }
+      - { no: "4.4", title: "Graphs versus joins, and where a graph database sits", href: "#s4-4" }
+  - no: "5"
+    title: "Why they scale, and when to pick SQL"
+    href: "#s5"
+    children:
+      - { no: "5.1", title: "No relations, no checks", href: "#s5-1" }
+      - { no: "5.2", title: "Every database has a backstory", href: "#s5-2" }
+      - { no: "5.3", title: "SQL or NoSQL?", href: "#s5-3" }
+  - no: "6"
+    title: "Slack: the problem and the schema"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "One part of Slack, done well", href: "#s6-1" }
+      - { no: "6.2", title: "Who is in which channel: membership", href: "#s6-2" }
+      - { no: "6.3", title: "Where do direct messages go?", href: "#s6-3" }
+      - { no: "6.4", title: "A DM is a channel with two people", href: "#s6-4" }
+      - { no: "6.5", title: "The checkpoint", href: "#s6-5" }
+  - no: "7"
+    title: "Sending a message: guarantees first"
+    href: "#s7"
+    children:
+      - { no: "7.1", title: "Which database holds the messages", href: "#s7-1" }
+      - { no: "7.2", title: "Send over HTTP or over the WebSocket?", href: "#s7-2" }
+      - { no: "7.3", title: "Three ways to persist a message", href: "#s7-3" }
+      - { no: "7.4", title: "Keep the edge server dumb", href: "#s7-4" }
+      - { no: "7.5", title: "Why not UDP, and ten ways to build it", href: "#s7-5" }
+  - no: "8"
+    title: "Scaling WebSocket servers"
+    href: "#s8"
+    children:
+      - { no: "8.1", title: "One channel, two servers", href: "#s8-1" }
+      - { no: "8.2", title: "Start simple: one TCP link", href: "#s8-2" }
+      - { no: "8.3", title: "The mesh, and its real cost", href: "#s8-3" }
+      - { no: "8.4", title: "A real-time Pub/Sub in the middle", href: "#s8-4" }
+      - { no: "8.5", title: "Redis channels for Slack channels", href: "#s8-5" }
+      - { no: "8.6", title: "The Balancer", href: "#s8-6" }
+  - no: "9"
+    title: "The whole system"
+    href: "#s9"
+    children:
+      - { no: "9.1", title: "One WebSocket per product", href: "#s9-1" }
+      - { no: "9.2", title: "The overall architecture", href: "#s9-2" }
+      - { no: "9.3", title: "When a real-time message is lost", href: "#s9-3" }
+      - { no: "9.4", title: "Exposing the edge servers", href: "#s9-4" }
+      - { no: "9.5", title: "Durability, and a shared database", href: "#s9-5" }
+  - no: "10"
+    title: "Deleting, ordering, and what to keep"
+    href: "#s10"
+    children:
+      - { no: "10.1", title: "Deleting a message", href: "#s10-1" }
+      - { no: "10.2", title: "Who said messages arrive in order?", href: "#s10-2" }
+      - { no: "10.3", title: "What to keep", href: "#s10-3" }
+chapters:
+  - no: "1"
+    slug: 1-nosql-is-not-one-thing
+    parts: [s1-nosql]
+    summary: "Name the database, not the family. The two meanings of consistency, what non-relational stores give up to scale, and why relational databases scale too."
+  - no: "2"
+    slug: 2-documents-and-key-value
+    parts: [s2-documents-kv]
+    summary: "Two families defined by how you may touch the data: query inside a document, or only ever get and put by key, and what each restriction buys."
+  - no: "3"
+    slug: 3-column-stores
+    parts: [s3-columns]
+    summary: "Same table, two layouts on disk. Why an analytics query reads two files instead of every row, why warehouses compress so well, and why they are never the primary copy."
+  - no: "4"
+    slug: 4-graph-databases
+    parts: [s4-graphs]
+    summary: "The most misunderstood family. Not for anything you can draw as a graph, but for real graph algorithms: recommendations and fraud checks inside 200 ms (as relayed in class)."
+  - no: "5"
+    slug: 5-sql-or-nosql
+    parts: [s5-sql-or-nosql]
+    summary: "No relations means no checks, so data can spread out. Every database has a backstory, and a broad rule for choosing between correctness and ingestion."
+  - no: "6"
+    slug: 6-slack-schema
+    parts: [s6-slack-schema]
+    summary: "Cut “design Slack” down to real-time text chat, then build the tables: a membership noun, direct messages as two-person channels, and a checkpoint for unread counts."
+  - no: "7"
+    slug: 7-sending-a-message
+    parts: [s7-sending]
+    summary: "Where messages live, and how one gets there. Send over HTTP or the open WebSocket? Three ways to persist a message, Slack, WhatsApp and Zoom, and why the edge server stays dumb."
+  - no: "8"
+    slug: 8-scaling-websockets
+    parts: [s8a-websockets, s8b-websockets]
+    summary: "One channel's members land on different servers. A TCP link, then a mesh that eats each server's connections, then a real-time Pub/Sub and a balancer that keeps an organisation together."
+  - no: "9"
+    slug: 9-the-whole-system
+    parts: [s9-whole-system]
+    summary: "One WebSocket per product, the overall architecture, what happens when a real-time message is lost, how exposed the edge servers can be, and how a write survives a dead node."
+  - no: "10"
+    slug: 10-deleting-and-ordering
+    parts: [s10-deleting-ordering]
+    summary: "Two follow-up features answered with the same blocks: deleting a message and putting messages in order. Then the habits to keep and where this lecture stops."
+---
+import Header from './lec02/s0-header.mdx';
+
+{/* Lecture 04 (lec02). This body is the lecture overview page (/lectures/lec02/): the header block (About this
+    class, Slack so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec02/<slug>/), built from the
+    parts listed under `chapters` in the frontmatter, in outline order (chapter 8 = s8a + s8b). Section ids: #s1 … #s10,
+    subsections #s<n>-<m>. A link to a section on another chapter page is written as a plain #id: the page template
+    sends it to the right chapter. */}
+
+<Header />

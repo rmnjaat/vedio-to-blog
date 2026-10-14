@@ -1,0 +1,932 @@
+[
+ {
+  "id": "Q001",
+  "answer": "First half (about an hour and five to an hour and ten minutes): a brief overview of the non-relational databases, where to use each type and, with more weight, where not to. Second half: a long design of Slack's real-time communication, limited to text only.",
+  "evidence": "Overview: 'the class has two halves. The first ... a brief overview of the non-relational databases ... The second half is a long design of Slack's real-time communication, limited to text.' Ch6 §6.1: 'text only and nothing more'.",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "In this one design you can switch from one message delivery model to another and get something like Slack, something like WhatsApp or something like Zoom chat; once Slack is done, those are a piece of cake (change only the guarantees / persistence path, keep the rest).",
+  "evidence": "Overview: 'in this one design you can switch from one message delivery model to another and get something like Slack, something like WhatsApp or something like Zoom chat. Once Slack is done, those are a piece of cake.' Ch9 §9.2 repeats it.",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "The terms put everything that isn't MySQL, Postgres or Oracle under one blanket (like sorting people into 'technical' and 'non-technical', unfair to the second group), hiding real differences; you should name the specific type. 'NoSQL databases scale' is wrong as a blanket statement: you can build a non-relational database that doesn't scale at all, and the ones that do scale, scale for a very specific workload (Cassandra, MongoDB, DynamoDB each for a specific workload). Most were built to solve very specific problems.",
+  "evidence": "Ch1 §1.1: 'There shouldn't really be a term like non-relational or NoSQL at all. It puts everything that isn't MySQL, Postgres or Oracle under one blanket...' 'As a blanket statement it is wrong. You can build a non-relational database that doesn't scale at all ... Cassandra scales, but for a very specific workload.'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "As a very broad separation that is not always true, they give up consistency (strong/CAP consistency) to get scalability and availability: with multiple nodes they scale horizontally and stay highly available.",
+  "evidence": "Ch1 §1.2: 'non-relational databases typically give up consistency to give you scalability.' Board: 'In most cases, NoSQL databases provide scalability and availability by compromising consistency.'",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "ACID consistency: the data stays correct, the database moves from one correct state to another. CAP consistency: visibility, once you write data it is available to query right away (strong consistency; precisely linearizability). NoSQL databases give up the CAP one (strong consistency).",
+  "evidence": "Ch1 §1.2: 'consistency in the CAP theorem is different from consistency in ACID ... Consistency in ACID is about the data being correct ... Consistency in the CAP theorem is about visibility ... That is strong consistency, and it is the consistency non-relational databases give up.'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "Relational databases wanted all the data in one place, in one database instance; if that instance goes down the whole system is down, so it isn't highly available (in practice standby replicas can take over). Non-relational databases spread data horizontally, so if one node fails others still serve and there is almost never complete downtime. The price is strong consistency: most become eventually consistent (a write shows up everywhere but not at once), with exceptions since nothing is standardised, e.g. DynamoDB (eventually consistent reads by default, ConsistentRead=true for strongly consistent at twice the read cost).",
+  "evidence": "Ch1 §1.2: 'Relational databases wanted all the data in one place, in one database instance. If that instance goes down, the system is down ... They become eventually consistent ... Most non-relational databases are eventually consistent, but you will always find exceptions ... DynamoDB is a good example of an exception.'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "The boxed statement: 'NoSQL DBs scale does not mean SQL does not → anything that shards, scales.' It is a big misconception that relational databases don't scale. Backed by Lecture 03's key-value store on MySQL, sharded by key range: keys A–M on one database, N–Z on another, which gave an almost highly available, horizontally scalable system at the cost of (cross-shard) consistency. (Also in ch5 the board, in pink, said these scaling properties can also be achieved on SQL databases, so saying SQL does not scale is not entirely correct.)",
+  "evidence": "Ch1 §1.3: 'The class board boxed it: NoSQL DBs scale does not mean SQL does not → anything that shards, scales.' 'In Lecture 03 (§5.3, range shards) the key-value store on MySQL was split across databases: one held the keys from A to M, the other the keys from N to Z.' Ch5 §5.1: 'in pink: We can also achieve [these] on SQL databases. So, saying SQL does not scale is not entirely correct.'",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Never believe a generic statement at face value, not even the teacher's; ask for it to be specific and contextual and ask why it is said, because you can always find a counter-example. That habit makes you a better engineer.",
+  "evidence": "Ch1 §1.3 rule: 'Never believe a generic statement at face value, not even this one. Whenever you hear a generic statement, from the teacher or from anyone, don't take it at face value. Ask for it to be specific and contextual...'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "Properties given on the page: closest to relational; mostly JSON-based (no hard rule); support complex queries (aggregations in MongoDB, faceted queries in Elasticsearch) / querying on attributes of a document; partial updates. Examples: MongoDB and Elasticsearch. (The page does not explicitly label these as the board's list.)",
+  "evidence": "Ch2 §2.1: 'document databases are the one closest to the relational world ... The famous examples are MongoDB and Elasticsearch. They are mostly JSON-based ... They support complex queries ... you can query on the attributes of a document ... And you can make partial updates.'",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "They typically adopt a document database, because it gives almost the features the relational database gave (close to relational, though not as powerful). You almost never see a team jump straight to a key-value store, which is far more restrictive (only key-wise access, no peeking into the value).",
+  "evidence": "Ch2 §2.1: 'when a team moves a generic relational schema off SQL, it typically adopts a document database, because that gives it almost the features the relational database gave. You will almost never see a team jump straight to a key-value store.'",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Partial update: update just one attribute of a document in place (e.g. $set settings.tz = 'IST'), nothing else touched. In a key-value store the value is an opaque blob, so you read the whole value, update it yourself and write the whole value back; no partial update (exception: Redis hashes with HSET).",
+  "evidence": "Ch2 §2.1: 'you can make partial updates: in this document, update just this one attribute.' §2.3: 'The value is a blob. If you want to update it, you read it, update it and write it back. No partial update is possible ... Redis hashes let HSET set individual fields'.",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "DynamoDB is a key-value store, not a document database, yet it still lets you query within the document (it supports both key-value and document models). Builders keep entering each other's space. Instead, focus on the access pattern and the features you need (complex queries, partial updates) and which database gives them.",
+  "evidence": "Ch2 §2.2: 'DynamoDB is a key-value store, not a document database, yet it still lets you query within the document ... So understand the access pattern and the features ... What you need to know as an engineer is which features you want from a database and which database gives you them.'",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "MongoDB: it started out saying 'we are BASE, not ACID'; now it is ACID compliant (maybe not as optimally as the SQL world, but compliant).",
+  "evidence": "Ch2 §2.2: 'MongoDB is the example. It started out saying we are BASE, not ACID. Now MongoDB is ACID compliant, maybe not as optimally as the SQL world, but compliant.'",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Only key-wise operations: get a key, put a key, delete a key, insert a key, insert a value into the set at a key (GET, PUT, DEL, SET, SADD); never peek into the value. Examples: Redis, DynamoDB and Aerospike.",
+  "evidence": "Ch2 §2.3: 'Examples are Redis, DynamoDB and Aerospike ... Every operation you make, reads, writes, deletes, all of them, is key-wise: get a key, put a key, delete a key, insert a key, insert a value into the set at a key.'",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Every key-value operation names one key, so it lands on one shard and never needs a cross-shard query; it can be partitioned into thousands of partitions without hiccups. Richer query models (range operations, IN operator, complex queries) can touch many shards and must wait for all of them, a very expensive cross-shard query; the more complex the queries, the less you can distribute the data.",
+  "evidence": "Ch2 §2.3: 'Because everything is key-wise, you can shard the database very easily: you never have to make a cross-shard query ... Cross-shard queries come from range operations and the IN operator ... The more complex the queries, the less you can distribute the data.'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "By limiting access (key-wise only), you get massive parallelism / partitioning and best performance (and availability); you pay with restricted access, losing the power of complex queries. Every single thing is a trade-off. (The page doesn't show the board's exact two bullets.)",
+  "evidence": "Ch2 §2.3: 'A key-value store is the other extreme: by limiting access, you get massive parallelism ... You get the best performance, and you pay for it with restricted access.' Table: 'What you give up: The power of complex queries; you gain parallelism and availability'.",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "A stock-market table, stock_ticks, recording the price of every listed stock (an entry per tick), with columns symbol, price, name, exchange and timestamp.",
+  "evidence": "Ch3 §3.1: 'a table called stock_ticks that records the price of every listed stock, with the columns symbol, price, name, exchange and timestamp. Every tick adds an entry.'",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Row store: each row's five values (R1, R2, R3) are stored next to each other as one long strip, row after row. Column store: values of each column are stored together in blocks c1 symbol to c5 timestamp, so each row (R1, R2, R3) is one cell in every column block, crossing every block.",
+  "evidence": "Ch3 Fig 3·a: 'In a row store, the five values of each row, R1, R2 and R3, are stored next to each other as one long strip. In a column store, the values of each column are stored together, c1 symbol through c5 timestamp, so row 1 is one cell in every column block.'",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "A very crude, very naive picture: one separate file per column; line n of each file holds that column's value for row n (e.g. three rows give a three-line file for column 1, then a file for column 2, and so on).",
+  "evidence": "Ch3 §3.1: 'A very crude, very naive way to picture it ... one separate file per column. Line 1 of each file holds that column's value for row 1, line 2 holds row 2'.",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "The average price of the entire stock market for one day: SELECT avg(price) WHERE ts = '...' (about 10,000 rows for a day). It really needs only two columns: price and timestamp.",
+  "evidence": "Ch3 §3.2: 'the average price of the entire stock market for one day ... SELECT avg(price) WHERE ts = ... picks out the two it needs, timestamp and price'.",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "In a row store the row is the unit on disk: each row's columns are stored together, so the engine reads the whole row and then picks out the needed columns; it can't jump to the next row's price without passing over the rest of the row to know where it ends. For a 100-column table it 'will go row by row reading all columns & discarding 98 of them', wasting disk IO.",
+  "evidence": "Ch3 §3.2: 'You didn't project them in the SELECT, but the engine still has to skim through them to get to the next row. The board put the 100-column version bluntly: a row database will go row by row reading all columns & discarding 98 of them ... Because the row is the unit on disk.'",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "Only the files of the columns it needs: exactly two files, price and timestamp, with no disk IO at all for symbol, name and exchange (with 100 columns, still 2 files).",
+  "evidence": "Ch3 §3.2: 'On a column store the same query reads exactly two files, price and timestamp. It does no disk IO at all for symbol, name and exchange.'",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "For analytics workloads that touch a few of many columns: data warehouses such as Amazon Redshift and Google BigQuery; in data engineering, file formats like Parquet use the same column-oriented layout. Fed from primary databases by an ingest job.",
+  "evidence": "Ch3 §3.3: 'it is why they power data warehouses such as Amazon Redshift and Google BigQuery. In data engineering, file formats such as Parquet use the same column-oriented layout'.",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "A blogging app is transactional: you are very likely to read the entire row (rendering a profile reads all its 10 or 15 columns, almost always a SELECT *), which is what a column layout is bad at; inserts are heavy too, and column stores are for analytics, never the primary copy.",
+  "evidence": "Ch3 §3.3: 'You can build a transactional application such as a blogging site on a column-oriented database, but you shouldn't, because you are very likely to read the entire row. Rendering a user's profile reads all of its 10 or 15 columns together ... SELECT *.'",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "'C-Store: A Column-oriented DBMS' — the sixth paper the instructor ever read (from his master's databases course reading), which made him fall in love with research; brilliantly written, a breezy read, finishable in about four days. Search for it yourself.",
+  "evidence": "Ch3 'Read the C-Store paper': 'C-Store: A Column-oriented DBMS was the sixth paper the instructor ever read ... He couldn't recommend it strongly enough ... you can finish it in about four days.'",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "No. In a row-oriented database the disk reads all the columns of the row and the engine then picks out the ones you need.",
+  "evidence": "Ch3 §3.2: 'when a SELECT names specific columns, does the database still read all of them? In a row-oriented database, yes. The disk reads all the columns and the engine picks out the ones you need.'",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "The teacher agreed (you get some, you lose some; given the benefits it's fine). In practice column stores are never used as the primary database: the primary copy lives in traditional databases (MySQL, PostgreSQL, MongoDB, DynamoDB), and a job ingests the data asynchronously into the column-oriented warehouse just to power analytics. (Page also notes ClickHouse recommends batch inserts of at least 1,000 rows, ideally 10,000–100,000.)",
+  "evidence": "Ch3 §3.3: 'Suggested in class: inserts would be too heavy ... That is also why you never see column-oriented databases used as the primary database ... From there a job ingests the data into the column-oriented warehouse, just to power the analytics.'",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Each column holds one kind of (homogeneous) value, often a small set of discrete values (e.g. stock symbols, near-discrete timestamps), so it compresses very heavily (e.g. a small fixed-size code per value instead of the full string); a row store's data is heterogeneous so compresses far less. A 29x gain is normal in the instructor's experience.",
+  "evidence": "Ch3 §3.4: 'Each column holds one kind of value, so it can be compressed very heavily ... A row store's data is heterogeneous ... In the instructor's experience, a 29x gain is normal.'",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "Representing each value with a small fixed-size code (dictionary-style), run-length encoding, and general-purpose compression: Huffman, Snappy and LZ.",
+  "evidence": "Ch3 §3.4: 'General-purpose compression works really well on such data too: Huffman, Snappy and LZ compression ... Read about run-length encoding once.' Fig 3·d.",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "The class said no: column-oriented databases run continuously, so you pre-provision (reserve) the capacity you need and pay for the servers you run; you're charged for IOPS but not on-demand per operation ('reserved capacity'). Page note: it depends on the product — BigQuery on-demand bills per bytes read per query; Redshift Serverless bills compute used per second.",
+  "evidence": "Ch3 §3.4: 'The class's answer was no: column-oriented databases run continuously, so you pre-provision the capacity you need ... not on-demand pricing per operation.' More precisely note on BigQuery and Redshift Serverless.",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "The belief that whenever a use case can be visualised as a graph it belongs in a graph database. Example: Twitter's follow/following relationship — modelling it in a graph DB 'could be catastrophic' (really expensive); like using the Hulk to open a glass jar.",
+  "evidence": "Ch4 §4.1: 'a lot of people think that whenever a use case can be visualised as a graph, it belongs in a graph database. In the lecture's view that is the worst way to think about it. Modelling follow/following on a graph database could be catastrophic'.",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "As the graph data structure from college: the adjacency-list representation stored as is, with data APIs exposed on top. Nothing special.",
+  "evidence": "Ch4 §4.1: 'Take the adjacency-list representation you studied, store it as is, expose data APIs on top of it, and that became the graph database.'",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Opening a person's LinkedIn profile shows how far away they are: a 1st, 2nd, 3rd or 4th connection (degree of connection).",
+  "evidence": "Ch4 §4.1: 'Open a person's profile on LinkedIn and it tells you how far away they are: a 1st, 2nd, 3rd or 4th connection. That is a sophisticated graph algorithm.'",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "They give far more than a trivial use case needs, and they are expensive: very difficult to scale, extremely memory intensive, mostly built on a legacy stack, and even modern-language ones aren't very optimal. Analogy: using the Hulk to open a glass jar.",
+  "evidence": "Ch4 §4.1: 'Scaling a graph database is very difficult. They are extremely memory intensive, most of them are built on a legacy stack ... Storing follow lists in one is like using the Hulk to open a glass jar.'",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Collaborative filtering: similar users should get recommended what each other bought. An e-commerce company builds cohorts of users who buy similar things: everyone joined to the iPhone product node (bought an iPhone) is a similar set. If one of them (u3) buys AirPods, AirPods are recommended to the rest of the cohort. That's one level; real cohorts go two or three levels deep, which is hard to model.",
+  "evidence": "Ch4 §4.2: 'Take a product node, say iPhone: everyone who bought an iPhone is a similar set of people. Now if one of them buys AirPods, Amazon can recommend AirPods to everyone else in the cohort ... Real cohort building goes two or three levels deep'.",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "The instructor bought Grammarly, entered card details, triggered OTP, and HDFC immediately called to confirm. The idea: a customer's transactions form a closely knit cluster (e.g. all domestic); a sudden international transaction is a new edge forming outside that cluster, and the graph DB can tell very quickly that this new edge is suspicious. Banks categorise each transaction on ~50–60 parameters, ingest into a per-person graph, compute a degree of suspicion for a new edge, decide within 200 ms, and route to an executive who calls to confirm.",
+  "evidence": "Ch4 §4.3: 'Suppose someone has made every one of their transactions in the domestic space, and suddenly one is international ... In graph terms it is a new edge forming outside the cluster ... a graph database can tell very quickly that this new edge is suspicious.'",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "Something like 50 or 60 parameters per transaction (that he knows of: country, region, product types, etc.), and a 200 millisecond SLA for the automated decision (relayed from a JP Morgan Chase VP of engineering; the executive's call comes after).",
+  "evidence": "Ch4 §4.3: 'Every transaction you make is categorised along something like 50 or 60 parameters ... all of this has to happen within a 200 millisecond SLA.' Provenance note: VP of engineering at JP Morgan Chase.",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "Neo4j (one of the first, not the best), Neptune (AWS's managed graph DB), Dgraph (written in Go; works well but falters a bit at high scale), BadgerDB (embedded DB from the Dgraph team; not on the board), and TigerGraph (proprietary, used by many financial companies).",
+  "evidence": "Ch4 §4.4 'The products you will hear about': Neo4j, Neptune, Dgraph, BadgerDB, TigerGraph.",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "No relations; data can be denormalized; data is modelled to be sharded. Beneath, in pink: 'We can also achieve [these] on SQL databases. So, saying SQL does not scale is not entirely correct.'",
+  "evidence": "Ch5 §5.1: 'Non-relational databases scale because there are no relations. The board added two more reasons ... the data can be denormalized, and it is modelled to be sharded. Beneath the three reasons the board added, in pink: ...'",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Insert: with a non-null foreign key, you can't insert a row whose referenced row doesn't exist (e.g. a message with channel_id 9 is rejected if channel 9 doesn't exist). Delete: until all child entries are deleted, the parent can't be deleted (deleting channel 1 is blocked while messages point at it). These checks keep data correct and need related data in one place.",
+  "evidence": "Ch5 §5.1: 'you are not allowed to insert a row whose referenced row doesn't exist ... Deletion works the same way in reverse: until all the child entries are deleted, the parent entry can't be deleted.' Fig 5·a.",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Their first set of use cases were financial, where correctness of data mattered more than performing at scale, so they chose data consistency and strong consistency over a high ingestion rate. That doesn't make them worse; every database has a backstory explaining its design decisions.",
+  "evidence": "Ch5 §5.2: 'They went for correctness because the first set of use cases they were built for were financial ... They chose data consistency and strong consistency over a high ingestion rate.'",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Don't use foreign keys / constraints (give up the constraints that stop horizontal scaling); then you can partition it exactly like a non-relational database (as Lecture 03's sharded KV store showed).",
+  "evidence": "Ch5 §5.1: 'the fix is simple if you want to scale a relational database this way: don't use foreign keys. Without constraints and foreign keys, you can partition a relational database exactly the way a non-relational database partitions its data'.",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "When to use SQL?: ACID; relations and constraints; a fixed schema. When to use NoSQL?: there are no relations; the data can be denormalized; the data can be sharded.",
+  "evidence": "Ch5 §5.3: 'The board's when to use SQL? list: ACID; relations and constraints; a fixed schema.' 'The board's when to use NoSQL? list: there are no relations, the data can be denormalized, and the data can be sharded.'",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "When correctness of data is the most important feature and you need ACID, go for SQL (don't look beyond it); it gives the tooling (foreign-key checks, check constraints) out of the box. But it doesn't apply them for you — you have to apply them.",
+  "evidence": "Ch5 §5.3: 'if you need ACID, go for SQL; don't look beyond it ... SQL gives you the tooling ... foreign-key checks, check constraints and the like. But it doesn't apply them for you. You have to apply them.'",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "When you have gigantic data to ingest at a fast pace and want sharding out of the box: huge influx of messages on Instagram, huge numbers of posts, logs being dumped, metrics (metrics/log/message ingestion); also messaging systems, live interactions, polls. These don't optimise for correctness (OK if an attribute is missing or some data lost), though durability is still expected. Cassandra is the example store.",
+  "evidence": "Ch5 §5.3: 'when you have gigantic data to ingest at a fast pace. A huge influx of messages on Instagram, huge numbers of posts being written, logs being dumped, metrics ... messaging systems, live interactions, polls and the like'.",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Through its storage engine as a separate layer: not kept in memory but serialized on disk in a simple way; depends on the DB, but bluntly think of it as a comma-separated list of IDs — making it basically a key-value store.",
+  "evidence": "Ch4 §4.4: 'The lists are not kept in memory but serialized on disk, stored in a simple way ... think of it, bluntly, as a comma-separated list of IDs. That makes a graph database basically a key-value store'.",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Just as AND, OR, NOT and every gate can be built from NAND gates, every database can be modelled on top of a key-value store, though maybe not as performantly (e.g. CockroachDB's SQL layer turns SQL into KV operations).",
+  "evidence": "Ch2 §2.4 'The NAND gate of databases': 'every database in the world can be modelled on top of a key-value store, though maybe not as performantly.'",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "In class: no, you can't use it transactionally; you ingest data into it asynchronously and derive something from it; applications typically build those models on top of relational or non-relational databases. Page note: not a rule — Neo4j and Neptune are transactional and serve online user-facing queries.",
+  "evidence": "Ch4 §4.4 'Where it sits in a system': 'In class the answer was no: you can't use it transactionally. You ingest the data into it asynchronously, and then derive something out of it.' More precisely note.",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "1) N levels deep is one simple traversal in a graph DB, while relational needs N self-joins and the query must be written/rewritten per depth (painful). 2) N self-joins on a huge table may not be optimal. 3) A relational DB keeps data on one data node; sharding exists but graph DBs give it out of the box (page note: most graph DBs actually keep a single writer; also SQL recursive CTEs can walk any depth).",
+  "evidence": "Ch4 §4.4: 'The class answer had three parts. First ... one simple graph query ... N self-joins ... Second, N self-joins on a table may not be very optimal when the data is huge. Third ... a relational database keeps your data on one data node'.",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Its docs (as paraphrased) say to use ACID sparingly: across shards ACID is implemented with distributed transactions, which slow down throughput; use it only when you need it. ACID within one shard anyone can guarantee.",
+  "evidence": "Ch2 §2.2: 'Its official documentation ... says to use ACID sparingly. Across shards, ACID is implemented with distributed transactions, which slow down throughput. If you need it, use it, but only when you need it.'",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "No. Key-value is an access pattern; it doesn't define the storage underneath. Redis and DynamoDB are both KV stores with different storage engines: Redis keeps data in memory (can persist via RDB/AOF), DynamoDB on disk.",
+  "evidence": "Ch2 §2.4: 'Key-value is an access pattern, and it does not define the store underneath. DynamoDB and Redis are both key-value stores, with different storage engines: Redis keeps the data in memory, DynamoDB on disk.'",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Once correctness is settled, pick a specialised KV store such as DynamoDB or Redis if its features fit; understand the features you need, as you may not need to build one from scratch.",
+  "evidence": "Ch2 §2.4: 'for a key-value use case, once correctness is settled, you can pick a specialised store such as DynamoDB or Redis if its features fit ... you may not need to build a key-value store from scratch'.",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "No. It depends on what you store, how you access it, throughput, how you partition and shard, and more; you can't use a DB as a black box. Example: store massive blob values, say 4 MB each, and relational DBs would 'cry their heart out' while DynamoDB would work better. (Page correction: DynamoDB items are capped at 400 KB, so large blobs belong in object storage like S3.)",
+  "evidence": "Ch2 §2.4: 'Would a key-value store on a relational database, DynamoDB and Redis then all scale the same? No ... store massive blob values, say 4 MB each, and relational databases would cry their heart out, while DynamoDB would work better.'",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "One organisation with multiple users (employees) and multiple channels; a user can DM another user or post in a channel; chat must be real time; historical messages can be scrolled. (Text only.)",
+  "evidence": "Ch6 §6.1: 'There is one organisation on Slack, with multiple users ... and multiple channels. A user can direct-message another user or post a message in a channel. The chat has to be real time. And historical messages can be scrolled'.",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Multiplayer games, real-time interactions, real-time polls, creator tools (and other chat like WhatsApp, Zoom chat).",
+  "evidence": "Ch6 §6.1: 'The same architecture builds a lot more than chat: multiplayer games, real-time interactions, real-time polls, creator tools.'",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "No. Designing a schema means naming entities and attributes; the database is picked afterwards by the guarantees you want to give.",
+  "evidence": "Ch6 §6.1: 'Designing a schema means naming the entities and their attributes. It does not mean you are using a relational database. The database is picked afterwards, by the guarantees you want'.",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "user_channel is the easy name but meaningless (what is a user channel? a three-way mapping would become user_channel_message). Entities should be nouns; a noun gives the table a persona and makes extension natural — membership can gain attributes like how far the user has read (checkpoint), active status, mutes, favourites; with user_channel you'd never think of adding attributes.",
+  "evidence": "Ch6 §6.2: 'what is a user channel? If tomorrow you store a mapping of three things, will you call the table user_channel_message? ... A noun gives the table a persona ... Call it user_channel and you don't think of adding another attribute at all.'",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "If either can be null, a row with both null can be inserted (by some glitch): an orphan row belonging nowhere. Every query and business logic must also check which column is set (ifs and elses). (A CHECK num_nonnulls(...)=1 constraint could forbid it; final design avoids it.)",
+  "evidence": "Ch6 §6.3: 'If you allow either column to be null, you also allow a row where both are null ... an orphan row problem.' Pause: 'Every query and every piece of business logic must then ask which column is set'.",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Migrations get difficult: every new attribute on messages must be added to both tables (two migrations).",
+  "evidence": "Ch6 §6.3: 'Two tables ... Then migrations get difficult: add a new attribute to messages and you have to add it to both tables.'",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Every query needs string processing to decide whether to join with channels or users; poor implementation, can't write efficient queries.",
+  "evidence": "Ch6 §6.3: 'Now every query needs string processing to decide whether to join with channels or with users. That is a poor implementation, and you can't write efficient queries on it.'",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "It's a variation of the same thing: 'to' can't have a foreign-key check referencing channels since it may point to a user, and a polymorphic 'to' forces ifs and elses into business logic, complicating code.",
+  "evidence": "Ch6 §6.3: 'to can no longer have a foreign-key check saying it references channels, because it may point at a user. A polymorphic to also forces ifs and elses into the business logic'.",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Without the destination stored, you can't render all the messages of a channel (routing can't be only control info in code).",
+  "evidence": "Ch6 §6.3: 'But without the destination stored, how do you render all the messages of a channel? You still need that.'",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "A DM is a channel with two people: piggyback on channels and messages; every message has one channel_id; the channel has a type (group, user/DM, regular). Slack's API: to DM a user you first create a channel with them and write on it (UI renders as DM); every channel-like thing is a conversation (is_im, is_mpim); conversations.open returns the DM's channel ID; chat.postMessage can take a user ID and open the DM.",
+  "evidence": "Ch6 §6.4: 'a direct message is a channel with two people ... If you use the Slack API to DM a particular user, you first create a channel with that user and then write on it.'",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "Always look for a general way to store things rather than specific cases (if this go here, if that go there); piggyback on existing entities; ifs and elses are the worst in databases. Only rendering differs, on the UI.",
+  "evidence": "Ch6 §6.4: 'Always look for a general way to store things rather than specific cases ... Ifs and elses are the worst when it comes to databases.'",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "users (id, name); channels (id, org, name, type: grp/user/reg); membership (user_id, channel_id, checkpoint); messages (from, channel_id, created_at, msg). DM = channel with 2 people.",
+  "evidence": "Ch6 Fig 6·b complete: 'users (id, name); channels (id, org, name, type: grp, user or reg); membership (user_id, channel_id, checkpoint); messages (from, channel_id, created_at, msg).'",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "To tell a DM from a channel so the UI renders them differently: regular/group channels in the top half of the sidebar, DMs (type user) in the bottom half; also distinguishes a two-person private channel (can gain members) from a DM (can't add people), and keeps the schema extensible.",
+  "evidence": "Ch6 §6.4: 'the type is what lets the UI put direct messages in the bottom half of the sidebar and channels in the top half.' 'Why a type, and not private/public?'",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Draft 1: sender_id, channel_id, receiver_id, msg (one always null); then two tables channel_messages/direct_messages; a receiver_ids array; from/to with prefixed ids (CH-42/usr-7); to plus type enum (ch/u); a message without destination (from, msg); a common channel for two people (+pub/sub topic dropped); final: from, channel_id, msg (later created_at added). Board caption: drafts 2, 3 and 5 were spoken, not drawn.",
+  "evidence": "Ch6 Fig 6·c steps and §6.3 list; caption: 'drafts 2, 3 and 5 were spoken, not drawn.'",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "For this user in this channel, the point up to which they have read (a timestamp or message ID; time-level or message-level granularity). It drives the unread count, the 'you last read until here' line, and jumping to that point when you open a channel with new messages; it moves to the bottom when you open the channel. Also why Slack never replays old messages over the socket.",
+  "evidence": "Ch6 §6.5: 'it can hold a checkpoint: for this user in this channel, the point up to which they have read ... The unread message count. The you last read until here line ... being taken to that point.'",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Muted, favourited, notification settings, whether active, how they interact with the channel — every interaction a user has with a channel, making membership the key table.",
+  "evidence": "Ch6 §6.5: 'Muted the channel? Store it on membership. Favourited it? ... Notification settings, the same.' §6.2: 'whether they're active, how they interact with the channel'.",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Name things as nouns (gives a table a persona and room to grow), and piggyback on what you already have instead of writing ifs and elses (DM as a two-person channel).",
+  "evidence": "Ch6 §6.5 rule: 'Name things as nouns, and piggyback on what you already have instead of writing ifs and elses.'",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "A sharded relational database (MySQL works; any DB you can shard — MySQL, Cassandra, Mongo). Enterprise chat doesn't have a very high message rate: people are there to work, so you just store and scroll; what you need is sharding/partitioning (put a bunch of enterprise customers on each DB), sharded by channel_id.",
+  "evidence": "Ch7 §7.1: 'The design assumes the messages are stored in a relational database that is sharded ... messages don't arrive at a very high rate ... What you definitely need is sharding and partitioning ... No fancy NoSQL database is needed.'",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Instagram Messenger: everyone chit-chatting, all users in one database, so a high ingestion rate — Cassandra is built for that.",
+  "evidence": "Ch7 §7.1: 'Compare Instagram Messenger. There everyone is chit-chatting, and all the users are in one database, so for that product the instructor would go for Cassandra, a database built for a high ingestion rate.'",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Receiving does need the WebSocket (no refreshing), but that doesn't mean sending must use it: 'Just because you have it does not mean you have to use it.' Ask what guarantees you get or lose by sending over a WebSocket.",
+  "evidence": "Ch7 §7.2: 'That does not mean sending has to go over it as well. Just because you have it does not mean you have to use it. Ask what guarantees you get, or lose'.",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "If WebSocket were always better why does REST exist; Slack isn't as frequent as Instagram Messenger (you don't receive that many messages on Slack/Teams); for enterprise customers persistence matters more than per-message overhead; not everything must be instant. Also REST reuses persistent connections (HTTP/1.1).",
+  "evidence": "Ch7 §7.2: 'If the WebSocket were always better, why does REST exist at all? And is Slack really as frequent as your Instagram Messenger? ... for them a message being persisted matters more than saving overhead'.",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "A sent message first shows grey, then turns black after a visible delay — a hint (not proof) it goes through an ordinary API call and only then shows as sent.",
+  "evidence": "Ch7 §7.2: 'A sent message first shows grey, then turns black ... That delay is one hint, not proof, that Slack most probably doesn't send messages over the WebSocket.'",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "1: over HTTP via LB to API server, saved first then tell the edge — Slack (instructor's hypothesis). 2: over WebSocket to edge server, delivered at once and handed to Kafka, workers pull and save later — a WhatsApp-like app (hypothetical). 3: over WebSocket, delivered to connected users, never saved — Zoom chat.",
+  "evidence": "Ch7 Fig 7·c '3 ways to persist the message' and caption: '① saves through the API servers, then tells the edge server; ② delivers through the edge server and saves later through Kafka; ③ only delivers.'",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Just a fancy name for a WebSocket server, the one holding users' WebSocket connections (not a CloudFront/CDN edge); standard terminology.",
+  "evidence": "Ch7 §7.3: 'an edge server, which is just a fancy name for a WebSocket server'; §7.4: 'does not mean a CloudFront edge server'.",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "For an enterprise app, a message broadcast before saving is a bad experience and costs credibility: people could misquote you ('I received this message, see'). Also users refresh/read channels from the database, so a broadcast-but-unsaved message would vanish on refresh; and Slack users don't keep their own message store.",
+  "evidence": "Ch7 §7.3 ①: 'a message is broadcast only after it is persisted ... It costs credibility, because people can then misquote you'.",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "Synchronous: user sends over HTTP to an API server; API server persists it in the database; then API server sends it as an event to the WebSocket (edge) server, which delivers it to users in real time. Sending over HTTP, receiving over WebSocket.",
+  "evidence": "Ch7 §7.3 ①: 'The user sends the message over HTTP to an API server; the API server persists it in the database; then the API server sends the message, as an event, to the WebSocket server'.",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Sent over the WebSocket to the edge server, which sends it straight to the other user in real time and pushes it onto Kafka; workers store it in the DB later asynchronously (batched). Acceptable because a copy already lives on the user's device; gains no synchronous DB call and real-time speed.",
+  "evidence": "Ch7 §7.3 ②: 'The message goes over the WebSocket to the edge server. The edge server sends it straight to the other user ... and pushes it onto Kafka ... That is acceptable because a copy already lives on the user's device'.",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Slack users refresh channels from the DB; if the async save lags (e.g. 10 min), recipients see the message, refresh, and it's gone because the DB doesn't have it yet.",
+  "evidence": "Ch7 §7.3: 'Say the asynchronous save takes 10 minutes ... They refresh the page, and the message isn't there, because the page loads from a database that doesn't have it yet.'",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Non-persistent: real time only, no persistence. Zoom chat: everyone connected in the meeting gets it; leave and rejoin and earlier messages are gone (by default).",
+  "evidence": "Ch7 §7.3 ③: 'The third type cares only about real time, not about persistence at all. Zoom chat is the classic example'.",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "It already handles a ton of TCP connections (more load, risk of overwhelming it); it's open on the internet so a DB connection string there is a security problem (most vulnerable servers; if compromised you're gone); if it goes down the whole real-time communication goes down. At most it puts messages into Kafka.",
+  "evidence": "Ch7 §7.4: 'It is already handling a ton of TCP connections. It is open on the internet, so holding a connection string to the database there is a security problem. And if it goes down, the entire real-time communication of your platform goes down'.",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "Guarantees are very slim, retries would be much higher, and the client would end up doing the broadcast instead of the server (who tells B?). A micro-optimisation buying complexity of retries and complex client code; UDP is for where dropping data is OK, not critical persistence. Keep it simple.",
+  "evidence": "Ch7 §7.5: 'the guarantees are very slim, the retries would be much higher, and the client would end up taking care of the broadcast instead of the server.'",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "They offer a persistent connection, not database persistence; database persistence is what Slack needs, and getting it via WebSocket means the WebSocket server talks to the DB (load, security, risk).",
+  "evidence": "Ch7 §7.4: 'They offer a persistent connection, not database persistence, and database persistence is what matters for Slack.'",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "At most a Kafka connection string (to put messages into Kafka); never DB credentials. Page note: make it least-privilege, e.g. write-only to one topic.",
+  "evidence": "Ch7 §7.4: 'At most it puts a message into Kafka, holding nothing but a Kafka connection string.' Ch9 §9.4 note.",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Users A and B each hold HTTP to the API servers (behind an LB) and a WebSocket to the WS servers; the send is a REST call send_message(from_user, to_channel, text) to the API, which writes to the shard by channel_id, then tells the edge server, which delivers to B. (The page shows these in Fig 7·a/7·c; it doesn't detail exactly which lines were added in the first sketch.)",
+  "evidence": "Ch7 Fig 7·a: 'HTTP to the API servers ... and a WebSocket to the WebSocket servers. The API servers write each message to the shard chosen by its channel id.' Fig 7·c path 1: 'saved first, then tell the edge'.",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Deliberately: the async Kafka route is possible for Slack too; any implementation is possible depending on guarantees. Designs are kept conflicting so you think about every decision instead of copying one diagram; every system can be built in 10 ways.",
+  "evidence": "Ch9 §9.2 'Why Kafka, when Slack was drawn synchronous?'; Ch7 §7.5 'Ten ways to build it'.",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "The features driven through them are the company's most critical (e.g. Discord chat, video streaming); if WS servers die, real-time stops. An expensive TCP connection is kept open so it needn't be re-established, giving low latency and a rich experience.",
+  "evidence": "Ch8 §8.1: 'Whenever a company uses WebSockets, or any persistent connection, the features it drives through them are its most critical ones'.",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Each WebSocket server can hold only four connections (toy number). Channel C1 has five users A–E; A, B, C, D fill WS1, E connects to WS2.",
+  "evidence": "Ch8 §8.1: 'assume the limit is four ... channel 1 (C1), with five users: A, B, C, D and E ... When E connects, WS1 is full, so E connects to a second server, WS2.'",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "A server built with Socket.io (or equivalent) knows from the handshake; drawn as a local connection pool in each edge server.",
+  "evidence": "Ch8 §8.1: 'A WebSocket server built with Socket.io, or any equivalent library, knows which users are connected to it: the handshake tells it.'",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "After connecting, the client sends meta information: its membership (e.g. 'I am part of C1, C2 and C3'); the server keeps it in memory (or disk).",
+  "evidence": "Ch8 §8.1: 'after the connection is established, the client first sends meta information: its membership, the channels it is part of.'",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Whenever a user joins or leaves a channel the client sends the info to the server, and users also resend membership periodically; this keeps it eventually consistent.",
+  "evidence": "Ch8 §8.1: 'Memberships change, so the server is kept eventually consistent with them. Whenever a user joins or leaves a channel, the information is sent to the server, and users also resend their membership periodically.'",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Looks up C1 members (A, B, C, D), skips sender A, delivers to B, C and D.",
+  "evidence": "Ch8 §8.1: 'WS1 looks up who is in C1, finds A, B, C and D, skips A because A sent it, and sends the message to B, C and D.'",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "It slows things down, you need a bunch of consumers running, each server would consume a lot; start simple from first principles.",
+  "evidence": "Ch8 §8.2: 'Why a messaging service? It slows things down, you need a bunch of consumers running, and each server would be consuming a lot from it. Start simple.'",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "WS1 opens one plain TCP connection (not WebSocket) to WS2 and relays; WS2 sees it's for C1, finds E and delivers.",
+  "evidence": "Ch8 §8.2: 'WS1 establishes one TCP connection with WS2: a normal TCP connection, not a WebSocket connection ... finds E, and sends it to E.'",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "WS1 builds a second TCP connection to WS3; A's message goes locally to B, C, D, over one link to WS2/E and the other to WS3/F.",
+  "evidence": "Ch8 §8.2: 'User F joins C1 ... with a third server, WS3. WS1 builds a TCP connection to WS3 as well.'",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Server failure / missed messages is fault tolerance, a different problem; sending to servers that don't need it can be minimised with global state (a bigger overhead remains); latency still real time so fine; discovery is a different problem; handshake per message is false. None names the real cost: connections.",
+  "evidence": "Ch8 §8.3: 'If a server goes down ... it is not the overhead in question: a server going down is fault tolerance.' 'Every message is sent to every server ... can be minimised and optimised with a global state, and even then a much bigger overhead remains.'",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "No. The TCP connection is established once; messages are just relayed over it.",
+  "evidence": "Ch8 §8.3: 'No: the TCP connection is established once, and messages are just relayed over it.'",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Each server's limited connections get hogged by persistent links to every other server instead of serving users: 4 users + 3 peers = 7 connections, 3 serving no user; at 100 servers, 99 links each.",
+  "evidence": "Ch8 §8.3: 'a lot of each server's persistent TCP connections are hogged just to stay connected to the other servers. With four users ... and three peer servers, it holds seven connections, and three of them are only for inter-server communication.'",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "A real-time Pub/Sub (e.g. Redis, not Kafka) in the middle; each server needs just one connection to it.",
+  "evidence": "Ch8 §8.4: 'Put a Pub/Sub in the middle instead, and every WebSocket server creates a single connection to it'.",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "Guarantees only to send a message to everyone subscribed/connected at that moment; zero persistence; no delivery guarantee — a server not connected then misses it (at-most-once).",
+  "evidence": "Ch8 §8.4: 'A real-time Pub/Sub does not guarantee delivery; its only guarantee is to send the message to everyone connected to it at that moment.'",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Both have 'channels' — word clash, so say Slack channel vs Redis channel. Broadcasting every message to all servers is wasteful; a C1 message should go only to servers with C1 members (e.g. WS2), not WS3/WS4.",
+  "evidence": "Ch8 §8.5: 'Redis Pub/Sub has channels, and Slack has channels ... Broadcasting every message to all the WebSocket servers is wasteful.'",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "The server subscribes, not the user. When a server spins up it connects to Redis; when a user connects and tells its membership, the server fires SUBSCRIBE for that channel.",
+  "evidence": "Ch8 §8.5: 'When a user connects to the server and tells it its membership ... the server fires a Redis subscribe command ... It is the server that subscribes, not the user.'",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "A → WS1; WS1 delivers to B, C, D; WS1 publishes on Redis channel C1; Redis pushes to WS2 (subscribed to C1); WS2 delivers to E and F. WS3 (G, H, subscribed to C2) gets nothing.",
+  "evidence": "Ch8 §8.5: 'A sends a message to WS1. WS1 sends it to B, C and D. WS1 sends it to Redis Pub/Sub on channel 1. Redis sends it to ... WS2, and WS2 sends it to ... E and F.'",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "No. Redis pushes it to WS2; WS2 doesn't pull.",
+  "evidence": "Ch8 §8.5: 'The message is literally pushed to WS2. WS2 does not pull it.'",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Use a cluster of Redis Pub/Sub, sharded, with intelligent balancing (page note: Redis 7 sharded Pub/Sub). Reduce load with the Balancer putting an organisation's users on the same edge server so messages rarely go through Redis (worst case only).",
+  "evidence": "Ch8 §8.5: 'Have a cluster of it, sharded, with intelligent balancing.' §8.6: 'minimises the IO on Redis, which is left carrying only the worst case.'",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "The client asks the Balancer service 'where do I connect?', which returns an edge server's IP address; client connects. Like DNS but not DNS; not a load balancer.",
+  "evidence": "Ch8 §8.6: 'When a user opens the Slack app, the client talks to it and asks where do I connect?. It answers with the IP address of a WebSocket server'.",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Give each organisation its own WebSocket server (always return the same edge server for an org). Orgs have 200–20,000 employees, nothing for one server; all users on one server deliver among themselves without Redis, minimising Redis IO.",
+  "evidence": "Ch8 §8.6: 'Naively, give each organisation its own WebSocket server. Organisations on Slack have 200, 500, 10,000 or 20,000 employees, and that is nothing for one WebSocket server.'",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Nothing serious: users ask the Balancer again, get another server's IP; the Balancer notices and moves them. For a while an org may be spread across servers with messages via Redis — fine; later regrouped/rebalanced.",
+  "evidence": "Ch8 §8.6: 'What if this server goes down? ... Nothing serious happens. Its users talk to the Balancer again and get another server's IP address'.",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Write hello worlds: especially Redis Pub/Sub (small local Redis, three clients, disconnect one and publish to see it miss); also Socket.io, WebSocket server, the Balancer; implement everything.",
+  "evidence": "Ch8 'Build it: Redis Pub/Sub': 'Write a hello world with Redis Pub/Sub; the class highly recommends it.' Ch10 §10.3.",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Sharded by channel_id into mutually exclusive shards: all a channel's messages in one DB, so scrolling is simple with no cross-shard query. One node couldn't handle the load. (A workspace has many channels, each many messages.)",
+  "evidence": "Ch7 §7.1: 'the messages are sharded by channel_id, into mutually exclusive shards ... The payoff is scrolling ... it never needs a cross-shard query.'",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "workspace (id, name); channels (id, workspace_id, name, type); messages (id, channel_id, message, user_id, ts); membership (channel_id, user_id, checkpoint).",
+  "evidence": "Ch6 §6.4: recap tables list.",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "One REST call send_message(from_user, to_channel, text) to the messaging service; API server finds shard from channel_id and inserts. Works for DMs too.",
+  "evidence": "Ch7 §7.1: 'Sending, in its basic form, is then one REST call to the messaging service: send_message(from_user, to_channel, text)'.",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "White = Slack, green = WhatsApp, blue = Zoom (paths on the board).",
+  "evidence": "Ch7 Fig 7·c caption: 'On the board the paths were white, green and blue, a match with Slack, WhatsApp and Zoom that the class noticed'.",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "Max concurrent TCP connections per backend domain: six in a browser (class: six for Chrome, eight for Firefox; page note: Firefox is actually 6, and WebSockets have a separate pool). Exists so people don't abuse it ('could easily do a DDoS'); page notes it's mainly to be gentle with servers/network.",
+  "evidence": "Ch9 §9.1: 'from a browser, at most six ... so that people don't abuse it: without it you could easily do a DDoS ... six for Chrome, eight for Firefox.'",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Page with 100 same-size images: no WebSocket, loads six at a time; one WebSocket, five; two, four. Even 100 parallel requests go six then six. (Page note: actually WebSockets use a separate pool, and HTTP/2 multiplexes.)",
+  "evidence": "Ch9 §9.1: 'Take a page with 100 images ... six at a time; with one WebSocket, five at a time; with two, four.'",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "One WebSocket per product; anything and everything real-time goes over it (e.g. Instagram live chat and heart animations). Separate per feature is 'the worst way'.",
+  "evidence": "Ch9 §9.1: 'every good product has just one WebSocket connection, and anything and everything real-time goes through it.'",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Any service that wants to talk to users in real time (chat, notifications, anything) sends its information through the edge servers.",
+  "evidence": "Ch9 §9.1: 'Any service that wants to talk to users in real time, chat, notifications or anything else, sends its information through these edge servers.'",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "Users hold one WebSocket each to edge servers (keeping membership); edge servers share messages via clustered Redis Pub/Sub and hand messages to Kafka; workers pull and write to partitioned messages DB. Separate LB + API servers serve non-real-time (channel scroll, muted channels) reading the same DB. A Balancer tells clients which edge server.",
+  "evidence": "Ch9 Fig 9·b description and caption.",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Persistence level 2 (async via Kafka). REST/API: loading/scrolling channel messages, muted channels, anything not pushed. WebSocket: everything real-time.",
+  "evidence": "Ch9 §9.2: 'With persistence level 2 ... A normal messaging service handles HTTP requests ... Everything real-time happens over the WebSocket.'",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "'Messages once sent will always be persisted, there will not be any DB level runtime exception like Unique Key failed, etc.'",
+  "evidence": "Ch9 §9.3: board insight quote.",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "Channel scroll / loading a channel's messages, and 'unimportant messages that are loaded when channel is clicked, eg: Muted channels' — anything not pushed.",
+  "evidence": "Ch9 §9.2: 'loading a channel's messages, scrolling back through history ... eg: Muted channels ... anything related to messaging that is NOT pushed'.",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "Channel scroll REST API loads it when user clicks/refreshes; '1. correction job' (client thread fetching last 50 messages periodically and rendering missed); '2. Buffer the messages in another kafka and when sockets are back up, replay them'.",
+  "evidence": "Ch9 §9.3: 'Remember we have correction job! ... Buffer the messages in another kafka and when sockets are back up, we replay them.'",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "1. Persist message in Kafka. 2. Find B in the local pool. 3. Send message to B. (This is the async, persistence-level-2 path; for Slack's sync variant the message would be persisted first and only then handed to the edge servers.)",
+  "evidence": "Ch9 §9.2: board recap 'what the edge server does when A sends to B: 1. Persist message in Kafka 2. Find B in the local pool 3. Send message to B.'",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Each server can handle 4 users, so the 5th user forms a WebSocket with another server. A's message reaches B through the local connection pool, but reaches E only when it reaches Edge Server 2. So 'we bridge the gap' with a TCP connection between the two servers. Then: with 100 edge servers, every server connected to every other? 'Not a great idea! Can we do better?' -> put a real-time Pub/Sub in the middle, one connection per server.",
+  "evidence": "Ch8 §8.4: 'The recap board retold 8.1–8.3 as one chain. Each server can handle 4 users, so the 5th user forms a WebSocket with another server ... So we bridge the gap, with a TCP connection ... Not a great idea! Can we do better?'",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "The edge server collects all its connected users' Slack channels (c1 to c5) and subscribes once to the matching Redis Pub/Sub channels: SUB(c1,c2,c3,c4,c5). One Pub/Sub channel per Slack channel; the server subscribes, not the user; the board notes '* can be optimized'.",
+  "evidence": "Ch8 §8.5 Fig 8·e: 'one edge server holds A in c1, c2 and c3, B in c2, c4 and c5, C in c1 and c3, and D in c4, and sends one SUB(c1,c2,c3,c4,c5).'",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "Just a normal WebSocket server, e.g. a Node.js process running Socket.IO. That's it.",
+  "evidence": "Ch9 §9.4: 'Edge servers are normal WebSocket servers: a Node.js process running Socket.IO, for example. That's it.'",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "Both are fine. Many expose edge servers directly (in the class's view no harm; big companies publicly expose edge IPs), or you put them behind a load balancer. Trade-off: a public edge server can be attacked (must be hardened, no secrets on it), while a load balancer adds one more hop, about 3–5 ms per relay hop by the instructor's estimate ('about five milliseconds'), and WebSocket connections behind it are always sticky (one connection client to LB, one LB to server). For ultra-low-latency real time such as streaming a live class, expose the IPs directly; if the extra latency is acceptable, use the LB. Behind an LB the edge server can be private and call internal APIs (e.g. membership checks). Page note: Slack itself fronts its WebSocket servers with Envoy proxies.",
+  "evidence": "Ch9 §9.4: 'A lot of people expose edge servers over the internet ... you can also put them behind a load balancer ... every relay hop adds about three to five milliseconds ... If that latency is acceptable, use the load balancer; if not, keep it public. Both are fine.'",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "Harden it and put it through a very high security review: change the route tables, hide all ports, prevent SSH, block a lot of things on the machine. Never put credentials on it: zero credentials, it never talks to the database directly and doesn't know what it is; it holds only a Kafka connection string (page note: make it least-privilege, e.g. write-only to one topic, and have consumers validate). A simple rate limiter against DDoS (page note: infrastructure-layer floods need upstream network capacity).",
+  "evidence": "Ch9 §9.4: 'it is hardened and goes through a very high security review: you change the route tables, hide all the ports, prevent SSH ... whenever a server is exposed on the internet, you don't put any credentials on it.'",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "All you lose is the Kafka connection string, and Kafka is internal to the infrastructure, so no one outside can talk to it; with nothing critical on the server, the worst an attacker can do is a DDoS (they only get a machine that tells them edge server IPs), which a simple rate limiter can prevent. Page caveats: a Kafka credential is still a secret (an attacker could inject messages consumers trust and persist), so give the edge a least-privilege, write-only credential and validate in consumers; a rate limiter handles only some floods, SYN floods and UDP reflection need upstream network capacity.",
+  "evidence": "Ch9 §9.4: 'If the server is compromised, all you lose is that string, and the Kafka is internal to the infrastructure ... the worst an attacker can do is a DDoS ... a simple rate limiter can prevent a DDoS.' Plus the two 'More precisely' notes.",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "From the user, who takes the action: you always join a channel while online, so the client sends an event to its own edge server ('now I'm subscribed to this channel'); it doesn't go to every server, each edge server handles its own users' events. For a new channel: A makes an API call to create channel 3 (with A and D), which updates the DB; a notification is broadcast through Redis Pub/Sub to all edge servers (new channel for this org, these users are in it); added users see it in real time; each added client tells its edge server 'I'm now also part of channel 3'; the edge server updates its in-memory store and subscribes to channel 3 on Redis. Clients can also send a periodic meta call listing their channels.",
+  "evidence": "Ch8 §8.5 'How servers learn about channel changes': 'From the user, who is the one taking the action ... Creating a channel shows the whole loop ...'",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "Instead of relying on the client, the edge server itself calls the backend API periodically and pulls which of its connected users are in which channels. Only possible if the edge server is private (behind a load balancer), not from a publicly exposed server; use it when membership is critical, as with private channels.",
+  "evidence": "Ch9 §9.4: 'Another is for the edge server itself to call the backend API periodically and pull which of its connected users are in which channels. That can't be done from a publicly exposed server; it can if the server is private.'",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "Redis isn't required: the requirement is a real-time Pub/Sub (send messages in real time to everyone subscribed); any provider, database, tool or framework offering it, or one you build, would do. Persistence isn't needed from it. The instructor picked Redis because he has used Redis to build this exact same system: his experience, not a ranking of tools.",
+  "evidence": "Ch8 §8.4 'Why Redis?': 'The requirement is real-time Pub/Sub, not Redis ... The instructor picked Redis because he has used Redis to build this exact same system'.",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "No expiration, because there is no persistence: nobody stores the message anywhere; it is received and sent on to everyone subscribed.",
+  "evidence": "Ch8 §8.4: 'There is no expiration, because there is no persistence: no one stores the message anywhere.'",
+  "found": true
+ },
+ {
+  "id": "Q136",
+  "answer": "Don't trust the client's claims when membership is critical (private channels): a malicious user could claim membership and receive messages. Make the edge server private behind a load balancer and have it check membership with a backend API (or the database) before serving private channels. Relying on the client is fine while membership isn't sensitive. (The instructor called it a man-in-the-middle attack and designed it so on purpose; the page notes it is really broken access control: deny by default, check membership server-side.)",
+  "evidence": "Ch9 §9.4 'Trusting the client's membership': 'if membership is critical, as with private channels, don't trust the client. Rely on a backend API call for membership: make the edge server private, put it behind a load balancer'.",
+  "found": true
+ },
+ {
+  "id": "Q137",
+  "answer": "Calling such a service for every message to find where it goes is far too expensive, and then it is not real time any more. Even if it cached user data it's still a network call every time. It's overkill: keep it simple and store the routing information on the edge server itself.",
+  "evidence": "Ch8 §8.6 'A tempting idea: a routing service': 'Making a call to that service every time ... is far too expensive, and then it is not real time any more ... store this routing information on the edge server itself.'",
+  "found": true
+ },
+ {
+  "id": "Q138",
+  "answer": "Persistence is guaranteed (messages once sent will always be persisted); the real-time notification to other users is not: Redis Pub/Sub keeps nothing, so a message may be lost while Redis passes it to an edge server, and the user sees it when they refresh (or via the correction job). For an enterprise app, guaranteed persistence is what matters more.",
+  "evidence": "Ch9 §9.3: 'So in this system the message is guaranteed to be persisted, but the notification to the other users isn't? Correct.'",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "Not one Redis instance but a cluster of Redis (sharded, with intelligent balancing); and the Balancer keeps each organisation's users on the same edge server so most of that traffic never reaches Redis.",
+  "evidence": "Ch8 §8.5: 'That is exactly why it isn't one Redis instance. It is several, a cluster of Redis. (Why most of that traffic never reaches Redis at all is 8.6.)'",
+  "found": true
+ },
+ {
+  "id": "Q140",
+  "answer": "They are not the same, and the difference isn't simply 'Kafka is asynchronous'. Kafka is pull-based (consumers pull) and keeps historical messages (for a retention window); Redis Pub/Sub pushes to everyone connected and has zero persistence (an offline subscriber misses it, at-most-once). Neither is superior: for real time Redis is superior, for persistence Kafka is; it is very contextual.",
+  "evidence": "Ch8 §8.4 'Redis Pub/Sub vs Kafka': 'Kafka is pull-based ... Redis Pub/Sub pushes ... Nothing is superior and nothing is inferior. For real time, Redis is superior; for persistence, Kafka is.'",
+  "found": true
+ },
+ {
+  "id": "Q141",
+  "answer": "No. The message goes out to users as a real-time notification immediately; only the storage is delayed ('Not delivered, stored'). The real cost: until persisted, the source of truth doesn't have it, so a user who refreshes won't see a message they already saw in real time.",
+  "evidence": "Ch7 §7.3: 'could it be delivered a day late? No ... only the storage is delayed. Not delivered, stored.'",
+  "found": true
+ },
+ {
+  "id": "Q142",
+  "answer": "There is no best way: three persistence types, different ways of communicating and different privacy options form a buffet; you build your own plate from the guarantees you give customers. Every system can be built in 10 different ways.",
+  "evidence": "Ch7 §7.5: 'So is there a best way? No ... an entire buffet. You build your own plate from the guarantees you give your customers.'",
+  "found": true
+ },
+ {
+  "id": "Q143",
+  "answer": "The instructor agreed it might be: if it is painful and you need the 3rd, 5th or 10th level of the tree, a graph DB might make much more sense, because joins and self-joins become a pain (10 levels = nine self-joins, messy). Page note: SQL recursive CTEs (WITH RECURSIVE) can also walk any depth in one query.",
+  "evidence": "Ch4 §4.4 MLM note: 'The instructor agreed: if it is painful and you need to find the 3rd, 5th or 10th level of the tree, a graph database might make much more sense'.",
+  "found": true
+ },
+ {
+  "id": "Q144",
+  "answer": "WhatsApp-style (copies live on devices; WhatsApp deletes from its servers once delivered): deletion is just one more message/event, 'delete this message permanently', and each side deletes it from the user's local storage. Slack-style (messages live in the backend): delete the message in the backend store, then notify users in real time (over the edge servers) that it is gone. Depending on the guarantees, you alter the approach.",
+  "evidence": "Ch10 §10.1: 'WhatsApp-style deletion is just one more message, delete this message permanently ... Slack-style deletion deletes the message in the backend store and tells the users it is deleted'.",
+  "found": true
+ },
+ {
+  "id": "Q145",
+  "answer": "At WhatsApp's scale it is humongous: the hierarchy, deciding whether it's needed and how best to do it, product decisions and a staggered rollout between a PM's idea and implementation. On a known architecture deletion is small: about 100–200 lines, at most 200–300 lines of backend code (one event stored, one notification sent). Separately, the instructor's team of three engineers took three and a half months to build a real-time text chat system.",
+  "evidence": "Ch10 §10.1 and the '3.5 months' note.",
+  "found": true
+ },
+ {
+  "id": "Q146",
+  "answer": "Case 1: render them in the order they arrive; on refresh the order gets fixed because the DB storage order is the source of truth. Case 2: keep front-end state (e.g. a React array) ordered by timestamp and insert a late older message in the middle instead of appending, accepting a brief flicker if OK for UX. (Strict order/exactly-once was never required.)",
+  "evidence": "Ch10 §10.2: 'Case 1 ... Render them in the order they arrive. On refresh the order gets fixed ... Case 2: keep the front-end state ... ordered by timestamp'.",
+  "found": true
+ },
+ {
+  "id": "Q147",
+  "answer": "A system may broadcast to the receiver first and persist later, or retry on the WebSocket server when it thinks a message wasn't delivered although it was (duplicates). Order fixes itself on a page refresh (calling the source-of-truth API) or via a background job, e.g. every minute call the HTTP backend for the last 50 messages, check they're all on screen and reorder. (In this lecture's design the message is stored first.)",
+  "evidence": "Ch10 §10.2 'reshuffled messages' note.",
+  "found": true
+ },
+ {
+  "id": "Q148",
+  "answer": "The database insertion time, by whatever clock the database has at the moment of insert; the order the database received is the source of truth (Slack's ts is similarly server-assigned and unique per channel).",
+  "evidence": "Ch10 §10.2 'Which clock?': 'It is always the database insertion time, by whatever clock the database has at the moment of the insert.'",
+  "found": true
+ },
+ {
+  "id": "Q149",
+  "answer": "A user can just change their clock, e.g. to 1 January 1970; whatever time is on the database is the source of truth. Nor do you need client precision: messages from one client are never sent at exactly the same time, and latency-induced reordering is fine.",
+  "evidence": "Ch10 §10.2: 'a user can just change their clock, to 1 January 1970 if they like ... Nor do you need the client's precision.'",
+  "found": true
+ },
+ {
+  "id": "Q150",
+  "answer": "CRDTs to merge/resolve conflicts plus vector clocks on the client side, each client's vector clock persisted in the DB. Not worth it: maintaining vector clocks and doing merges on read slows the entire system, no one does it, and you don't re-architect for one edge case; a globally consistent vector clock per client is a massive problem; and vector clocks give only a partial causal order (concurrent messages still need a tie-break). Use them only if you truly need the guarantee.",
+  "evidence": "Ch10 §10.2: 'The overly complicated way: CRDTs ... and vector clocks ... It isn't worth it here ... you don't re-architect a system for one edge case.'",
+  "found": true
+ },
+ {
+  "id": "Q151",
+  "answer": "Store important data with standby nodes and replication factor three: the write goes to one data node, which replicates it to two others, done by the DB's storage engine, not by workers (workers writing to several instances is worse). The DB never acknowledges a write until written in three places, so a write lost before that was never accepted (DynamoDB writes to three storage nodes; page note: it actually acks at 2 of 3). Re-reading Kafka isn't the way back (class: already processed; page note: Kafka retains events, but durability should come from the DB's replication).",
+  "evidence": "Ch9 §9.5: 'important data is stored with standby nodes and a replication factor of three ... your DB would never say that I am done unless it is written in three different places'.",
+  "found": true
+ },
+ {
+  "id": "Q152",
+  "answer": "Yes, perfectly fine; making the workers call the API so the API writes adds an unnecessary network call and complication. The instructor dislikes the every-microservice-its-own-DB anti-pattern and puts performance and cost first (the lecture's opinion; the page notes a shared DB brings schema-change coordination and runtime interference).",
+  "evidence": "Ch9 §9.5 'One database for workers and API servers': 'sharing a database is perfectly fine.'",
+  "found": true
+ },
+ {
+  "id": "Q153",
+  "answer": "With only private/public, a DM would be a private channel with two members, and you couldn't tell a two-person channel from a DM, which render differently: a private channel created with two people can get more members later, a DM can't. Every combination can exist (private or public two-person channels, DMs), and a DM might later become private/public; an explicit type keeps the schema extensible.",
+  "evidence": "Ch6 §6.4 'Why a type, and not private/public?'",
+  "found": true
+ },
+ {
+  "id": "Q154",
+  "answer": "No. It is per host name, the full domain including sub-domains, so chat.google.com, Gmail and Meet each get their own six connections. Whether tabs share the limit was left unanswered.",
+  "evidence": "Ch9 §9.1: 'It is per host name, the full domain including sub-domains, so chat.google.com, Gmail and Meet each get their own six connections.'",
+  "found": true
+ },
+ {
+  "id": "Q155",
+  "answer": "No. Slack keeps messages in its backend DB and loads old ones with API calls, not the WebSocket; back from vacation you just see something like 200 unread messages (from the membership checkpoint), none relayed over the WebSocket. WhatsApp stores messages on the device, so it has to deliver those messages to your device.",
+  "evidence": "Ch6 §6.5 'Old messages don't come over the socket'.",
+  "found": true
+ }
+]

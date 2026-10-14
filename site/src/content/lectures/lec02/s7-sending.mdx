@@ -1,0 +1,269 @@
+import LectureLink from '../../../components/LectureLink.astro';
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoConnections } from '../../../figures/lec02/s7-sending-fig-7a';
+import { GreyThenBlack } from '../../../figures/lec02/s7-sending-fig-7b';
+import { ThreeWays } from '../../../figures/lec02/s7-sending-fig-7c';
+import { GuaranteesRule, SendingKey } from '../../../figures/lec02/s7-sending-rule';
+
+<Section id="s7" no="7" title="Sending a message: guarantees first" crumb="7 Sending a message"
+  dek="Where messages live, and how one gets there. Send over HTTP or the open WebSocket? Three ways to persist a message (Slack, WhatsApp, Zoom), and why the edge server stays dumb."
+  meta="About 30 min · class 01:17–01:46, recap 02:19–02:21, Q&A 02:46–02:49">
+
+A user types “standup in 5” in #general and hits send. Their Slack app already holds an open WebSocket, and every message from everyone else arrives on it. Should this message leave on it too? This chapter first settles where the message has to end up. Then one question drives the rest: what does Slack promise about a message once you have sent it?
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="Which database holds the messages" crumb="7.1 Message store"
+  dek="A sharded store, chosen by the product: why Slack needs nothing fancy, and why the shard key is the channel."
+  meta="About 6 min · class 01:17–01:21, recap 02:19–02:20">
+
+Chapter 5 ended on picking a database by what the product needs ([5.3](#s5-3)). Here is that rule applied to Slack’s messages. The design assumes the messages are stored in a relational database that is sharded. [[L-0182]]
+
+Why not a non-relational store? For Slack you don’t typically need one, because messages don’t arrive at a very high rate. All you do is store the messages that come in and let people scroll through them, and a relational database does a very good job of that, as long as it is partitioned and sharded. It is also what Slack runs: MySQL has been the storage engine for all of Slack’s data from the beginning, and from 2017 Slack moved to Vitess, which shards MySQL. By 2020 Vitess served 99% of Slack’s query load, about 2.3 million queries a second at peak. <Cite href="https://slack.engineering/scaling-datastores-at-slack-with-vitess/">slack.engineering</Cite> [[L-0183]]
+
+That is not a ban on the alternatives. You can also store the messages in a non-relational database such as MongoDB or Cassandra; no one stops you. [[L-0184]]
+
+The volume stays modest because of who uses Slack. An enterprise application is a different use case: no huge amount of messages is exchanged. People chit-chat sometimes, but not everyone sends hundreds and thousands of messages, because they are there to work. [[L-0185]] That is why picking a database depends on the product and the requirement, not on your affinity to a particular stack. [[L-0186]] Whenever you pick something, understand why you are picking it: what use case are you solving? [[L-0188]]
+
+For enterprise chat there is no hard and fast rule. The board listed MySQL, Cassandra and Mongo, and any of them will do, because the scale is not huge. What you definitely need is sharding and partitioning: add more partitions, and put a bunch of enterprise customers on each database. No fancy NoSQL database is needed. [[L-0187]]
+
+<Figure id="fig-7a" no="Fig 7·a" k="L-0187 L-0314 L-0316 L-0317"
+  caption="Two kinds of connection, one sharded store. The send is one REST call, send_message(from_user, to_channel, text), to the messaging service; its API servers write each message to the shard chosen by its channel id. Redrawn from the class board at 01:22–01:46, with the 02:20 recap’s REST flow folded in.">
+  <Desk><TwoConnections /></Desk>
+  <Phone><TwoConnections layout="phone" /></Phone>
+</Figure>
+
+Compare Instagram Messenger. There everyone is chit-chatting, and all the users are in one database, so for that product the instructor would go for Cassandra, a database built for a high ingestion rate. For an enterprise app with formal messaging, even MySQL works, as long as it is partitioned and sharded (Cassandra is still allowed). [[L-0189]] Discord’s chat is a real example of the Cassandra choice: it stored its messages in Cassandra (12 nodes and billions of messages in 2017) and in May 2022 moved them to ScyllaDB, a Cassandra-compatible database. Its messages are partitioned by channel plus a time bucket. <Cite href="https://discord.com/blog/how-discord-stores-trillions-of-messages">discord.com</Cite> [[L-0189]]
+
+Whichever database you pick, MongoDB, MySQL or Cassandra, the class’s point is that the overall schema looks very similar to the one from chapter 6 ([6.5](#s6-5)). [[L-0190]] The entities do stay the same. The physical layout shifts with Cassandra, though: its modelling is query-driven, it has no joins, data is denormalised into one table per query, and a partition key decides which node holds each row. <Cite href="https://cassandra.apache.org/doc/latest/cassandra/developing/data-modeling/intro.html">cassandra.apache.org</Cite> [[L-0190]]
+
+The class came back to this decision in the recap at 02:19, and the board put it in a few lines.
+
+There will be a large number of messages, so they go into a sharded store, and nothing more complicated: “pick any DB that you can shard … even SQL works!”, as the board says. For chat, and for Slack, you typically don’t need NoSQL; any database you can partition will work. [[L-0311]] One database node definitely could not handle the message load, which is why the store is sharded at all. [[L-0312]]
+
+The shard key follows from the shape of the data. A workspace has many channels, and each channel has many messages. [[L-0313]] So the messages are sharded by `channel_id`, into mutually exclusive shards: all the messages of one channel sit in one database. [[L-0314]] Slack wanted the same key. Its original databases were sharded by workspace, and in the move to Vitess the team wanted to shard message data by channel id, to spread the load more evenly. <Cite href="https://slack.engineering/scaling-datastores-at-slack-with-vitess/">slack.engineering</Cite> [[L-0314]]
+
+The payoff is scrolling. With all of a channel’s messages on one shard, scrolling is simple, and it never needs a cross-shard query. [[L-0315]]
+
+Sending, in its basic form, is then one REST call to the messaging service:
+
+```python
+send_message(from_user, to_channel, text)   # REST call
+# API server: shard = route(channel_id); insert
+```
+
+The API server finds the right shard from `channel_id` and stores the message there. [[L-0316]] Since a DM is a channel with two people ([6.4](#s6-4)), this one flow sends DMs and channel messages alike. [[L-0317]]
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="Send over HTTP or over the WebSocket?" crumb="7.2 HTTP or WebSocket"
+  dek="The socket is open, but receiving and sending are separate decisions. What Slack’s grey-then-black shows."
+  meta="About 7 min · class 01:21–01:29, recap 02:20">
+
+Back to “standup in 5”. The store is settled; now the route. When a user sends a message to a channel, how should it reach the database and get persisted: through the normal API servers, or through a WebSocket? [[L-0191]]
+
+<PauseAndThink k="L-0191 L-0192 L-0193 L-0195 L-0196 L-0201 L-0202 L-0203"
+  q="A WebSocket to Slack is already open, and every incoming message arrives on it. You send “standup in 5”: it shows grey for a moment, then turns black. Should the send go over that open WebSocket?"
+  choices={[{ label: 'Yes: the socket is open and it saves overhead' }, { label: 'Not necessarily: decide by the guarantee you owe', correct: true }]}
+  right="Right: having the socket open doesn’t decide how you send."
+  wrong="“Just because you have it does not mean you have to use it.” Overhead isn’t what an enterprise customer cares about most.">
+
+Not necessarily. Receiving needs the WebSocket; sending is a separate decision. For enterprise customers, a message being saved matters more than per-message overhead, and Slack isn’t as chatty as Instagram Messenger. The grey-then-black delay is a hint, not proof, that Slack sends with an ordinary API call and only then shows the message as sent. Think of the guarantees you owe the customer, and the architecture follows.
+
+</PauseAndThink>
+
+Both routes are open to the client. A user holds connections to the normal API servers and to the WebSocket servers, so a message could go out on either. [[L-0194]]
+
+<Figure id="fig-7a-conn" no="Fig 7·a, again" k="L-0194"
+  caption="The same diagram, labelled by connection: every user holds HTTP to the API servers and a WebSocket to the WebSocket servers. Either one could carry a send.">
+  <Desk><TwoConnections variant="conn" /></Desk>
+  <Phone><TwoConnections layout="phone" variant="conn" /></Phone>
+</Figure>
+
+A tempting idea, suggested in class: the server has to push messages to clients anyway, so send over the WebSocket too. The refinement: receiving does need the WebSocket, so that people don’t have to refresh to see new messages. That does not mean sending has to go over it as well. [[L-0192]] “Just because you have it does not mean you have to use it.” Ask what guarantees you get, or lose, by sending over a WebSocket. [[L-0193]]
+
+A second suggestion: a WebSocket saves the per-message overhead of a REST call, and chat is frequent communication (the board caught it as “Freq Commⁿ”). The pushback came as two questions. If the WebSocket were always better, why does REST exist at all? And is Slack really as frequent as your Instagram Messenger? You don’t receive that many messages on Slack or Teams. [[L-0195]] Slack’s customers are enterprises, and for them a message being persisted matters more than saving overhead on each one. [[L-0196]]
+
+Not everything needs to happen in an instant. Everything has an overhead, and if the WebSocket were always the answer, everyone would use it for everything, which isn’t happening. Choosing between REST and a WebSocket needs better reasoning than “it’s open”. [[L-0197]]
+
+A third suggestion was about expectations: users expect a sent message to show up for everyone at once. The redirect: not the expectation, but what you actually see as a user. On Slack you don’t see a message get posted immediately. Send yourself one and watch. [[L-0198]]
+
+And a fourth: “definitely a WebSocket”, because a REST call needs a handshake and a TCP connection. Then the entire world should use only WebSockets for everything, so why run normal API servers or spin up Spring Boot instances at all? [[L-0199]] The handshake also costs less than it sounds: HTTP/1.1 uses persistent connections by default, so repeated REST calls usually reuse one TCP and TLS connection instead of handshaking each time. <Cite href="https://www.rfc-editor.org/rfc/rfc9112.html#section-9.3">RFC 9112 §9.3</Cite> [[L-0199]]
+
+None of this is about the receiving side. Receiving has to happen over the WebSocket; otherwise the client would have to keep short-polling and refreshing the page, and the recap board calls REST-based short polling “a very poor UX for something as realtime as messaging”. Strictly, what receiving needs is a channel the server can push on: a WebSocket here, though server-sent events or long polling also push (<LectureLink lec="lec01" sec="s5">Lecture 02, §5</LectureLink>). <Cite href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events">developer.mozilla.org</Cite> <Cite href="https://www.rfc-editor.org/rfc/rfc6202.html">RFC 6202</Cite> It is short polling that gives the poor real-time experience. The debate is only about sending. [[L-0200]]
+
+So start from the other end. Think of the guarantees you, as Slack, need to give your customer when a message goes out. The architecture follows from them. [[L-0201]]
+
+And look at what Slack does. A sent message first shows grey, then turns black. It isn’t sent in an instant: you can see a delay after you hit send, a clear sign that sending isn’t extreme real time. [[L-0202]]
+
+<Figure id="fig-7b" no="Fig 7·b" k="L-0202 L-0203"
+  caption="Grey, then black. A message you send on Slack shows grey for a moment, then black. New figure.">
+  <Desk><GreyThenBlack /></Desk>
+  <Phone><GreyThenBlack layout="phone" /></Phone>
+</Figure>
+
+That delay is one hint, not proof, that Slack most probably doesn’t send messages over the WebSocket. [[L-0203]] The next section shows what it would be doing instead, and why.
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="Three ways to persist a message" crumb="7.3 Three ways"
+  dek="One system, three guarantees: save then show (Slack), show then save (a WhatsApp-like app), show and never save (Zoom chat)."
+  meta="About 10 min · class 01:29–01:38, recap 02:20–02:21, Q&A 02:46–02:47">
+
+One system can carry three types of communication. Depending on the guarantee you want to give your users, you pick one over the other, and different guarantees shape the system differently. [[L-0204]] The products are illustrations. Slack’s path is the instructor’s hypothesis (“I may be wrong”), the WhatsApp path is hypothetical, and Zoom chat is the plain case. What to take away is the three types, not the products. [[L-0204]]
+
+One thing to know before you start, because the class said it on purpose: Slack is drawn here with the first type, yet the final architecture in chapter 9 ([9.2](#s9-2)) sends Slack’s messages down the second, Kafka path. The conflict is deliberate, so that you choose by guarantee rather than copy a diagram ([7.5](#s7-5)). [[L-0236 L-0238]]
+
+The parts: databases; users; API servers, which are normal HTTP (REST) servers; an **edge server**, which is just a fancy name for a WebSocket server, the one holding users’ WebSocket connections; and a broker such as Kafka. [[L-0205]]
+
+<Figure id="fig-7c" no="Fig 7·c" k="L-0204 L-0205 L-0209 L-0214 L-0220 L-0222"
+  caption="3 ways to persist the message, numbered as on the board: ① saves through the API servers, then tells the edge server; ② delivers through the edge server and saves later through Kafka; ③ only delivers. On the board the paths were white, green and blue, a match with Slack, WhatsApp and Zoom that the class noticed; here they are numbered, because green and blue already mean saved and request. Redrawn from the class board at 01:36–01:46 and 02:20.">
+  <Desk><ThreeWays /></Desk>
+  <Phone><ThreeWays layout="phone" /></Phone>
+</Figure>
+
+<Figure id="fig-7c-key" no="Key" k="L-0205"
+  caption="Two glyphs in Fig 7·c. Kafka is the pipe from Lecture 02; the edge server is a WebSocket server, not a CDN edge.">
+  <Desk><SendingKey /></Desk>
+  <Phone><SendingKey layout="phone" /></Phone>
+</Figure>
+
+<h3 id="s7-3-sync">① Slack: save, then show</h3>
+
+The first type is the guarantee the class gives Slack: a message is broadcast only after it is persisted. Unless it is saved, it should not be sent to anyone. [[L-0206]] Broadcasting before saving may be fine for ordinary users chatting on Instagram, but for an enterprise application, where communication is key, it is a very bad experience. [[L-0207]] It costs credibility, because people can then misquote you: “No, I received this message, see, it’s right here.” [[L-0208]]
+
+So the flow is synchronous. The user sends the message over HTTP to an API server; the API server persists it in the database; then the API server sends the message, as an event, to the WebSocket server, which delivers it to the users in real time. [[L-0209]] Slack’s own description has more tiers: the client calls Slack’s Webapp API to send a message, a Channel Server chosen by consistent hashing on the channel fans it out to every Gateway Server subscribed to that channel, and the Gateway Servers, spread over several regions, hold the clients’ WebSockets. <Cite href="https://slack.engineering/real-time-messaging/">slack.engineering</Cite> <Cite href="https://docs.slack.dev/reference/methods/chat.postMessage">docs.slack.dev</Cite> Whether the save finishes before the fan-out isn’t stated there, so persist-then-broadcast stays the instructor’s hypothesis. [[L-0209]]
+
+Sending goes over normal HTTP and receiving over the WebSocket, so the user never has to refresh. It is a good experience, and it makes sure a message is saved before it reaches anyone. [[L-0210]] The class added one more reason, as a bridge to the next type: Slack’s users don’t each keep their own separate store of messages, the way a WhatsApp user does on their phone. Read it as a tentative reason; it comes from the flow of the class rather than a statement of its own. [[L-0213]]
+
+<h3 id="s7-3-async">② A WhatsApp-like app: show, then save</h3>
+
+When you send a WhatsApp message, it is stored on your own phone, so one copy of every message is always on a user’s device. Now suppose, hypothetically, that WhatsApp also wanted to store messages in a backend. It doesn’t; this is a thought experiment. [[L-0211]] If it took Slack’s route, an HTTP call, a database write, then back through the WebSocket server to the friend, it would be far too slow. WhatsApp is meant to be very fast real-time chat, not an enterprise application. [[L-0212]]
+
+So it takes the board’s “green line” instead. The message goes over the WebSocket to the edge server. The edge server sends it straight to the other user, in real time, and pushes it onto Kafka, from where it is stored in the database later, asynchronously. Persistence right away is not what this path guarantees. [[L-0214]] That is acceptable because a copy already lives on the user’s device; the backend copy can wait. [[L-0215]] The gain: no synchronous database call, writes that can be batched through the asynchronous medium, and still a real-time experience for the user. [[L-0216]] The message goes over the WebSocket because it must be real time, and the connection is already open, so it gets used. [[L-0217]]
+
+<AnimationClip clip="l02-three-ways-to-persist" no="Clip 7·1"
+  k="L-0204 L-0206 L-0209 L-0210 L-0214 L-0218 L-0219 L-0220 L-0221 L-0389 L-0390"
+  lead="Persistence lags ten minutes. On which path does a refresh hide a message you already saw?"
+  caption="One message sent three ways: ① saved, then shown; ② shown at once and saved after the Kafka lag, so a refresh inside the lag hides it; ③ shown and never saved." />
+
+Why not do this for Slack? Because Slack users can refresh a channel and read its messages from the database. Say the asynchronous save takes 10 minutes. You send on the WebSocket, it goes onto Kafka, and the other users are notified at once. They refresh the page, and the message isn’t there, because the page loads from a database that doesn’t have it yet. WhatsApp users don’t read other people’s messages from the backend, so there it works. [[L-0218]] A bad idea for Slack, fine for WhatsApp: **different guarantees, different architecture**. [[L-0219]]
+
+<PauseAndThink k="L-0214 L-0215 L-0218 L-0219 L-0389 L-0390"
+  q="Suppose Slack used the WhatsApp-like path: over the WebSocket, delivered to B at once, pushed to Kafka, and saved later by workers. The workers lag ten minutes. B sees the message, then refreshes the channel. What is on screen?"
+  choices={[{ label: 'The message: it was already delivered' }, { label: 'Not the message: the database doesn’t have it yet', correct: true }]}
+  right="Right: a refresh reads the source of truth, and it’s ten minutes behind."
+  wrong="Delivery happened, but a Slack refresh reads the database, which hasn’t stored it yet.">
+
+Not the message. On this path the message isn’t delivered late; it is delivered now and only *stored* late. But a Slack channel loads from the database, so for ten minutes a refresh hides a message B has already seen. WhatsApp can live with that because the phone keeps its own copy. Slack can’t, which is why the class drew Slack with persist-then-broadcast: different guarantees, different architecture.
+
+</PauseAndThink>
+
+A natural worry, raised in class: with asynchronous persistence, if the workers pick the message up from Kafka a day late, could it be delivered a day late? No. On this path the message goes out to users as a real-time notification immediately; only the storage is delayed. “Not delivered, stored.” [[L-0389]] The real cost is the one above. If processing is delayed, the source of truth doesn’t have the message yet, so a user who refreshes won’t see a message they have already seen in real time. [[L-0390]]
+
+<h3 id="s7-3-none">③ Zoom chat: show, never save</h3>
+
+The third type cares only about real time, not about persistence at all. Zoom chat is the classic example: a user sends a message, everyone connected at that moment (everyone in the meeting) gets it, and that’s it. [[L-0220]] Leave the meeting and come back, and you don’t see the earlier messages; you only see what was sent while you were there. That is plain in-meeting chat, by default: Zoom also offers continuous meeting chat which, once an admin enables it, keeps the meeting’s messages in a persistent Team Chat group before, during and after the meeting. <Cite href="https://www.zoom.com/en/blog/continuous-meeting-chat">zoom.com</Cite> [[L-0221]]
+
+So, depending on the level of persistence you need, you pick one way or the other. That is the intuition to build. Don’t be ingrained that there is only one way to do it, as in “I have a WebSocket, so let me just send over it.” [[L-0222]]
+
+<RuleBox rule="Different guarantees, ==different architecture==." k="L-0219 L-0222 L-0186">
+
+“Depending on criticality of ‘persistence’ we pick one over other,” as the board put it. Choose the path by how critical it is that a message is saved, not by which connection happens to be open. The same goes for the store underneath it (7.1): pick by the product and the requirement, not by your affinity to a stack.
+
+<Desk><GuaranteesRule /></Desk>
+<Phone><GuaranteesRule layout="phone" /></Phone>
+
+</RuleBox>
+
+The recap at 02:20 named the three types by their persistence: synchronous storage (Slack), asynchronous storage (the WhatsApp-like app), and non-persistent (Zoom chat). Three ways to build the same system. [[L-0318]]
+
+<h3 id="s7-3-compare">Three ways, side by side</h3>
+
+<TradeoffTable caption="Three ways to persist a message: synchronous (Slack), asynchronous through Kafka (a WhatsApp-like app), and none (Zoom chat)"
+  k="L-0318"
+  columns={[{ label: '① Slack (sync)', glyph: 'shards' }, { label: '② WhatsApp-like (async via Kafka)', glyph: 'stream' }, { label: '③ Zoom chat (none)', glyph: 'websocket' }]}
+  rows={[
+    { label: 'Send over', k: 'L-0210 L-0217', cells: ['HTTP, to an API server', 'The open WebSocket, to the edge server', 'The open WebSocket, to the edge server'] },
+    { label: 'Saved when', k: 'L-0206 L-0214', cells: ['First, before anyone sees it', 'Later: workers save it from Kafka, in batches', 'Never'] },
+    { label: 'Shown when', k: 'L-0209 L-0214 L-0220', cells: ['Once it is saved, through the edge server', 'At once', 'At once, to whoever is connected'] },
+    { label: 'Refresh after a lag shows', k: 'L-0218 L-0390', cells: ['The message: the database already has it', 'Nothing, until the workers catch up', 'Nothing: there is nothing to load'] },
+    { label: 'Where history lives', k: 'L-0215 L-0221', cells: ['The sharded database', 'On the phone first; in the database later', { text: 'Nowhere: leave and it’s gone', bad: true }] },
+    { label: 'Good for', k: 'L-0207 L-0212 L-0222', cells: ['Enterprise chat, where a message must be on record', 'Fast chat whose phones keep their own copy', 'Chat that only matters while you are in the meeting'] },
+  ]} />
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="Keep the edge server dumb" crumb="7.4 Dumb edge"
+  dek="One more reason not to send through the WebSocket: a database connection on the edge server is load, risk and exposure."
+  meta="About 4 min · class 01:38–01:40, Q&A 01:42–01:44">
+
+There is one more reason not to send through the WebSocket. Persisting a message that arrives on the edge server means the edge server calls the database, and you want to avoid that. It is already handling a ton of TCP connections. It is open on the internet, so holding a connection string to the database there is a security problem. And if it goes down, the entire real-time communication of your platform goes down with it. [[L-0223]] No one stops you from making a database call there; you avoid it.
+
+Calling the database directly from the WebSocket server puts a lot of load on that server. This is a little on the infrastructure side: you see where it falters once you deploy it and watch it in action. [[L-0224]] That is why a lot of companies never put any complex logic on the WebSocket server. It just relays messages and events, and at most ingests messages into an asynchronous queue. [[L-0225]] In Fig 7·c the edge server has no line to the database at all; its only outbound line is the dashed one to Kafka.
+
+A question in class: don’t WebSockets offer persistence? They offer a persistent *connection*, not database persistence, and database persistence is what matters for Slack. Getting it through the WebSocket means the WebSocket server talks to the database: more load on a server already balancing a lot of TCP connections, security implications, a risk of overwhelming it, and if it goes down, the real-time backbone breaks. [[L-0231]]
+
+The instructor’s own practice is firm: he never lets the WebSocket server talk to the database. At most it puts a message into Kafka, holding nothing but a Kafka connection string. [[L-0232]] Edge servers are typically the most vulnerable servers in your infrastructure. [[L-0233]] Keep your database credentials as secure as possible. An edge server that talks straight to the database exposes those credentials almost on the internet, and if it is compromised, you are gone. With only a Kafka connection string on it, basic security still holds after a breach. Database writes belong on a backend server. [[L-0234]] Chapter 9 ([9.4](#s9-4)) comes back to what may sit on an exposed edge server, including how much even a Kafka credential should be allowed to do.
+
+A note on the word. “Edge server” here does not mean a CloudFront edge server. It is the ordinary server on which the WebSocket connections are established; the name is standard terminology. [[L-0235]]
+
+</Section>
+
+<Section id="s7-5" no="7.5" title="Why not UDP, and ten ways to build it" crumb="7.5 UDP, ten ways"
+  dek="A lighter transport that pushes the work onto the client, and why the lecture keeps its designs in conflict."
+  meta="About 5 min · class 01:39–01:42, 01:45–01:46, Q&A 02:48–02:49">
+
+A tempting idea, suggested in class: an HTTPS connection is resource-heavy, so send messages over UDP over TLS instead. Keep receiving on the WebSocket, and retry the send until the WebSocket confirms the message reached the server. The answer: the guarantees are very slim, the retries would be much higher, and the client would end up taking care of the broadcast instead of the server. [[L-0226]] The server should be the one doing the broadcast. If A sends to B over UDP, who tells B that the message is there? [[L-0227]]
+
+Weigh pros against cons. A micro-optimisation like this saves a little overhead and buys you the complexity of retries and needlessly complex client code. Don’t overcomplicate. In class this was put as seeing gRPC requests fire when you open the app; what Slack’s client actually uses to send are ordinary HTTPS API calls, with no fancy transport. <Cite href="https://slack.engineering/real-time-messaging/">slack.engineering</Cite> <Cite href="https://docs.slack.dev/reference/methods/chat.postMessage">docs.slack.dev</Cite> [[L-0228]]
+
+You would use UDP where it is okay to drop data, not for critical use cases like Slack’s message persistence. [[L-0229]] UDP itself guarantees nothing, so reliability has to be added on top of it. QUIC, the transport under HTTP/3, does exactly that: it runs over UDP datagrams and builds its own reliable delivery and congestion control. <Cite href="https://www.rfc-editor.org/rfc/rfc9000.html">RFC 9000</Cite> <Cite href="https://www.rfc-editor.org/rfc/rfc9114.html">RFC 9114</Cite> [[L-0229]]
+
+Keep it simple. Simple systems are harder to build, and simple systems scale. Unnecessary complexity stops a system scaling, makes it harder to debug, harder to onboard engineers onto and harder to change, and kills its extensibility. [[L-0230]]
+
+<h3 id="s7-5-ten-ways">Ten ways to build it</h3>
+
+This chapter drew Slack with synchronous persistence (type ①), and that is the instructor’s preference here. You can also do it with the asynchronous Kafka route, and his final diagram (9.2) does exactly that. Any implementation is possible, depending on the guarantees. [[L-0236]] The more systems you build, the more you see that every system can be built in 10 different ways, and you pick one depending on the guarantees. [[L-0237]] That is why the designs in this lecture deliberately conflict and never converge to one: so that you think about every single decision you take. [[L-0238]]
+
+So is there a best way? No. The lecture laid out three types of persistence, different ways of communicating and different privacy options: an entire buffet. You build your own plate from the guarantees you give your customers. [[L-0392]]
+
+Receiving is settled: it goes over the WebSocket. But one channel’s members won’t all be connected to the same WebSocket server, and that is chapter 8.
+
+<h3 id="s7-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Why does Slack send messages over HTTP even though a WebSocket is already open? Give the class’s two reasons." k="L-0206 L-0223">
+
+First, the guarantee: Slack broadcasts a message only after it is persisted, so the send goes to an API server that saves it and then tells the edge server to deliver it. Enterprise users need the record, and a refresh reads the database. Second, the edge server should stay dumb: sending through the WebSocket would make the WebSocket server call the database, adding load to a server already holding many connections, exposing database credentials on an internet-facing box, and risking the whole real-time backbone.
+
+  </RecallItem>
+  <RecallItem q="In the WhatsApp-like path, a worker lags 10 minutes. What does the recipient see, and what does a refresh show?" k="L-0389 L-0390">
+
+The recipient sees the message at once: it is delivered over the WebSocket now, and only its storage is late. A refresh reads the database, which doesn’t have it yet, so for those ten minutes the message the user already saw is missing. Fine where the phone keeps its own copy; not for Slack.
+
+  </RecallItem>
+  <RecallItem q="Why should the edge server hold no database credentials, and what does it hold instead?" k="L-0232 L-0233 L-0234">
+
+Edge servers are typically the most vulnerable servers you run, and they face the internet: database credentials on one are almost public, and if it is compromised, you are gone. The edge server holds at most a Kafka connection string to put messages into Kafka, so basic security holds even after a breach. Database writes happen on a backend server.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '8 · Scaling WebSocket servers', href: '#s8' }}
+  concepts={[{ label: 'sharding by channel_id', href: '#s7-1' }, { label: 'send vs receive', href: '#s7-2' }, { label: 'synchronous persistence', href: '#s7-3-sync' }, { label: 'asynchronous persistence', href: '#s7-3-async' }, { label: 'no persistence', href: '#s7-3-none' }, { label: 'edge server', href: '#s7-4' }, { label: 'simple systems scale', href: '#s7-5' }]} />
+
+</Section>

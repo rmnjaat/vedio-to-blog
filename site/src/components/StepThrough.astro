@@ -3,7 +3,8 @@
 // layouts that both contain the same steps. `steps` are the numbered texts (inline HTML allowed).
 // Keys on the focused figure: ← → ↑ ↓ Home End. Deep link: #<id>/step-3. Without JS every step shows.
 // `grow`: on phones (≤860px) the drawing is cropped to the steps so far and grows downward as you step, so tall
-// swim lanes don't push the step text a screen away from the arrow it explains. Opt-in; desktop is unchanged.
+// swim lanes don't push the step text a screen away from the arrow it explains. At the last step the sticky step bar
+// returns to the flow under the whole drawing. Opt-in; desktop is unchanged.
 interface Props { id: string; no?: string; caption?: string; steps: string[]; label?: string; k?: string; stepK?: string[]; grow?: boolean }
 const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], grow = false } = Astro.props;
 ---
@@ -60,9 +61,13 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
     // Phones: the step bar sticks to the bottom of the screen; scroll just enough that the part of the drawing
     // that changed sits between the top bar and the step bar, so the arrow and its sentence are on one screen.
     const narrow = matchMedia('(max-width: 860px)');
+    const panel = fig.querySelector<HTMLElement>('.steps-panel')!;
     // grow: crop each shown drawing's viewBox to the bottom of the steps so far (+ a margin), phones only.
     function crop() {
       if (!('grow' in fig.dataset)) return;
+      // at the last step the drawing is whole and nothing more grows below it: the step bar stops sticking and sits
+      // in flow under the drawing, so scrolling back up never leaves the bar over the final rows (lec02 critic C-02)
+      panel.style.position = narrow.matches && cur === TOTAL ? 'static' : '';
       fig.querySelectorAll<SVGSVGElement>('.lag svg.fig-svg').forEach((svg) => {
         const full = (svg.dataset.vb ??= svg.getAttribute('viewBox') ?? '').split(' ').map(Number);
         if (full.length !== 4) return;
@@ -78,7 +83,6 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
       });
     }
     narrow.addEventListener('change', crop);
-    const panel = fig.querySelector<HTMLElement>('.steps-panel')!;
     // a smooth scroll still running from the previous step: measure against where it will end, not where it is now
     // (a new smooth scroll cancels the old one, so measuring mid-flight lost the rest of it and left rows under the bar)
     let pendingY: number | null = null, pendingAt = 0;
