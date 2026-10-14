@@ -1,0 +1,32 @@
+{
+ "lecture": "lec05",
+ "page": {
+  "title": "Locking the airline seats",
+  "kicker": "Lecture 03 · week 2, day 1 · running cases: airline check-in, a key-value store on MySQL",
+  "dek": "See pessimistic locking work live on an airline check-in, then build a key-value store on top of MySQL.",
+  "description": "Lecture 03: row locks, deadlocks and isolation; an airline check-in fixed by two SQL words at a time; a key-value store on MySQL where every clause has a cost; Redis expiry; replicas and range shards."
+ },
+ "clip_prefix": "l05-",
+ "overview_part": "s0-header",
+ "overview_sections": ["about"],
+ "chapters": [
+  {"no": "1", "slug": "1-locks", "title": "Locks, in theory",
+   "summary": "Before coding the check-in, the tools: why relational databases are strict, shared and exclusive row locks, SKIP LOCKED and NOWAIT, deadlocks, isolation levels, and where a lock lives.",
+   "writer": "w1", "parts": [{"file": "s1-locks", "sections": ["1.1","1.2","1.3","1.4","1.5","1.6","1.7"]}]},
+  {"no": "2", "slug": "2-check-in", "title": "Building the airline check-in",
+   "summary": "120 passengers, 120 kiosks, one moment. Six versions of one program: four double-book, FOR UPDATE makes it correct, SKIP LOCKED makes it ten times faster.",
+   "writer": "w2", "parts": [{"file": "s2a-check-in", "sections": ["2.1","2.2","2.3"]}, {"file": "s2b-check-in", "sections": ["2.4","2.5","2.6","2.7"]}]},
+  {"no": "3", "slug": "3-kv-store", "title": "A key-value store on MySQL",
+   "summary": "GET, PUT, DELETE and per-key expiry on one table. Each operation starts with the obvious query and ends with a cheaper one.",
+   "writer": "w3", "parts": [{"file": "s3a-kv-store", "sections": ["3.1","3.2","3.3","3.4"]}, {"file": "s3b-kv-store", "sections": ["3.5","3.6","3.7"]}]},
+  {"no": "4", "slug": "4-redis-expiry", "title": "If it were in memory: how Redis expires keys",
+   "summary": "On disk you batch. In memory a delete is nearly free: delete on access, and sample twenty keys at a time for the rest.",
+   "writer": "w4", "parts": [{"file": "s4-redis-expiry", "sections": ["4.1","4.2"]}]},
+  {"no": "5", "slug": "5-distributed", "title": "Making it distributed",
+   "summary": "Grow the single node one bottleneck at a time: more API servers, read replicas, range shards with routing in the API, and what happens to ACID.",
+   "writer": "w4", "parts": [{"file": "s5-distributed", "sections": ["5.1","5.2","5.3","5.4","5.5"]}]},
+  {"no": "6", "slug": "6-craft-and-keep", "title": "Craft, opinions, and what to keep",
+   "summary": "The instructor's views on ORMs, languages and learning, the heuristics from both builds, and where this lecture stops.",
+   "writer": "w2", "parts": [{"file": "s6-keep", "sections": ["6.1","6.2","6.3","6.4"]}]}
+ ]
+}

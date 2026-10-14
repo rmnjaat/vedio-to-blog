@@ -1,0 +1,38 @@
+[
+ {
+  "id": "l08-rr-vs-leastconn",
+  "section": "2.4",
+  "title": "Why long requests pile up",
+  "seconds": 30,
+  "ledger": ["L-0070", "L-0072", "L-0074", "L-0075", "L-0077", "L-0078"],
+  "predict": "Some requests take a second and some take an hour. Which algorithm keeps one server from drowning?",
+  "caption": "Round robin keeps dealing long requests onto a server that is already busy; least connections sends them to a free one. Under high variance, use least connections."
+ },
+ {
+  "id": "l08-stale-config",
+  "section": "4.4",
+  "title": "Nine seconds of errors",
+  "seconds": 28,
+  "ledger": ["L-0154", "L-0164", "L-0167", "L-0169", "L-0170", "L-0171", "L-0176"],
+  "predict": "A backend dies one second after the last poll. With a 10-second poll, for how long do users see errors?",
+  "caption": "With polling, LB servers route to a dead backend from stale config until the next poll. Pushing the change at once closes the window."
+ },
+ {
+  "id": "l08-lock-ttl",
+  "section": "6.6",
+  "title": "A lock outlives its holder's time",
+  "seconds": 32,
+  "ledger": ["L-0257", "L-0263", "L-0264", "L-0267", "L-0268", "L-0269", "L-0270", "L-0273"],
+  "predict": "Consumer 1's job takes six minutes; its lock expires after five. What happens when it finally releases?",
+  "caption": "The lock expires, consumer 2 takes it, and a blind delete by consumer 1 removes consumer 2's lock. Release only if it's still yours, in one atomic step."
+ },
+ {
+  "id": "l08-redlock",
+  "section": "7.2",
+  "title": "Winning a majority",
+  "seconds": 30,
+  "ledger": ["L-0275", "L-0278", "L-0279", "L-0280", "L-0281", "L-0282"],
+  "predict": "Two clients race for one lock on five nodes. One gets three, the other two. What must the second one do now?",
+  "caption": "Three of five, in time, wins the lock; the loser releases what it took and retries after a random delay. Distributing the lock buys fault tolerance, not speed."
+ }
+]

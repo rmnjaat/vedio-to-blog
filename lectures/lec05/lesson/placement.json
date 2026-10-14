@@ -1,0 +1,2608 @@
+{
+ "lecture": "lec05",
+ "ledger": "lectures/lec05/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1.1": "Why relational databases are strict",
+  "1.2": "Why lock at all",
+  "1.3": "Shared and exclusive locks",
+  "1.4": "Don't wait: SKIP LOCKED and NOWAIT",
+  "1.5": "Deadlocks",
+  "1.6": "Isolation levels: why not one at a time?",
+  "1.7": "Where locks live, and how they end",
+  "2.1": "The check-in problem",
+  "2.2": "Approaches 0 to 2: no checks at all",
+  "2.3": "Approach 3: the first free seat",
+  "2.4": "Approach 4: FOR UPDATE",
+  "2.5": "Approach 5: SKIP LOCKED",
+  "2.6": "When the passenger picks the seat",
+  "2.7": "Fixed inventory plus contention",
+  "3.1": "The problem, and one node first",
+  "3.2": "Storing keys and values",
+  "3.3": "Expiry as a timestamp",
+  "3.4": "Delete is an update",
+  "3.5": "Put is an upsert",
+  "3.6": "Get filters expiry in SQL",
+  "3.7": "The cleanup job and the last clause",
+  "4.1": "Lazy deletion",
+  "4.2": "Sampling 20 keys",
+  "5.1": "One MySQL, more API servers",
+  "5.2": "Read replicas",
+  "5.3": "Range shards and routing",
+  "5.4": "ACID after partitioning",
+  "5.5": "Build it yourself",
+  "6.1": "ORMs or raw SQL",
+  "6.2": "Why the demo is in Go",
+  "6.3": "How to learn this",
+  "6.4": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Opening line: week 2, day 1; relational databases briefly, most of the time on (pessimistic) locking."
+  },
+  "L-0002": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening claim of 1.1: NoSQL keeps coming, relational DBs still hold a special place (the lecture's view; 'strictest databases')."
+  },
+  "L-0003": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Pessimistic locking is neglected and feared, yet one of the best database features (stated as the lecture's view)."
+  },
+  "L-0004": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Lecture plan in order: locking theory, live airline check-in demo, break, KV store on a relational DB; mirrors the chapter list."
+  },
+  "L-0005": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition of the second build: a KV interface with a relational DB behind it; building it teaches both."
+  },
+  "L-0006": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Rows, columns and relations; inline clarification (relation = set of tuples, links by keys)."
+  },
+  "L-0007": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Relational DBs as the backbone of the internet."
+  },
+  "L-0008": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Pattern: foundational tech finds its first use in finance (the lecture's observation, attributed)."
+  },
+  "L-0009": {
+   "section": "1.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From the instructor': a father's black-and-white ledger machine; inside the margin note 'Money first'."
+  },
+  "L-0010": {
+   "section": "1.1",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Blockchain first used for money; SN-01 corrects the date (2008 paper, 2009 network).",
+   "source_note": "SN-01"
+  },
+  "L-0011": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Built for accounting, hence rows and columns; inline clarification (general model; finance a big early user)."
+  },
+  "L-0012": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Indexes make reads faster and writes slower (board S04); sets up 3.3 and 3.7 where the expired_at index matters."
+  },
+  "L-0013": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Finance -> very strong guarantees -> ACID core (simplified/low: left as taught)."
+  },
+  "L-0014": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Can't lose or corrupt a transaction, many people update; so transactions are the core."
+  },
+  "L-0015": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Pre-reads: four ACID articles, the index video; the B+ tree video 'tomorrow'."
+  },
+  "L-0016": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Hand-off line of 1.1: anyone can make tables; the crux is how and why you lock."
+  },
+  "L-0017": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "All relational DBs give constructs against corruption; locking is the pessimistic one; board heading."
+  },
+  "L-0018": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "count++ is not atomic, so a critical row allows one transaction at a time (left as taught); A-C-14 as a separate sourced sentence."
+  },
+  "L-0019": {
+   "section": "1.2",
+   "component": "Figure",
+   "also": [],
+   "note": "ACQ_LOCK -> READ/UPDATE -> REL_LOCK flow, Fig 1·a; also the RuleBox sketch shape."
+  },
+  "L-0020": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Two strategies: shared and exclusive (left as taught); A-C-16 optional as a separate sentence."
+  },
+  "L-0021": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "One-at-a-time slows throughput (the rhetorical question answered)."
+  },
+  "L-0022": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Two Medium claps end at count+1; back-link to Lecture 2 (Medium under load)."
+  },
+  "L-0023": {
+   "section": "1.2",
+   "component": "RuleBox",
+   "also": [],
+   "note": "RuleBox §1: lock where correctness matters more than throughput; skip it where it doesn't."
+  },
+  "L-0024": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Locks move the DB from one consistent state to the next (board: sanity -> consistency, integrity)."
+  },
+  "L-0025": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Deadlock: the unannounced side effect of pessimistic locking (board 'Risk: Transactional Deadlock !!')."
+  },
+  "L-0026": {
+   "section": "1.5",
+   "component": "Figure",
+   "also": [],
+   "note": "T1/T2/row 1/row 2 cycle, Fig 1·e (D-01 redraw with the hidden T2 restored); same as the OS deadlock."
+  },
+  "L-0027": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Any pessimistic locking risks a deadlock, always (left as taught)."
+  },
+  "L-0028": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Check lock order in any code that locks; A-C-04 (acquire in ascending key order)."
+  },
+  "L-0029": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Deadlocks are killers' kept as taught; A-C-17 optional sits in the 'From your OS course' MarginNote."
+  },
+  "L-0030": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Popular DBs never let a deadlock persist; inline: they detect and roll one back."
+  },
+  "L-0031": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Detection when a lock would wait; inline + A-C-01 (PostgreSQL waits deadlock_timeout first)."
+  },
+  "L-0032": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Cycle in the wait-for graph = deadlock."
+  },
+  "L-0033": {
+   "section": "1.5",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Engine kills the transaction that would close the cycle (board 'kills itself'); SN-04 on victim choice + A-C-02, A-C-03.",
+   "source_note": "SN-04"
+  },
+  "L-0034": {
+   "section": "1.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'See it yourself': two transactions, two rows, crosswise locks; the last locker is killed."
+  },
+  "L-0035": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "A stuck deadlock would need a reboot; inline: lock wait timeout or killing a session also breaks it."
+  },
+  "L-0036": {
+   "section": "1.5",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "'From your OS course' note: deadlock detection is core CS, applies to OS threads and distributed transactions; echoed in 6.3."
+  },
+  "L-0037": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Two lock types: shared = read lock, exclusive = write lock."
+  },
+  "L-0038": {
+   "section": "1.3",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "SELECT ... FOR SHARE; locks every matched row; A-C-08 optional used (replaces LOCK IN SHARE MODE)."
+  },
+  "L-0039": {
+   "section": "1.3",
+   "component": "Figure",
+   "also": [],
+   "note": "T1 FOR SHARE on rows 1, 2, 6 (Fig 1·b, D-02)."
+  },
+  "L-0040": {
+   "section": "1.3",
+   "component": "Figure",
+   "also": [],
+   "note": "T2 FOR SHARE on 3, 4, 6 also succeeds though 6 is shared (Fig 1·b)."
+  },
+  "L-0041": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Shared lock: holder and others read, nobody else modifies (board 'reserved for read')."
+  },
+  "L-0042": {
+   "section": "1.3",
+   "component": "SourceNote",
+   "also": [],
+   "note": "T2's update of row 6 waits for T1; SN-03: with both holding S on 6, T1 can't update either; both trying = deadlock.",
+   "source_note": "SN-03"
+  },
+  "L-0043": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "High read throughput for read-only cases (left as taught)."
+  },
+  "L-0044": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Holder's modification upgrades S to X implicitly (left as taught); A-C-06 as a separate sourced sentence."
+  },
+  "L-0045": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Any update takes an exclusive lock."
+  },
+  "L-0046": {
+   "section": "1.3",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Exclusive lock: others can't even read (board); SN-02 + A-C-05: plain SELECTs still read the committed version.",
+   "source_note": "SN-02"
+  },
+  "L-0047": {
+   "section": "1.3",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "SELECT ... FOR UPDATE locks the selected rows exclusively."
+  },
+  "L-0048": {
+   "section": "1.3",
+   "component": "Figure",
+   "also": [],
+   "note": "T1 FOR UPDATE on 1, 2, 6; T2 on 3, 4, 6 waits because of 6 (Fig 1·c, D-03, red row 6)."
+  },
+  "L-0049": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Exclusive locks hurt throughput; use them where exclusivity is needed."
+  },
+  "L-0050": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "SQL DBs ship shared and exclusive locks out of the box."
+  },
+  "L-0051": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "SKIP LOCKED: take the unlocked rows, best effort; A-C-07 (inconsistent view; for queue-like tables)."
+  },
+  "L-0052": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Use it when any free rows will do; when you need all rows, you wait."
+  },
+  "L-0053": {
+   "section": "1.4",
+   "component": "Figure",
+   "also": [],
+   "note": "T2 with SKIP LOCKED gets rows 3 and 4 at once (Fig 1·d panel a)."
+  },
+  "L-0054": {
+   "section": "1.4",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "MySQL NOWAIT on a locked row: ERROR 3572 (board S22); Fig 1·d panel b."
+  },
+  "L-0055": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "NOWAIT: other extreme, fail at once; inline + A-C-18 (PostgreSQL aborts the whole transaction)."
+  },
+  "L-0056": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "'Existential crisis' personification, kept with its humour."
+  },
+  "L-0057": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Retry after NOWAIT or not, per business."
+  },
+  "L-0058": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Why NOWAIT: no pointless waiting up to the timeout; '10 seconds' kept as the class's example; A-C-09 as a separate sourced sentence (real defaults)."
+  },
+  "L-0059": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "about",
+     "component": "AboutThisClass"
+    },
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Build only the core you want to learn; the demo codes only the DB part. 'How to use this page' line in About; echoed in 6.3."
+  },
+  "L-0060": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Students who built short/long polling, SSE and WebSockets: 'do that', implementing is where you learn most."
+  },
+  "L-0061": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'85% of what I teach I've built myself' stated as the instructor's own claim; boxes vs implementation details."
+  },
+  "L-0062": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Domain: airlines, flights, 120 seats, trips, one seat per user per trip (board S24)."
+  },
+  "L-0063": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The check-in problem: many people, same seat; fill 120 seats well; board line '120 people... at the same time'."
+  },
+  "L-0064": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [],
+   "note": "Schema with sample rows, Fig 2·a (D-04)."
+  },
+  "L-0065": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [],
+   "note": "Check-in service + MySQL + admin service, Fig 2·b (D-05)."
+  },
+  "L-0066": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Admin service pre-creates one seat row per seat with user_id NULL per trip."
+  },
+  "L-0067": {
+   "section": "2.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Demo data: 120 random names; trip 1 'Air India 1'; seat 1A booked by user 4 (MarginNote 'The demo's data', names not reproduced)."
+  },
+  "L-0068": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Not a reservation system: everyone has paid; only picking seats."
+  },
+  "L-0069": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening image: 120 passengers at 120 kiosks at the same moment."
+  },
+  "L-0070": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Approaches 0 to 5 in mini steps (sets up the chapter)."
+  },
+  "L-0071": {
+   "section": "2.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Why Go: goroutines make concurrency easy; any concurrent language works (MarginNote 'Why Go', links 6.2)."
+  },
+  "L-0072": {
+   "section": "2.2",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Approach 0: user picks a seat; plain UPDATE; 'last one wins' comment; run books 1C."
+  },
+  "L-0073": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [],
+   "note": "Seat naming 1A..1F, 2A..; the seat-map glyph used by Fig 2·c and the clips."
+  },
+  "L-0074": {
+   "section": "2.2",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Approach 0 book(): begin, SELECT seat, UPDATE, commit."
+  },
+  "L-0075": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Zero checks; another user can book the same seat; foundation only."
+  },
+  "L-0076": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Two boarding passes for one seat: chaos in the plane."
+  },
+  "L-0077": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Approach 1: system picks a random seat from all seats, same unchecked UPDATE ('overriding possible')."
+  },
+  "L-0078": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Random can repeat, so duplicates remain."
+  },
+  "L-0079": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Approach 2: 120 goroutines at once, each a random seat, update, commit."
+  },
+  "L-0080": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Goroutine 'like a thread' (left as taught); A-KSD-20 as a separate sourced sentence."
+  },
+  "L-0081": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Predicted in class: same seats, not all filled, depends on rand (folded as 'the prediction made in class was right')."
+  },
+  "L-0082": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [],
+   "note": "Run: map mostly empty, two users on 7-E and two on 12-E (Fig 2·c; seat name from the terminal, not '7C')."
+  },
+  "L-0083": {
+   "section": "2.3",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Approach 3 query: first unoccupied seat ORDER BY id LIMIT 1; A-C-12 (index on trip_id, user_id or it locks the table) in 2.4 MarginNote."
+  },
+  "L-0084": {
+   "section": "2.3",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P2 reveal: concurrent transactions all see the seat as NULL; locking needed (class reasoning, anonymous)."
+  },
+  "L-0085": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "ORDER BY id makes everyone see seat 1 first (left as taught)."
+  },
+  "L-0086": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'Only one seat' prediction; inline: one is possible, the demo got 2-4."
+  },
+  "L-0087": {
+   "section": "2.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 2·d step 3: a commit before another read is what moves the next transaction on."
+  },
+  "L-0088": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Runs: 2, 3 or 4 seats, same seat logged repeatedly (1-C / 1-B)."
+  },
+  "L-0089": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The run shows how relational DBs make locking easy to understand (one line)."
+  },
+  "L-0090": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "If all 120 start while seat 1 is free, all book seat 1."
+  },
+  "L-0091": {
+   "section": "2.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 2·d step 4: the WHERE user_id IS NULL condition, not the code, moves a later reader on."
+  },
+  "L-0092": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Commit makes the value visible to later reads (left as taught); A-C-15 as a separate sourced sentence."
+  },
+  "L-0093": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Hand-off: expected 120, got a handful; everyone read the same old row -> pessimistic locking."
+  },
+  "L-0094": {
+   "section": "2.4",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Approach 4 = approach 3 + 'FOR UPDATE' (diff shown); A-C-20 (ORDER BY with locking can return rows out of order at READ COMMITTED; LIMIT stops locking)."
+  },
+  "L-0095": {
+   "section": "2.4",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P3 wrong option 'deadlock'; the reveal says waiting is not deadlock."
+  },
+  "L-0096": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Waiting != deadlock; deadlock needs a cycle. Also stated in 1.5."
+  },
+  "L-0097": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "'Starvation' prediction; the page says only that the run bears out that all 120 fill (simplified/low: left as taught)."
+  },
+  "L-0098": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Prediction 'second transaction moves to row 2'; SN-07: that is SKIP LOCKED behaviour; plain FOR UPDATE waits.",
+   "source_note": "SN-07"
+  },
+  "L-0099": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Prediction 'verify user_id still NULL after the lock frees' called 'not entirely true'; resolved by re-evaluation (2.4)."
+  },
+  "L-0100": {
+   "section": "1.6",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P1: 'ACID is on by default, so why lock?' asked in class; reveal: ACID is per transaction, the isolation level schedules concurrent ones."
+  },
+  "L-0101": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Durability = flushed on commit (left as taught); A-DL-08 as a separate sourced sentence."
+  },
+  "L-0102": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Isolation and the four level names."
+  },
+  "L-0103": {
+   "section": "1.6",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Serializable = one after another, pathetically slow; SN-05 + A-DL-02, A-DL-03.",
+   "source_note": "SN-05"
+  },
+  "L-0104": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Default isn't serializable, for throughput; row 100 shouldn't wait for row 1; A-DL-01 (MySQL RR, PostgreSQL RC)."
+  },
+  "L-0105": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Configurable; serializable removes the need for locking (left as taught; SN-05 beside L-0103 covers retries)."
+  },
+  "L-0106": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Prediction 'only one seat without SKIP LOCKED'; SN-07: refuted by the run (all 120).",
+   "source_note": "SN-07"
+  },
+  "L-0107": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Prediction 'between 1 and 120 by scheduling'; SN-07: every run fills 120; only user order changes.",
+   "source_note": "SN-07"
+  },
+  "L-0108": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "'Almost 90% correct' prediction: waiters wait for row 1, then see it taken and move on."
+  },
+  "L-0109": {
+   "section": "2.4",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P4: you are the DB engineer; one uniform mechanism must serve range and pointed queries."
+  },
+  "L-0110": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Prediction 'waiters see 1A filled and cancel'; SN-07: they re-check and continue.",
+   "source_note": "SN-07"
+  },
+  "L-0111": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Debugging tip: two words that change nothing mean something is wrong (MarginNote 'A debugging hunch')."
+  },
+  "L-0112": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Run: all 120 filled every time; 1.25 s, 1.73 s, 1.79 s on screen."
+  },
+  "L-0113": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Seats fill in order 1C, 1D, ... 2A; 'the part people skip'."
+  },
+  "L-0114": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: all 120 got the first row; the DB returns no row until the lock is granted."
+  },
+  "L-0115": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 2·e: holder commits -> engine signals waiters -> one gets row 2 -> repeat (left as taught); A-C-11 as a separate sourced sentence in the step text."
+  },
+  "L-0116": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Re-evaluation is the engine re-running the statement, not the client re-firing it."
+  },
+  "L-0117": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "User 1 doesn't get seat 1; whoever is scheduled gets the next seat."
+  },
+  "L-0118": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Painful for the DB, but correct."
+  },
+  "L-0119": {
+   "section": "2.5",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Approach 5 = + SKIP LOCKED (diff)."
+  },
+  "L-0120": {
+   "section": "2.5",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P5: predicted 'faster, all filled' (class); 'busy waiting' wording kept as the class's, with the 2.4 correction."
+  },
+  "L-0121": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "1.7 s -> 147 ms, about a tenth, all 120 filled (terminal numbers)."
+  },
+  "L-0122": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Still an exclusive lock; engine moves straight to the next matching row; both of the instructor's wordings kept ('re-evaluated' / no re-evaluation, 2.5 MarginNote)."
+  },
+  "L-0123": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'10x faster from two words' (left as taught); back-link to A-C-07 in 1.4."
+  },
+  "L-0124": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Relational DBs scale beautifully' (left as taught); the Vitess sentence (A-DL-19) in 2.7 follows up."
+  },
+  "L-0125": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Recap: approaches 0-5 differ by two or three words: fail, then correct, then fast."
+  },
+  "L-0126": {
+   "section": "2.7",
+   "component": "RuleBox",
+   "also": [],
+   "note": "RuleBox §2: 'Fixed inventory + contention = locking' (board D-05 caption)."
+  },
+  "L-0127": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Here: 120 seats, 120 people."
+  },
+  "L-0128": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "COVID portal; inline: CoWIN, 2021, vaccination slots."
+  },
+  "L-0129": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Not necessarily pessimistic: optimistic locking or atomic instructions also work; ForwardChip optimistic locking."
+  },
+  "L-0130": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "IRCTC: the instructor expects skip locks in its code (stated as his inference, unverified)."
+  },
+  "L-0131": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "BookMyShow with an exclusive lock."
+  },
+  "L-0132": {
+   "section": "2.7",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Flash sale uses the same pattern; designed later in the course (week 7, not in these ten sessions)."
+  },
+  "L-0133": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Locks live in the engine, not the disk; inline + A-C-19 (PostgreSQL marks row locks on the row itself)."
+  },
+  "L-0134": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Built with mutexes, semaphores, monitors or atomic instructions; inline: all rest on hardware atomics."
+  },
+  "L-0135": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "10-minute payment hold is not a SQL lock; 'you would never want to do that'."
+  },
+  "L-0136": {
+   "section": "2.7",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Flash sale in week 7 with prerequisites in weeks 3, 5, 6; chip text 'later in the course'."
+  },
+  "L-0137": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "'Hold', not 'lock' (vocabulary callout); Fig 2·g."
+  },
+  "L-0138": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Pointed seat choice: no SKIP LOCKED; plain FOR UPDATE on that seat (live edit id = 67)."
+  },
+  "L-0139": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "The waiter re-checks the same seat 67."
+  },
+  "L-0140": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea: the waiter gets another seat; it can't, the WHERE pins id = 67."
+  },
+  "L-0141": {
+   "section": "2.6",
+   "component": "Figure",
+   "also": [],
+   "note": "Fig 2·f: one booking wins, the other matches no rows -> 'seat's gone'."
+  },
+  "L-0142": {
+   "section": "1.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Try it in two terminals' note: FOR SHARE then update by the holder; class was told to code it out (link SN-03)."
+  },
+  "L-0143": {
+   "section": "1.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Two terminals, autocommit 0, begin in each, take locks, watch one halt."
+  },
+  "L-0144": {
+   "section": "1.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "That's also where you find deadlocks."
+  },
+  "L-0145": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Failed holder under SKIP LOCKED: its row is not lost; the next statement matches it."
+  },
+  "L-0146": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Rows aren't assigned in order of transactions; whoever executes gets the match."
+  },
+  "L-0147": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "ORDER BY makes the released row first (left as taught)."
+  },
+  "L-0148": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: query evaluated once for all waiters; it is re-triggered on each signal."
+  },
+  "L-0149": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "MySQL's source uses these terms (signals); readable C/C++."
+  },
+  "L-0150": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor learned transactions by reading MySQL's code (his account)."
+  },
+  "L-0151": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Spend a week in MySQL's source."
+  },
+  "L-0152": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Internals reading helped him scale SQL systems (his account)."
+  },
+  "L-0153": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Official docs rule; little content on advanced material."
+  },
+  "L-0154": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "About 120 evaluations in total with SKIP LOCKED (class figure confirmed)."
+  },
+  "L-0155": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Worst case N(N+1)/2 evaluations with plain FOR UPDATE, inside the engine, not queries; 7,260 for N = 120 (page's arithmetic)."
+  },
+  "L-0156": {
+   "section": "1.7",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Plain UPDATE: 'isolation level kicks in'; SN-06 + A-DL-05.",
+   "source_note": "SN-06"
+  },
+  "L-0157": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "A transaction waits only because it wants a lock."
+  },
+  "L-0158": {
+   "section": "1.7",
+   "component": "SourceNote",
+   "also": [],
+   "note": "'Can't FOR UPDATE an UPDATE... never acquired a lock' kept; SN-06 + A-DL-04: an UPDATE always takes the X lock.",
+   "source_note": "SN-06"
+  },
+  "L-0159": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "SELECT ... FOR UPDATE then UPDATE (left as taught; SN-06 sits beside it)."
+  },
+  "L-0160": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "No explicit unlock; commit (or abort) releases all locks."
+  },
+  "L-0161": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Never span a transaction across a 10-minute payment; throughput collapses."
+  },
+  "L-0162": {
+   "section": "2.7",
+   "component": "Figure",
+   "also": [],
+   "note": "Phases: lock a moment, mark 'on hold', commit; wait for payment outside any transaction (Fig 2·g)."
+  },
+  "L-0163": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea: waiters busy-loop; in fact a wait queue and signalling."
+  },
+  "L-0164": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "'From your OS course' note: thread signalling taught in college; the instructor backs formal education; also 6.3 echo."
+  },
+  "L-0165": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Closing myth: 'relational DBs don't scale'; partitioning, sharding; A-DL-19 (Vitess, YouTube)."
+  },
+  "L-0166": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Second half: distributed KV store in implementation depth with Redis detours."
+  },
+  "L-0167": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "From now on, systems are brainstormed with reasons, not handed over (explains the build-up style of ch 3)."
+  },
+  "L-0168": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Second problem: distributed KV store on a relational DB (board S50)."
+  },
+  "L-0169": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'Distributed' added on purpose because folks love it."
+  },
+  "L-0170": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Single node first; no Paxos/Raft on day zero. Restated in the §5 RuleBox body."
+  },
+  "L-0171": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirement: infinitely scalable (by default)."
+  },
+  "L-0172": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Operations: GET, PUT, DEL, TTL."
+  },
+  "L-0173": {
+   "section": "3.1",
+   "component": "SourceNote",
+   "also": [],
+   "note": "'Apache Ignite is built on a relational DB' kept; SN-09 + A-KSD-17.",
+   "source_note": "SN-09"
+  },
+  "L-0174": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Brainstorm in five parts: storage, optimize storage, insert, update, TTL; the subsection order follows it."
+  },
+  "L-0175": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "First idea 'an array' (no verdict) mentioned in one clause."
+  },
+  "L-0176": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Key as primary key, value as string: the starting point."
+  },
+  "L-0177": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea: ignore storage size; correction: it's a database."
+  },
+  "L-0178": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Column type decides which keys you support."
+  },
+  "L-0179": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "VARCHAR(16), or 24, 30-60; A-KSD-01 (long PK bloats every secondary index)."
+  },
+  "L-0180": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Key type is fixed forever; inline + A-KSD-19 (in-place growth limits, else full copy)."
+  },
+  "L-0181": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea: value type by what is stored; 'partially true'."
+  },
+  "L-0182": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "BLOB stores anything (left as taught); A-KSD-02 as a separate sourced sentence."
+  },
+  "L-0183": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Pull line of 3.2: the value's type follows how it is accessed, not what it holds."
+  },
+  "L-0184": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "MongoDB stores JSON by id and queries inside; inline: document DB, BSON _id."
+  },
+  "L-0185": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Typed value column allows range queries on the value."
+  },
+  "L-0186": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "JSON type for querying inside (left as taught); A-KSD-14 optional as a separate sentence."
+  },
+  "L-0187": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [],
+   "note": "Decision: value is a black box BLOB; Fig 3·a step 1."
+  },
+  "L-0188": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 3·a step 2: created_at + background job proposal."
+  },
+  "L-0189": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Per-key TTL at second granularity."
+  },
+  "L-0190": {
+   "section": "3.3",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P6 question: created_at + ttl_sec and DELETE ... now - created_at >= ttl."
+  },
+  "L-0191": {
+   "section": "3.3",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P6 reveal: worst query, no index on a computed value, full scan every time (left as taught)."
+  },
+  "L-0192": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Root cause named: the computation; get rid of it."
+  },
+  "L-0193": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'Valid till' column, indexed: the idea that became expired_at."
+  },
+  "L-0194": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Fig 3·a step 3: expired_at absolute time; A-KSD-06 (Redis stores absolute timestamps too)."
+  },
+  "L-0195": {
+   "section": "3.3",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "DELETE FROM store WHERE expired_at <= now with an index; A-KSD-07 (chunk with LIMIT)."
+  },
+  "L-0196": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Soft delete proposal: mark, purge later, avoid rebalancing (left as taught; SN-11 in 4.1 has the engine detail)."
+  },
+  "L-0197": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "is_deleted + second job: two jobs."
+  },
+  "L-0198": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Piggyback: set expired_at negative on delete."
+  },
+  "L-0199": {
+   "section": "3.4",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "UPDATE store SET expired_at = -1 WHERE key = K (left as taught; A-KSD-09 at L-0265 covers column types)."
+  },
+  "L-0200": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Saves a job: CPU, disk, reads, storage."
+  },
+  "L-0201": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Reads must filter expired keys too (handed to 3.6)."
+  },
+  "L-0202": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "One job matches both expired and deleted rows ('elegant')."
+  },
+  "L-0203": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "A value-type column only if multiple value types are supported."
+  },
+  "L-0204": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Naive insert of key, value, expired_at."
+  },
+  "L-0205": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "PUT K1 V1 then PUT K1 V2: second insert fails on the PK."
+  },
+  "L-0206": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting fix: a WHERE on expiry; a put must replace."
+  },
+  "L-0207": {
+   "section": "3.5",
+   "component": "Figure",
+   "also": [],
+   "note": "Get-then-insert/update: a get plus a put; Fig 3·c left lane; A-KSD-05 (also racy)."
+  },
+  "L-0208": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirement: insert-or-update without reading first."
+  },
+  "L-0209": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting fix: expire old + insert new; still a read, and the PK forbids two rows."
+  },
+  "L-0210": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Devil lies in the details': people draw boxes."
+  },
+  "L-0211": {
+   "section": "3.5",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P7 reveal: insert, and if it exists update (upsert) as proposed in class."
+  },
+  "L-0212": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Upsert: one atomic statement."
+  },
+  "L-0213": {
+   "section": "3.5",
+   "component": "SourceNote",
+   "also": [],
+   "note": "'In Postgres replace INSERT with UPSERT' kept; SN-10 + A-KSD-03.",
+   "source_note": "SN-10"
+  },
+  "L-0214": {
+   "section": "3.5",
+   "component": "Figure",
+   "also": [],
+   "note": "PUT K1 V2 replaces V1 (Fig 3·a step 5)."
+  },
+  "L-0215": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Why faster: no round trip to bring the row to the API, no big transaction."
+  },
+  "L-0216": {
+   "section": "3.5",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Clauses per DB: UPSERT / REPLACE INTO / ON DUPLICATE KEY UPDATE; SN-10 + A-KSD-04.",
+   "source_note": "SN-10"
+  },
+  "L-0218": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Native upserts keep throughput high, DB load minimal."
+  },
+  "L-0219": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Update is the same operation as put."
+  },
+  "L-0220": {
+   "section": "3.6",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P8 wrong option: fetch, check expiry in the API; 10 MB shipped for nothing."
+  },
+  "L-0221": {
+   "section": "3.6",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "GET ... WHERE key = k AND expired_at > now."
+  },
+  "L-0222": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Saves network IO of server and DB, and the DB's disk read of a huge value."
+  },
+  "L-0223": {
+   "section": "3.6",
+   "component": "RuleBox",
+   "also": [],
+   "note": "RuleBox §3: micro decisions in every line decide performance."
+  },
+  "L-0225": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Open question from class: a newbie overwriting transactional data via upsert; deferred and never answered (logged as open)."
+  },
+  "L-0226": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "The instructor's view: such human error is the lead's responsibility; review thoroughly (attributed opinion)."
+  },
+  "L-0228": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Single-node schema: store(key, value, TTL as absolute expiry, is_deleted) from the slides; alias note expired_at = ttl."
+  },
+  "L-0229": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "No auto-increment ID by habit; add only if needed (ORM habit)."
+  },
+  "L-0230": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "'ORMs suck' as the instructor's opinion; one clause in 3.2, full in 6.1."
+  },
+  "L-0231": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "-1 in the expiry column instead of is_deleted saves a column."
+  },
+  "L-0232": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "User delete = update; hard deletes batched; less B+ tree rebalancing; inline: InnoDB delete-marks, merges under 50%."
+  },
+  "L-0233": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Concurrent puts: reuse chapter 1's locks or isolation levels (the bridge between the halves)."
+  },
+  "L-0234": {
+   "section": "3.5",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "FOR UPDATE NOWAIT 'just for fancy' (left as taught)."
+  },
+  "L-0235": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "No right choice among SKIP LOCKED, NOWAIT, waiting: depends on guarantees."
+  },
+  "L-0236": {
+   "section": "3.7",
+   "component": "Figure",
+   "also": [],
+   "note": "Cron batch delete every t (10) minutes; Fig 3·d (D-07)."
+  },
+  "L-0237": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Lazy deletion: delete an expired key when it is read."
+  },
+  "L-0238": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Almost all in-memory DBs do it; not for disk."
+  },
+  "L-0239": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "In-memory delete is free() (left as taught; SN-13 covers big values)."
+  },
+  "L-0240": {
+   "section": "4.1",
+   "component": "SourceNote",
+   "also": [],
+   "note": "'No lazy deletion on disk: every micro delete rebalances' kept; SN-11 + A-KSD-10.",
+   "source_note": "SN-11"
+  },
+  "L-0241": {
+   "section": "4.1",
+   "component": "RuleBox",
+   "also": [],
+   "note": "RuleBox §4: on disk, batch; in memory, pointed deletes."
+  },
+  "L-0242": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis hard-deletes on DEL and on lazy access (left as taught; 4.2 covers the periodic cycle)."
+  },
+  "L-0243": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Never-read keys need a periodic job anyway (hand-off to 4.2)."
+  },
+  "L-0244": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis merges lazy + periodic."
+  },
+  "L-0245": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Deleting every expired key each run takes too long with millions."
+  },
+  "L-0246": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Lazy deletion handles ~90% (the instructor's estimate, hedged)."
+  },
+  "L-0247": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "also": [],
+   "note": "20 random keys with TTL; SN-12 + A-KSD-11 (Redis 6+ incremental scan).",
+   "source_note": "SN-12"
+  },
+  "L-0248": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Sampling not for disk (links 4.2 P9)."
+  },
+  "L-0249": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "also": [],
+   "note": "Repeat while > 25% deleted; SN-12 (10% today).",
+   "source_note": "SN-12"
+  },
+  "L-0250": {
+   "section": "4.2",
+   "component": "Figure",
+   "also": [],
+   "note": "Sample vs population, Fig 4·b."
+  },
+  "L-0251": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "3 of 20 = 15%: delete and stop (left as taught; SN-12 gives today's rule)."
+  },
+  "L-0252": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Speed over completeness, single thread."
+  },
+  "L-0253": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "also": [],
+   "note": "'No multiple threads anywhere' kept; SN-13 + A-KSD-12.",
+   "source_note": "SN-13"
+  },
+  "L-0254": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "20-25% of memory worst case; inline: share of keys-with-TTL, ~10% today."
+  },
+  "L-0255": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "'Exactly 20 because of the CLT, paper on Redis's site': instructor's explanation, not independently verified (inline hedge)."
+  },
+  "L-0256": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "'Works up to 5 million keys' (instructor's figure, hedged)."
+  },
+  "L-0257": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "No one way to build a system."
+  },
+  "L-0258": {
+   "section": "3.7",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "UPDATE store SET ttl = -1 WHERE key = k1 AND ttl > now (left as taught); A-KSD-08 as a separate sourced sentence (NULL TTL)."
+  },
+  "L-0259": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Already-expired key: no row write, no disk IO; 'heads you win, tails you win'."
+  },
+  "L-0260": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Saves two disk IOs (row + ttl index) (left as taught)."
+  },
+  "L-0261": {
+   "section": "3.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Found in Apache Ignite, load-mimicked, then understood (instructor's story)."
+  },
+  "L-0262": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Do disk IO only when needed; also in RuleBox §3 body."
+  },
+  "L-0263": {
+   "section": "3.7",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Final queries card; inline + A-KSD-08: GET must also return keys with no TTL."
+  },
+  "L-0264": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Why -1 at all: keys without TTL never expire; delete must write a marker."
+  },
+  "L-0265": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Any magic value, e.g. before 1970 (left as taught); A-KSD-09 as a separate sourced sentence (TIMESTAMP range)."
+  },
+  "L-0266": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "The saving relies on the index on ttl (confirmed in class)."
+  },
+  "L-0267": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Could you buffer writes in memory?': an append-only in-memory layer = a cache in front, not the core."
+  },
+  "L-0268": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Limited by memory; keys must fit and be flushed."
+  },
+  "L-0269": {
+   "section": "3.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Two such optimizations come in weeks 5 and 6 (chip: Lecture 9 builds an in-memory cache; Lecture 10 an append-only store)."
+  },
+  "L-0270": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Distribute only when one node can't handle network, disk, data or queries."
+  },
+  "L-0271": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [],
+   "note": "user -> LB -> KV API servers -> MySQL + batch cleanup, Fig 5·a (D-08)."
+  },
+  "L-0272": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Add API servers while MySQL holds."
+  },
+  "L-0273": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "When MySQL can't: read the access pattern from metrics first."
+  },
+  "L-0274": {
+   "section": "5.2",
+   "component": "Figure",
+   "also": [],
+   "note": "Read-heavy (99:1 board) -> replicas, staleness accepted, Fig 5·b (D-09)."
+  },
+  "L-0275": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Consistent reads/writes/deletes to master; async replication; A-KSD-15."
+  },
+  "L-0276": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "API servers hold both connections and pick per request; no proxy yet."
+  },
+  "L-0277": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Writes too many: vertical first, then shard (board S75)."
+  },
+  "L-0278": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Sharding: disjoint portions on different DBs."
+  },
+  "L-0279": {
+   "section": "5.3",
+   "component": "Figure",
+   "also": [],
+   "note": "A-M / N-Z masters, each with replicas, Fig 5·c (D-10)."
+  },
+  "L-0280": {
+   "section": "5.3",
+   "component": "Figure",
+   "also": [],
+   "note": "Each shard master has its own cleanup job (Fig 5·c)."
+  },
+  "L-0281": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "API servers hold connections to all; minimizing connections is another problem."
+  },
+  "L-0282": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Google's stock -> master 1; Zomato -> master 2."
+  },
+  "L-0283": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Routing table lives in the KV API (simplistic)."
+  },
+  "L-0284": {
+   "section": "5.3",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Hot partitions, dynamic resharding, consistent hashing: Lecture 9 (week 5)."
+  },
+  "L-0285": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Request flow: look up range, use that connection, return."
+  },
+  "L-0286": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "~90% of sharded DBs are fixed ranges (instructor's estimate, hedged)."
+  },
+  "L-0287": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Resharding about once a quarter (instructor's estimate, hedged)."
+  },
+  "L-0288": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Add a node, split into three ranges."
+  },
+  "L-0289": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The resulting setup summarised (caption of Fig 5·c)."
+  },
+  "L-0290": {
+   "section": "5.1",
+   "component": "RuleBox",
+   "also": [],
+   "note": "RuleBox §5: don't over-complicate at first."
+  },
+  "L-0291": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Exercise: two local MySQL servers, one API with routing, HTTP endpoint."
+  },
+  "L-0292": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Stretch: a replica via binlog / WAL streaming; inline wording fix."
+  },
+  "L-0293": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Implement it once and it becomes clear; no batch job needed for this exercise."
+  },
+  "L-0294": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "User delete clause (ttl > now) vs batch clause (ttl <= now) distinguished."
+  },
+  "L-0295": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Unpartitioned: same ACID as MySQL (left as taught)."
+  },
+  "L-0296": {
+   "section": "5.4",
+   "component": "Figure",
+   "also": [],
+   "note": "No ACID across partitions; Fig 5·d; inline + A-KSD-16."
+  },
+  "L-0297": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Distributed transactions cost a lot (left as taught; A-KSD-16 sits beside L-0296)."
+  },
+  "L-0298": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "ACID holds within one shard."
+  },
+  "L-0299": {
+   "section": "2.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Asked in class about a fast booking app; the instructor had no information (honest non-answer kept)."
+  },
+  "L-0300": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Mock locally: one DB + one replica + your app; skip autoscaling and CRUD."
+  },
+  "L-0301": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Sampling touches only the sample; leftover expired keys under the threshold (left as taught)."
+  },
+  "L-0302": {
+   "section": "4.2",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P9 wrong option: on disk you'd fetch everything first; correction: picking 20 is possible but expensive."
+  },
+  "L-0303": {
+   "section": "4.2",
+   "component": "PauseAndThink",
+   "also": [],
+   "note": "P9 reveal: 20 random disk IOs on disk vs cheap in memory."
+  },
+  "L-0304": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "On disk, skim rows and delete expired instead."
+  },
+  "L-0305": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Autocommit: standalone statement commits itself; inside BEGIN...COMMIT locks behave as shown."
+  },
+  "L-0306": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "SKIP LOCKED reads a whole page (B+ tree node) and skips locked rows without re-evaluation."
+  },
+  "L-0307": {
+   "section": "2.5",
+   "component": "SourceNote",
+   "also": [],
+   "note": "LIMIT applied last; SN-08 + A-DL-06, A-DL-07.",
+   "source_note": "SN-08"
+  },
+  "L-0308": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "ORMs don't generate optimal queries; A-DL-17 (N+1)."
+  },
+  "L-0309": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Control vs speed; stored procedures; inline + A-DL-18 optional."
+  },
+  "L-0310": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Good mid-scale, worst at high scale (opinion)."
+  },
+  "L-0311": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Startups should use one; he does too."
+  },
+  "L-0312": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "SELECT all columns by default (left as taught); A-DL-16 optional as a separate sentence."
+  },
+  "L-0313": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Startups can't rely on hand-written queries (garbled sentence; reading flagged as interpretation)."
+  },
+  "L-0314": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "SQL more readable than ORM code; prefetch_related, Hibernate 'utter mess' (opinion)."
+  },
+  "L-0315": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Built for all DBs, so DB-specific constructs need raw queries."
+  },
+  "L-0316": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'ORMs suck at pooling'; inline + A-DL-14, A-DL-15."
+  },
+  "L-0317": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Native SQL inside the ORM for big queries: a good compromise (agreed in class)."
+  },
+  "L-0318": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "10-15 table joins: ORM unreadable, SQL elegant (instructor's example)."
+  },
+  "L-0319": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor writes minimal Java; Python, Go, C++ otherwise."
+  },
+  "L-0320": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Java abused by abstraction; injection hurts readability (opinion)."
+  },
+  "L-0321": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Go's concurrency and GC (opinion, hedged)."
+  },
+  "L-0322": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "From practice: a team chose Vert.x over Spring Boot for control (no names)."
+  },
+  "L-0323": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "JVM ~200 MB at start (instructor's figure, hedged)."
+  },
+  "L-0324": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "FizzBuzz Enterprise Edition on GitHub."
+  },
+  "L-0325": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "LinkedIn backlash (his account)."
+  },
+  "L-0326": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Over-engineering from surviving decades; not saying Go is best."
+  },
+  "L-0327": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Circle of life: 'die a hero or live long enough to become enterprise'."
+  },
+  "L-0328": {
+   "section": "3.5",
+   "component": "Figure",
+   "also": [],
+   "note": "SELECT TOP 1 1 then write: four trips vs two (Fig 3·c right lane)."
+  },
+  "L-0329": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "DB time is tiny; the network dominates."
+  },
+  "L-0330": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "TOP 1 1 avoids reading the value but still pays a round trip."
+  },
+  "L-0331": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Many production systems do get-then-set (instructor's observation)."
+  },
+  "L-0332": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Lock wait timeout exceeded' = waited too long; A-C-10 (only the statement rolls back)."
+  },
+  "L-0333": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Two causes: long job (raise timeout) or forgotten commit (left as taught)."
+  },
+  "L-0334": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Why not hard-delete at once: rebalancing cost; inline: InnoDB delete-marks, no immediate rebalance."
+  },
+  "L-0335": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Almost all DBs soft delete then batch (left as taught); A-DL-09, A-DL-10 as separate sourced sentences."
+  },
+  "L-0336": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Read about B+ tree rebalancing (the instructor's video; Lecture 1 back-link)."
+  },
+  "L-0337": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis deletes inline because free() is microseconds (left as taught)."
+  },
+  "L-0338": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Delete marks the slot free; inline: Redis dict uses chaining, unlinks the entry."
+  },
+  "L-0339": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Delegate only expensive work."
+  },
+  "L-0340": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Delay keeps memory used and rejects inserts at full (left as taught)."
+  },
+  "L-0341": {
+   "section": "6.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Server can't connect to a user: no IP (left as taught); back-link Lecture 1."
+  },
+  "L-0342": {
+   "section": "6.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Tempting idea: server polls the user; in fact the user pushes."
+  },
+  "L-0343": {
+   "section": "6.4",
+   "component": "SourceNote",
+   "also": [],
+   "note": "WebSocket existence = presence; SN-15 + A-KSD-13 (ping/pong still needed).",
+   "source_note": "SN-15"
+  },
+  "L-0344": {
+   "section": "6.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Try disabling WebSockets on WhatsApp Web (untested suggestion)."
+  },
+  "L-0345": {
+   "section": "3.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Real KV stores: Redis in-memory, DynamoDB not on an RDBMS, Ignite's code similar (left as taught; SN-09 at L-0173 covers Ignite)."
+  },
+  "L-0346": {
+   "section": "3.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "The relational DB is a teaching vehicle for micro-optimizations."
+  },
+  "L-0347": {
+   "section": "4.2",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Build an in-memory distributed cache: Lecture 9 (week 5)."
+  },
+  "L-0348": {
+   "section": "3.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "A persistent KV store differs only in the storage layer."
+  },
+  "L-0349": {
+   "section": "6.4",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "KV storage engines: Lecture 10 (append-only, BitCask); LSM trees come after these ten sessions."
+  },
+  "L-0350": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "No code snippets: write it, make mistakes."
+  },
+  "L-0351": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor's first build hit deadlocks then throughput problems (his account)."
+  },
+  "L-0352": {
+   "section": "5.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Implement a load balancer: Lecture 5."
+  },
+  "L-0353": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Why don't databases ship soft delete?': building blocks only (left as taught); A-DL-12 optional as a separate sentence."
+  },
+  "L-0354": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Built-in soft delete would need a cleanup process and add cognitive load."
+  },
+  "L-0355": {
+   "section": "3.4",
+   "component": "SourceNote",
+   "also": [],
+   "note": "'DynamoDB always soft-deletes' kept; SN-14 + A-DL-11.",
+   "source_note": "SN-14"
+  },
+  "L-0356": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "2011-12 MySQL forum thread: know what you don't want (instructor's recollection)."
+  },
+  "L-0357": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Design a DB by what you won't do; give raw constructs. On the 6.4 heuristics card."
+  },
+  "L-0358": {
+   "section": "6.4",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next: NoSQL, then scaling WebSockets via Slack: Lecture 4."
+  },
+  "L-0359": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Last week's blog assignment: no frontend, APIs, polling, Kafka; focus on what matters."
+  }
+ },
+ "dropped": [
+  {
+   "id": "L-0217",
+   "reason": "Pure logistics: 'Google these clauses; covered later in this discussion'. The clauses themselves are placed (L-0216, SN-10)."
+  },
+  {
+   "id": "L-0224",
+   "reason": "Pure logistics: 'one more optimization later' pointer; the optimization itself is L-0258 in 3.7."
+  },
+  {
+   "id": "L-0227",
+   "reason": "Pure logistics: internal agenda ('still to cover: high-level design, distribution, Redis'); each topic is placed in ch 4 and 5."
+  }
+ ],
+ "source_notes": {
+  "SN-01": [
+   "L-0010"
+  ],
+  "SN-02": [
+   "L-0046"
+  ],
+  "SN-03": [
+   "L-0042"
+  ],
+  "SN-04": [
+   "L-0033"
+  ],
+  "SN-05": [
+   "L-0103"
+  ],
+  "SN-06": [
+   "L-0156",
+   "L-0158"
+  ],
+  "SN-07": [
+   "L-0098",
+   "L-0106",
+   "L-0107",
+   "L-0110"
+  ],
+  "SN-08": [
+   "L-0307"
+  ],
+  "SN-09": [
+   "L-0173"
+  ],
+  "SN-10": [
+   "L-0213",
+   "L-0216"
+  ],
+  "SN-11": [
+   "L-0240"
+  ],
+  "SN-12": [
+   "L-0247",
+   "L-0249"
+  ],
+  "SN-13": [
+   "L-0253"
+  ],
+  "SN-14": [
+   "L-0355"
+  ],
+  "SN-15": [
+   "L-0343"
+  ]
+ },
+ "additions": {
+  "A-C-01": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "PostgreSQL sleeps deadlock_timeout (1 s) before checking (L-0031 inline)."
+  },
+  "A-C-02": {
+   "section": "1.5",
+   "component": "SourceNote",
+   "note": "SN-04: InnoDB rolls back the smaller transaction; ERROR 1213; retry the whole transaction."
+  },
+  "A-C-03": {
+   "section": "1.5",
+   "component": "SourceNote",
+   "note": "SN-04: Oracle rolls back one statement only."
+  },
+  "A-C-04": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Lock rows in one order (ascending key); same-order lockers can't cycle."
+  },
+  "A-C-05": {
+   "section": "1.3",
+   "component": "SourceNote",
+   "note": "SN-02: MVCC reads ignore X locks; InnoDB SERIALIZABLE exception."
+  },
+  "A-C-06": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Lock upgrade as a deadlock source (L-0044 inline)."
+  },
+  "A-C-07": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "SKIP LOCKED gives an inconsistent view; for queue-like tables. The one shown of the three near-duplicates."
+  },
+  "A-C-08": {
+   "section": "1.3",
+   "component": "CodeBlock",
+   "note": "(optional, used) FOR SHARE replaces LOCK IN SHARE MODE; both FOR forms take NOWAIT / SKIP LOCKED. A code comment."
+  },
+  "A-C-09": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "Real lock-wait defaults: InnoDB 50 s, PostgreSQL waits forever (L-0058 inline)."
+  },
+  "A-C-10": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "note": "Lock wait timeout rolls back only the statement; roll back or retry (L-0332)."
+  },
+  "A-C-11": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "note": "Fig 2·e step text: READ COMMITTED re-checks; PostgreSQL REPEATABLE READ errors instead."
+  },
+  "A-C-12": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "note": "Index (trip_id, user_id) or the locking read locks every scanned row (MarginNote 'Why the index matters')."
+  },
+  "A-C-14": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "A single UPDATE ... +1 doesn't lose updates (L-0018 inline)."
+  },
+  "A-C-15": {
+   "section": "2.3",
+   "component": "Prose",
+   "note": "REPEATABLE READ snapshot at first read (L-0092 inline)."
+  },
+  "A-C-16": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "(optional, used) PostgreSQL's four row-lock strengths (L-0020 inline)."
+  },
+  "A-C-17": {
+   "section": "1.5",
+   "component": "MarginNote",
+   "note": "(optional, used) innodb_deadlock_detect=OFF on very hot systems, in the 'deadlocks are killers' MarginNote."
+  },
+  "A-C-18": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "PostgreSQL: any error aborts the transaction block (L-0055 inline)."
+  },
+  "A-C-19": {
+   "section": "1.7",
+   "component": "Prose",
+   "note": "PostgreSQL marks row locks in the row; FOR UPDATE can write to disk (L-0133 inline)."
+  },
+  "A-C-20": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "ORDER BY + locking clause can return rows out of order; LIMIT stops locking."
+  },
+  "A-DL-01": {
+   "section": "1.6",
+   "component": "Prose",
+   "note": "Defaults: MySQL REPEATABLE READ, PostgreSQL READ COMMITTED."
+  },
+  "A-DL-02": {
+   "section": "1.6",
+   "component": "SourceNote",
+   "note": "SN-05: PostgreSQL SERIALIZABLE aborts with 40001; retry."
+  },
+  "A-DL-03": {
+   "section": "1.6",
+   "component": "SourceNote",
+   "note": "SN-05: InnoDB SERIALIZABLE turns SELECTs into FOR SHARE; two bookers can deadlock."
+  },
+  "A-DL-04": {
+   "section": "1.7",
+   "component": "SourceNote",
+   "note": "SN-06: FOR UPDATE locks 'as if you issued an UPDATE'."
+  },
+  "A-DL-05": {
+   "section": "1.7",
+   "component": "SourceNote",
+   "note": "SN-06: second UPDATE waits, then re-checks (RC) or aborts (RR)."
+  },
+  "A-DL-06": {
+   "section": "2.5",
+   "component": "SourceNote",
+   "note": "SN-08: OFFSET rows are still computed; keyset pagination."
+  },
+  "A-DL-07": {
+   "section": "2.5",
+   "component": "SourceNote",
+   "note": "SN-08: LIMIT stops early on an index; a filesort reads everything first."
+  },
+  "A-DL-08": {
+   "section": "1.6",
+   "component": "Prose",
+   "note": "Redo log flushed at commit by default (L-0101 inline)."
+  },
+  "A-DL-09": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "note": "InnoDB delete-marks and purges later (L-0335 inline)."
+  },
+  "A-DL-10": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "note": "PostgreSQL keeps old row versions until VACUUM (L-0335 inline)."
+  },
+  "A-DL-11": {
+   "section": "3.4",
+   "component": "SourceNote",
+   "note": "SN-14: DynamoDB TTL deletes within days; filter expired items."
+  },
+  "A-DL-12": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "note": "(optional, used) Temporal tables as opt-in built-in history (L-0353 inline)."
+  },
+  "A-DL-14": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "Django CONN_MAX_AGE 0; pooling only in 5.1 (L-0316 inline)."
+  },
+  "A-DL-15": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "SQLAlchemy QueuePool by default (L-0316 inline)."
+  },
+  "A-DL-16": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "(optional, used) only()/defer()/values() projections (L-0312 inline)."
+  },
+  "A-DL-17": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "N+1 queries; select_related / prefetch_related (with L-0308)."
+  },
+  "A-DL-18": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "(optional, used) callproc() and raw() (L-0309 inline)."
+  },
+  "A-DL-19": {
+   "section": "2.7",
+   "component": "Prose",
+   "note": "Vitess served all YouTube DB traffic (with L-0165, L-0124 inline)."
+  },
+  "A-KSD-01": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "Long PK bloats secondary indexes; short PK advantageous."
+  },
+  "A-KSD-02": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "BLOB size classes (L-0182 inline)."
+  },
+  "A-KSD-03": {
+   "section": "3.5",
+   "component": "SourceNote",
+   "note": "SN-10: PostgreSQL ON CONFLICT ... DO UPDATE with EXCLUDED; also the CodeBlock."
+  },
+  "A-KSD-04": {
+   "section": "3.5",
+   "component": "SourceNote",
+   "note": "SN-10: REPLACE INTO deletes + inserts; ON DUPLICATE KEY UPDATE in place."
+  },
+  "A-KSD-05": {
+   "section": "3.5",
+   "component": "Prose",
+   "note": "Get-then-insert is also racy; ON CONFLICT atomic under concurrency."
+  },
+  "A-KSD-06": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Redis stores expiries as absolute Unix timestamps too."
+  },
+  "A-KSD-07": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Chunk the cleanup DELETE with LIMIT."
+  },
+  "A-KSD-08": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "NULL TTL never matches ttl > NOW(); sentinel or IS NULL (L-0263, L-0258 inline)."
+  },
+  "A-KSD-09": {
+   "section": "3.4",
+   "component": "Prose",
+   "note": "TIMESTAMP range; use DATETIME or epoch (L-0265 inline)."
+  },
+  "A-KSD-10": {
+   "section": "4.1",
+   "component": "SourceNote",
+   "note": "SN-11: purge and MERGE_THRESHOLD."
+  },
+  "A-KSD-11": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "note": "SN-12: Redis 6 active-expire-effort, ~10%."
+  },
+  "A-KSD-12": {
+   "section": "4.2",
+   "component": "SourceNote",
+   "note": "SN-13: DEL blocks on big keys; UNLINK and lazyfree (off by default)."
+  },
+  "A-KSD-13": {
+   "section": "6.4",
+   "component": "SourceNote",
+   "note": "SN-15: RFC 6455 ping/pong."
+  },
+  "A-KSD-14": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "(optional, used) Index a generated column to query inside JSON (L-0186 inline)."
+  },
+  "A-KSD-15": {
+   "section": "5.2",
+   "component": "Prose",
+   "note": "Replication async by default in MySQL and PostgreSQL."
+  },
+  "A-KSD-16": {
+   "section": "5.4",
+   "component": "Prose",
+   "note": "DynamoDB TransactWriteItems: 100 items, two writes per item (L-0296 inline)."
+  },
+  "A-KSD-17": {
+   "section": "3.1",
+   "component": "SourceNote",
+   "note": "SN-09: Ignite as cache over RDBMS via CacheStore; H2 SQL engine; own storage."
+  },
+  "A-KSD-19": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "VARCHAR in-place growth limits (L-0180 inline)."
+  },
+  "A-KSD-20": {
+   "section": "2.2",
+   "component": "Prose",
+   "note": "Goroutines: small stacks, multiplexed onto OS threads (L-0080 inline)."
+  }
+ },
+ "additions_not_used": {
+  "A-C-13": "Optional. CATS lock scheduling is a detail the L-0097 inline note already covers in one clause.",
+  "A-DL-13": "Optional near-duplicate of A-C-07 (verdict_review: show only A-C-07).",
+  "A-KSD-18": "Optional near-duplicate of A-C-07 (verdict_review: show only A-C-07).",
+  "A-DL-20": "Optional. The L-0006 inline clarification already says a relation is a set of tuples."
+ }
+}

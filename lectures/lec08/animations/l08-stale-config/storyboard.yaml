@@ -1,0 +1,124 @@
+# Storyboard — clip l08-stale-config   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l08-stale-config
+title: Nine seconds of errors
+lecture: 5            # course position 05 (folder lec08)
+section: "4.4 Getting the change to every LB server"
+status: reviewed
+why_motion: >
+  A window in time. Between a backend's crash and the next 10 s poll, every LB server's in-memory copy is stale and
+  requests keep going to the dead backend; the cost is the requests that fall inside that window. Only motion shows
+  requests streaming into a dead backend while the copy is stale, then the same crash replayed with a push, where the
+  window collapses to a sliver. A still shows the two brackets but not that the errors accrue for as long as the copy
+  waits.
+static_twin: "Fig 4·d 'Poll vs push' (D-04 timeline b_012245.jpg / b_015051.jpg + meta port b_012645.jpg); LB servers drawn as a stack as on D-06"
+ledger:
+  taught: [L-0154, L-0164, L-0167, L-0169, L-0170, L-0171, L-0174, L-0176]
+  context_only: [L-0152, L-0166, L-0178, L-0181]
+fidelity_notes:
+  - "10 s poll and 'crash at the first second' (so 9 s) are the class's numbers (L-0169). The axis runs 0-12.5 s; time is slowed down and not to scale while events are drawn (the playhead pauses during the crash, the poll and the push). The lane says 'time slowed down'."
+  - "The crash and the orchestrator's db update are drawn at the same moment (1 s): the lecture says the orchestrator updates the db 'immediately' when a check fails (L-0164). The health-check interval is not shown and no detection delay is claimed."
+  - "The orchestrator removes b2's entry from the db, as taught (L-0164). Managed LBs mark targets unhealthy instead (A-LBL-03, simplified/low, left as taught in prose); the clip does not claim either is the only way."
+  - "The LB servers are drawn as one stack ('lb servers', as on the board D-06); each server holds its own in-memory copy (L-0152), represented by one card 'b1 b2 b3'."
+  - "Requests: one per second, round robin over b1 b2 b3, so every third goes to b2. The number of requests is illustrative; no count or error rate number is shown. Only requests sent to b2 fail (the page figure's dots inside the bracket that went to b2 are the red ones)."
+  - "Push lane shows the meta-port option only (L-0171: orchestrator calls :9091, the LB server then pulls from the db). Pub/Sub and CDC (L-0178) are §4.5 and not shown; nothing about delivery guarantees is claimed (SN-03 sits in §4.5)."
+  - "'near zero' / 'almost zero staleness' are the lecture's words (L-0174 'near immediate', L-0176 'almost zero staleness'); the sliver's width is not a measured number."
+  - "Student 7's worry (polling adds load/latency) is not shown; the clip shows the teacher's main reason, staleness (L-0167 detail, L-0170)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 940}
+duration_frames: 1160
+start_frame_equals: >
+  The architecture of Fig 4·b/4·d: orchestrator (top left) with health-check lines to b1 b2 b3 (right) and a line to the
+  db; the lb servers stack holding the card 'b1 b2 b3', a dashed pull line to the db; requests fan out over a bus to the
+  three backends. Below: two empty time lanes, 'poll every 10 s' (poll ticks at 0 s and 10 s) and 'push (meta port)'.
+poster_frame: 1159
+reduced_motion_stills: [122, 292, 492, 702, 882, 1032, 1159]
+glyphs:
+  orchestrator: {shape: server-box, label: "orchestrator", pos: [30, 34, 280, 66]}
+  db: {shape: cylinder-solid, label: "db", pos: [104, 185, 132, 110]}
+  lb_stack: {shape: server-box ×3 stacked (offset −12,−12), label: "lb servers", pos: [386, 136, 404, 134]}
+  config_card: {shape: slot, label: "b1 b2 b3 (mono)", pos: [426, 218, 214, 44], note: "in-memory copy"}
+  status_word: {shape: hand label, label: "stale (red) / fresh (green)", pos: [656, 252]}
+  backends: {shape: server-box, labels: [b1, b2, b3], pos: "x 980-1082; y 70-130, 183-247, 290-350"}
+  arrows:
+    - {route: "orchestrator → b1 b2 b3 (top rail y 14, down x 1150, stubs left)", style: solid, head: backends, label: "health checks"}
+    - {route: "orchestrator → db", style: solid, head: db, label: "remove b2 (B1)"}
+    - {route: "lb servers → db", style: dashed, head: db, label: "poll (B3) / pull (B4)"}
+    - {route: "orchestrator → lb servers top", style: dashed, head: lb servers, label: ":9091 meta", appears: B4}
+    - {route: "lb servers → bus x 870 → b1 b2 b3", style: solid, head: backends}
+  lanes:
+    - {name: "poll every 10 s", axis_y: 460, x: "X(t)=100+84t, 0-12.5 s", ticks: "poll at 0 s and 10 s", marks: "red crash tick at 1 s 'b2 dies'; red span 1→10 s '9 s of errors'; request dots blue ●, failed red ✕"}
+    - {name: "push (meta port)", axis_y: 616, marks: "red crash tick at 1 s; red sliver 1→1.25 s 'near zero'; request dots all blue"}
+beats:
+  - id: B0
+    from: 0
+    to: 132
+    caption: "LB servers route each request from an in-memory copy of the list."
+    on_screen: [static figure]
+    events:
+      - {at: 60, dur: 10, what: "playhead fades in at 0 s on the poll lane"}
+      - {at: 66, dur: 48, what: "playhead 0 → 1 s; request at 0.5 s: blue packet lb servers → b1, blue dot on the lane", colour: blue}
+    ledger: [L-0152]
+  - id: B1
+    step: 1
+    from: 132
+    to: 300
+    caption: "Backend 2 crashes. The orchestrator notices and updates the db."
+    events:
+      - {at: 142, dur: 10, what: "red ✕ stamped on b2; red crash tick at 1 s on the poll lane", colour: red}
+      - {at: 146, dur: 18, what: "'b2 dies' written at 1 s", colour: red}
+      - {at: 168, dur: 40, what: "pen re-inks the health-check line orchestrator → b2", colour: blue}
+      - {at: 212, dur: 8, what: "red ✕ at the b2 stub: check fails", colour: red}
+      - {at: 232, dur: 30, what: "pen re-inks orchestrator → db; 'remove b2' written", colour: blue}
+    ledger: [L-0164, L-0169]
+  - id: B2
+    step: 2
+    from: 300
+    to: 500
+    caption: "The LB servers’ copies still list b2, so requests sent there fail."
+    events:
+      - {at: 306, dur: 18, what: "red dashed ring round b2 in the card; 'stale' written", colour: red}
+      - {at: 320, dur: 139, what: "playhead 1 → 9.7 s (linear); red stale span grows behind it (secondary indicator)", colour: red}
+      - {at: 328, dur: 150, what: "request stream every 16 f: blue packets to b1/b3 (blue dots); every third to b2 returns a red packet and stamps a red ✕", colour: blue}
+    ledger: [L-0154, L-0167, L-0170]
+  - id: B3
+    step: 3
+    from: 500
+    to: 710
+    caption: "At the 10 s poll the copies catch up: nine seconds of errors."
+    events:
+      - {at: 508, dur: 10, what: "playhead 9.7 → 10 s"}
+      - {at: 524, dur: 30, what: "pen re-inks the lb servers → db pull line; 'poll' written", colour: blue}
+      - {at: 566, dur: 16, what: "b2 struck through in the card; ring and 'stale' replaced by 'fresh'", colour: green}
+      - {at: 596, dur: 26, what: "span closed at 10 s; '9 s of errors' written over it", colour: red}
+      - {at: 628, dur: 40, what: "playhead 10 → 12.5 s; two requests, both blue (b3, b1)", colour: blue}
+    ledger: [L-0169, L-0170]
+  - id: B4
+    step: 4
+    from: 710
+    to: 890
+    caption: "Replay with push: the orchestrator calls the LB servers’ meta port."
+    events:
+      - {at: 712, dur: 10, what: "poll lane ghosts to 38%; the card returns to its stale state at 1 s (strike and 'fresh' removed, ring and 'stale' back); 'poll' label removed"}
+      - {at: 718, dur: 14, what: "red crash tick at 1 s on the push lane; playhead appears there", colour: red}
+      - {at: 736, dur: 40, what: "pen draws dashed orchestrator → lb servers; ':9091 meta' written", colour: blue}
+      - {at: 786, dur: 24, what: "pen re-inks lb servers → db pull; 'pull' written", colour: blue}
+      - {at: 816, dur: 16, what: "b2 struck in the card; 'fresh'", colour: green}
+      - {at: 736, dur: 96, what: "playhead 1 → 1.25 s while the push happens; red sliver grows behind it (secondary)", colour: red}
+      - {at: 834, dur: 20, what: "'near zero' written over the sliver", colour: red}
+    ledger: [L-0171, L-0174]
+  - id: B5
+    step: 5
+    from: 890
+    to: 1040
+    caption: "The copies drop b2 at once. Requests skip it: almost zero staleness."
+    events:
+      - {at: 900, dur: 90, what: "push-lane playhead 1.25 → 12.5 s; requests every 8 f to b3/b1, all blue", colour: blue}
+    ledger: [L-0176]
+  - id: B6
+    from: 1040
+    to: 1160
+    caption: "Polling: errors until the next poll. Push: the window nearly closes."
+    on_screen: [poll lane back to full; poster]
+    motion: "poll lane and the 'remove b2' label un-ghost (12 f), so the poster's story labels are at full ink (critic C-16); superseded state (the struck b2, the health-check ✕) stays as drawn"
+    ledger: [L-0170, L-0176]

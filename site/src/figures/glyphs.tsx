@@ -37,6 +37,8 @@ export const TH_GLYPHS: Record<string, () => React.ReactElement> = {
   apiram: () => <TH><Box x={10} y={6} w={44} h={24} seed="th-ram" /><Dot x={48} y={12} /></TH>,
   apidisk: () => <TH><Box x={6} y={6} w={30} h={24} seed="th-disk-api" /><Disk cx={46} cy={22} w={26} h={14} seed="th-disk" /></TH>,
   redis: () => <TH><Cube x={20} y={4} s={20} d={6} seed="th-redis" /></TH>,
+  // a managed key-value database (DynamoDB): the key's database cylinder
+  dynamodb: () => <TH><Cyl cx={30} top={7} rx={12} ry={3.4} h={19} seed="th-dynamodb" /></TH>,
   matview: () => <TH><Cyl cx={20} top={7} rx={12} ry={3.4} h={20} seed="th-mv-db" /><Box x={38} y={9} w={22} h={18} seed="th-mv-t" /><Line pts={[[38, 15], [60, 15]]} weight="thin" seed="th-mv-l" /></TH>,
   // §3.8: brokers
   queue: () => <TH><Queue x={4} y={11} w={44} h={14} cells={4} seed="th-q" /><Arrow pts={[[50, 18], [60, 18]]} seed="th-q-out" /></TH>,

@@ -1,0 +1,220 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { RedisLockManager, WhoDeletes, ShardLocks, OneConnectionLock } from '../../../figures/lec08/s6b-remote-locks';
+
+{/* §6 Remote locks, part b: 6.5–6.8. Part a (6.1–6.4) is s6a-remote-locks.mdx. Writer w4. */}
+
+<Section id="s6-5" no="6.5" title="Acquire with SET NX" crumb="6.5 Acquire"
+  dek="Every consumer runs the same loop: acquire, read, release. One Redis command makes sure only one of them gets past the first step."
+  meta="About 3 min · class 02:18–02:22">
+
+Every consumer’s code wraps the read in two calls: acquire the lock, read the message, release the lock. All the consumers keep calling Redis to acquire it. One succeeds and reads while the others wait; as soon as it releases, the next one gets in, and so on. That is how the whole process gets coordinated. [[L-0261]]
+
+<Figure id="fig-6c" no="Fig 6·e" k="L-0261 L-0263 L-0264 L-0266"
+  caption="Redis is the lock manager. Every consumer asks it with SET NX; the one whose name is stored reads from the queue. The bubble is the tempting release, which 6.6 takes apart. Redrawn from the class board at 02:18–02:22.">
+  <Desk><RedisLockManager /></Desk>
+  <Phone><RedisLockManager layout="phone" /></Phone>
+</Figure>
+
+Acquiring looks like this. The consumer knows its own ID (hard-coded, or its IP address or host name). In a `while True` loop it tries to set the lock key `q` to that ID, and not with a plain `SET` but with `SET NX`, with an expiration of 300 seconds. [[L-0264]] On the board:
+
+```python
+# acquire_lock, as on the board
+while True:
+    v = redis.setnx(q, consumer_id, ex=300)
+    if v == 1:
+        return          # we own the lock: go and read the message
+    else:
+        continue        # someone else holds it: try again
+```
+
+`SET NX` sets a key only if it does not exist yet, here with an expiration. It returns 1 if it set the key and 0 if it didn’t, so an existing lock is never overwritten. [[L-0265]]
+
+Two details from Redis’s documentation make the loop real. `SET q <token> NX EX 300` sets the value and attaches the expiry in one command; use it rather than `SETNX` followed by `EXPIRE`, because a client that dies between those two calls leaves a lock that never expires (<Cite href="https://redis.io/docs/latest/commands/set/">SET</Cite>, <Cite href="https://redis.io/docs/latest/commands/setnx/">SETNX</Cite>). And the value should be unique across all clients and all lock requests, for example 20 random bytes; a bare host name isn’t enough when several processes or retries on one host can contend (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>).
+
+```python
+# the same loop with one real command (redis-py)
+token = secrets.token_hex(20)                 # unique per lock request
+while not r.set(q, token, nx=True, ex=300):   # True when set, None when the key exists
+    pass                                      # keep trying until the holder releases
+```
+
+Why can only one consumer win? Because every Redis command is atomic: while one command executes, no other command runs on Redis. However many consumers send `SET NX` at the same moment, only one of them succeeds. This is the property the lock leans on. [[L-0266]]
+
+If `SET NX` succeeds, the consumer owns the lock: it leaves the loop and reads the message from the queue. If not, it keeps looping until someone releases the lock, so most consumers spend their time spinning in that `while` loop. [[L-0267]]
+
+</Section>
+
+<Section id="s6-6" no="6.6" title="Release: never delete a lock that isn’t yours" crumb="6.6 Release"
+  dek="“Release means delete the key” is wrong, and so is “check, then delete”. The check and the delete must be one step."
+  meta="About 5 min · class 02:22–02:28, Q&A 02:39–02:40">
+
+Releasing looks easy: delete the entry. But a release that simply deletes the key is wrong, because a process can then delete the key from Redis even though it doesn’t own the lock at that moment. [[L-0268]] How, if only the consumer holding the lock ever reaches the release? Through the timeout.
+
+<PauseAndThink k="L-0268 L-0269 L-0270 L-0271 L-0273"
+  q="Consumer 1 takes the lock with a 5-minute expiry, but its job takes 6 minutes. When it finishes, it releases the lock with a plain <code>DEL queue7</code>. Is that safe?"
+  choices={[{ label: 'Yes: it’s releasing its own lock' }, { label: 'No: it may delete someone else’s', correct: true }]}
+  right="Right. After five minutes the lock wasn’t its own any more."
+  wrong="It was its lock, five minutes ago. By the time it deletes, the key may belong to someone else.">
+
+At five minutes Redis expires the key; consumer 2 acquires it; at six minutes consumer 1’s `DEL` removes consumer 2’s lock. Checking “is the value still me?” first doesn’t fully help either, because the key can change hands between the `GET` and the `DEL`. The fix is to run the check and the delete as one atomic step inside Redis (a Lua script via `EVAL`, or `DELEX … IFEQ` since Redis 8.4).
+
+</PauseAndThink>
+
+Consumer 1 holds the lock, so `queue7` in Redis says consumer 1, with a five-minute timeout to read and process the message. It takes longer than that. Five minutes pass and Redis deletes the key on its own. Consumer 2 arrives and acquires the lock. Then consumer 1 reaches its release, still believing the lock is its own, and deletes the lock that now belongs to consumer 2. That is the edge case. [[L-0269]]
+
+So the rule: never delete a lock that isn’t yours. On release, get the current owner, and delete only if it is you. [[L-0270]]
+
+```python
+# release_lock, as on the board
+v = redis.get(q)
+if v == consumer_id:
+    redis.delete(q)      # the key can expire, and change hands, between these two lines
+```
+
+Even this fails if it runs as normal client code. Consumer 1 executes the `GET` and sees its own name. Right after that, the expiration kicks in, the key is evicted, consumer 2 takes the lock, and then consumer 1’s `delete` runs. The condition was true when it was checked, so consumer 1 deletes consumer 2’s lock anyway. [[L-0271]] The owner check has a second limit: it stops consumer 1 from deleting someone else’s lock, but not from carrying on with its work after its own lock expired while consumer 2 works too. The standard fix for that is a fencing token, a number that grows with every lock grant and travels with every write, so the storage rejects writes from an older holder (<Cite href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">Kleppmann</Cite>, <Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>).
+
+<StepThrough id="fig-6d" no="Fig 6·f" label="Who deletes whose lock figure" k="L-0263 L-0264 L-0268 L-0269 L-0270 L-0271 L-0273 L-0299"
+  caption="Time runs down. Lanes are consumer 1, the key queue7 in Redis, and consumer 2. The small box on the Redis lane is the value stored at that moment."
+  stepK={['L-0263 L-0264', 'L-0269', 'L-0269', 'L-0268 L-0269', 'L-0270 L-0271', 'L-0273 L-0299']}
+  steps={[
+    'Consumer 1 sends <code>SET queue7 c1 NX EX 300</code> and gets <span class="term green">OK</span>. It holds the lock for five minutes.',
+    'Consumer 1 is slow. After five minutes Redis deletes the key on its own: <span class="term red">expired</span>.',
+    'Consumer 2 asks with <code>SET NX</code> and gets the lock. The key now says <code>c2</code>.',
+    'Consumer 1 finishes and sends <code>DEL queue7</code>. It releases “its” lock and <span class="term red">deletes consumer 2’s</span>.',
+    'Replay with the owner check. <code>GET</code> returns <code>c1</code>, then the key expires, consumer 2 takes it, and consumer 1’s <code>DEL</code> still removes <code>c2</code>. The key changed hands between the <code>GET</code> and the <code>DEL</code>.',
+    'The fix: send the check and the delete as one Lua script with <code>EVAL</code>. Redis runs it as one indivisible step; it returns <code>0</code> and <span class="term green">c2’s lock survives</span>.',
+  ]}>
+  <Desk><WhoDeletes /></Desk>
+  <Phone><WhoDeletes layout="phone" /></Phone>
+</StepThrough>
+
+<AnimationClip clip="l08-lock-ttl" no="Clip 6·1" k="L-0257 L-0263 L-0264 L-0267 L-0268 L-0269 L-0270 L-0273"
+  lead="Consumer 1’s job takes six minutes; its lock expires after five. What happens when it finally releases?"
+  caption="The lock expires, consumer 2 takes it, and a blind delete by consumer 1 removes consumer 2’s lock. Release only if it’s still yours, in one atomic step." />
+
+Edge cases like this are where distributed systems show their “glory”: miss one, and your system is not correct. [[L-0272]]
+
+So make the check and the delete atomic. Redis has `EVAL`: instead of writing the check in Python, you write it as a Lua script, and Redis runs it in one shot. While that script runs, Redis does nothing else, so nobody can acquire the lock in between. It is a kind of transaction, “kind of”. [[L-0273]] Since Redis 8.4 the same safe release needs no Lua at all: `DELEX key IFEQ my_random_value` deletes the key only if its value matches; on older versions use the get-compare-delete script with `EVAL` (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>).
+
+Lua as a language does nothing magical. The atomicity comes from Redis executing the script inside the server. [[L-0299]] Your client code stays in Python (or Go); only the script is Lua. You pass a script to Redis through `EVAL` instead of a command, and invoke it from Python like any other call. [[L-0300]]
+
+```python
+RELEASE = """
+if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+else
+    return 0
+end
+"""
+r.eval(RELEASE, 1, q, token)    # Redis runs the whole script as one step
+```
+
+The habit to take away: when you design a distributed system, imagine that after every single line something lags or goes down, and check that the system still works. Go to that granularity rather than saying “I’ll have a lock.” [[L-0274]]
+
+</Section>
+
+<Section id="s6-7" no="6.7" title="Other ways to build the lock" crumb="6.7 Other locks"
+  dek="A server that accepts one connection at a time, and ZooKeeper. What matters is the property, not the product."
+  meta="About 5 min · class Q&A 02:35–02:38 and 03:00–03:04">
+
+Why Redis at all? One idea raised uses the network itself: a server that accepts only one connection at a time, so whichever consumer holds the connection holds the lock, and everyone else is turned away or waits. It was called a brilliant idea. [[L-0289]] It had been held back because the queue was declared a black box exposing only library APIs; using the network for the lock sidesteps that. [[L-0290]]
+
+It can be built as a normal TCP server. The load balancer of [§3.4](#s3-4) accepts connections in a loop and hands each to its own goroutine. Instead, accept one connection and handle it, without spinning up anything else: only one client process can be connected until the first has finished. [[L-0291]]
+
+<Figure id="fig-6k" no="Fig 6·g" wide={false} k="L-0289 L-0291"
+  caption="The lock without Redis: a TCP server that accepts only one connection at a time. Consumer 1’s open connection is the lock; consumers 2 and 3 are turned away or wait until it closes.">
+  <OneConnectionLock />
+</Figure>
+
+Two arguments for it came up and were left open. It could avoid the cost of a hosted Redis; the reply was only that you still need “the other parts”, without saying which. [[L-0292]] And if a consumer holding the connection dies, its TCP connection drops and the server knows the lock is free, which was offered as a clean release. [[L-0293]] That holds when the holder’s process crashes. If the holder’s host crashes or is cut off, the server’s socket can stay open until the application times out or TCP keepalive fires, and on Linux keepalive is off unless `SO_KEEPALIVE` is set and starts only after 7,200 seconds idle by default (<Cite href="https://man7.org/linux/man-pages/man7/tcp.7.html">tcp(7)</Cite>).
+
+It was not declared equivalent to Redis without putting the features side by side: a two-minute discussion may skip things. [[L-0294]] What made the idea valuable is that it is fundamental. The lock is simply refusing others a connection, writing such a server is an easy job of a few hours, and the advice is to go and build it. [[L-0295]]
+
+### ZooKeeper [[rail: ZooKeeper]]
+
+Why not ZooKeeper, which offers a leader and more reliable locking? Because ZooKeeper-based locking does exactly what was just built with Redis: either you implement it with Redis, or you use ZooKeeper. [[L-0328]]
+
+<SourceNote href="https://zookeeper.apache.org/doc/current/recipes.html" site="zookeeper.apache.org" k="L-0328">
+
+ZooKeeper solves the same problem by a different mechanism. Each client creates an ephemeral sequential znode under the lock path; the lowest sequence number holds the lock, and every other client watches only the node just before its own, so a release wakes exactly one waiter, with no polling or timeouts. Ephemeral nodes are deleted when the holder’s session ends (<Cite href="https://zookeeper.apache.org/doc/current/zookeeperProgrammers.html">programmer’s guide</Cite>), and the state is replicated by consensus. That gives stronger safety than a Redis TTL lock (<Cite href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">Kleppmann</Cite>).
+
+</SourceNote>
+
+One objection is that ZooKeeper gives more guarantees: a persistent leader, and fewer problems with time, expiry and the network. The reply: you can add persistence to the Redis approach too, and the point is not that it is better than ZooKeeper, only that it is another implementation of the same thing. [[L-0329]] As an engineer you need to know how a tool like ZooKeeper is implemented inside, not just say “use ZooKeeper”: someone will ask how it works. [[L-0330]] In the same answer the load balancer came back: ZooKeeper’s notification framework is just real-time Pub/Sub, a pool of persistent TCP connections that notifies every subscriber when something changes, so it could replace Redis Pub/Sub in that design too ([§4.5](#s4-5)). [[L-0332]]
+
+In the instructor’s experience, many young organizations and startups stay away from ZooKeeper. They associate it with Java, and most startups aren’t on Java; they find it intimidating; and they are comfortable building a scrappy solution on Redis. [[L-0333]]
+
+<TradeoffTable caption="Choosing a lock store: Redis SET NX EX, a MySQL row with TTL, MySQL GET_LOCK, a single-connection TCP server, ZooKeeper"
+  k="L-0258 L-0291 L-0293 L-0296 L-0297 L-0328"
+  columns={[{ label: 'Redis SET NX EX' }, { label: 'MySQL row + TTL' }, { label: 'MySQL GET_LOCK' }, { label: 'One-connection TCP server' }, { label: 'ZooKeeper' }]}
+  rows={[
+    { label: 'What holds the lock', k: 'L-0258 L-0291 L-0296 L-0328', cells: ['A key, queue7, holding the owner’s value', 'A row: the resource and its owner', 'A named lock held by a MySQL session', 'The one open TCP connection', 'The lowest ephemeral sequential znode'] },
+    { label: 'How a dead holder is freed', k: 'L-0257 L-0293 L-0297', cells: ['The key’s TTL expires', 'A cron job clears stale locks', 'Released when the holder’s session ends', 'The connection drops if the process dies; a dead host needs a timeout', 'The ephemeral node goes when the session ends'] },
+    { label: 'Atomic acquire?', k: 'L-0266 L-0291 L-0296', cells: ['Yes: SET NX is one atomic command', 'Yes: one row write, with MySQL’s atomicity', 'Yes', 'Yes: the server accepts one connection at a time', 'Yes: the create is agreed by the ensemble'] },
+    { label: 'Survives the store dying?', k: 'L-0328', cells: [{ text: 'No: one instance is a single point of failure (§7)', bad: true }, 'No: one database', 'No: local to one mysqld', 'No: one server', 'Yes: state is replicated by consensus'] },
+    { label: 'From class', k: 'L-0258 L-0289 L-0296 L-0328', cells: ['The class’s design (6.4–6.6)', 'Works if you take care of TTL; a cron job suggested', 'Not discussed in class', 'Raised in class, called brilliant; not compared feature by feature', '“Does exactly this”; many startups avoid it'] },
+  ]} />
+
+</Section>
+
+<Section id="s6-8" no="6.8" title="Where remote locks really live: MongoDB" crumb="6.8 MongoDB"
+  dek="A transaction across three shards holds locks that no single shard can keep. Someone has to remember them."
+  meta="About 2 min · class Q&A 02:43–02:45">
+
+Queue 7 was hypothetical. Where are remote locks used for real? Picture a MongoDB distributed transaction across shards that updates three documents, one on shard 1, one on shard 3 and one on shard 5. Another transaction arrives that wants to update the same documents, and it has to be made to wait, because the first transaction holds locks on those documents. Where is that information stored? Two transactions, distributed over shards: the lock state has to live somewhere shared, a remote lock. [[L-0305]]
+
+MongoDB gives you those guarantees through its own lock manager, which records that this transaction holds a lock on this document of this shard, and that one, and that one. When another transaction asks for a lock on one of those documents, it is told to wait, and it waits until the first transaction commits or rolls back. [[L-0306]]
+
+<SourceNote href="https://www.mongodb.com/docs/manual/core/transactions-production-consideration/" site="mongodb.com" k="L-0305 L-0306">
+
+A MongoDB multi-shard transaction does take document locks on each shard it touches. A conflicting transaction does not wait for the first to commit: by default it waits up to 5 ms for the lock, then aborts and must be retried. Only a write outside a transaction waits for the transaction to end (MongoDB 9.0 docs).
+
+</SourceNote>
+
+<Figure id="fig-6e" no="Fig 6·h" wide={false} k="L-0305 L-0306 L-0307"
+  caption="Transaction A holds a lock on one document in each of three shards. The graphite line is the class’s version; the red line is what MongoDB documents for a second transaction.">
+  <ShardLocks />
+</Figure>
+
+The queue example is the same pattern: three consumers contend for a shared resource, the locks are tracked, and only one moves forward. In the instructor’s words, what was just built is effectively a distributed transaction using Redis as the lock. [[L-0307]] Strictly, it is mutual exclusion. A distributed transaction also needs an atomic commit or rollback across its participants; it uses locks, but a lock alone is not a transaction (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>).
+
+One question is still open: the lock manager is one Redis. What happens when it dies? That is [chapter 7](#s7).
+
+<h3 id="s6-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0257 L-0269" q="Why does a remote lock need a TTL, and what new problem does the TTL create?">
+
+Without a TTL, a holder that dies before releasing keeps the lock forever, and the whole system stalls. With a TTL the lock expires on its own, but now a slow holder can outlive its lock: the key expires, another consumer takes it, and the slow one may delete that consumer’s lock when it finally releases (or keep working alongside it).
+
+  </RecallItem>
+  <RecallItem k="L-0271 L-0273" q="Why is “check the owner, then delete” still unsafe in client code, and what fixes it?">
+
+Because the two steps are separate commands. Between the `GET` that says “it’s mine” and the `DEL`, the key can expire and another consumer can acquire it, so the `DEL` removes their lock. The fix is to run the check and the delete as one atomic step inside Redis: a Lua script sent with `EVAL` (or `DELEX … IFEQ` on Redis 8.4 and later).
+
+  </RecallItem>
+  <RecallItem k="L-0246 L-0308" q="Name the nearest shared storage for two threads, two processes and two machines.">
+
+Threads: memory (a mutex, a semaphore, atomic instructions). Processes: the disk, as with apt-get’s dpkg lock file. Machines: only the network, so a remote lock manager such as Redis.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '7 · Distributed locks', href: '#s7' }}
+  concepts={[{ label: 'lock manager', href: '#s6-1' }, { label: 'nearest shared storage', href: '#s6-2' }, { label: 'TTL', href: '#s6-4' }, { label: 'SET NX', href: '#s6-5' }, { label: 'atomic release', href: '#s6-6' }, { label: 'ZooKeeper lock', href: '#s6-7' }, { label: 'MongoDB transaction locks', href: '#s6-8' }]} />
+
+</Section>

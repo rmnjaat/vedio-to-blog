@@ -1,0 +1,123 @@
+# Storyboard — clip l05-expiry-window (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l05-expiry-window
+title: Expired, hidden, then gone
+lecture: 3          # course position "Lecture 03"; folder lec05
+section: "3.7 The cleanup job and the last clause"
+status: reviewed    # draft | approved | built | reviewed (render-check 2026-10-13, see review.md)
+why_motion: >
+  A window in time. Between a key's expiry and the next cron run its row is still on disk, so the same GET returns
+  v1 at 12:01 and nothing at 12:04 only because the clock moved past expired_at. A still (Fig 3·d) shows one instant;
+  only the timeline shows a read falling inside the window, a delete arriving after expiry (and writing nothing), a
+  delete of a live key marking it -1, and one sweep removing all three rows.
+static_twin: "Fig 3·d (board D-07, frame b_020700.jpg): clock axis with cron runs at 12:00 and 12:10, the store table behind the api"
+ledger:
+  taught:
+    - L-0236  # approach 1: a cron job every 10 minutes fires a hard delete (cron clocks at 12:00 / 12:10, B6)
+    - L-0201  # reads must filter expired keys: the cleanup may not have run yet ("expired, still on disk")
+    - L-0221  # GET: SELECT * FROM store WHERE key = k AND expired_at > now() (strip, B1/B3)
+    - L-0222  # that clause saves the network IO of sending the expired value ("v1 not sent")
+    - L-0199  # delete becomes UPDATE store SET expired_at = -1 WHERE key = k (strip line 1, k3's -1)
+    - L-0258  # the delete adds AND expired_at > now(): soft-delete only a key not yet expired (strip line 3)
+    - L-0259  # for an already-expired key that update does no disk IO ("no disk IO")
+    - L-0263  # final queries: cleanup DELETE ... WHERE expired_at <= now(); GET with > now() (B6 strip)
+    - L-0202  # one cleanup query matches expired and soft-deleted (negative) rows (B6, B7 caption)
+  context_only:
+    - L-0260  # "saves two disk IOs" (index on ttl) — prose only, no count on screen
+    - L-0294  # prose
+fidelity_notes:
+  - "Column name: the board writes 'ttl' in the L-0258/L-0263 queries and 'exp_at' in L-0199; the clip shows one name, expired_at, throughout (the page's CodeBlock uses the same)."
+  - "Plan change: animations.md gave k2 an expiry of 11:58, but with a cron run at 12:00 that row would already have been hard-deleted; k2 expires at 12:02 with k1."
+  - "Key times (12:01, 12:02, 12:04, 12:05, 12:06, 12:30) are illustrative inside the class's 10-minute cron example (L-0236); no real timing is claimed."
+  - "-1 (L-0199, factcheck note on L-0199): works only for an integer epoch column; the times shown in the table are a readable rendering. The column type is explained in §3.4 prose (A-KSD-09), not on screen."
+  - "Keys with no TTL / NULL (A-KSD-08, factcheck on L-0258 / L-0263): not shown in the clip; the page's final-query card and SourceNote carry it. The clip only has keys with an expiry."
+  - "Not claimed: the IO count (L-0260 'two' stays in prose), any value size, lazy deletion on read (chapter 4), any index behaviour."
+  - "Board ordering: the cron is drawn as clocks at both ends of the axis; the 12:00 run is context (nothing to delete yet in the clip)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30, note: "wide lettering 34 px (~15 px at the 540 px stage), captions 36 px (~16 px; shared band scaled by 0.75), ink 3.6 px (~1.6 px; the sheets use 1.7), matching the page sheets (critic C-05, 2026-10-14)"}
+phone_canvas: {width: 720, height: 940, note: "portrait re-flow: axis on top across 580 px, table 420 px wide under it, api bar at the right edge, the query strip below the table with 'who' on its own line; 30 px lettering, 32 px captions"}
+duration_frames: 1110   # 37.0 s; 74 s at 0.5x
+start_frame_equals: "Fig 3·d's parts: the clock axis 12:00–12:10 with cron clocks at both ends and the playhead at 12:00; the store table (key, value, expired_at: k1 v1 12:02, k2 v2 12:02, k3 v3 12:30) with the api bar to its right"
+poster_frame: 1109
+reduced_motion_stills: [80, 245, 352, 506, 654, 830, 996, 1109]
+glyphs:
+  axis: {shape: hand line with 11 ticks, wide: "x 110–1010, y 96", phone: "x 60–640, y 104"}
+  cron: {shape: clock (circle + two hands), at: [12:00, 12:10], label: "cron" hand-lettered ink-2 under 12:00}
+  playhead: {shape: vertical ink stroke, label: "12:mm" mono above the axis}
+  window: {shape: red wash + thick red stroke on the axis from 12:02 to the playhead, label: "expired, still on disk" red under the axis}
+  table: {shape: hand-ruled table (server-box outline), cols: [key, value, expired_at], wide: [60, 186, 540, 264], phone: [20, 250, 420, 286]}
+  api: {shape: server-box bar, label: "api" mono, wide: [1060, 234, 50, 216], phone: [662, 296, 32, 240]}
+  lanes: {route: "api -> row k1/k2/k3", solid, head: "at the row (the api initiates)", colour: "blue while a request is in flight, graphite after"}
+  strip: {shape: three mono SQL lines under the table, who-label ink-2, clause line blue}
+  verdicts: {k1: ["v1 ✓" green at 12:01, then "✕ v1 not sent" red], k2: "no disk IO" ink, k3: ["12:30 struck", "-1" mono, "row updated" green]}
+  sweep: {shape: ink strikes through each row, then rows + lanes ghost to 38%}
+beats:
+  - {id: B0, from: 0, to: 90, caption: "Three keys. Each row stores when it expires.", on_screen: [static figure], motion: none, ledger: [L-0236]}
+  - id: B1
+    step: 1
+    from: 90
+    to: 252
+    caption: "12:01: GET k1. It expires at 12:02, so it is live: v1 comes back."
+    events:
+      - {at: 100, dur: 16, what: "playhead 12:00 -> 12:01 (linear indicator)"}
+      - {at: 118, dur: 20, what: "strip written: GET k1 / SELECT * FROM store / WHERE key = 'k1' / AND expired_at > now()"}
+      - {at: 140, dur: 32, what: "blue pen + packet api -> k1", colour: blue}
+      - {at: 174, dur: 26, what: "green packet k1 -> api", colour: green}
+      - {at: 200, dur: 18, what: "lane fades to graphite; 'v1' + tick written", colour: green}
+    ledger: [L-0221]
+  - id: B2
+    step: 2
+    from: 252
+    to: 358
+    caption: "12:02: k1 and k2 expire, but their rows are still on disk."
+    events:
+      - {at: 262, dur: 18, what: "playhead 12:01 -> 12:02"}
+      - {at: 284, dur: 8, what: "rows k1, k2 washed red; 12:02 cells underlined red", colour: red}
+      - {at: 306, dur: 22, what: "'expired, still on disk' written under the axis; the red window starts", colour: red}
+    ledger: [L-0201]
+  - id: B3
+    step: 3
+    from: 358
+    to: 512
+    caption: "12:04: the same GET. Its clause is now false, so v1 is never sent."
+    events:
+      - {at: 368, dur: 26, what: "playhead 12:02 -> 12:04; the red window grows with it"}
+      - {at: 398, dur: 16, what: "blue underline under the clause line", colour: blue}
+      - {at: 416, dur: 32, what: "'v1 ✓' removed (10 f); blue pen re-inks api -> k1 with a packet; no packet returns", colour: blue}
+      - {at: 450, dur: 30, what: "red ✕ and 'v1 not sent' written by the k1 lane", colour: red}
+    ledger: [L-0221, L-0222, L-0201]
+  - id: B4
+    step: 4
+    from: 512
+    to: 660
+    caption: "12:05: DELETE k2. It already expired, so nothing matches: no disk IO."
+    events:
+      - {at: 522, dur: 14, what: "playhead 12:04 -> 12:05"}
+      - {at: 538, dur: 30, what: "GET strip removed (10 f); DELETE k2 strip written: UPDATE store SET expired_at = -1 / WHERE key = 'k2' / AND expired_at > now()"}
+      - {at: 570, dur: 32, what: "blue pen + packet api -> k2", colour: blue}
+      - {at: 606, dur: 20, what: "'no disk IO' written; k2's row unchanged"}
+    ledger: [L-0199, L-0258, L-0259]
+  - id: B5
+    step: 5
+    from: 660
+    to: 836
+    caption: "12:06: DELETE k3. It is live, so its row is marked expired_at = -1."
+    events:
+      - {at: 670, dur: 14, what: "playhead 12:05 -> 12:06"}
+      - {at: 686, dur: 30, what: "strip removed; DELETE k3 strip written"}
+      - {at: 718, dur: 32, what: "blue pen + packet api -> k3", colour: blue}
+      - {at: 752, dur: 28, what: "12:30 struck; '-1' written beside it"}
+      - {at: 784, dur: 20, what: "'row updated' written", colour: green}
+    ledger: [L-0199, L-0258]
+  - id: B6
+    step: 6
+    from: 836
+    to: 1002
+    caption: "12:10: the cron job deletes every row with expired_at <= now()."
+    events:
+      - {at: 846, dur: 40, what: "playhead 12:06 -> 12:10; the window closes at the 12:10 cron clock (clock re-inked 886-902)"}
+      - {at: 888, dur: 30, what: "strip removed; cron strip written: DELETE FROM store / WHERE expired_at <= now()"}
+      - {at: 922, dur: 32, what: "ink strikes through rows k1, k2, k3 (8 f apart)"}
+      - {at: 958, dur: 12, what: "rows and lanes ghost to 38%"}
+    ledger: [L-0236, L-0263, L-0202]
+  - {id: B7, from: 1002, to: 1110, caption: "One cleanup query removes expired and deleted rows alike.", on_screen: [end state = poster], motion: none, ledger: [L-0202]}
+chapters: [{label: "a live key", frame: 100}, {label: "expired", frame: 262}, {label: "hidden", frame: 368}, {label: "deletes", frame: 522}, {label: "the sweep", frame: 846}]

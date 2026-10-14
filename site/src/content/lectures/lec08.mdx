@@ -1,0 +1,123 @@
+---
+title: "Building a load balancer"
+kicker: "Lecture 05 · week 3, day 1 · running case: a load balancer you build yourself"
+dek: "How to approach any distributed system, shown by building the box everyone draws and nobody opens, and then by locking things across machines."
+description: "Lecture 05: approach distributed systems by building a load balancer from one TCP proxy to a full control plane, then lock across machines with Redis and Redlock."
+reviewed: 14 Oct 2026
+status: published
+ledger: lectures/lec08/ledger/ledger.jsonl
+contents:
+  - no: "1"
+    title: "How to approach distributed systems"
+    href: "#s1"
+    children:
+      - { no: "1.1", title: "What “distributed” means", href: "#s1-1" }
+      - { no: "1.2", title: "Day zero, then scale each component", href: "#s1-2" }
+      - { no: "1.3", title: "Every layer must scale out", href: "#s1-3" }
+  - no: "2"
+    title: "Choosing a backend: load balancing algorithms"
+    href: "#s2"
+    children:
+      - { no: "2.1", title: "The box we take for granted", href: "#s2-1" }
+      - { no: "2.2", title: "Round robin", href: "#s2-2" }
+      - { no: "2.3", title: "Weighted round robin", href: "#s2-3" }
+      - { no: "2.4", title: "Least connections", href: "#s2-4" }
+      - { no: "2.5", title: "Why not route on CPU?", href: "#s2-5" }
+      - { no: "2.6", title: "Long requests and users who leave", href: "#s2-6" }
+  - no: "3"
+    title: "A load balancer on one laptop"
+    href: "#s3"
+    children:
+      - { no: "3.1", title: "Why build one", href: "#s3-1" }
+      - { no: "3.2", title: "Two kinds of server, two TCP connections", href: "#s3-2" }
+      - { no: "3.3", title: "Copy one socket to the other", href: "#s3-3" }
+      - { no: "3.4", title: "Reading the code", href: "#s3-4" }
+      - { no: "3.5", title: "Build it locally", href: "#s3-5" }
+  - no: "4"
+    title: "The control plane: keeping every LB server right"
+    href: "#s4"
+    children:
+      - { no: "4.1", title: "One LB server is not enough", href: "#s4-1" }
+      - { no: "4.2", title: "Where the configuration lives", href: "#s4-2" }
+      - { no: "4.3", title: "The orchestrator and health checks", href: "#s4-3" }
+      - { no: "4.4", title: "Getting the change to every LB server", href: "#s4-4" }
+      - { no: "4.5", title: "Make it reactive: Pub/Sub and CDC", href: "#s4-5" }
+      - { no: "4.6", title: "Watching the LB servers: metrics and Prometheus", href: "#s4-6" }
+  - no: "5"
+    title: "One name, many LB servers"
+    href: "#s5"
+    children:
+      - { no: "5.1", title: "Two LB servers, one address", href: "#s5-1" }
+      - { no: "5.2", title: "DNS answers; it doesn’t forward", href: "#s5-2" }
+      - { no: "5.3", title: "Who keeps DNS up?", href: "#s5-3" }
+      - { no: "5.4", title: "The whole design", href: "#s5-4" }
+      - { no: "5.5", title: "Who watches the watcher?", href: "#s5-5" }
+      - { no: "5.6", title: "Public front doors, private load balancers", href: "#s5-6" }
+      - { no: "5.7", title: "What a load balancer is, and is not", href: "#s5-7" }
+  - no: "6"
+    title: "Remote locks"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "Why lock across machines", href: "#s6-1" }
+      - { no: "6.2", title: "Threads, processes, machines", href: "#s6-2" }
+      - { no: "6.3", title: "A queue that protects nothing", href: "#s6-3" }
+      - { no: "6.4", title: "A database as lock manager, and why locks must expire", href: "#s6-4" }
+      - { no: "6.5", title: "Acquire with SET NX", href: "#s6-5" }
+      - { no: "6.6", title: "Release: never delete a lock that isn’t yours", href: "#s6-6" }
+      - { no: "6.7", title: "Other ways to build the lock", href: "#s6-7" }
+      - { no: "6.8", title: "Where remote locks really live: MongoDB", href: "#s6-8" }
+  - no: "7"
+    title: "Distributed locks"
+    href: "#s7"
+    children:
+      - { no: "7.1", title: "One Redis is a single point of failure", href: "#s7-1" }
+      - { no: "7.2", title: "Redlock: a majority of five", href: "#s7-2" }
+      - { no: "7.3", title: "The edge case", href: "#s7-3" }
+      - { no: "7.4", title: "Simulate it on one machine", href: "#s7-4" }
+      - { no: "7.5", title: "Distribute for fault tolerance, scale for throughput", href: "#s7-5" }
+  - no: "8"
+    title: "What to keep"
+    href: "#s8"
+chapters:
+  - no: "1"
+    slug: 1-approach
+    parts: [s1-approach]
+    summary: "A definition that holds up, the assumption that keeps a design honest, and the day-zero loop every real system grows by."
+  - no: "2"
+    slug: 2-algorithms
+    parts: [s2-algorithms]
+    summary: "Round robin, weighted round robin and least connections, each tied to a kind of infrastructure and a kind of load."
+  - no: "3"
+    slug: 3-one-laptop
+    parts: [s3-one-laptop]
+    summary: "Accept a TCP connection, open another, copy bytes both ways: the ten lines that make a load balancer, and how to run it locally."
+  - no: "4"
+    slug: 4-control-plane
+    parts: [s4a-control-plane, s4b-control-plane]
+    summary: "Configuration, health checks, pushing changes instead of polling, and metrics in Prometheus so the LB fleet can scale itself."
+  - no: "5"
+    slug: 5-dns
+    parts: [s5a-dns, s5b-design]
+    summary: "DNS answers and never forwards, private CoreDNS, the finished design with its two paths, and who watches the watcher."
+  - no: "6"
+    slug: 6-remote-locks
+    parts: [s6a-remote-locks, s6b-remote-locks]
+    summary: "Three consumers, one queue that protects nothing: a lock on the network, why it must expire, and how not to delete someone else’s."
+  - no: "7"
+    slug: 7-distributed-locks
+    parts: [s7-distributed-locks]
+    summary: "When the lock store dies: a majority of five independent Redis nodes, its edge case, and why distributing is not scaling."
+  - no: "8"
+    slug: 8-what-to-keep
+    parts: [s8-keep]
+    summary: "The heuristics from both halves, every box and how it stops being a single point of failure, and what comes next."
+---
+import Header from './lec08/s0-header.mdx';
+
+{/* Lecture 05 (lec08). This body is the lecture overview page (/lectures/lec08/): the header block (About this
+    class, The load balancer so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec08/<slug>/), built
+    from the parts listed under `chapters` in the frontmatter, in outline order. Section ids: #s1 … #s8, subsections
+    #s<n>-<m>. A link to a section on another chapter page is written as a plain #id: the page template sends it to
+    the right chapter. */}
+
+<Header />

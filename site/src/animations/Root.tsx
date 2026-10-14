@@ -1,16 +1,25 @@
 // Remotion Studio / CLI root for the site's clips (optional: needs `@remotion/cli`, see README.md).
-// Each clip is registered twice: paper and blackboard.
+// Every clip folder clips/<id>/ (timeline.ts + one capitalised <Name>.tsx) is registered automatically, in paper
+// and blackboard (and the phone layout when META.phone is set). Rendering and checking happen in the lab.
 import React from 'react';
 import { Composition } from 'remotion';
-import { ReplicaPull } from './clips/demo-replica-pull/ReplicaPull';
-import { META as REPLICA_PULL } from './clips/demo-replica-pull/timeline';
-import { ReplicaLag } from './clips/l01-replica-lag/ReplicaLag';
-import { META as REPLICA_LAG } from './clips/l01-replica-lag/timeline';
 
-const both = (meta: { id: string; durationInFrames: number; fps: number; width: number; height: number }, component: React.FC<any>) =>
-  (['paper', 'blackboard'] as const).map((theme) => (
-    <Composition key={theme} id={theme === 'paper' ? meta.id : `${meta.id}-dark`} component={component}
-      durationInFrames={meta.durationInFrames} fps={meta.fps} width={meta.width} height={meta.height} defaultProps={{ theme }} />
-  ));
+type MetaLite = { id: string; durationInFrames: number; fps: number; width: number; height: number; phone?: { width: number; height: number } };
+const comps = (meta: MetaLite, component: React.FC<any>) =>
+  (['wide', 'phone'] as const).flatMap((layout) => layout === 'phone' && !meta.phone ? [] :
+    (['paper', 'blackboard'] as const).map((theme) => {
+      const d = layout === 'phone' ? meta.phone! : meta;
+      const id = meta.id + (layout === 'phone' ? '-phone' : '') + (theme === 'paper' ? '' : '-dark');
+      return <Composition key={id} id={id} component={component} durationInFrames={meta.durationInFrames} fps={meta.fps}
+        width={d.width} height={d.height} defaultProps={{ theme, layout }} />;
+    }));
 
-export const RemotionRoot: React.FC = () => <>{both(REPLICA_LAG, ReplicaLag)}{both(REPLICA_PULL, ReplicaPull)}</>;
+declare const require: { context: (dir: string, deep: boolean, re: RegExp) => { keys: () => string[]; (k: string): any } };
+const metas = require.context('./clips', true, /^\.\/[^/]+\/timeline\.ts$/);
+const files = require.context('./clips', true, /^\.\/[^/]+\/[A-Z][^/]*\.tsx$/);
+const dir = (k: string) => k.split('/')[1];
+
+export const RemotionRoot: React.FC = () => <>{metas.keys().flatMap((k) => {
+  const c = files.keys().filter((x) => dir(x) === dir(k));
+  return c.length === 1 ? comps(metas(k).META, files(c[0]).default) : [];
+})}</>;

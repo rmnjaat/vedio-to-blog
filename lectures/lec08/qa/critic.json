@@ -1,0 +1,177 @@
+{
+  "lecture": "lec08",
+  "verdict": "pass_with_fixes",
+  "issues": [
+    {
+      "id": "C-01",
+      "severity": "medium",
+      "owner": "content",
+      "where": "all chapter pages; page_text.md; e.g. sweep/1440-light/6-remote-locks/020.png, 021.png, 7-distributed-locks/001.png, 007.png; fig/1440-light-7-distributed-locks-think1-after.png",
+      "problem": "Reads like a summary of a recording, not a written page. 'the instructor' appears 58 times and 'the class' about 80 times, which is worse than lec01, where this was already flagged. Teacher biography takes up whole asides: 'The instructor's reserved-instance blunder', 'The instructor's first load balancer', 'The instructor's apt-get story', 'How the instructor learns', plus the master's professor, ~180 GitHub projects and the malloc anecdote. Many claims are framed by who said them: 'In the instructor's view…', 'in the instructor's words', 'The instructor called it a brilliant idea', 'The instructor has seen and used them, which is where the confidence comes from'. The pause-and-think verdict in §7.1 opens 'That's the class's answer: Redlock.'",
+      "fix": "Apply lec01's rule. Keep provenance in the meta lines and in 'Redrawn from the class board' captions. Rewrite 'the instructor/class said X' as the plain claim X. Cut the biography asides, or fold one sentence of each into the prose if it teaches something; the reserved-instance blunder does, as the weighted-round-robin motivation. Change the §7.1 verdict to 'Right: independent nodes and a majority (Redlock).' Target: 'the instructor' under 10 and 'the class' under 30 across the lecture.",
+      "status": "open"
+    },
+    {
+      "id": "C-02",
+      "severity": "medium",
+      "owner": "animation",
+      "where": "Clip 7·1 l08-redlock: clip/1440-light-l08-redlock-fig-poster.png, clip/390-light-l08-redlock-fig-poster.png",
+      "problem": "The poster contradicts itself. It says 'C1 3/5 acquired ✓', but only r1 and r3 show c1, r2 is crossed out in red, and r4/r5 carry red ×. A reader counts two of five. The poster flattens the 'majority' beat and the 'node down' beat into one frame. As a result it also undercuts the clip's lesson that one node dying stops nobody.",
+      "fix": "Make the poster one coherent state. Either use the 0:10 majority frame (r1–r3 = c1, C2 2/5 failed → random delay), or keep the node-down frame and label it honestly: 'r2 down after the acquire; C1's lock still holds until its TTL; a new client still needs 3 of the 4 left'. Check that the chip seek targets land on settled frames.",
+      "status": "open"
+    },
+    {
+      "id": "C-03",
+      "severity": "medium",
+      "owner": "design",
+      "where": "Fig 5·c (fig/1440-light-fig-5c.png, fig/390-*-fig-5c.png) and Fig 5·e (fig/1440-light-fig-5e.png) vs Fig 5·a / 5·b",
+      "problem": "The load balancer's private name drifts. Figs 5·a and 5·b say 'payments.lb.google.com', matching the board's 'paym.lb.googl.com'. Figs 5·c and 5·e say 'lb.payments.google.com'. Fig 5·c also puts the name directly under the user, so it reads as the user's label.",
+      "fix": "Use 'payments.lb.google.com' in 5·c (desktop and phone) and 5·e. In 5·e the public name stays 'payments.google.com', which keeps the public/private contrast. In 5·c, move the name onto the ① lookup arrow ('payments.lb.google.com?') rather than under the figure.",
+      "status": "open"
+    },
+    {
+      "id": "C-04",
+      "severity": "medium",
+      "owner": "content",
+      "where": "5-dns §5.4 'The request path' (1440-dark-5-dns-mid.png), §5.6 (sweep/1440-light/5-dns/016.png), §5.7 table",
+      "problem": "The prose has the same name drift as C-03. §5.4 says 'lb.payments.google.com goes to CoreDNS'. §5.6 says 'expose lb.payments.google.com'. The §5.2 pause-and-think and §5.1 say 'payments.lb.google.com'.",
+      "fix": "Use 'payments.lb.google.com' everywhere in the prose and in the clip-as-text, so it agrees with the figures after C-03.",
+      "status": "open"
+    },
+    {
+      "id": "C-05",
+      "severity": "medium",
+      "owner": "design",
+      "where": "Fig 3·a, 3·b, 3·c (fig/1440-light-fig-3a.png, step/1440-light-fig-3b-s*.png, fig/1440-light-fig-3c.png) vs Fig 4·d, Clip 4·1 and the §4.4 prose",
+      "problem": "Port drift. Chapter 3 draws the LB on :9000, and Fig 3·c draws three backends. Chapter 4 and the §3.4 code walk-through use :9090, with the meta port on :9091, and the demo had four backends on 8081–8084. Fig 3·c's caption has to apologise for the difference ('The class's demo used port 9090 and four Flask backends…'). The meta port 9091 only reads as 'the next port' if the LB is on 9090.",
+      "fix": "Redraw 3·a, 3·b (all steps, the 'connect :9000' label) and 3·c with the LB on :9090. Give 3·c four backends, :8081–:8084. Then drop the apology from the 3·c caption, and update the §3.1 prose if it says 9000.",
+      "status": "open"
+    },
+    {
+      "id": "C-06",
+      "severity": "medium",
+      "owner": "design",
+      "where": "2-algorithms: Fig 2·b (fig/1440-light-fig-2b-a.png), Fig 2·c (fig-2b-b.png), Fig 2·e (fig-2b.png)",
+      "problem": "Fig 2·e's first two panels are pixel-identical copies of Fig 2·b and Fig 2·c, a few screens earlier on the same page. It is the same repeat-drawing problem lec01 had with fig-1a. The reader sees the round-robin and weighted round-robin drawings twice, and the only new panel is least connections.",
+      "fix": "Make 2·e a summary in a different form: three small thumbnails at about 60% scale, each with its rule underneath ('uniform → rr', 'uneven infra → wrr', 'uneven load → least conn'). Alternatively, drop 2·e and put the least-connections panel in §2.4 as its own figure; the step-through 2·d already covers it.",
+      "status": "open"
+    },
+    {
+      "id": "C-07",
+      "severity": "medium",
+      "owner": "design",
+      "where": "Fig 2·c (fig/1440-light-fig-2b-b.png) and the middle panel of Fig 2·e (fig-2b.png, fig/390-light-fig-2b.png)",
+      "problem": "The utilisation marks can't be read. A pink bar and a black bar with no axis sit under the 8 GB box. 'rr 40%' and 'wrr 80%' are stacked tight against them, and 'plain rr: 80% · 40% · 80%' floats below the whole panel. The point is that the big server idles at 40% under plain round robin, and it takes the caption to decode it.",
+      "fix": "Put a small fill gauge to the right of each server box, with two rows labelled 'round robin' and 'weighted 1:2:1'. Show 80/40/80 against 80/80/80, with the 40% gauge in red. Labels ≥ 12px, not stacked, and drop the floating 'plain rr' line.",
+      "status": "open"
+    },
+    {
+      "id": "C-08",
+      "severity": "medium",
+      "owner": "design",
+      "where": "Fig 4·e (fig/1440-light-fig-4e.png, fig/390-light-fig-4e.png) vs Fig 5·c",
+      "problem": "Line style contradicts the caption. The caption says the config path 'is dashed because no request waits on it'. But the Ⓐ writes into the config db (orchestrator, lb console api and autoscaling → config db) are solid lines. In Fig 5·c the same Ⓐ writes are dashed. So the notation means different things in two figures one chapter apart.",
+      "fix": "Dash every config-path edge in 4·e, including the Ⓐ writes, on both desktop and phone. Solid stays reserved for the request path, as in 5·c.",
+      "status": "open"
+    },
+    {
+      "id": "C-09",
+      "severity": "medium",
+      "owner": "design",
+      "where": "overview: 1440-light-overview-mid.png, 1440-light-overview-end.png",
+      "problem": "The overview's 'The load balancer so far' section is two paragraphs with no drawing. lec01's overview opens with its 'Medium so far' figure, and the sample's rhythm is paragraph, figure, paragraph. This paragraph lists four earlier lectures' pieces (heartbeats, row locks, Pub/Sub, the LB box), which is exactly what a sketch should show.",
+      "fix": "Add an unnumbered 'so far' sketch: the closed 'lb' box from Lecture 2 in front of the API servers, with three hand-labelled arrows pointing into it: 'heartbeats (L1) → health checks §4', 'row lock (L3) → remote locks §6–7', 'pub/sub (L4) → config push §4'. Give it a phone redraw as a vertical list.",
+      "status": "open"
+    },
+    {
+      "id": "C-10",
+      "severity": "low",
+      "owner": "design",
+      "where": "Fig 5·c (fig/1440-light-fig-5c.png)",
+      "problem": "Labels crowd and collide. The Ⓓ marker sits on the LB servers' status dot and corner. Ⓑ is squeezed between 'redis pub/sub' and 'config db', so 'config db' reads as a label for Ⓑ. 'updates' runs along the orchestrator's dashed line next to the db.",
+      "fix": "Move Ⓓ just outside the LB servers stack, at top right with clear space. Put 'config db' under the cylinder, and Ⓑ on the cdc arrow at its midpoint. Leave 8px or more between markers and labels.",
+      "status": "open"
+    },
+    {
+      "id": "C-11",
+      "severity": "low",
+      "owner": "design",
+      "where": "Fig 5·d (fig/1440-light-fig-5d.png)",
+      "problem": "The red × is drawn across the failed leader's lettering, so 'orchestrator / leader' reads as 'orche×trator / le×der'. The two crowns are tiny 'M' squiggles, a glyph that isn't in the key.",
+      "fix": "Keep the red box outline and put the × at the box's top-right corner, as fig 4·c does for b srv2, or strike the box with one diagonal that clears the text. Label the crown 'leader' in hand lettering, or drop it and use the existing 'leader/follower' sub-labels.",
+      "status": "open"
+    },
+    {
+      "id": "C-12",
+      "severity": "low",
+      "owner": "design",
+      "where": "Fig 6·e (fig/1440-light-fig-6c.png, fig/390-dark-fig-6c.png)",
+      "problem": "'lock manager' sits on consumer 3's arrow into redis, so it reads as a label for that arrow rather than for redis.",
+      "fix": "Put 'lock manager' directly under or beside the redis cylinder, as fig 6·a labels its 'lock manager' box.",
+      "status": "open"
+    },
+    {
+      "id": "C-13",
+      "severity": "low",
+      "owner": "content",
+      "where": "end of 3-one-laptop (fig/1440-light-3-one-laptop-think1-after.png) → start of 4-control-plane §4.1 (sweep/1440-light/4-control-plane/001.png)",
+      "problem": "The §3 pause-and-think reveals '10,000 ÷ 2 = 5,000 clients'. The next page's §4.1 then restates the same arithmetic in prose ('Put numbers on it…'), and Fig 4·a draws it a third time.",
+      "fix": "Open §4.1 with a one-line hand-off ('§3's question already gave the number: 5,000 clients per LB server'), keep Fig 4·a, and cut the repeated arithmetic paragraph.",
+      "status": "open"
+    },
+    {
+      "id": "C-14",
+      "severity": "low",
+      "owner": "design",
+      "where": "comparison tables: §5.7 (sweep/1440-light/5-dns/018.png), §6.7 (6-remote-locks/022.png), §7.5 (7-distributed-locks/010.png)",
+      "problem": "Only some columns get a glyph above their header: §5.7 LB server and Pub/Sub, §6.7 Redis only, §7.5 Single Redis only. Those headers drop a line below their neighbours, so the header row looks ragged.",
+      "fix": "Give every column its key glyph, or give none. Bottom-align the header cells either way.",
+      "status": "open"
+    },
+    {
+      "id": "C-15",
+      "severity": "low",
+      "owner": "design",
+      "where": "§6.7 Other ways to build the lock: sweep/1440-light/6-remote-locks/020.png–022.png",
+      "problem": "Figure desert: about three screens of prose, a 'More precisely' box and a table, with no drawing. The one-connection TCP lock server is the most visual idea in the section.",
+      "fix": "Add a small figure: three consumers, a 'lock server (accepts 1 connection)' box, one solid connection labelled 'holds the lock' and two turned-away dashed attempts. Add a phone redraw.",
+      "status": "open"
+    },
+    {
+      "id": "C-16",
+      "severity": "low",
+      "owner": "animation",
+      "where": "clip/1440-light-l08-stale-config-fig-poster.png, clip/1440-light-l08-lock-ttl-fig-poster.png",
+      "problem": "The posters fade earlier beats to about 40% ink. On paper, 'remove b2' and 'pull' (stale-config) and 'SET queue7 c1 NX EX 300', 'OK' and the struck 'DEL queue7' (lock-ttl) are pale blue or pale green and hard to read. These labels carry the story the poster is meant to tell.",
+      "fix": "In the poster frame, keep story-carrying labels at full ink and fade only superseded state, such as the struck b2 and the expired c1.",
+      "status": "open"
+    },
+    {
+      "id": "C-17",
+      "severity": "low",
+      "owner": "content",
+      "where": "§1.3 prose vs Fig 1·b (sweep/1440-light/1-approach/006.png, fig/1440-light-fig-1b.png)",
+      "problem": "The prose lists the layers as 'database, cache, stateful services, stateless services, API servers, load balancer, CDN'. Fig 1·b draws cdn, lb, api, cache, stateful svc, db and dns, and its caption says 'one layer of seven'. 'Stateless services' isn't drawn and 'dns' isn't in the list.",
+      "fix": "Make the list and the drawing the same seven layers, either by adding DNS to the prose or by swapping dns for 'stateless svc' in the figure.",
+      "status": "open"
+    },
+    {
+      "id": "C-18",
+      "severity": "low",
+      "owner": "content",
+      "where": "captions of Fig 5·c (fig/1440-light-fig-5c.png) and Fig 2·c (fig/1440-light-fig-2b-b.png)",
+      "problem": "Some captions carry production notes. Fig 5·c's caption describes the phone layout to desktop readers ('On a phone the two paths are drawn as separate panels…'). Fig 2·c's says 'The board's request numbers are cut off'.",
+      "fix": "Drop both sentences. The 5·c caption only needs to say what the reader sees; the omission of the thin control lines can go in a short phone-only note if one is needed.",
+      "status": "open"
+    },
+    {
+      "id": "C-19",
+      "severity": "low",
+      "owner": "design",
+      "where": "phone: step/390-light-fig-7b-s1..s5.png, fig/390-light-fig-4d.png",
+      "problem": "In the phone step-through of Fig 7·b, the bottom ~40% of the sheet is empty grid, so the step text sits further from the rows than it needs to. Phone Fig 4·d squeezes about 30 request ticks into 300px, which leaves the red 'dead backend' ticks barely distinguishable from the blue.",
+      "fix": "7·b phone: crop the viewBox to the five rows. 4·d phone: draw half as many ticks, roughly one per second, keeping the 9-tick red run proportionally, and widen the red ticks.",
+      "status": "open"
+    }
+  ]
+}

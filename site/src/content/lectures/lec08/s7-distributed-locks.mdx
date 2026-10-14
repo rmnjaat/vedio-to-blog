@@ -1,0 +1,199 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { FiveNodes, TwoHolders, ScaleVsDistribute } from '../../../figures/lec08/s7-distributed-locks';
+
+{/* §7 Distributed locks: 7.1–7.5. Writer w4. */}
+
+<Section id="s7" no="7" title="Distributed locks" crumb="7 Distributed locks"
+  dek="Your lock store is one Redis. When it dies, nobody can lock anything. Spread the lock over five independent nodes, win a majority, and learn why “minimized” is the honest word."
+  meta="About 20 min · class 02:27–02:35, Q&A 02:50–02:59">
+
+Chapter 6 ended with a working remote lock: three consumers, one Redis, `SET NX` to acquire and an atomic script to release. Now that Redis goes down. Every consumer sits in its acquire loop, nobody can get the lock, and the system stalls.
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="One Redis is a single point of failure" crumb="7.1 One Redis"
+  dek="The lock works, until its one server doesn’t. Distributed locks exist for exactly this."
+  meta="About 2 min · class 02:27–02:29">
+
+The remote lock of chapter 6 is still not done. One instance of Redis is not fault tolerant. If it goes down, nobody can acquire the lock, nobody can move forward, and the entire system is stalled: a single point of failure. [[L-0275]]
+
+<PauseAndThink k="L-0275 L-0277 L-0278 L-0279 L-0280"
+  q="All locking goes through one Redis. It goes down. Should you add a replica with automatic failover to fix it?"
+  choices={[{ label: 'Yes: a replica takes over' }, { label: 'Not for locks: use several independent nodes and a majority', correct: true }]}
+  right="Right: independent nodes and a majority (Redlock)."
+  wrong="Not for locks: Redlock spreads the lock over independent nodes with no replication at all.">
+
+Run several (say five) fully independent Redis nodes, try to take the lock on each, and count it as yours only if you got more than half, within the lock’s time. If you didn’t, give back what you got. One node dying no longer stops anyone. “Just run it in a cluster” is not the answer: the point is independent nodes and a majority.
+
+</PauseAndThink>
+
+In the instructor’s view, very few companies use distributed locks, and most startups never think of them, because the cloud provides those guarantees. But if you work at AWS or GCP and you are the one building those services, you have to take care of it yourself. Google’s Chubby is a great example. [[L-0276]]
+
+Distributed locks exist only to solve this problem: the single point of failure of a single-instance lock. “Just run it in a cluster” is not how real systems answer it. The instructor has seen and used them, which is where the confidence comes from. [[L-0277]]
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="Redlock: a majority of five" crumb="7.2 Redlock"
+  dek="Five Redis servers that know nothing of each other. Take the lock on more than half of them, in time, or give back what you took."
+  meta="About 4 min · class 02:29–02:32">
+
+Instead of taking the lock on one Redis, take it on several. Run, say, five Redis servers, all fully independent: no multi-master replication, nothing between them. To acquire, go to all five, one after another or in parallel, and try to take the lock on each. [[L-0278]]
+
+You own the lock only if you got it on more than 50% of the nodes: three, four or five of the five. Three is more than half of five. Holding a majority means that however many other processes contend, none of them can also hold one. [[L-0279]] Redis’s own description adds a second condition: the total time spent acquiring must be less than the lock’s validity time, and what you can actually use is the TTL minus that time (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>). Majorities are what buy fault tolerance in general: a Raft cluster of five servers keeps working with two of them down, and with more down it stops making progress rather than returning wrong results (<Cite href="https://raft.github.io/">raft.github.io</Cite>).
+
+<Figure id="fig-7a" no="Fig 7·a" k="L-0278 L-0279 L-0280"
+  caption="Five masters, no replication, all independent. The client got r1, r2 and r3: a majority, taken in less than the TTL. Redrawn from the class board at 02:29–02:31.">
+  <Desk><FiveNodes /></Desk>
+  <Phone><FiveNodes layout="phone" /></Phone>
+</Figure>
+
+If you don’t get a majority, say you got two, release the locks you did get immediately, so that the other processes can contend. Every process keeps coming in and trying, and eventually someone wins, takes the lock and processes the message. [[L-0280]] Redis’s documentation goes one step further: a client that fails should try to unlock all the instances, even the ones it believes it didn’t lock, because a `SET` may have succeeded while its reply was lost; then it should retry after a random delay, so that competing clients stop colliding (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>).
+
+<AnimationClip clip="l08-redlock" no="Clip 7·1" k="L-0275 L-0278 L-0279 L-0280 L-0281 L-0282"
+  lead="Two clients race for one lock on five nodes. One gets three, the other two. What must the second one do now?"
+  caption="Three of five, in time, wins the lock; the loser releases what it took and retries after a random delay. Distributing the lock buys fault tolerance, not speed." />
+
+None of this is free. Distributed locks take a toll on performance, and throughput goes for a toss, so you won’t see them in high-throughput systems. They are used where a high degree of correctness and fault tolerance is required. [[L-0281]] Martin Kleppmann draws the line more sharply: if a lock exists only for efficiency, to avoid doing work twice, a single Redis instance is enough; if it protects correctness, use a consensus system such as ZooKeeper with fencing tokens rather than Redlock (<Cite href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">Kleppmann</Cite>).
+
+What you gain is that one node going down is no problem: the other nodes still hold the lock. Edge cases remain, for example the nodes that hold your lock going down afterwards, and they still affect correctness. But the probability of hitting them is reduced to a bare minimum. [[L-0282]] Redis’s own Redlock page lists more of them: process pauses, clock jumps and fast restarts can still produce two holders, because Redis does not use a monotonic clock for TTL expiry; it asks you to implement fencing tokens rather than assume a lock lasts as long as the process that took it (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>, <Cite href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">Kleppmann</Cite>).
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="The edge case" crumb="7.3 The edge case"
+  dek="Two of the holder’s nodes crash and come back empty. Now two clients each count three of five."
+  meta="About 4 min · class Q&A 02:50–02:55">
+
+Here is the edge case. A client acquires the lock on three of five Redis instances. Then two of those three go down. When two fresh Redis nodes are spun up in their place, they know nothing about the lock, so another client can take it on them and on a free node: another majority. Two clients now hold the lock on the same resource. [[L-0314]]
+
+That is exactly the edge case mentioned when Redlock was introduced. Redlock is not foolproof; it only minimizes the chances. What are the chances that the very servers holding your locks go down? [[L-0315]] This particular case also has a documented fix, not just a low probability: Redis calls it delayed restarts. Keep a crashed instance unavailable for a bit longer than the maximum lock TTL, so every lock it held has expired before it rejoins; the alternative is AOF persistence with `fsync=always`, at a performance cost (<Cite href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/">redis.io</Cite>).
+
+Look at it from the second client, still looping because it doesn’t have a majority yet, now with only three nodes in sight. One option is a global state that says “my cluster is unhealthy, wait for two more nodes to come up”. Otherwise it proceeds with a majority of what remains, and that is where it can wrongly believe it holds the lock. [[L-0317]]
+
+The confidence that this stays rare, as taught, rested on two arguments. First, the losers keep failing to get more than 50%, so they keep releasing what they took, while the majority holder, C1, keeps trying to acquire the remaining instances too; eventually the system converges to C1 holding the lock on all of them, though only a majority is needed to move forward. [[L-0316]] Second, the window is small: the edge case needs the two nodes C1 already holds to go down before C1 acquires the remaining two, which would hardly take two or three seconds, so the probability is very low. [[L-0318]]
+
+<SourceNote href="https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/" site="redis.io" k="L-0316 L-0318">
+
+In Redlock the winner holds only the majority it got in one pass; it does not keep acquiring the remaining nodes, and losers release everything and retry after a random delay. The risk window when lock-holding nodes restart empty is the lock’s TTL, not a few seconds. Redis closes it by keeping a crashed node out for longer than the max TTL (delayed restarts), or with `fsync=always`.
+
+</SourceNote>
+
+Asked why C1 would go on acquiring nodes once it already has a majority, the answer in class was that it needs to: that minimizes the edge case, though it doesn’t cover it. [[L-0319]] As the note above says, Redlock itself doesn’t do this; restarted nodes are handled by delayed restarts and persistence, not by the holder grabbing more nodes.
+
+<StepThrough id="fig-7b" no="Fig 7·b" label="Two holders figure" k="L-0279 L-0314 L-0315 L-0317 L-0318"
+  caption="Each row is the lock cell on each of the five Redis nodes at one moment; time runs down. The last step is the documented fix."
+  stepK={['L-0279 L-0314', 'L-0314', 'L-0314 L-0315 L-0317', 'L-0318', 'L-0315']}
+  steps={[
+    'C1 locks r1, r2 and r3: <span class="term green">three of five</span>, a majority.',
+    'r1 and r2 crash and come back with no memory of the lock. Only r3 still says <code>c1</code>.',
+    'C2 locks r1, r2 and r4: three of five as well. C1 still believes it holds the lock. <span class="term red">Two holders.</span>',
+    'In class: this needs both nodes to fail in the two or three seconds before C1 grabs the rest, so the chance is small.',
+    'More precisely: the window is the whole TTL. The fix is to keep a crashed node out for longer than the max TTL; then C2 can reach only two of five, <span class="term green">no majority</span>.',
+  ]}>
+  <Desk><TwoHolders /></Desk>
+  <Phone><TwoHolders layout="phone" /></Phone>
+</StepThrough>
+
+The point kept returning to: distributed-system edge cases are minimized, never claimed fully covered or fully mitigated. And the one line people miss is the line that makes all the difference. The line was not named at that moment; most likely it is the one pointed at earlier in the same answer, the failure branch of acquire: if you didn’t get a majority, release the lock on the instances you did acquire. [[L-0322 L-0280]]
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="Simulate it on one machine" crumb="7.4 Simulate it"
+  dek="Five servers are five processes. Slow them down on purpose and watch the edge cases happen."
+  meta="About 3 min · class Q&A 02:54–02:59">
+
+You don’t need five servers to see this. Test distributed behaviour by simulating it: put heavy load on the system and inject explicit delays, one second, five seconds, fifteen seconds, to mimic the edge cases, then watch how the system reacts. That is how Redlock could be explained here with confidence: by having mimicked exactly this situation. [[L-0320]]
+
+Nor are five Redis servers needed. For the demo, five Redis instances ran on one laptop, on ports 6379, 6380, 6381, 6382 and 6383, and that was the whole setup. [[L-0321]]
+
+<MarginNote title="See it yourself: Redlock on one laptop" why="skip unless you’ll run it" k="L-0321 L-0320">
+
+Start five independent servers, one per terminal: `redis-server --port 6379`, then 6380, 6381, 6382 and 6383. Write a client that runs `SET q <token> NX EX 30` against all five and counts the successes, sleeps between acquire and release (1 s, 5 s, 15 s), and releases with the owner-checking script on every node. Run two or three copies at once, then kill two of the servers that a client holds and restart them straight away. You have just built the edge case of 7.3; restart them only after the TTL, and it goes away. [[L-0321]]
+
+</MarginNote>
+
+System design and distributed systems are not all theory, and they need no fancy infrastructure. Read research papers and always implement them, going deep into the edge cases where things falter and mimicking those with explicit delays: five processes instead of five servers. The load balancer of this lecture is the classic example of something intimidating that turns out easy once you build it. [[L-0323]]
+
+In implementation, the devil lies in the details. The instructor could answer the Redlock question only because they had implemented it, and has built about 180 projects and repositories on GitHub over the last ten years, many of them private. [[L-0326]]
+
+</Section>
+
+<Section id="s7-5" no="7.5" title="Distribute for fault tolerance, scale for throughput" crumb="7.5 Distribute vs scale"
+  dek="You just made the lock slower on purpose. That is the trade, and it has its own name."
+  meta="About 3 min · class 02:32–02:35">
+
+The idea behind all of this: take a single node of X and make it distributed. That is the idea of distributed systems, and every single piece of your architecture needs to be horizontally scalable, distributed, like this. [[L-0283]] The next distinction sharpens that sentence.
+
+Here the lock was distributed not to handle scale. It reduces the scale: it lowers throughput. What it gains is fault tolerance and higher availability of the service. [[L-0287]]
+
+So there are two patterns. You are either scaling something horizontally to handle more load, or making it distributed to get fault tolerance, reliability and availability, which is why this course uses different phrases for them. [[L-0288]]
+
+<RuleBox rule="Scale out for ==throughput==; distribute for ==fault tolerance==. They are different patterns." k="L-0288 L-0287 L-0283">
+
+Distributing the lock doesn’t handle scale, it reduces throughput; what it buys is fault tolerance and availability.
+
+<Desk><ScaleVsDistribute /></Desk>
+<Phone><ScaleVsDistribute layout="phone" /></Phone>
+
+</RuleBox>
+
+<TradeoffTable caption="Three ways to lock across machines: a single Redis, Redlock on five nodes, ZooKeeper"
+  k="L-0275 L-0278 L-0281 L-0282 L-0287 L-0328"
+  columns={[{ label: 'Single Redis' }, { label: 'Redlock (5 nodes)' }, { label: 'ZooKeeper' }]}
+  rows={[
+    { label: 'Survives a store failure', k: 'L-0275 L-0282', cells: [{ text: 'No: everyone stalls in the acquire loop', bad: true }, 'Yes: one node down is no problem; it needs a majority up', 'Yes: its state is replicated by consensus'] },
+    { label: 'Cost per acquire', k: 'L-0281 L-0287', cells: ['One round trip', 'A round trip to every node: lower throughput', 'A create agreed by the ensemble'] },
+    { label: 'Safety under pauses and clock jumps', k: 'L-0282', cells: ['A paused holder can outlive its TTL; fencing tokens fix that', 'Restarts, pauses and clock jumps can still give two holders', 'Stronger: session-based ephemeral nodes; still pair with fencing tokens'] },
+    { label: 'Used for', k: 'L-0281', cells: ['The common remote lock; enough when the lock only saves duplicate work', 'Correctness and fault tolerance, not high throughput', 'Correctness-critical locks'] },
+    { label: 'From class', k: 'L-0278 L-0328', cells: ['Chapter 6', 'The class’s distributed lock (7.2)', '“Does exactly this”: know how it works inside'] },
+  ]} />
+
+<MarginNote title="Read next" why="skip unless you want the primary sources" k="L-0284 L-0285 L-0286">
+
+Google’s Chubby paper, on a lock service for loosely coupled distributed systems. Google still uses Chubby in production; it was the first research paper the instructor ever read, as an assignment, and it is very influential. [[L-0284]]
+
+Martin Kleppmann’s post on why you should not use Redlock. It describes an edge case where Redlock doesn’t work; rare, but worth reading anyway (<Cite href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">martin.kleppmann.com</Cite>). [[L-0285]]
+
+The instructor’s three or four YouTube videos on implementing distributed transactions with locks, and their blogs on distributed systems. Having taken this course, you will follow them more easily than most viewers. [[L-0286]]
+
+</MarginNote>
+
+<h3 id="s7-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0279 L-0280" q="Five Redis nodes: how many must you lock, and what must you do if you don’t get them?">
+
+At least three, more than half, and (per Redis) within less than the lock’s TTL. If you don’t get a majority, release the lock at once on the nodes you did get (Redis says: on all five, in case a reply was lost), so others can contend, and retry after a random delay.
+
+  </RecallItem>
+  <RecallItem k="L-0281 L-0287" q="Why does Redlock <em>lower</em> throughput, and why use it anyway?">
+
+Every acquire and release talks to five nodes instead of one, and contending clients keep taking and giving back partial locks. It is used anyway where correctness and fault tolerance matter: one node dying no longer stalls everyone. It is distributed for fault tolerance, not scaled for load.
+
+  </RecallItem>
+  <RecallItem k="L-0314 L-0315 L-0318" q="Describe the “two holders” edge case and the documented fix.">
+
+C1 holds the lock on three of five nodes. Two of those crash and restart empty, so C2 can lock them plus a free node: three of five, and two clients believe they hold the lock. In class the window was put at two or three seconds; more precisely it is the whole TTL. Redis’s fix is delayed restarts: keep a crashed node out for longer than the maximum TTL (or persist with `fsync=always`).
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '8 · What to keep', href: '#s8' }}
+  concepts={[{ label: 'single point of failure', href: '#s7-1' }, { label: 'Redlock', href: '#s7-2' }, { label: 'majority', href: '#s7-2' }, { label: 'delayed restarts', href: '#s7-3' }, { label: 'simulate with delays', href: '#s7-4' }, { label: 'distribute vs scale', href: '#s7-5' }]} />
+
+</Section>

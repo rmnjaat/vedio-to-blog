@@ -1,0 +1,71 @@
+import Section from '../../../components/Section.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+
+{/* §8 What to keep. Writer w3. Restates placed ids only; no RuleBox, prompt or recall. */}
+
+<Section id="s8" no="8" title="What to keep" crumb="8 What to keep"
+  dek="The heuristics that ran through both halves, every box and how it stops being a single point of failure, and what comes next."
+  meta="About 4 min">
+
+The load balancer started as one process copying bytes between two sockets and ended as a fleet with a control plane. The locks started as one Redis key and ended spread over five nodes. In both halves the question was the same: what happens when this box dies?
+
+### Every box, and how it stays up [[rail: Every box]]
+
+Each row is a box from this lecture. The third column is what the class said; the fourth adds what the fact-check found, where it found something.
+
+<TradeoffTable caption="Every box, and how it stops being a single point of failure"
+  k="L-0221 L-0233 L-0351 L-0353 L-0369 L-0275 L-0278"
+  columns={[{ label: 'What it holds' }, { label: 'What kills it' }, { label: 'How it stays up (from class)' }, { label: 'More precisely' }]}
+  rows={[
+    { label: 'LB server', k: 'L-0221', cells: ['An in-memory config copy and the map of client → backend connections', 'A crash, or too many connections for one machine', 'Many LB servers behind one DNS name; the orchestrator adds and removes their IPs (§5.2)', 'Clients that can’t connect re-resolve; AWS ELB uses a 60 s TTL so its IPs can be remapped quickly'] },
+    { label: 'CoreDNS', k: 'L-0233', cells: ['A hash map: name → the LB servers’ IPs', 'The machine or the process going down', 'Several CoreDNS servers, found through DNS in turn, down to one node with a standby (§5.3)', 'Stateless replicas; clients list up to three nameservers. The root zone is 13 identities on about 2,047 instances'] },
+    { label: 'Orchestrator', k: 'L-0351', cells: ['No state: everything is in the config database', 'The master node going down', 'Leader election: followers do grunt work, and one takes over in 1–2 s (§5.5)', 'ZooKeeper’s recipe: the lowest ephemeral sequential znode leads'] },
+    { label: 'Config DB', k: 'L-0353', cells: ['Backends, algorithm, health endpoint for every load balancer', 'The database server going down', 'Database high availability, like every other component (§5.5)', 'A standby gives failover, not scale: AWS calls RDS Multi-AZ “not a scaling solution” (§1.3)'] },
+    { label: 'Prometheus', k: 'L-0369', cells: ['Every machine’s vitals, as time series', 'More load than one server’s known capacity', 'More query servers and replicated storage (§4.6)', 'Local storage is single-node; scale by sharding, federation or remote write (§4.6)'] },
+    { label: 'Redis lock, one instance', k: 'L-0275', cells: ['queue7 → its owner, with a TTL', 'The one Redis server dying', { text: 'It doesn’t: nobody can acquire, and everything stalls (§7.1)', bad: true }, 'For efficiency-only locks one instance can be enough; for correctness it is a single point of failure'] },
+    { label: 'Redlock, five nodes', k: 'L-0278', cells: ['The same key on five independent Redis servers', 'Losing a majority; nodes restarting empty', 'Lock a majority, 3 of 5, and release at once if you miss (§7.2)', 'Keep a crashed node out for longer than the TTL, and use fencing tokens (§7.3)'] },
+  ]} />
+
+### Ten lines to keep [[rail: Heuristics]]
+
+The same few ideas kept coming back, whichever box was on the board:
+
+1. Assume anything and everything will go wrong, then check whether your code and your system handle it ([§1.1](#s1-1)). [[L-0029]]
+2. Start from the day-zero architecture, one machine, one server, one database, one cache, and scale each component from there; one engineer’s approach, “take it with a pinch of salt” ([§1.2](#s1-2)). [[L-0030]]
+3. Every layer must scale out, and know your unit economics: how many requests one server handles, so you can scale linearly ([§1.3](#s1-3)). [[L-0041]]
+4. It is always about money: does the infrastructure get used well? ([§2.3](#s2-3)) [[L-0066]]
+5. Think about practicality whenever you suggest a design idea. The load balancer can’t stop to ask every server for its CPU ([§2.5](#s2-5)). [[L-0082]]
+6. Everyone can build it locally; few get to scale it. So build it ([§3.5](#s3-5)). [[L-0144]]
+7. Make systems reactive rather than polling-based ([§4.5](#s4-5)). [[L-0181]]
+8. Reuse existing tools ([§4.6](#s4-6)), and don’t add boxes for their own sake: every service is a network hop ([§5.7](#s5-7)). [[L-0192 L-0342]]
+9. To synchronize two things, use the nearest storage they share ([§6.2](#s6-2)). [[L-0308]]
+10. Edge cases are minimized, never claimed fully covered; the one line people miss makes all the difference, most likely the release-on-failure branch of acquire ([§7.3](#s7-3)). [[L-0322]]
+
+Two papers sit under the two halves of this lecture. Google’s Maglev paper, where much of the load balancer design comes from ([§5.4](#s5-4)) [[L-0229]], and Google’s Chubby paper, a lock service for loosely coupled distributed systems, still in production ([§7.5](#s7-5)). [[L-0284]]
+
+<MarginNote title="A learning habit, from practice" why="skip unless you want the habit" k="L-0240 L-0324 L-0325 L-0327">
+
+The aim of the class is to understand the intuition behind a design, not to mug things up; a session gets stretched rather than compromise on quality to get there. [[L-0240]]
+
+At the time of this class the instructor was writing their own `malloc`, to see how memory management happens at the OS level: how a program gets memory, and where exactly the heap lives in RAM. [[L-0324]] A suggestion from class, that this would mean writing your own inodes, was corrected: inodes belong to the file system, while `malloc` is in-memory allocation. [[L-0325]]
+
+The habit behind it: find the scrappiest way to build something, and study whenever possible. That morning, before class, it was the official documentation of the system calls that allocate memory, read until 8:45, time traded for what would otherwise go to Netflix. [[L-0327]]
+
+</MarginNote>
+
+### Where this lecture stops [[rail: Stops here]]
+
+Each of these was deferred in class on purpose:
+
+- <ForwardChip label="tomorrow" when="Lecture 6" k="L-0001" /> Distributed ID generators: the intuition, the idea, the key implementation details, and the whys. [[L-0001]]
+- <ForwardChip label="coming later" when="Lecture 7" k="L-0143" /> A CDN in depth. [[L-0143]]
+- <ForwardChip label="coming later" when="Lecture 9" k="L-0179" /> Change data capture (CDC) in depth, which fed the config path here. [[L-0179]]
+- <ForwardChip label="week 7" k="L-0335" /> How a queue serves many consumers: building your own message broker, after this series. [[L-0335]]
+
+<SectionEnd
+  concepts={[{ label: 'approach', href: '#s1-1' }, { label: 'algorithms', href: '#s2-1' }, { label: 'one laptop', href: '#s3-1' }, { label: 'control plane', href: '#s4-1' }, { label: 'DNS and the design', href: '#s5-1' }, { label: 'remote locks', href: '#s6-1' }, { label: 'distributed locks', href: '#s7-1' }]} />
+
+</Section>

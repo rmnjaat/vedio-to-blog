@@ -1,0 +1,3446 @@
+{
+ "lecture": "lec04",
+ "ledger": "lectures/lec04/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1": "How to approach a design",
+  "1.1": "Two ways to build",
+  "1.2": "The property before the tool",
+  "2": "Green dots: the online/offline indicator",
+  "2.1": "The brief, and the core",
+  "2.2": "Reading many dots at once",
+  "2.3": "Who says a user is alive?",
+  "2.4": "Why the beat must repeat",
+  "2.5": "A timestamp instead of a boolean",
+  "2.6": "Is storage the problem?",
+  "2.7": "Absence means offline. Who deletes?",
+  "2.8": "Let the database expire it",
+  "3": "Redis or DynamoDB?",
+  "3.1": "Same features, different choice",
+  "3.2": "Persistence, and Redis as the primary store",
+  "3.3": "Managed or self-managed",
+  "3.4": "Vendor lock-in",
+  "3.5": "Room to grow",
+  "3.6": "How fast you hear about an expiry",
+  "3.7": "Staying portable, and where to stop",
+  "4": "Six million heartbeats a minute",
+  "4.1": "The other number",
+  "4.2": "The line nobody thinks about",
+  "4.3": "Keep the connections open",
+  "4.4": "Where the pool lives",
+  "4.5": "How many connections?",
+  "4.6": "The database's ceiling",
+  "4.7": "When pooling hurts",
+  "4.8": "Only four things",
+  "4.9": "The same pattern: failure detection",
+  "5": "Blog rows: database decisions",
+  "5.1": "Six components, and the blog schema",
+  "5.2": "Delete, or mark deleted?",
+  "5.3": "The B+ tree argument",
+  "5.4": "The soft-delete lifecycle",
+  "5.5": "The right to be forgotten",
+  "5.6": "bio vs body: where long text lives",
+  "5.7": "Three ways to store a date",
+  "5.8": "Redbus and the custom format",
+  "5.9": "Time zones and running out of numbers",
+  "6": "What a cache is",
+  "6.1": "Not just RAM",
+  "6.2": "One shared cache for the blog",
+  "6.3": "A table can be a cache",
+  "6.4": "Should the cache compress?",
+  "6.5": "Exercise: every place you could cache",
+  "7": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "First line: course of 8 weeks, intuition and implementation, not drawing boxes ('you can do as a kid also')."
+  },
+  "L-0002": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "'How to use this page': the course is built on live brainstorming, so stop at every prompt."
+  },
+  "L-0003": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Not interview prep: joy of engineering, first principles, simple designs that scale."
+  },
+  "L-0004": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Note new terms and look them up yourself (intermediate course)."
+  },
+  "L-0005": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Weeks chain together; by week 7 a flash sale takes ~10 min. Revise."
+  },
+  "L-0006": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Pre-reads (Redis, DynamoDB) cover most of what you need."
+  },
+  "L-0008": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Every system in the course runs on a laptop; no massive infrastructure."
+  },
+  "L-0009": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Implement the core of each system over a year or so; echoed in the recap."
+  },
+  "L-0010": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Implementing shows where a design falters; real teams expect implementation."
+  },
+  "L-0016": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Week 1 is foundations; system brainstorming starts next week."
+  },
+  "L-0019": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Agenda line: indicator first, then database and caching on a Medium-like app."
+  },
+  "L-0020": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Day one keeps scale out of focus; scale comes in weeks 2-4."
+  },
+  "L-0021": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "The brief, green/grey dots (D-01); opening problem of chapter 2."
+  },
+  "L-0022": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Two approaches in the instructor's 10-11 years; worded as his experience (unverifiable)."
+  },
+  "L-0023": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Spiral: decide the core (usually the DB), build around it. Inline: course term, not Boehm's Spiral model."
+  },
+  "L-0024": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Core can be a schema or a comms layer; WebSocket layer in a messaging app."
+  },
+  "L-0025": {
+   "section": "1.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "D-02 loop: day zero, observe under load/at scale, bottleneck, re-architect, repeat."
+  },
+  "L-0026": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Spiral when the system is a no-brainer you've built before."
+  },
+  "L-0027": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Incremental for ambiguity; fits startups shipping day zero."
+  },
+  "L-0028": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Big multi-year projects grow organically from some parts; no hard lines. Keep vague (referent unclear)."
+  },
+  "L-0029": {
+   "section": "1.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §1 board wording: core property & access pattern first; affinity second."
+  },
+  "L-0030": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Affinity fails: no DynamoDB off AWS; no Redis in the company."
+  },
+  "L-0031": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Course often drops Cassandra; relational DBs run at scale too."
+  },
+  "L-0032": {
+   "section": "1.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox body: build intuition; systems are infinitely buildable and evolve."
+  },
+  "L-0033": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Spiral applied: DB as the core; what is needed to render a dot."
+  },
+  "L-0034": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "D-03: user int -> online bool; DB not yet decided."
+  },
+  "L-0035": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Access pattern = key-value (get many, get one, update one); names the pattern, not the DB."
+  },
+  "L-0036": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "First idea: single-user status endpoint."
+  },
+  "L-0037": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Four users = four calls; poor UX and load. Fig 2·c panel a."
+  },
+  "L-0038": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "First critical decision: batch endpoint. Fig 2·c panel b."
+  },
+  "L-0039": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board path GET /status/users?ids=...; '/data/users' is an ASR slip, not used."
+  },
+  "L-0040": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Someone must update the state: pull or push."
+  },
+  "L-0041": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Pull impossible; board 'unless persistent connection'. Left as taught + A-OOI-22."
+  },
+  "L-0042": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Push heartbeats: client periodically says 'I am alive'. Fig 2·d."
+  },
+  "L-0043": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Heart analogy; names the mechanism."
+  },
+  "L-0044": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "POST /heartbeat marks the authenticated user alive (D-06 heading)."
+  },
+  "L-0045": {
+   "section": "2.4",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    },
+    {
+     "section": "2.4",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Tempting idea: login + logout calls. P1 and Fig 2·e step 1-2."
+  },
+  "L-0046": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    },
+    {
+     "section": "2.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Can't announce offline: crash, battery, unplug. Fig 2·e steps 3-4; P1 reveal."
+  },
+  "L-0047": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "No heartbeat for long enough -> offline. D-06 'when is a user offline?'."
+  },
+  "L-0048": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "'Long enough' is business logic; 30 s here, heartbeat every 10 s."
+  },
+  "L-0049": {
+   "section": "2.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "pulse(user_id, last_heartbeat) table (D-07)."
+  },
+  "L-0050": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "NotationKey"
+    }
+   ],
+   "note": "Notation note: board tables don't mean relational; SQL is just illustration. Repeated in the notation key."
+  },
+  "L-0051": {
+   "section": "2.5",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "UPDATE pulse ... now(). Left as taught + A-OOI-06 upsert in the CodeBlock."
+  },
+  "L-0052": {
+   "section": "2.5",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "getStatus rule 1: no entry -> offline."
+  },
+  "L-0053": {
+   "section": "2.5",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "getStatus rule 2: last_hb < now-30 s -> offline; else online."
+  },
+  "L-0054": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Epoch seconds since 1 Jan 1970; link forward to 5.7."
+  },
+  "L-0055": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "4 B + 4 B = 8 B per user. Left as taught; 2038 limit picked up in 5.9."
+  },
+  "L-0056": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Figure"
+    },
+    {
+     "section": "2.6",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "1B users -> 8 GB. Left as taught + A-OOI-08 (row overhead)."
+  },
+  "L-0057": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "8 GB < phone storage, fits in RAM: storage not the challenge."
+  },
+  "L-0058": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Storage = space to hold the data."
+  },
+  "L-0059": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Ask 'can I change this?' at every step; design = trade-offs."
+  },
+  "L-0060": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Stay open, document every option and why; heart of a senior engineer."
+  },
+  "L-0061": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Absence = offline: only online users have rows."
+  },
+  "L-0062": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Each heartbeat resets a 30 s timer; entries = online users."
+  },
+  "L-0063": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.7",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "2.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Cron job deletes stale rows; Fig 2·i panel a; P3."
+  },
+  "L-0064": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Works on day one, not robust; board 'edge cases'."
+  },
+  "L-0065": {
+   "section": "2.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.7",
+     "component": "Prose"
+    },
+    {
+     "section": "2.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "1B total, 100k active -> 100k rows, 800 KB (board S38)."
+  },
+  "L-0066": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.7",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Cron = another moving part: hosting, uptime, telemetry."
+  },
+  "L-0067": {
+   "section": "2.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Never draw a box for its own sake; complex diagram is the worst outcome."
+  },
+  "L-0068": {
+   "section": "2.8",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "2.8",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §2: never reinvent the wheel; offload expiry to the DB."
+  },
+  "L-0069": {
+   "section": "2.8",
+   "component": "Prose",
+   "also": [],
+   "note": "KV + TTL requirement; Redis and DynamoDB, chosen to drive the next chapter."
+  },
+  "L-0070": {
+   "section": "2.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.8",
+     "component": "SourceNote"
+    },
+    {
+     "section": "2.8",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "2.8",
+     "component": "CodeBlock"
+    },
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Final design: SET with TTL 30 s on every heartbeat. SN-02 (SET clears TTL; DynamoDB lag).",
+   "source_note": "SN-02"
+  },
+  "L-0071": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Both give KV + TTL; other criteria; board 'cost estimation'."
+  },
+  "L-0072": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Tempting: persistence. Challenge: data dies in 30 s anyway. Kept open (no verdict)."
+  },
+  "L-0073": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    },
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Managed offloads infra; board 'managed (*team size) & expertise'."
+  },
+  "L-0074": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Raised in class: team size; Redis avoids lock-in."
+  },
+  "L-0075": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Reasons to switch: pricing, infra move, deals; often not a big issue."
+  },
+  "L-0076": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From practice: why teams switched clouds': security incidents, discontinued services, trust."
+  },
+  "L-0077": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Definition of vendor lock-in; DynamoDB AWS-only."
+  },
+  "L-0078": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Moving clouds = rewriting code; mature orgs care."
+  },
+  "L-0079": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "SourceNote"
+    },
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Competition; Amazon food business. SN-04 'Since the class' (May 2020 - Dec 2022).",
+   "source_note": "SN-04"
+  },
+  "L-0080": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Walmart not on AWS. Inline: hybrid Azure/GCP/own cloud."
+  },
+  "L-0081": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "$10M/month to a competitor; illustration (unverifiable)."
+  },
+  "L-0082": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Early startup with $10k bill need not care."
+  },
+  "L-0083": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Netflix stays on AWS; hedged (unverifiable-low)."
+  },
+  "L-0084": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Lock-in drives open-source preference."
+  },
+  "L-0085": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis persists too, with limits."
+  },
+  "L-0086": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Know how: AOF, RDB, config, flush frequency."
+  },
+  "L-0087": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Managed Redis on every cloud (ElastiCache); point raised, no verdict."
+  },
+  "L-0088": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: Redis only strings. Correction: Redis has numbers and structures."
+  },
+  "L-0089": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    },
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Future extensibility: Bloom, HLL, geo."
+  },
+  "L-0090": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Streams + Lambda; Redis CDC. Inline: Redis has best-effort notifications, not a durable feed."
+  },
+  "L-0091": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "DBs converging. Left as taught + A-D-25."
+  },
+  "L-0092": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Go deep on every candidate, pros and cons, stay open."
+  },
+  "L-0093": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Tempting: Redis faster because in memory; class said 'not really'. SN-05.",
+   "source_note": "SN-05"
+  },
+  "L-0094": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    },
+    {
+     "section": "3.6",
+     "component": "Figure"
+    },
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Persistent connections vs stateless DynamoDB. SN-05 (+A-D-05, A-D-06).",
+   "source_note": "SN-05"
+  },
+  "L-0095": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Each DB has its own features. Inline: Aerospike has an AGPLv3 Community Edition."
+  },
+  "L-0096": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "DB is the most critical, brittle component; know it early."
+  },
+  "L-0097": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Figure"
+    },
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Expiry hooks over a connection vs streams. Light inline (simplified-medium) + A-D-03."
+  },
+  "L-0098": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Open source vs proprietary. Left as taught + A-D-07 (licence history, Valkey)."
+  },
+  "L-0099": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Lean 5-10 person teams go managed; every DB has ops pain."
+  },
+  "L-0100": {
+   "section": "3.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §3: future extensions, vendor lock-in, managed vs self-managed."
+  },
+  "L-0101": {
+   "section": "2.8",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Not how production does it': persistent connections. Left as taught + A-OOI-18 (MQTT)."
+  },
+  "L-0102": {
+   "section": "2.8",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "WebSockets in Lecture 2 §5.4 (said 'next week'); Slack real-time presence in Lecture 4."
+  },
+  "L-0103": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    },
+    {
+     "section": "2.6",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "10 s heartbeat -> 6/min; 1M active -> 6M/min. P2 second half."
+  },
+  "L-0104": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "One DB update per heartbeat; DB chokes. Left as taught + A-OOI-09."
+  },
+  "L-0105": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Storage isn't the problem, computation is. Inline: '1 million entries' slip -> 8 MB / 8 GB."
+  },
+  "L-0106": {
+   "section": "4.1",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Sharding/partitioning: Lecture 2 (hash), Lecture 3 (range)."
+  },
+  "L-0107": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Pooling is under-discussed; know it for write-heavy loads."
+  },
+  "L-0108": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "HTTP POST in, second TCP connection to the DB."
+  },
+  "L-0109": {
+   "section": "4.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    },
+    {
+     "section": "4.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Five trips per call as counted. Inline: + DB login, TLS."
+  },
+  "L-0110": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The diagram line stands for an expensive setup."
+  },
+  "L-0111": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Micro update; time goes to connecting. Left as taught; A-OOI-16 sentence follows."
+  },
+  "L-0112": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Definition: keep connections open and reuse."
+  },
+  "L-0113": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    },
+    {
+     "section": "4.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Three connections at startup."
+  },
+  "L-0114": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Pick, mark busy, fire query; saves setup/teardown."
+  },
+  "L-0115": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Two benefits: faster calls, less DB load."
+  },
+  "L-0116": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "DB-side cost of connecting. Inline + A-OOI-16 (process per connection)."
+  },
+  "L-0117": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Saves CPU and network; 'not really memory'. Inline: memory is part of it."
+  },
+  "L-0118": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "StepThrough"
+    },
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Min and max; min 3."
+  },
+  "L-0119": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Libraries for MySQL/Postgres/Redis. Left as taught."
+  },
+  "L-0120": {
+   "section": "4.5",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "All busy: wait."
+  },
+  "L-0121": {
+   "section": "4.5",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Or stretch: open one more and add it."
+  },
+  "L-0122": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Unbounded stretch breaks."
+  },
+  "L-0123": {
+   "section": "4.5",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    },
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Max 100; 101st waits. + A-OOI-10 connectionTimeout."
+  },
+  "L-0124": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "DB caps connections; hundreds of servers x 100. + A-OOI-19."
+  },
+  "L-0125": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Idle TTL 10 min. + A-OOI-11."
+  },
+  "L-0126": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Pool is a library in the API server. Left as taught (A-OOI-14 in 4.7)."
+  },
+  "L-0127": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception 'everything is a service'. Left as taught."
+  },
+  "L-0128": {
+   "section": "4.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Figure"
+    },
+    {
+     "section": "4.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Blocking queue implementation."
+  },
+  "L-0129": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Huge gain for one-row PK updates (B+ tree leaf)."
+  },
+  "L-0130": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Big queries dwarf setup; pool matters less."
+  },
+  "L-0131": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "RuleBox"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "'Always a great option'; set beside L-0320 in RuleBox §4 body."
+  },
+  "L-0132": {
+   "section": "4.9",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.9",
+     "component": "Figure"
+    }
+   ],
+   "note": "Heartbeats = failure detection (own AWS)."
+  },
+  "L-0133": {
+   "section": "4.9",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.9",
+     "component": "Figure"
+    }
+   ],
+   "note": "Own load balancer. Left as taught + A-OOI-17."
+  },
+  "L-0134": {
+   "section": "4.9",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Observe patterns, don't memorise Q&A."
+  },
+  "L-0135": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "New server waits for a free DB slot. Inline: DB refuses with error; pool waits up to timeout."
+  },
+  "L-0136": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Scale the DB up; size by concurrency."
+  },
+  "L-0137": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Max connections is the most common bottleneck; the lecture's experience (unverifiable-low)."
+  },
+  "L-0138": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Vertical or shard; Lecture 2 §2.4."
+  },
+  "L-0139": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: managed DynamoDB vs self-managed Redis to autoscale -> managed for lean teams."
+  },
+  "L-0140": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Self-host only with expertise; 'throw money at cloud providers'."
+  },
+  "L-0141": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: expired connections recreated up to max, same expiry."
+  },
+  "L-0142": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Max is a ceiling, not a constant."
+  },
+  "L-0143": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: connections, not data, decide the size here. Yes."
+  },
+  "L-0144": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Micro reads/writes -> network bottleneck (board green note)."
+  },
+  "L-0145": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.8",
+     "component": "Figure"
+    }
+   ],
+   "note": "Big aggregations: CPU and memory instead."
+  },
+  "L-0146": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Limit depends on RAM and network card. Left as taught + A-OOI-15."
+  },
+  "L-0147": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Managed services publish the formula/limit."
+  },
+  "L-0148": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Self-managed: benchmark."
+  },
+  "L-0149": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "High-network instances. Inline + A-OOI-20."
+  },
+  "L-0150": {
+   "section": "4.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: connections + size? Broadened to four resources."
+  },
+  "L-0151": {
+   "section": "4.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.8",
+     "component": "Figure"
+    },
+    {
+     "section": "6.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Memory, CPU, disk, network; GPU under CPU."
+  },
+  "L-0152": {
+   "section": "4.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "CPU-bound: aggregations."
+  },
+  "L-0153": {
+   "section": "4.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Memory-bound: massive joins."
+  },
+  "L-0154": {
+   "section": "4.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Disk-bound: data warehouses."
+  },
+  "L-0155": {
+   "section": "4.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Network-bound: query count capped by network; heartbeat store."
+  },
+  "L-0156": {
+   "section": "4.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Scaling defined on the four; vertical has a limit; shard."
+  },
+  "L-0157": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Min 3 or 5. Left as taught + A-OOI-12 (HikariCP fixed-size)."
+  },
+  "L-0158": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.7",
+     "component": "Figure"
+    },
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Max per server = DB max / max servers; 1000/100 = 10."
+  },
+  "L-0159": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "15 instead of 10, '1.2x', not a standard. Inline: 1.5x; 100 x 12 > 1000."
+  },
+  "L-0160": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Telemetry on the pool; a week of production."
+  },
+  "L-0161": {
+   "section": "4.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §4 rule: start conservative, observe, retune."
+  },
+  "L-0162": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Festival 2x: scale the DB up, 'Always'."
+  },
+  "L-0163": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Scale up then down; then tune max. Left as taught."
+  },
+  "L-0164": {
+   "section": "4.6",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Better spike answer: flash sales, week 7 (not in these notes yet)."
+  },
+  "L-0165": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Tech unit economics, monitoring."
+  },
+  "L-0167": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Why the page opens with a build: theory-first became too theoretical."
+  },
+  "L-0168": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Six components card (board S64)."
+  },
+  "L-0169": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Caching gets a few minutes today; returns through the course."
+  },
+  "L-0170": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Multi-user blogging app like Medium."
+  },
+  "L-0171": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "users(id, name, bio); bio ~128-140 chars."
+  },
+  "L-0172": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "blogs(id, author_id, title, body, published_at, is_deleted)."
+  },
+  "L-0173": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Soft delete definition."
+  },
+  "L-0174": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Hard delete definition. Left as taught."
+  },
+  "L-0175": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Reason 1: recoverability."
+  },
+  "L-0176": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Google Drive trash, 30 days."
+  },
+  "L-0177": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Reason 2: archival (ML). Light inline (simplified-medium) + A-D-24."
+  },
+  "L-0178": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Job moves soft-deleted rows to S3."
+  },
+  "L-0179": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Reason 3: audit."
+  },
+  "L-0180": {
+   "section": "5.2",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "'From the instructor: the police station' harassment story (unverifiable, attributed)."
+  },
+  "L-0181": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Platforms must provide evidence to authorities. Left as taught."
+  },
+  "L-0182": {
+   "section": "5.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor visited the police station with printouts."
+  },
+  "L-0183": {
+   "section": "5.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §5: recoverability, archival, audit?"
+  },
+  "L-0184": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Holistic view rather than just building."
+  },
+  "L-0185": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "B+ tree rebalancing claim. SN-07 (+A-D-09, A-D-10).",
+   "source_note": "SN-07"
+  },
+  "L-0186": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Soft delete updates only. Inline: still a write."
+  },
+  "L-0187": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Know your engine's internals."
+  },
+  "L-0188": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "User-generated content tables usually soft delete."
+  },
+  "L-0189": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "bio short text, body long text; '~140 chars'."
+  },
+  "L-0190": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Fixed-width rows. SN-11.",
+   "source_note": "SN-11"
+  },
+  "L-0191": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "C struct analogy. Inline: fixed-length columns only."
+  },
+  "L-0192": {
+   "section": "5.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "VARCHAR inline (D-13 right). Left as taught."
+  },
+  "L-0193": {
+   "section": "5.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "LONGTEXT by reference (D-13 left). Left as taught + A-D-14, A-D-15."
+  },
+  "L-0194": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Two reads vs one. Left as taught."
+  },
+  "L-0195": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Rows must stay bounded. + A-D-16."
+  },
+  "L-0196": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Which fields are short vs long."
+  },
+  "L-0197": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "5,000-char comment. Inline + A-D-17 (utf8mb4)."
+  },
+  "L-0198": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "List pages don't need the body."
+  },
+  "L-0199": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Keep rows minimal."
+  },
+  "L-0200": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Three approaches to published_at."
+  },
+  "L-0201": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Approach 1: native type."
+  },
+  "L-0202": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Serialise to disk, parse back."
+  },
+  "L-0203": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Hypothetical string storage; board example 02-04-2022T09:01:36Z."
+  },
+  "L-0204": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Last-7-days query parses every row."
+  },
+  "L-0205": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Expensive; storage format decides performance."
+  },
+  "L-0206": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "MySQL/Postgres/MongoDB differ; seconds or ms."
+  },
+  "L-0207": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Know how yours stores dates."
+  },
+  "L-0208": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Convenient but can be suboptimal. Left as taught."
+  },
+  "L-0209": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Approach 2: epoch integer column."
+  },
+  "L-0210": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Epoch definition."
+  },
+  "L-0211": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Prose"
+    },
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "20 bytes vs 4 bytes (Fig 5·h byte strip)."
+  },
+  "L-0212": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Efficient but unreadable."
+  },
+  "L-0213": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "SourceNote"
+    },
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Light on the index. SN-12.",
+   "source_note": "SN-12"
+  },
+  "L-0214": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Redbus 2016 (attributed, unverifiable)."
+  },
+  "L-0215": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Epoch loses readability for their engineers (attributed)."
+  },
+  "L-0216": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Approach 3: relax a constraint."
+  },
+  "L-0217": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "YYYYMMDD integer 20220402."
+  },
+  "L-0218": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Readable and fast integer compare."
+  },
+  "L-0219": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Be creative; alter constraints."
+  },
+  "L-0220": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Choose by readability, performance, convenience."
+  },
+  "L-0221": {
+   "section": "5.8",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Asked: inflexible? They knew they didn't need time."
+  },
+  "L-0222": {
+   "section": "5.8",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Asked: no speed over epoch; agreed; readability. P8."
+  },
+  "L-0223": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor has seen custom formats elsewhere (unverifiable)."
+  },
+  "L-0224": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.9",
+     "component": "SourceNote"
+    },
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Native type captures zone. SN-13 (+A-D-21).",
+   "source_note": "SN-13"
+  },
+  "L-0225": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [],
+   "note": "Render epoch in local zone."
+  },
+  "L-0226": {
+   "section": "5.9",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From practice: burned by time zones'; keep UTC."
+  },
+  "L-0227": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Production, more analytics than transactional (attributed)."
+  },
+  "L-0228": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: benefit vanishes on final hard delete? Answer: batch. Inline."
+  },
+  "L-0229": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Clubbing deletes clubs rebalancing. Inline."
+  },
+  "L-0230": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "100 per commit -> 100x fewer rebalances. Inline + A-D-11."
+  },
+  "L-0231": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: epoch overflows 4-byte int. Left as taught."
+  },
+  "L-0232": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.9",
+     "component": "SourceNote"
+    },
+    {
+     "section": "5.9",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "'2032', 8 bytes doubles. SN-14 (+A-D-20).",
+   "source_note": "SN-14"
+  },
+  "L-0233": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [],
+   "note": "Pre-1970 negatives. Inline: normal and supported."
+  },
+  "L-0234": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [],
+   "note": "Compressed serialised datetime ~6 B 'let's say'. Left as taught + A-D-18."
+  },
+  "L-0235": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.9",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "MySQL range BCE-20,000 'I think'. SN-15 (+A-D-19).",
+   "source_note": "SN-15"
+  },
+  "L-0236": {
+   "section": "5.9",
+   "component": "Prose",
+   "also": [],
+   "note": "Read MySQL's official datetime docs."
+  },
+  "L-0237": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Sets up Lecture 2's first discussion."
+  },
+  "L-0238": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: caching = in-memory."
+  },
+  "L-0239": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition: anything saving heavy computation or operation."
+  },
+  "L-0240": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Memoization."
+  },
+  "L-0241": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Not only RAM: disk, network."
+  },
+  "L-0242": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Usually cuts disk or network I/O; RAM habit."
+  },
+  "L-0243": {
+   "section": "6.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Cache an expensive network call on local disk."
+  },
+  "L-0244": {
+   "section": "6.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    },
+    {
+     "section": "6.1",
+     "component": "Figure"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §6: disk I/O, network I/O, computation."
+  },
+  "L-0245": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Be creative."
+  },
+  "L-0246": {
+   "section": "6.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Glorified hash tables (board). Left as taught."
+  },
+  "L-0247": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis HLL/Bloom/geo. Left as taught + A-CC-16."
+  },
+  "L-0248": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Remote cache, logically between API and DB (D-15)."
+  },
+  "L-0249": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Cache-aside read flow."
+  },
+  "L-0250": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    },
+    {
+     "section": "6.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "One copy all servers read."
+  },
+  "L-0251": {
+   "section": "6.2",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Popular blog join cached; DB load drops."
+  },
+  "L-0252": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Network hop still paid; cheaper than recomputing."
+  },
+  "L-0253": {
+   "section": "6.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Cache internals, eviction, LRU/LFU: Lecture 9."
+  },
+  "L-0254": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Figure"
+    },
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "The exercise; Lecture 2 opens with it."
+  },
+  "L-0255": {
+   "section": "6.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From an earlier cohort': Goldman Sachs participant (unverifiable)."
+  },
+  "L-0256": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Central cache covered; CDN and LB hints."
+  },
+  "L-0257": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Purpose: spark ideas, see the hacks."
+  },
+  "L-0258": {
+   "section": "7",
+   "component": "Prose",
+   "also": [],
+   "note": "Trade-offs, no one right answer."
+  },
+  "L-0259": {
+   "section": "5.1",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Other four components: Lecture 2."
+  },
+  "L-0260": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked: precomputed result in a DB table? Possible. + A-CC-11."
+  },
+  "L-0261": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "'Why not this, why just this?'."
+  },
+  "L-0262": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Local storage deferred to Lecture 2 §1.4."
+  },
+  "L-0263": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Soft deletes grow DB; periodic hard delete."
+  },
+  "L-0264": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Or move elsewhere: archival."
+  },
+  "L-0265": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "When to hard delete is subjective."
+  },
+  "L-0266": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "GDPR erasure within one month. Left as taught + A-CC-02."
+  },
+  "L-0267": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Not immediate; breathing space. SN-08 (+A-CC-01).",
+   "source_note": "SN-08"
+  },
+  "L-0268": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "SourceNote"
+    },
+    {
+     "section": "5.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "PII deleted, logs keep it. SN-09.",
+   "source_note": "SN-09"
+  },
+  "L-0269": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Atlassian 14 days. Inline + A-CC-05."
+  },
+  "L-0270": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Snapshots not rewritten. Left as taught + A-CC-03."
+  },
+  "L-0271": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Compliance hacks'. Inline: reframed as recognised practices."
+  },
+  "L-0272": {
+   "section": "5.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor made his org GDPR compliant in 2 months (unverifiable, attributed)."
+  },
+  "L-0273": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "GDPR on every organisation. SN-10 (+A-CC-04 scope).",
+   "source_note": "SN-10"
+  },
+  "L-0274": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Compress only big values; trade-off."
+  },
+  "L-0275": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "App compresses; caches are KV. Left as taught + A-CC-07."
+  },
+  "L-0276": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Plugins maybe; never needed. Left as taught + A-CC-06."
+  },
+  "L-0277": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Email loses; 10 KB -> 1 KB wins."
+  },
+  "L-0278": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "CDNs and media. Left as taught + A-CC-08."
+  },
+  "L-0279": {
+   "section": "6.4",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    },
+    {
+     "section": "6.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Reasoned live: compress in the client (network). Left as taught; P9 reveal."
+  },
+  "L-0280": {
+   "section": "6.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Compress, send, store, receive, decompress."
+  },
+  "L-0281": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Keep asking questions."
+  },
+  "L-0282": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'From practice: the interview question'; cron has nothing to do with availability."
+  },
+  "L-0283": {
+   "section": "5.4",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    },
+    {
+     "section": "5.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Staggered deletion under traffic; clip l04-staggered-delete."
+  },
+  "L-0284": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Locking concern = consistency, not availability. Left as taught."
+  },
+  "L-0285": {
+   "section": "5.4",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Strong consistency: Lecture 3."
+  },
+  "L-0286": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Persistent connections to both cancel out."
+  },
+  "L-0287": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Figure"
+    },
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Redis memory vs DB disk. Left as taught + A-CC-10."
+  },
+  "L-0288": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Small vs large reads. SN-16 (+A-CC-09).",
+   "source_note": "SN-16"
+  },
+  "L-0289": {
+   "section": "6.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    },
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "B+ tree log n vs hash. Left as taught."
+  },
+  "L-0290": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "RAM costlier and smaller; biggest factor."
+  },
+  "L-0291": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Subjective; not much difference overall. Left as taught."
+  },
+  "L-0292": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Holds if computation saved is large (claim uncertain; short caveat)."
+  },
+  "L-0293": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Managed Redis pricing (A-CC-17 not used)."
+  },
+  "L-0294": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Table in app DB loads that DB."
+  },
+  "L-0295": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Cron takes pool connections; gain some, lose some."
+  },
+  "L-0296": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Unique email blocks re-signup; hard delete. Inline + A-D-12 partial index."
+  },
+  "L-0297": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Retention policy = cron offloaded to a DB thread. + A-D-13."
+  },
+  "L-0298": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Offload and stagger. Left as taught."
+  },
+  "L-0299": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Worst case assumed; small table in RAM -> no difference."
+  },
+  "L-0300": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Index doesn't guarantee RAM; design for worst case."
+  },
+  "L-0301": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "When it doesn't matter: you are the vendor; sure to stay on AWS."
+  },
+  "L-0302": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Manager's hat: hiring for open-source tools."
+  },
+  "L-0303": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Neo4j vs TigerGraph talent pool."
+  },
+  "L-0304": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Availability assumed equal; property of engineers. Left as taught."
+  },
+  "L-0305": {
+   "section": "2.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'What about last seen?': out of scope; needs rows kept; 8 GB is peanuts."
+  },
+  "L-0306": {
+   "section": "2.8",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Redis expiry internals: Lecture 3 (lazy deletion, sampling), Lecture 9 (own cache)."
+  },
+  "L-0307": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Indexes stored on disk; Lecture 3."
+  },
+  "L-0308": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Soft delete gives time to archive in batch."
+  },
+  "L-0309": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Asked late: Redis can be the primary database."
+  },
+  "L-0310": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Primary + Redis or Redis alone depends on the guarantees needed."
+  },
+  "L-0311": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "SourceNote"
+    },
+    {
+     "section": "3.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Redis as primary with AOF, 8 GB in RAM. SN-03 (everysec ~1 s; failover).",
+   "source_note": "SN-03"
+  },
+  "L-0312": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Drop stereotypes ('DynamoDB only for X'); said in the Redis-as-primary answer."
+  },
+  "L-0313": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Surge handling is engineering; counts against self-hosted Redis."
+  },
+  "L-0314": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "TTL chosen because needed; move only to a store with it, or re-implement (cron)."
+  },
+  "L-0315": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Draw a line on abstraction or you write your own database."
+  },
+  "L-0316": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.7",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "Debezium for CDC off DynamoDB. + A-OOI-05, A-OOI-04. MarginNote tells the student's story."
+  },
+  "L-0317": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Document limits and migration steps."
+  },
+  "L-0318": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Pools when scaling the DB; write a hello world; Lectures 2 and 3."
+  },
+  "L-0319": {
+   "section": "4.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.7",
+     "component": "Prose"
+    },
+    {
+     "section": "4.7",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "1000 max, min 100 per server, +20 servers -> exhausted. P6, Fig 4·f."
+  },
+  "L-0320": {
+   "section": "4.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "RuleBox"
+    },
+    {
+     "section": "4.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Misconfigured pool caps server count. + A-OOI-14 (PgBouncer, RDS Proxy)."
+  },
+  "L-0321": {
+   "section": "4.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Free growth or long expiry hogs connections; outage for new servers."
+  },
+  "L-0322": {
+   "section": "4.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Grass not always green; document, near-optimal, move on."
+  },
+  "L-0323": {
+   "section": "4.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "TTL sweet spot; long queries need longer."
+  },
+  "L-0324": {
+   "section": "4.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Average query time is the key metric. Left as taught."
+  },
+  "L-0325": {
+   "section": "4.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Asked: grow pool when query time rises? SN-06 (+A-OOI-13).",
+   "source_note": "SN-06"
+  },
+  "L-0326": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Go explore: 30,000 connections'; + A-OOI-21."
+  },
+  "L-0327": {
+   "section": "2.8",
+   "component": "Prose",
+   "also": [],
+   "note": "TTL because space mattered; in-memory deletion is peanuts (asked in class)."
+  },
+  "L-0328": {
+   "section": "7",
+   "component": "Prose",
+   "also": [],
+   "note": "Trade-off intuition over 8 weeks; brainstorming needs the why."
+  },
+  "L-0329": {
+   "section": "7",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Three hats, week 6; senior engineer's view in Lecture 8."
+  },
+  "L-0330": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Is HTTP really stateless?': stateless by design, keep-alive possible. Left as taught + A-CC-13."
+  },
+  "L-0331": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "HTTP/2 persistent; WebSocket not HTTP but persistent. + A-CC-14 (starts as HTTP Upgrade)."
+  },
+  "L-0332": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Server closes unless keep-alive. SN-01: HTTP/1.1 persistent by default.",
+   "source_note": "SN-01"
+  },
+  "L-0333": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Think of HTTP as stateless; for state use WebSockets or MQTT."
+  },
+  "L-0334": {
+   "section": "2.3",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Stateful HTTP/2 design, week 5 (HTTP/2 appears in Lecture 9)."
+  },
+  "L-0335": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Asked: HTTP runs on TCP. Left as taught + A-CC-15 (HTTP/3 over QUIC/UDP)."
+  },
+  "L-0336": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "HTTP is a spec, TCP layer 4; could go over UDP. Inline: needs reliable ordered transport (QUIC)."
+  }
+ },
+ "dropped": [
+  {
+   "id": "L-0007",
+   "reason": "Pure logistics: how to book the three one-on-ones on the course platform."
+  },
+  {
+   "id": "L-0011",
+   "reason": "Pure logistics: the post-session feedback form."
+  },
+  {
+   "id": "L-0012",
+   "reason": "Pure logistics: the Discord 'Look What I Found' channel."
+  },
+  {
+   "id": "L-0013",
+   "reason": "Pure logistics: session days and times, open forum, calendar invite."
+  },
+  {
+   "id": "L-0014",
+   "reason": "Pure logistics: where and when recordings are posted."
+  },
+  {
+   "id": "L-0015",
+   "reason": "Pure logistics: when questions are taken during a session. Every question asked is placed under its topic."
+  },
+  {
+   "id": "L-0017",
+   "reason": "Pure logistics/promotion: the instructor's YouTube channel and membership."
+  },
+  {
+   "id": "L-0018",
+   "reason": "Pure logistics/promotion: the instructor's other course and essays."
+  },
+  {
+   "id": "L-0166",
+   "reason": "Pure logistics: the break and the time split for the second half."
+  },
+  {
+   "id": "L-0337",
+   "reason": "Pure logistics: recording upload and a reminder to do the exercise (the exercise itself is L-0254, placed in 6.5)."
+  }
+ ],
+ "source_notes": {
+  "SN-01": [
+   "L-0332"
+  ],
+  "SN-02": [
+   "L-0070"
+  ],
+  "SN-03": [
+   "L-0311"
+  ],
+  "SN-04": [
+   "L-0079"
+  ],
+  "SN-05": [
+   "L-0093",
+   "L-0094"
+  ],
+  "SN-06": [
+   "L-0325"
+  ],
+  "SN-07": [
+   "L-0185"
+  ],
+  "SN-08": [
+   "L-0267"
+  ],
+  "SN-09": [
+   "L-0268"
+  ],
+  "SN-10": [
+   "L-0273"
+  ],
+  "SN-11": [
+   "L-0190"
+  ],
+  "SN-12": [
+   "L-0213"
+  ],
+  "SN-13": [
+   "L-0224"
+  ],
+  "SN-14": [
+   "L-0232"
+  ],
+  "SN-15": [
+   "L-0235"
+  ],
+  "SN-16": [
+   "L-0288"
+  ]
+ },
+ "additions": {
+  "A-OOI-01": {
+   "section": "2.8",
+   "component": "SourceNote",
+   "note": "SN-02: a plain SET clears the TTL; write SET ... EX 30 every heartbeat."
+  },
+  "A-OOI-02": {
+   "section": "2.8",
+   "component": "SourceNote",
+   "note": "SN-02: DynamoDB TTL lag of days; check expires_at < now."
+  },
+  "A-OOI-04": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "DynamoDB Streams mark TTL deletions as service deletions (archiver can tell them apart)."
+  },
+  "A-OOI-05": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "Debezium reads the MySQL binlog into Kafka topics (makes L-0316 concrete)."
+  },
+  "A-OOI-06": {
+   "section": "2.5",
+   "component": "CodeBlock",
+   "note": "Upsert with INSERT ... ON CONFLICT DO UPDATE for the first heartbeat."
+  },
+  "A-OOI-08": {
+   "section": "2.6",
+   "component": "Prose",
+   "note": "Row overhead: ~36 B per row in PostgreSQL before indexes; conclusion holds."
+  },
+  "A-OOI-09": {
+   "section": "4.1",
+   "component": "Prose",
+   "note": "100k writes/s is within a Redis node's benchmark range; hard for a disk RDBMS."
+  },
+  "A-OOI-10": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "HikariCP connectionTimeout 30 s default: the waiting caller gets an error after it."
+  },
+  "A-OOI-11": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "HikariCP idleTimeout defaults to 10 minutes, matching the class's example."
+  },
+  "A-OOI-12": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "HikariCP recommends fixed-size pools (min = max), the opposite convention."
+  },
+  "A-OOI-13": {
+   "section": "4.7",
+   "component": "SourceNote",
+   "note": "SN-06: HikariCP sizing starting point; past the optimum throughput falls."
+  },
+  "A-OOI-14": {
+   "section": "4.7",
+   "component": "Prose",
+   "note": "Central poolers (PgBouncer, RDS Proxy) multiplex many servers onto few connections."
+  },
+  "A-OOI-15": {
+   "section": "4.6",
+   "component": "Prose",
+   "note": "RDS default max_connections from memory (MySQL ~MB/12)."
+  },
+  "A-OOI-16": {
+   "section": "4.2",
+   "component": "Prose",
+   "note": "PostgreSQL spawns a backend process per connection."
+  },
+  "A-OOI-17": {
+   "section": "4.9",
+   "component": "Prose",
+   "note": "ALB health checks every 30 s, 2 failures; LB pulls."
+  },
+  "A-OOI-18": {
+   "section": "2.8",
+   "component": "MarginNote",
+   "note": "Facebook Messenger kept a persistent MQTT connection (2011)."
+  },
+  "A-OOI-19": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "PostgreSQL max_connections default 100, 3 reserved for superusers."
+  },
+  "A-OOI-20": {
+   "section": "4.6",
+   "component": "Prose",
+   "note": "EC2 connection-tracking allowance per instance."
+  },
+  "A-OOI-21": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "note": "Redis benchmarked past 60,000 client connections; fits the 'go explore' note."
+  },
+  "A-OOI-22": {
+   "section": "2.3",
+   "component": "Prose",
+   "note": "WebSocket gives two-way messages over one connection (the board's 'unless')."
+  },
+  "A-D-01": {
+   "section": "3.2",
+   "component": "SourceNote",
+   "note": "SN-03: AOF fsync policies; everysec may lose 1 s."
+  },
+  "A-D-02": {
+   "section": "3.2",
+   "component": "SourceNote",
+   "note": "SN-03: async replication can lose acknowledged writes on failover."
+  },
+  "A-D-03": {
+   "section": "3.6",
+   "component": "Prose",
+   "note": "Expired events fire on actual deletion, can be late, off by default, fire-and-forget."
+  },
+  "A-D-05": {
+   "section": "3.6",
+   "component": "SourceNote",
+   "note": "SN-05: SDK reuses TCP connections to DynamoDB."
+  },
+  "A-D-06": {
+   "section": "3.6",
+   "component": "SourceNote",
+   "note": "SN-05: DynamoDB single-digit ms; DAX for microseconds."
+  },
+  "A-D-07": {
+   "section": "3.1",
+   "component": "Prose",
+   "note": "Redis licence history 2024-25 and the Valkey fork."
+  },
+  "A-D-09": {
+   "section": "5.3",
+   "component": "SourceNote",
+   "note": "SN-07: InnoDB purge / PostgreSQL VACUUM defer physical removal."
+  },
+  "A-D-10": {
+   "section": "5.3",
+   "component": "SourceNote",
+   "note": "SN-07: page merge only below MERGE_THRESHOLD (50%)."
+  },
+  "A-D-11": {
+   "section": "5.3",
+   "component": "Prose",
+   "note": "MySQL DELETE ... LIMIT loop; also in the 5.4 CodeBlock."
+  },
+  "A-D-12": {
+   "section": "5.4",
+   "component": "CodeBlock",
+   "note": "Partial unique index on email WHERE NOT is_deleted."
+  },
+  "A-D-13": {
+   "section": "5.4",
+   "component": "Prose",
+   "note": "MongoDB TTL monitor runs every 60 s and can lag."
+  },
+  "A-D-14": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "InnoDB DYNAMIC moves long values off-page only when the row doesn't fit."
+  },
+  "A-D-15": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "PostgreSQL TOAST for any wide value; fetched only if selected."
+  },
+  "A-D-16": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "InnoDB in-page row limit just under 8 KB; MySQL 65,535-byte row cap."
+  },
+  "A-D-17": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "utf8mb4 up to 4 bytes per character."
+  },
+  "A-D-18": {
+   "section": "5.9",
+   "component": "Prose",
+   "note": "MySQL DATE 3 B, DATETIME 5 B, TIMESTAMP 4 B; also feeds T3 sizes."
+  },
+  "A-D-19": {
+   "section": "5.9",
+   "component": "SourceNote",
+   "note": "SN-15: PostgreSQL timestamp 8 B, 4713 BC - 294276 AD."
+  },
+  "A-D-20": {
+   "section": "5.9",
+   "component": "SourceNote",
+   "note": "SN-14: MySQL TIMESTAMP ends 2038-01-19."
+  },
+  "A-D-21": {
+   "section": "5.9",
+   "component": "SourceNote",
+   "note": "SN-13: TIMESTAMP vs DATETIME zones; timestamptz stores UTC."
+  },
+  "A-D-24": {
+   "section": "5.2",
+   "component": "Prose",
+   "note": "Erasure needs a legal basis for reuse (ML); inline beside L-0177."
+  },
+  "A-D-25": {
+   "section": "3.5",
+   "component": "Prose",
+   "note": "MongoDB multi-document ACID since 4.0/4.2."
+  },
+  "A-CC-01": {
+   "section": "5.5",
+   "component": "SourceNote",
+   "note": "SN-08: one month, extendable by two."
+  },
+  "A-CC-02": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "Art. 17(3) exceptions; right is not absolute."
+  },
+  "A-CC-03": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "ICO 'beyond use' for backups (beside L-0270; also cited in SN-09)."
+  },
+  "A-CC-04": {
+   "section": "5.5",
+   "component": "SourceNote",
+   "note": "SN-10: territorial scope."
+  },
+  "A-CC-05": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "Atlassian 2022 outage facts."
+  },
+  "A-CC-06": {
+   "section": "6.4",
+   "component": "Prose",
+   "note": "pymemcache compresses values over 400 bytes (client-side)."
+  },
+  "A-CC-07": {
+   "section": "6.4",
+   "component": "Prose",
+   "note": "Redis compresses only RDB files and optional list nodes."
+  },
+  "A-CC-08": {
+   "section": "6.4",
+   "component": "Prose",
+   "note": "Compress text; media is already compressed."
+  },
+  "A-CC-09": {
+   "section": "6.3",
+   "component": "SourceNote",
+   "note": "SN-16: page-sized reads, 8 kB / 16 KB."
+  },
+  "A-CC-10": {
+   "section": "6.3",
+   "component": "Prose",
+   "note": "InnoDB buffer pool keeps hot pages in RAM."
+  },
+  "A-CC-11": {
+   "section": "6.3",
+   "component": "Prose",
+   "note": "Materialized view as the 'table as cache'; 188 ms -> 0.117 ms."
+  },
+  "A-CC-12": {
+   "section": "2.3",
+   "component": "SourceNote",
+   "note": "SN-01: HTTP/1.1 persistent by default; HTTP/1.0 per-request."
+  },
+  "A-CC-13": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "note": "Keep-Alive header only matters in HTTP/1.x."
+  },
+  "A-CC-14": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "note": "WebSocket starts as an HTTP Upgrade."
+  },
+  "A-CC-15": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "note": "HTTP/3 over QUIC over UDP."
+  },
+  "A-CC-16": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "Redis built-in probabilistic types as of Oct 2026."
+  }
+ },
+ "additions_not_used": {
+  "A-OOI-03": "optional; Redis's passive/active expiry is taught in Lecture 3, and the ForwardChip (L-0306) points there.",
+  "A-OOI-07": "optional; duplicates A-D-20 (the 2038 limit), which is used in SN-14.",
+  "A-D-04": "optional; duplicates A-OOI-02 (TTL lag) and A-OOI-04 (service deletions in Streams), both used.",
+  "A-D-08": "optional; duplicates A-CC-16 (Redis built-in types), which is used in 6.1.",
+  "A-D-22": "optional; SQLite's date storage choice adds a fourth database the class never discussed.",
+  "A-D-23": "optional; a law-firm summary of India's IT Rules 2021 whose later amendments were not checked; L-0181 stands as taught without it.",
+  "A-CC-17": "optional; dated ElastiCache pricing dimensions; L-0293's point (managed Redis has its own pricing) needs no figures."
+ }
+}

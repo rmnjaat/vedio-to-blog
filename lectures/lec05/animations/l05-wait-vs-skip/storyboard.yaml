@@ -1,0 +1,125 @@
+# Storyboard — clip l05-wait-vs-skip (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l05-wait-vs-skip
+title: 120 passengers, two queries
+lecture: 3
+section: "2.5 Approach 5: SKIP LOCKED"
+status: reviewed     # draft | approved | built | reviewed (see review.md)
+why_motion: >
+  Contention and accumulation. Both queries end on the same seat map (120 of 120, correct), so a still of the two
+  results shows "no difference", which is exactly what the lecture overturns. The difference lives only in time: under
+  FOR UPDATE a queue forms at every seat and every commit wakes the whole queue to re-check, so evaluations pile up
+  and the time bar runs long; under SKIP LOCKED nobody queues, seats lock back to back and the bar barely grows.
+static_twin: "StepThrough Fig 2·e (wait, signal, re-check with three transactions) and Table T2 (the numbers); terminal frames b_010030.jpg-b_010045.jpg (approach 4 timings) and b_010600.jpg (approach 5, took 147.4798ms)"
+ledger:
+  taught:
+    - L-0112  # approach 4 (FOR UPDATE): all 120 seats filled, every run
+    - L-0113  # seats booked in order; each transaction takes an exclusive lock, the others wait
+    - L-0115  # first gets the lock, the rest wait; on commit the engine signals the waiters to re-evaluate; one gets the next row; and so on
+    - L-0119  # approach 5 = approach 4 plus two words, SKIP LOCKED
+    - L-0121  # approach 4 took 1.7 s; approach 5 147 ms, about one tenth, still all 120
+    - L-0122  # SKIP LOCKED: still an exclusive lock, but a locked row is passed for the next matching row; nobody waits; rows locked back to back
+    - L-0154  # with SKIP LOCKED the query is evaluated about 120 times in total
+    - L-0155  # without it, worst case N(N+1)/2 evaluations inside the engine (N + (N-1) + ...)
+  context_only:
+    - L-0114  # misconception "all 120 got row 1" (prose in 2.4; B1's "one gets the lock; 119 wait" is consistent with it)
+    - L-0123  # "10x faster just by adding skip lock" (prose after the clip; the clip says "in this demo")
+    - L-0306  # SKIP LOCKED reads a page and moves to the next row without re-evaluating (MarginNote)
+fidelity_notes:
+  - "Playback is NOT to scale, and the screen says so ('slowed down', top right). The two runs play one after the other, as in class (approach 4 was run, then approach 5). The time bars ARE to scale with each other (same track, same start): 1.7 s (the class's figure, L-0121; on screen the runs printed 1.25 s, 1.73 s, 1.79 s) and 147 ms (terminal: took 147.4798ms). On screen the top run lasts ~14 s and the bottom ~6 s; the bars, not the playback, carry the ratio."
+  - "Departure from animations.md: the plan had the two lanes racing at once with the top 'still grinding' while the bottom runs. Built sequentially instead, so only one thing moves at a time and each lane is one run, as in class. A time bar on a shared track replaces the running clocks (a clock reading 0.4 s mid-run would be an invented number)."
+  - "Each bar grows in proportion to seats booked so far (each seat stands for an equal share of the run's time). The demo printed no per-seat timings; the clip shows none."
+  - "The evaluation counter on the FOR UPDATE lane is the WORST case, written 'up to': all 120 evaluate, then 119 re-check after the first commit, 118 after the next ... 120 + 119 + ... + 1 = N(N+1)/2 = 7,260 for N = 120 (L-0155; the arithmetic is the page's, as in outline 2.4). The real count depends on timing."
+  - "The SKIP LOCKED counter ends at 'about 120' (L-0154). Its lane shows dots passing locked seats and never a re-check: the instructor's later Q&A wording (L-0306) is that SKIP LOCKED does not re-evaluate the query; his in-demo word 'quickly re-evaluated' (L-0122) stays in the MarginNote."
+  - "Re-check wording follows the fact-check of L-0115 (simplified/low, A-C-11): a woken waiter re-checks the row against its WHERE and moves on to the next free seat; the clip says 're-check', never 'the app re-runs the query'."
+  - "Dots are symbolic: the waiting crowd is drawn as at most 12 dots for up to 120 passengers (drawn = ceil(12 x count / 120)); the SKIP LOCKED stream after the visible seats draws one dot per 4 passengers (wide) or 6 (phone). Labels and counters carry the real numbers."
+  - "Who gets which seat is not shown (L-0117 is prose); dots are anonymous. Seats are drawn 1A..2F (wide) or 1A..1F (phone), then '…20F' (the demo's 20 rows x 6 seats, L-0112's terminal 1-A ... 20-F)."
+  - "Waiting is graphite with an hourglass, never red (figures.md marker rule, L-0096). Green = lock granted (padlock + holder dot) and seat booked (green outline + tinted fill); blue = a query being evaluated (moving to its row, or re-checking). No red: nothing fails."
+  - "'≈ 1/10 the time' and the caption's 'about ten times faster in this demo' trace to L-0121 ('one tenth of the time'); fact-check L-0123: the 10x is this demo's measurement."
+  - "Not claimed: that SKIP LOCKED is always 10x faster; per-seat lock-wait times; which engine; that FOR UPDATE waiters busy-loop (they sleep until signalled, L-0163, prose)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30, note: "wide lettering 34 px (~15 px at the 540 px stage), captions 36 px (~16 px; shared band scaled by 0.75), ink 3.6 px (~1.6 px; the sheets use 1.7), matching the page sheets (critic C-05, 2026-10-14)"}
+phone_canvas: {width: 720, height: 900, note: "portrait re-flow at <= 640 px: 6 seats (1A-1F) then '…20F'; counter on its own row under each lane's time bar; 30 px lettering, 32 px captions"}
+duration_frames: 1186   # 39.5 s; 79 s at 0.5x
+start_frame_equals: "two lanes, one above the other: mono 'FOR UPDATE' + hand 'waits, re-checks' and mono 'FOR UPDATE SKIP LOCKED' + hand 'skips, never waits'; in each a crowd of 12 graphite dots at the left, an empty seat strip 1A..2F then '…20F', a clock glyph with an empty dashed time track; 'slowed down' top right"
+poster_frame: 1185
+reduced_motion_stills: [90, 234, 532, 712, 948, 1058, 1185]
+glyphs:
+  lane_title: {shape: mono text, labels: ["FOR UPDATE", "FOR UPDATE SKIP LOCKED"], tag: "hand ink2 'waits, re-checks' / 'skips, never waits' after it", y: [48, 366]}
+  crowd: {shape: "3 x 4 cluster of transaction dots (r 8, graphite)", home: "x 84 (left of the strip), y lane+104", note: "top lane crowd moves to sit above the contested seat"}
+  holder: {shape: "green dot (r 9) above a seat", meaning: "the transaction holding that seat's lock"}
+  hourglass: {shape: two-triangle glyph, colour: graphite, where: "right of the top crowd, with hand 'N wait'"}
+  seat: {shape: "chamfered box 60x54 with mono seat label (1A..2F)", states: "free (ink2 outline) -> locked (ink outline + green padlock + green holder dot above) -> booked (green outline, green tinted fill)"}
+  seat_tail: {shape: mono text, label: "…20F", end: "turns green with a green check when the lane finishes"}
+  query_dot: {shape: "blue dot (r 8)", route: "top: the whole crowd while it evaluates/re-checks; bottom: each dot rides a rail over the seats (y lane+104) and drops to its free seat"}
+  time_bar: {shape: "clock glyph + dashed ink3 track (400 px, shared scale) + thick ink bar", readings: ["1.7 s", "147 ms"]}
+  counter: {label: "mono value + hand 'evaluations'; top 'up to' written at the end, bottom 'about'", pos: "right of the bar row (wide); own row below the bar (phone)"}
+  ratio: {where: "bottom bar row, after '147 ms'", text: "≈ 1/10 the time"}
+  two_words: {where: "under 'SKIP LOCKED' in the bottom title", text: "underline + hand 'two words'"}
+beats:
+  - id: B0
+    from: 0
+    to: 96
+    caption: "Two runs. In each, 120 passengers book a seat at once."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0112]
+  - id: B1
+    from: 96
+    to: 240
+    caption: "FOR UPDATE: everyone's first match is 1A. One gets the lock; 119 wait."
+    events:
+      - {at: 104, dur: 30, what: "top crowd (blue: evaluating) slides above 1A", colour: blue}
+      - {at: 138, dur: 14, what: "one dot drops to the holder spot (green); padlock on 1A; crowd turns graphite (waiting)", colour: green}
+      - {at: 154, dur: 22, what: "hourglass + '119 wait'"}
+      - {at: 178, dur: 18, what: "counter '120 evaluations'"}
+    ledger: [L-0113, L-0115]
+  - id: B2
+    from: 240
+    to: 540
+    caption: "Each commit wakes every waiter to re-check. One wins the next seat."
+    events:
+      - {at: 250, dur: 86, what: "round 1: commit 1A (holder drops in, seat booked green) -> crowd blue + 're-check' replaces '119 wait', counter 239 -> crowd slides to 1B -> one dot holds 1B (padlock) -> '118 wait'", colour: green}
+      - {at: 334, dur: 86, what: "round 2: commit 1B ... counter 357 -> lock 1C, '117 wait'"}
+      - {at: 418, dur: 86, what: "round 3: commit 1C ... counter 474 -> lock 1D, '116 wait'"}
+      - {at: 250, dur: 254, what: "secondary: top time bar grows 1/120 of its length per booked seat"}
+    ledger: [L-0113, L-0115, L-0155]
+  - id: B3
+    from: 540
+    to: 720
+    caption: "Seat by seat until all 120 are booked: up to 7,260 evaluations."
+    events:
+      - {at: 540, dur: 10, what: "'116 wait' and hourglass removed"}
+      - {at: 548, dur: 60, what: "crowd steps over 1D..2F, booking them; counter and bar climb with the seats"}
+      - {at: 608, dur: 50, what: "crowd at '…20F' thins out; counter -> 7,260, bar -> full length"}
+      - {at: 660, dur: 10, what: "'…20F' green + check", colour: green}
+      - {at: 664, dur: 18, what: "'1.7 s' written at the bar's end"}
+      - {at: 676, dur: 14, what: "'up to' written before the counter"}
+    ledger: [L-0112, L-0121, L-0155]
+  - id: B4
+    from: 720
+    to: 956
+    caption: "SKIP LOCKED: a locked seat is skipped, not waited on. No queue forms."
+    events:
+      - {at: 730, dur: 110, what: "dots leave the crowd 6 f apart (blue), each rides over the still-locked seats to the next free one, holds it (green padlock) and commits 30 f later (booked); counter +1 per dot", colour: blue}
+      - {at: 802, dur: 98, what: "stream of dots to '…20F' (one drawn dot per 4 passengers), crowd empties; counter -> 120; bar grows to 147/1700 of the track"}
+      - {at: 900, dur: 10, what: "'…20F' green + check", colour: green}
+      - {at: 906, dur: 18, what: "'147 ms' at the bar's end"}
+      - {at: 918, dur: 14, what: "'about' before the counter"}
+    ledger: [L-0122, L-0154, L-0121]
+  - id: B5
+    from: 956
+    to: 1066
+    caption: "Both booked 120 of 120. About ten times faster in this demo."
+    events:
+      - {at: 966, dur: 22, what: "'≈ 1/10 the time' after '147 ms'"}
+    ledger: [L-0121, L-0112]
+  - id: B6
+    from: 1066
+    to: 1186
+    caption: "Same seats, same result. The difference: two words, SKIP LOCKED."
+    events:
+      - {at: 1076, dur: 16, what: "pen underlines 'SKIP LOCKED' in the bottom title"}
+      - {at: 1092, dur: 18, what: "hand 'two words' under it"}
+    on_screen: [end state = poster]
+    ledger: [L-0119]
+chapters: [{label: "one at a time", frame: 106}, {label: "re-check", frame: 250}, {label: "all 120", frame: 550}, {label: "SKIP LOCKED", frame: 730}, {label: "the clocks", frame: 966}]

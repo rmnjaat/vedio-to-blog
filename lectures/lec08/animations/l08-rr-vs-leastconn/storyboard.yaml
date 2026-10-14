@@ -1,0 +1,112 @@
+# Storyboard — clip l08-rr-vs-leastconn (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l08-rr-vs-leastconn
+title: Why long requests pile up
+lecture: 5            # course position; folder id lec08
+section: "2.4 Least connections"
+status: reviewed      # draft | approved | built | reviewed
+why_motion: >
+  Accumulation. Round robin's failure only appears over time: a long request keeps running while the rotation
+  comes back round to its server and deals it another long one, while the other two servers empty out. A still
+  shows one moment; the clip shows the long bars piling up on one server as the playhead runs, the connection
+  counts drifting apart (3, 0, 0), and least connections keeping them level (1, 1, 1) from the same request stream.
+static_twin: "StepThrough Fig 2·c (lanes per server, long request = long bar, counter per server) and Fig 2·b panel c; board D-02 (b_004000.jpg)"
+ledger:
+  taught:
+    - L-0053  # round robin: requests go to the servers in turn (1, 2, 3, 1, 2, ...) -> top panel, note "its turn"
+    - L-0070  # least connections: forward to the backend with the fewest connections from the LB -> bottom panel, note "fewest"
+    - L-0072  # LB tracks active connections per backend; a finished request frees its connection -> live counters in every box
+    - L-0074  # least connections forwards to the least burdened machine -> r7, r10 land on a free server
+    - L-0075  # high variance: some requests take a second, some an hour -> short bars vs long bars that keep growing
+    - L-0077  # blunt round robin under high variance piles long requests onto one already-busy server -> 3 long bars on s1, red ring, "long ones pile up"
+    - L-0078  # very large variance in response times -> least connections -> closing caption, "spread out"
+  context_only:
+    - L-0076  # the teacher's 1-5 walkthrough: Fig 2·c StepThrough (the clip's own stream is longer)
+    - L-0089  # ties broken at random (prose)
+    - L-0079  # the LB sees only connections, not CPU (the "after" line, 2.5)
+    - L-0090  # least connections is a local optimization (prose)
+fidelity_notes:
+  - "The request stream is illustrative: ten requests, 4, 7 and 10 long, the rest short. The lecture gives the mix as 'one second, one minute, one hour' (L-0075) and no stream; the clip names no durations. Long bars simply keep growing; short ones end after 50 frames (1.7 s) of clip time."
+  - "The long requests (4, 7, 10) fall on every third arrival, so they line up with round robin's turn for s1. This is the case the teacher describes ('all long running requests were just getting bogged onto this one server', L-0077); it is not claimed that every workload lines up this way."
+  - "Both panels are a real simulation of the two rules on the same stream (timeline.ts): round robin = next server in turn; least connections = fewest active connections at dispatch. Ties under least connections are broken by taking the next server in turn: one of the 'pick one at random' outcomes of L-0089 (and nginx's tie-break order, A-LBL-02); the clip does not show or claim a tie rule."
+  - "One connection per request: a request's connection opens when it is forwarded and closes when it finishes (L-0072, L-0073). The fact-check's refinement (with keep-alive, an in-flight request, not an open connection, is what means busy: A-LBL-15) does not change what the clip shows, since each request here is one connection."
+  - "Time runs left to right and is not to scale; the axis says 'time (not to scale)'. The playhead runs at a constant rate (it means time)."
+  - "Not claimed: response times, queueing inside a server, CPU or memory (the LB never sees them, L-0079), that least connections is optimal (it is a local heuristic, L-0090)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 900, note: "portrait re-flow at <= 640 px: same two panels, boxes 110 wide, tracks x 200-570, 12 px bars, notes column at x 584, 30 px lettering, 32 px captions"}
+duration_frames: 1040   # 34.7 s; 69.3 s at 0.5x
+start_frame_equals: "two panels, 'lb: round robin' above 'lb: least connections'; in each an lb bar, three fan lines to boxes s1 s2 s3 each showing 0, empty time tracks with a playhead at their start; 'time (not to scale)' under the lower panel"
+poster_frame: 1039
+reduced_motion_stills: [90, 270, 456, 610, 870, 1039]
+glyphs:
+  panels: {top: "lb: round robin (title, hand 48)", bottom: "lb: least connections (title, hand 48)", offset_y: 306}
+  lb: {shape: lb-bar, pos: [34, 88, 22, 208], note: "one per panel, spans the three rows"}
+  fan: {route: "lb -> s1, s2, s3", style: solid graphite, head: "at the server box (the lb initiates)", reink: "blue pen on dispatch, fades back over 14 f"}
+  servers: {shape: server-box, labels: ["s1", "s2", "s3"], pos: "x 128, w 140, h 56, rows y 118 / 192 / 266 (+306 for the lower panel)", count: "num 44, right of a thin divider: the live count of open connections"}
+  tracks: {x: [300, 820], what: "one per server; each request is a bar from the moment it reaches the server; running = blue, finished = graphite; up to 3 stacked sub-rows (0, -22, +22); bar 10 px (12 on phone), round caps inset so the ink spans exactly the time on the server"}
+  playhead: {shape: "thin dashed graphite vertical per panel", x: "x(frame), linear between frame 110 and 940"}
+  notes_column: {x: 846, notes: ["its turn (red, RR s1, B3)", "fewest (blue, LC s2, B3)", "idle (graphite, RR s2 and s3, B4)"]}
+  header_notes: {top: "long ones pile up (red, right-aligned)", bottom: "spread out + tick (green)", beat: B5}
+  ring: {shape: "red dashed server-box around RR s1", from: B3}
+  time_label: {text: "time (not to scale) ->", pos: "right-aligned at x 820, baseline 640"}
+beats:
+  - id: B0
+    from: 0
+    to: 100
+    caption: "Two load balancers, same requests, same three servers."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0053, L-0070]
+  - id: B1
+    from: 100
+    to: 280
+    caption: "While every request is short, both look the same."
+    events:
+      - {at: 110, dur: 16, what: "request 1: blue packet lb -> s1 in both panels (pen re-inks the fan line); count 1; bar starts; playhead starts", colour: blue}
+      - {at: 146, dur: 16, what: "request 2 -> s2 in both", colour: blue}
+      - {at: 182, dur: 16, what: "request 3 -> s3 in both; each short bar ends after 50 f, turns graphite, count back to 0 (last at 248)", colour: blue}
+    ledger: [L-0072, L-0075]
+  - id: B2
+    from: 280
+    to: 466
+    caption: "Request 4 runs long and keeps s1 busy. 5 and 6 come and go."
+    events:
+      - {at: 290, dur: 16, what: "request 4 -> s1 in both; its bar keeps growing; s1 count stays 1", colour: blue}
+      - {at: 330, dur: 16, what: "request 5 -> s2 in both", colour: blue}
+      - {at: 370, dur: 16, what: "request 6 -> s3 in both (ends 436)", colour: blue}
+    ledger: [L-0075, L-0072]
+  - id: B3
+    from: 466
+    to: 620
+    caption: "Request 7 is long too. Round robin: s1 again. Least connections: s2."
+    events:
+      - {at: 476, dur: 16, what: "request 7: top -> s1 (count 2, second sub-row), bottom -> s2 (count 1)", colour: blue}
+      - {at: 494, dur: 8, what: "red dashed ring around round robin's s1; its count turns red", colour: red}
+      - {at: 498, dur: 24, what: "'its turn' written beside RR s1", colour: red}
+      - {at: 526, dur: 24, what: "'fewest' written beside LC s2", colour: blue}
+    ledger: [L-0053, L-0070, L-0074, L-0077]
+  - id: B4
+    from: 620
+    to: 880
+    caption: "Round robin keeps dealing long work to busy s1; s2 and s3 sit idle."
+    events:
+      - {at: 630, dur: 16, what: "request 8: top -> s2, bottom -> s3", colour: blue}
+      - {at: 712, dur: 16, what: "request 9 -> s3 in both", colour: blue}
+      - {at: 790, dur: 16, what: "request 10 (long): top -> s1 (count 3, third sub-row), bottom -> s3 (count 1)", colour: blue}
+      - {at: 812, dur: 38, what: "'idle' written beside RR s2, then s3"}
+    ledger: [L-0077, L-0074]
+  - id: B5
+    from: 880
+    to: 1040
+    caption: "Big variance in response times? Use least connections."
+    events:
+      - {at: 890, dur: 28, what: "top header: 'long ones pile up'", colour: red}
+      - {at: 922, dur: 20, what: "bottom header: 'spread out' + tick; LC counts 1 1 1 turn green", colour: green}
+      - {at: 940, dur: 0, what: "clock stops: playhead and long bars stop; static poster hold 942-1039 (3.2 s)"}
+    on_screen: [end state = poster]
+    ledger: [L-0078, L-0077]
+chapters: [{label: "short requests", frame: 110}, {label: "request 4 runs long", frame: 290}, {label: "request 7", frame: 476}, {label: "pile-up", frame: 630}, {label: "the rule", frame: 890}]
+page_context:
+  predict: "Some requests take a second and some take an hour. Which algorithm keeps one server from drowning?"
+  caption: "Round robin keeps dealing long requests onto a server that is already busy; least connections sends them to a free one. Under high variance, use least connections."
+  after: "The load balancer only counts connections; it never sees CPU (2.5)."

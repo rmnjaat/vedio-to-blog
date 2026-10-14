@@ -1,0 +1,107 @@
+# Storyboard — clip l08-redlock (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l08-redlock
+title: Winning a majority
+lecture: 5          # course position "Lecture 05"; folder lec08
+section: "7.2 Redlock: a majority of five"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  Contention. Two clients race for the same lock on five independent nodes; who wins each node depends on the
+  order the requests land, and the outcome (3 of 5 vs 2 of 5) only exists once all five have answered. The loser
+  then has to give back what it took and retry later, and a node dying afterwards changes nothing for the holder
+  while still blocking everyone else. Fig 7·a shows the end state; the clip shows how it is reached and why the
+  loser's release matters.
+static_twin: "Fig 7·a (D-10 redraw, b_022930.jpg): five redis cylinders r1..r5 in a row, no lines between them; clients wired to every node with SET NX"
+ledger:
+  taught:
+    - L-0275  # a single Redis lock is a SPOF (B0 framing: five independent nodes instead of one; poster 'fault tolerant')
+    - L-0278  # five fully independent Redis servers, no replication; try to acquire on all of them (B0, B1)
+    - L-0279  # you own the lock only with more than 50% (3 of 5) (B2 '3/5 acquired', '2/5 failed')
+    - L-0280  # failing the majority -> release what you got at once; keep retrying (B3, B4)
+    - L-0281  # distributed locks cost throughput; used for correctness / fault tolerance (B5 'fault tolerant, not faster')
+    - L-0282  # one node going down is no problem (B4: r2 down, C1 still holds, nobody else reaches 3 of 5)
+  context_only:
+    - L-0287  # distributing reduces throughput, buys fault tolerance (7.5 RuleBox; the poster note echoes it)
+    - L-0314  # the two-holders edge case (StepThrough Fig 7·b in 7.3, deliberately not in this clip)
+fidelity_notes:
+  - "Five nodes, no replication, all independent: the board's words (D-10, L-0278); shown as a hand note, no lines between cylinders."
+  - "Requests go to all five in parallel (L-0278 allows sequential or parallel; the Redis docs describe parallel). Arrival order and per-request latency are illustrative: they are chosen so C1 lands first on r1-r3 and C2 first on r4-r5. No latency numbers are shown."
+  - "'took < TTL' next to C1's 3/5 is A-LDA-05 (sourced addition): the documented rule is majority AND time spent acquiring < lock validity. The clip shows no TTL value."
+  - "'random delay' before the retry is A-LDA-06 (sourced addition). The loser releases the two nodes it got, as taught (L-0280); A-LDA-06's 'unlock all instances, even ones you think you missed' stays in the prose (placement: L-0280 left as taught, A-LDA-06 as a separate sentence)."
+  - "The plan's third client C3 is replaced by C2's own retry after its random delay: one story, same point (with r2 down and C1 holding r1, r3, no one can reach three of five)."
+  - "The winner does NOT keep grabbing r4 and r5 after it has a majority (SN-08 corrects L-0316); C1's paths to r4, r5 stay graphite."
+  - "When r2 goes down its key is gone (c1 removed, red ✕). The clip claims only what L-0282 says: one node down is no problem for C1's lock. It does not show crashed nodes coming back empty (L-0314, the two-holders edge case, StepThrough Fig 7·b) and does not claim Redlock is foolproof."
+  - "'r2 down later: C1 holds' (B4, kept on the poster) restates L-0282 on the figure: the 3/5 was won before r2 died, and losing one node does not undo it. No TTL or remaining-validity claim is made."
+  - "Values c1 / c2 stand for each client's lock value (the random token of A-LDA-02 is in the prose)."
+  - "'fault tolerant, not faster' paraphrases L-0281 (distributed locks take a toll on throughput; used where correctness and fault tolerance are required), echoed by L-0287 in 7.5."
+additions:
+  - {id: A-LDA-05, fact: "Redlock acquires only if a majority is locked AND the total time spent acquiring is less than the lock validity time", source_url: "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/", checked: 2026-10-13}
+  - {id: A-LDA-06, fact: "A client that fails to get the majority unlocks and retries after a random delay so competing clients do not keep colliding", source_url: "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/", checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1000, note: "portrait re-flow at <= 640 px: hand note on top; C1 box + verdict row; C1 rail above five narrower cylinders; C2 rail below; C2 box with its log rows to its right; takeaway under the log; 30 px lettering, 32 px captions"}
+duration_frames: 1070   # 35.7 s; 71 s at 0.5x
+start_frame_equals: "Fig 7·a: five empty redis cylinders r1..r5, hand 'no replication, all independent'; C1 above wired to every node, C2 below wired to every node (solid graphite, chevrons at the nodes), mono 'SET NX' on C1's rail"
+poster_frame: 1069
+reduced_motion_stills: [104, 284, 504, 654, 934, 1069]
+glyphs:
+  r1..r5: {shape: cylinder-solid (redis master), label: "r1..r5 mono ink2 inside the body; value cell (c1/c2 mono) under it", wide: "centres x 440,600,760,920,1080; top cy 250, body 120", phone: "centres x 150,264,378,492,606; top cy 290, body 110"}
+  C1: {shape: server-box (client), label: "C1" mono, wide: [40, 108, 150, 64], phone: [24, 92, 120, 56]}
+  C2: {shape: server-box (client), label: "C2" mono, wide: [40, 428, 150, 64], phone: [24, 520, 120, 56]}
+  C1 paths: {route: "C1 -> rail above the row -> down into each node top", solid, head: "at the node (C1 initiates)", label: "SET NX mono on the rail"}
+  C2 paths: {route: "C2 -> rail below the row -> up into each node bottom", solid, head: "at the node (C2 initiates)"}
+  refusals: {shape: "small red ✕ on the loser's drop next to the node", meaning: "SET NX refused: the key exists"}
+  crash: {shape: "red ✕ over r2's value cell", meaning: "r2 down; its key is gone"}
+  C1 verdict: {text: "'3/5 acquired' green + ✓, 'took < TTL' ink2", wide: "row y 70 above C1", phone: "row right of C1 box"}
+  C2 log: {text: "'2/5 failed' red ✕ · clock 'random delay' · 'retry: 2/5' red ✕", wide: "one row y 545", phone: "three rows right of C2 box"}
+  note: {text: "'no replication,' / 'all independent' ink2 hand", wide: "left column between the clients", phone: "top row, one line"}
+  takeaway: {text: "'fault tolerant, not faster' ink, weight 620", wide: "row y 605 centre", phone: "under the C2 log"}
+beats:
+  - {id: B0, from: 0, to: 110, caption: "Five independent Redis nodes. No replication between them.", on_screen: [static figure], motion: none, ledger: [L-0275, L-0278]}
+  - id: B1
+    from: 110
+    to: 290
+    caption: "Both clients race for the lock on every node."
+    events:
+      - {at: 124, dur: 104, what: "blue pen re-inks every C1 and C2 path with a packet at the tip; per-path durations C1 36/44/52/96/104, C2 70/78/86/56/64", colour: blue}
+      - {at: 160, dur: 68, what: "first arrival at each node writes its value (c1 in r1-r3 at 160/168/176; c2 in r4-r5 at 180/188); each later arrival gets a red ✕ on its drop (C2 at r1-r3 194/202/210; C1 at r4-r5 220/228)", colour: red}
+      - {at: 236, dur: 14, what: "blue fades back to graphite"}
+    ledger: [L-0278]
+  - id: B2
+    from: 290
+    to: 510
+    caption: "More than half, in time, is a win. Two of five is not."
+    events:
+      - {at: 300, dur: 36, what: "green pen re-inks C1's paths to r1, r2, r3", colour: green}
+      - {at: 340, dur: 34, what: "'3/5 acquired' written + ✓", colour: green}
+      - {at: 378, dur: 22, what: "'took < TTL' written (A-LDA-05)", colour: ink2}
+      - {at: 410, dur: 30, what: "red pen re-inks C2's paths to r4, r5", colour: red}
+      - {at: 442, dur: 30, what: "'2/5 failed' written + ✕", colour: red}
+    ledger: [L-0279]
+  - id: B3
+    from: 510
+    to: 660
+    caption: "The loser gives back what it took, at once, and retries later."
+    events:
+      - {at: 510, dur: 12, what: "B1 refusal ✕ marks ghost to 38%"}
+      - {at: 520, dur: 30, what: "blue release packets C2 -> r4, r5", colour: blue}
+      - {at: 550, dur: 14, what: "c2 removed from r4, r5 (cells empty); C2's red paths fade back to graphite"}
+      - {at: 570, dur: 34, what: "clock drawn, 'random delay' written (A-LDA-06)"}
+    ledger: [L-0280]
+  - id: B4
+    from: 660
+    to: 940
+    caption: "r2 goes down. C1 still holds; no one else can win three of five."
+    events:
+      - {at: 670, dur: 26, what: "r2's c1 removed; C1's green path to r2 fades; red ✕ drawn over r2's cell", colour: red}
+      - {at: 698, dur: 18, what: "'r2 down later: C1 holds' written at the right of C1's verdict row (phone: under it), so the poster's '3/5 acquired' reads as the win before r2 died, not a count of now (critic C-02); ink"}
+      - {at: 716, dur: 52, what: "C2 retries: blue pen + packets to all five; ✕ re-stamped on r1, r2, r3 drops; c2 written in r4, r5", colour: blue}
+      - {at: 792, dur: 32, what: "'→ retry: 2/5' written + ✕", colour: red}
+      - {at: 836, dur: 36, what: "release packets C2 -> r4, r5; c2 removed", colour: blue}
+    ledger: [L-0282, L-0280, L-0279]
+  - id: B5
+    from: 940
+    to: 1070
+    caption: "Distributing the lock buys fault tolerance, not speed."
+    events:
+      - {at: 940, dur: 12, what: "retry ✕ marks ghost to 38%"}
+      - {at: 952, dur: 30, what: "'fault tolerant, not faster' written (hold to the end = poster)"}
+    ledger: [L-0281, L-0275]

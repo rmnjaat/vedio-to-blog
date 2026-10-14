@@ -1,0 +1,105 @@
+{
+  "lecture": "lec04",
+  "verdict": "pass_with_fixes",
+  "issues": [
+    {
+      "id": "C-01",
+      "severity": "medium",
+      "owner": "content",
+      "where": "3-redis-or-dynamodb §3.2, §3.3, §3.5; sweep/1440-light/3-redis-or-dynamodb/004.png–011.png (fig-3b is the only figure in about 8 screens)",
+      "problem": "Figure desert. §3.2 (persistence, Redis as the primary store), §3.3 (managed or self-managed) and §3.5 (room to grow) are prose plus 'More precisely' boxes and an aside, with no drawing. The sample's paragraph–figure–paragraph rhythm breaks for most of the chapter. Fig 3·a and 3·c bracket a long grey run.",
+      "fix": "Add three small sheets and brief the illustrator: (a) §3.2: a write going to RAM, then the AOF appended every 1 s or on 'always', plus a periodic RDB snapshot, with a crash marker showing what is lost under everysec. (b) §3.3: a two-column 'who runs it' split (self-hosted: your team does patching, failover, scaling and surges; managed: the provider does, you pay for it). (c) §3.5: the Redis toolbox (Bloom filter, HyperLogLog, geo) next to DynamoDB + Streams + Lambda. Put each one after the paragraph that sets up its question.",
+      "status": "open"
+    },
+    {
+      "id": "C-02",
+      "severity": "medium",
+      "owner": "content",
+      "where": "5-blog-rows §5.8–§5.9; sweep/1440-light/5-blog-rows/020.png–025.png",
+      "problem": "Figure desert of about 5 screens. The Redbus story, the two objections, time zones, the 2038 overflow and negative epochs are all prose, a pause-and-think, three 'More precisely' boxes and one aside. The comparison table comes only at the very end. §5.9 is the most visual topic in the chapter: a number line that runs out.",
+      "fix": "(a) §5.8: a Redbus before/after sheet: a DATETIME column compared field by field → a YYYYMMDD int compared as one integer, labelled 'readable' and 'same speed as epoch'. (b) §5.9: an epoch number line: −1 = 31 Dec 1969 on the left, 0 = 1 Jan 1970, a red 2038-01-19 wall at the int32 limit, and a dashed int64 continuation. Use the same zone glyph as fig-5g. Place it before the first 'More precisely' so the correction reads against the drawing.",
+      "status": "open"
+    },
+    {
+      "id": "C-03",
+      "severity": "medium",
+      "owner": "content",
+      "where": "all chapters; e.g. sweep/1440-light/5-blog-rows/020.png ('The instructor knows it through a friend…'), 021.png, 024.png; 4-heartbeats/018.png, 021.png; page_text.md lines 1429, 1589, 1705–1759",
+      "problem": "The copy reads as a summary of a recording. 'the instructor' appears 27 times and 'the class' 72 times, with teacher biography in the body ('went to the police station himself', 'built GDPR compliance himself… that is why he knows', 'the instructor didn't disclose', 'details he couldn't share'). Turn-by-turn Q&A reporting ('The instructor agreed', 'the recording leaves unclear whether the instructor agreed') appears mid-argument. This is the same defect lec01 was flagged for (lec01 critic #14).",
+      "fix": "State claims directly, as the sample does. Keep provenance in the meta lines and the 'Redrawn from the class board' captions. Keep the war stories in the 'From practice' asides, written in the third person about the event, not the teacher. Delete the 'recording leaves unclear' sentence. Target: 'the instructor' 5 times or fewer, and 'the class' about half of now.",
+      "status": "open"
+    },
+    {
+      "id": "C-04",
+      "severity": "medium",
+      "owner": "design",
+      "where": "fig-2e and fig-4b on phone; step/390-light-fig-2e-s1.png, sweep/390-light/2-green-dots/010.png, step/390-light-fig-4b-s3.png",
+      "problem": "On a 390 px screen the swim lanes are about 550–600 px tall and mostly empty in the early steps. Prev/Next and the step sentence sit below them, so the arrow that changed and the sentence explaining it are never on screen together. At fig-2e step 1, a whole screen (sweep 010) shows only empty lane lines above the controls. This is the same problem as lec01 critic #6.",
+      "fix": "On phone, crop the step-through viewBox to the rows up to the current step (or shorten the lifelines to about 360 px), and pin Prev/Next plus the current step text in a bar stuck to the bottom of the figure. Check fig-2e, fig-4b and fig-4e.",
+      "status": "open"
+    },
+    {
+      "id": "C-05",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-6b desktop; fig/1440-light-fig-6b.png",
+      "problem": "Routing: api 1 and api 3 run to the cache and the db on shared vertical trunks (x≈530 and x≈590) that cross each other's horizontal runs, so you can't tell which server reaches which store. The green ✓ floats below the cache with no arrow. The phone redraw (fig/390-light-fig-6b.png) is cleaner.",
+      "fix": "Give each api server its own short stub to a cache bus above and a db bus below, with no crossings (NOTES: orthogonal, non-crossing routing). Put the ✓ beside the blue arrowhead at the cache.",
+      "status": "open"
+    },
+    {
+      "id": "C-06",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-4c, fig-4e, fig-4f, fig-4g; fig/1440-light-fig-4c.png, step/1440-light-fig-4e-s5.png, fig/1440-light-fig-4g.png",
+      "problem": "Glyph drift from the notation key:\n- fig-4c labels a plain box 'server' and adds a stray offset outline behind it.\n- fig-4e uses unlabeled plain boxes.\n- fig-4f uses 'min 100' and 'new' stacked boxes.\nThe key's api-server glyph (chamfered box, mono 'api') is used everywhere else in the lecture. fig-4g draws 'data warehouse' in faded grey, which on this site means 'not yet' or 'past step', for no stated reason.",
+      "fix": "Use the api-server glyph (a stack of api glyphs for a fleet) in 4c, 4e and 4f, and remove the ghost outline in 4c. In fig-4g, draw 'data warehouse' in the same ink as the other two examples.",
+      "status": "open"
+    },
+    {
+      "id": "C-07",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-4d ('I'm a library, not a service'), fig-6a ('I'm a cache too'); sweep/1440-light/4-heartbeats/009.png, fig/1440-light-fig-6a.png",
+      "problem": "Speech bubbles: NOTES allows at most one per section, and only for the misconception being corrected. fig-4d's bubble states a fact rather than voicing a misconception. Two bubbles in one lecture is fine, but the fig-4d one is decoration.",
+      "fix": "Turn fig-4d's bubble into a plain hand annotation with a leader line ('a library inside the process, not a service'). Keep fig-6a's.",
+      "status": "open"
+    },
+    {
+      "id": "C-08",
+      "severity": "low",
+      "owner": "animation",
+      "where": "l04-heartbeat-expiry-fig (Clip 2·1) phone; clip/390-light-l04-heartbeat-expiry-fig-poster.png",
+      "problem": "In the portrait poster, 'deleted' sits on top of the crossed-out 'u42' and ⏱ inside the redis cylinder, so the three marks collide. 'laptop' and 'heartbeat' are drawn in pale ink and read at the 12 px floor. 'sped up' crowds the '0 s' tick label.",
+      "fix": "Move 'deleted' below the cylinder, or fade u42 out before 'deleted' is written. Draw 'laptop' and 'heartbeat' in normal ink. Put 'sped up' on its own line above the second timeline.",
+      "status": "open"
+    },
+    {
+      "id": "C-09",
+      "severity": "low",
+      "owner": "design",
+      "where": "3-redis-or-dynamodb §3.7 comparison table; sweep/1440-light/3-redis-or-dynamodb/015.png",
+      "problem": "The two Redis column headers carry a cube icon above the name, but DynamoDB has none. The DynamoDB header sits about 40 px higher than its neighbours, so the header row looks broken.",
+      "fix": "Either give DynamoDB its key glyph (table/cylinder) or drop the icons from all three headers, and bottom-align the header cells.",
+      "status": "open"
+    },
+    {
+      "id": "C-10",
+      "severity": "low",
+      "owner": "design",
+      "where": "phone step-through deep links; step/390-light-fig-2e-s1.png (lane heads under the sticky bar, the 'api' lane label hidden)",
+      "problem": "When a step-through scrolls into view by deep link (#fig-2e/step-n) or keyboard stepping on phone, the sticky 'On this page' bar covers the top of the figure. The lane-head boxes are hidden, so the step reads 'laptop … store friend' with the api lane unlabeled.",
+      "fix": "Set scroll-margin-top on figures (and on step anchors) to the height of the top bar plus the 'On this page' bar, about 110 px on phone.",
+      "status": "open"
+    },
+    {
+      "id": "C-11",
+      "severity": "low",
+      "owner": "content",
+      "where": "4-heartbeats (27 desktop screens, 31,987 px on phone) and 5-blog-rows (27 screens, 32,648 px on phone); report.json heights",
+      "problem": "Two chapters are each about 40 phone screens. Much of the length is repetition: the §4.7 closing paragraph restates §4.5, §5.8 repeats the objections in prose and then in the think card, and §5.7 carries provenance notes ('The board's example epoch value was illustrative… The figure above uses the real value') that the fig-5g caption already gives.",
+      "fix": "When doing C-03, cut about 15% from chapters 4 and 5. Drop the §4.7 restatement, collapse the §5.8 objections into the think card's reveal, and remove provenance sentences that duplicate captions.",
+      "status": "open"
+    }
+  ]
+}

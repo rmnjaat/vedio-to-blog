@@ -8,7 +8,7 @@ import DocsShell from '../../../components/DocsShell.astro';
 import LectureHeader from '../../../components/LectureHeader.astro';
 import ChapterList from '../../../components/ChapterList.astro';
 import Pager from '../../../components/Pager.astro';
-import { COURSE, pad } from '../../../data/course';
+import { COURSE, pad, numberOf, kickerOf } from '../../../data/course';
 import { chaptersOf, courseNav, lectureHref, resolver, around } from '../../../lib/lecture';
 
 export async function getStaticPaths() {
@@ -17,6 +17,7 @@ export async function getStaticPaths() {
 }
 const { entry } = Astro.props;
 const d = entry.data;
+const num = numberOf(entry.id, d.number); // course position (lectures/course.json)
 const { Content } = await render(entry);
 const chapters = chaptersOf(entry);
 const nav = await courseNav();
@@ -29,19 +30,19 @@ meta.push({ label: 'Found an error?', href: '#' });
 const contents = chapters.length ? undefined
   : d.contents.map((c) => ({ ...c, dim: !c.href && !c.children?.some((x) => x.href), children: c.children?.map((x) => ({ ...x, dim: !x.href })) }));
 ---
-<Layout title={`${d.title} · Lecture ${pad(d.number)}`} description={d.description} docs
-  crumbs={[{ label: COURSE.title, href: '/', opt: true }]} here={`Lecture ${pad(d.number)}`}>
+<Layout title={`${d.title} · Lecture ${pad(num)}`} description={d.description} docs
+  crumbs={[{ label: COURSE.title, href: '/', opt: true }]} here={`Lecture ${pad(num)}`}>
   <DocsShell nav={nav} lecture={entry.id} href={href} resolve={resolver(entry)}
     lead={chapters.length ? [{ id: 'toc', label: 'Chapters' }] : []}>
     <Fragment slot="head">
-      <LectureHeader kicker={d.kicker} title={d.title} dek={d.dek} meta={meta} contents={contents}>
+      <LectureHeader kicker={kickerOf(entry.id, d.kicker, d.number)} title={d.title} dek={d.dek} meta={meta} contents={contents}>
         {chapters.length > 0 && <ChapterList chapters={chapters} />}
       </LectureHeader>
     </Fragment>
     <Content />
     <Fragment slot="foot">
       <Pager prev={prev} next={next && { ...next, label: next.kind === 'chapter' ? 'Start reading' : next.label }} />
-      <div class="col"><footer class="page hand">Lecture {pad(d.number)} · written from the class recording and board, with sources linked where a fact comes from outside the class.</footer></div>
+      <div class="col"><footer class="page hand">Lecture {pad(num)} · written from the class recording and board, with sources linked where a fact comes from outside the class.</footer></div>
     </Fragment>
   </DocsShell>
 </Layout>

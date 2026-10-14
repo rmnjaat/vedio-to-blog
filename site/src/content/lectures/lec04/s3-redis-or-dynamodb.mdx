@@ -1,0 +1,303 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { BrainstormTable, CrashCost, FeedingCompetitor, HearingExpiry, RoomToGrow, ThreeMissedFactors } from '../../../figures/lec04/s3-redis-or-dynamodb';
+
+{/* §3 Redis or DynamoDB? (3.1–3.7). Writer w4. One chapter page: /lectures/lec04/3-redis-or-dynamodb/.
+    Q&A folded in from 00:46–00:57, 01:20, 02:42–02:52 (outline §3). */}
+
+<Section id="s3" no="3" title="Redis or DynamoDB?" crumb="3 Redis or DynamoDB?"
+  dek="Both give key-value access and a TTL, so speed is not the deciding question. Persistence, who runs it, lock-in, room to grow and how fast you learn about an expiry decide it."
+  meta="About 20 min · class 00:45–01:04, Q&A 01:20–01:22 and 02:42–02:52">
+
+The green-dot design from chapter 2 needs only two things from its store: get and set a value by key, and let an entry expire on its own after 30 seconds. Redis does both. DynamoDB does both. So which one goes in the box, and why?
+
+The answers people give first are not the ones that decide it.
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Same features, different choice" crumb="3.1 Same features"
+  dek="When two stores both do what you need, the choice moves to things that aren’t on the feature list."
+  meta="About 3 min · class 00:45–00:46 and 01:02–01:04">
+
+Redis and DynamoDB both give key-value access and both give expiration; that is why they sit side by side here. Since either one can hold the presence entries, choosing between them needs other criteria, and cost estimation is one more to weigh. [[L-0071]]
+
+<PauseAndThink k="L-0071 L-0073 L-0077 L-0079 L-0089 L-0093 L-0094 L-0100"
+  q="Redis and DynamoDB both give key-value access and a TTL. Before you read on: is “Redis is faster because it’s in memory” the strongest reason to pick between them for this system?"
+  choices={[{ label: 'Yes: speed decides it' }, { label: 'No: other factors decide it', correct: true }]}
+  right="Right. The factors people miss go well beyond speed."
+  wrong="It’s the reason most people give first, but it isn’t the deciding one.">
+
+Three factors are often missed: **managed vs self-managed** (does your team have the people to run it?), **vendor lock-in** (DynamoDB exists only on AWS, and your cloud vendor might enter your business) and **future extensibility** (Redis has Bloom filters, HyperLogLog, geo). The timing argument that does matter here is not raw speed but how you learn about an expiry: a persistent connection on which Redis can push “this key expired” ([§3.6](#s3-6), with its note).
+
+</PauseAndThink>
+
+Fig 3·a lists the usual arguments, each ticked under the store it favours. A tick is an argument, not a verdict: the first one, persistence, does not survive a close look ([§3.2](#s3-2)).
+
+<Figure id="fig-3a" max={640} no="Fig 3·a" k="L-0071 L-0072 L-0073 L-0074 L-0089 L-0094"
+  caption="The brainstorm, in the order the rows were added. DynamoDB got persistence (questioned, hence the ?) and managed; Redis got vendor lock-in, future extensibility and time sensitivity. Redrawn from the class board at 01:02.">
+  <Desk><BrainstormTable /></Desk>
+  <Phone><BrainstormTable layout="phone" /></Phone>
+</Figure>
+
+The two stores were not picked at random. Redis is open source and DynamoDB is proprietary, and that is a big difference: a large organisation that worries about vendor lock-in may choose one over the other for that reason alone. [[L-0098]] The licence has moved since: Redis switched to source-available licences in March 2024 and added the OSI-approved AGPLv3 as an option with Redis 8 in May 2025 <Cite href="https://redis.io/blog/agplv3/">redis.io</Cite>, and in the meantime AWS and Google back their own open-source fork, Valkey, which ElastiCache offers alongside Redis <Cite href="https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/WhatIs.html">docs.aws.amazon.com</Cite>.
+
+Beyond the common answers, three very important factors are often missed when choosing a database: future extensions, vendor lock-in, and whether the store is managed or self-managed. [[L-0100]]
+
+<RuleBox rule="Three factors people miss when choosing a database: ==future extensions, vendor lock-in, managed vs self-managed==." k="L-0100">
+
+Speed and features are the answers everyone gives first. These three are the ones a real pick turns on, and few people put thought into them. The rest of this chapter takes them one at a time, after persistence.
+
+<Desk><ThreeMissedFactors /></Desk>
+<Phone><ThreeMissedFactors layout="phone" /></Phone>
+
+</RuleBox>
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Persistence, and Redis as the primary store" crumb="3.2 Persistence"
+  dek="“The data should persist” sounds safe. For entries that die after 30 seconds, it is a question, not an answer."
+  meta="About 4 min · class 00:46–00:47 and 00:55–00:56, Q&A 02:46–02:48">
+
+A common first pick is DynamoDB, because the data might need to be stored permanently: persistence. But this data is deleted after 30 seconds anyway, so why would it need to persist? Treat that as an open question rather than a settled one: decide what a presence entry is worth after its 30 seconds are up before you pay for keeping it. [[L-0072]]
+
+And Redis can persist too: if you need persistence you can configure it on Redis, with a few limitations. [[L-0085]]
+
+Knowing that a feature exists is not enough; know how it is implemented. For Redis persistence that means the append-only file (AOF) and the RDB snapshot files, how you configure them, and how often data is flushed to disk. Push your boundaries on details like these. [[L-0086]]
+
+Each of those is a line of configuration (the snapshot rule is the documentation’s example) <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/">redis.io</Cite>:
+
+```text
+appendonly yes          # AOF: append every write to a log on disk
+appendfsync everysec    # flush the log once a second (the default): a crash can lose about 1 s
+# appendfsync always    # flush on every write: safest, very slow
+save 60 1000            # RDB: snapshot every 60 s if at least 1,000 keys changed
+```
+
+<Figure id="fig-3b" max={640} no="Fig 3·b" k="L-0086"
+  caption="What each setting costs at a crash. With appendfsync everysec, the writes since the last once-a-second flush are lost; with RDB alone, every write since the last snapshot. appendfsync always leaves no gap but is very slow. Not to scale.">
+  <Desk><CrashCost /></Desk>
+  <Phone><CrashCost layout="phone" /></Phone>
+</Figure>
+
+Look at it from the other side. Whenever people talk about Redis they think of a cache in front of a database, so why does the presence design start with Redis or DynamoDB as the main store, instead of a database first and a cache on top? Because Redis can be the primary database. Why not? [[L-0309]]
+
+Whether you need a primary database with Redis on top of it, or Redis alone, depends on the guarantees your system has to give. Pick one over the other on that basis. [[L-0310]]
+
+For the online/offline indicator, Redis as the primary store is fine. Configure AOF-based persistence and you get on-disk persistence with, as taught, zero data loss. You keep Redis’s speed, and the data is small enough to sit in RAM: only 8 GB ([§2.6](#s2-6)). There is no reason not to use Redis. [[L-0311]]
+
+<SourceNote href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/" site="redis.io" k="L-0311">
+
+Redis as the primary store works for presence, but AOF with the default `appendfsync everysec` can lose about 1 s of writes on a crash; zero loss needs `appendfsync always`, which is very slow. Replication is asynchronous, so acknowledged writes can also be lost on failover <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/replication/">redis.io</Cite>. For presence data, a second of lost heartbeats is harmless.
+
+</SourceNote>
+
+The broader point: drop the hard stereotypes, such as “DynamoDB is only for this” or “SQL is only for that”. What matters is knowing how to use a particular technology. [[L-0312]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="Managed or self-managed" crumb="3.3 Managed?"
+  dek="A managed store is not a technical feature. It is a decision about who gets paged."
+  meta="About 4 min · class 00:47–00:48, 00:56–00:57 and 01:02–01:03, Q&A 01:20–01:21 and 02:43–02:50">
+
+The second argument for DynamoDB is that AWS manages it. It is highly available and the team doesn’t have to worry about it, whereas Redis, an in-memory database the team runs itself, can go down. A managed service offloads the management of the infrastructure to your cloud vendor, so the team can focus on business logic. With enough money to manage the infrastructure, Redis is an option too. Hence the board row: “managed (* team size)” with “& expertise” under it. [[L-0073]]
+
+Managed is not DynamoDB’s alone. Every cloud provider offers a managed Redis, AWS ElastiCache for example, so you can have a managed service and still move between providers, because your code stays the same. Take that as one more option to weigh, not a settled answer. [[L-0087]]
+
+Who goes managed, and why? Lean teams, a 5–10 person startup, go for managed services to avoid the pressure of managing infrastructure, or because they don’t have the expertise. Running any database, MySQL, Redis or Elasticsearch, comes with its own set of pain points: observability, profiling and more. Managed services make that easy. [[L-0099]]
+
+Does a managed DynamoDB give better value than a self-managed Redis that you would have to autoscale on the fly? If you are a startup or a small, lean team without the ability to manage it, go for DynamoDB or another managed solution. [[L-0139]]
+
+Self-hosting Redis takes a team with the expertise to manage it. Without that, use a managed Redis: Redis Labs, AWS and GCP all offer a variant. Self-host only when you have both the expertise and the engineering bandwidth; otherwise throw money at the cloud providers and get things done. With a lean team you can offload everything to DynamoDB: you pay them, and they become your extended engineering team. [[L-0140]]
+
+Availability is left out of the comparison on purpose, by assuming it equal. With Redis your engineers have to ensure it; with DynamoDB AWS gives it to you. Availability is a property of engineers, not of the database. [[L-0304]]
+
+A sudden surge is treated the same way. Autoscaling is a property of the engineering team rather than the tool, so the comparison assumes it equal too. If you do count it, it counts against self-hosted Redis: you need engineering expertise to manage it, scale it and react to surges, and that is an added strain on the team that DynamoDB doesn’t put on you. [[L-0313]]
+
+<TradeoffTable caption="Who carries the work: the three ways to run the presence store"
+  k="L-0099 L-0140 L-0304 L-0313"
+  columns={[{ label: 'Self-hosted Redis', glyph: 'redis' }, { label: 'Managed Redis', glyph: 'redis' }, { label: 'DynamoDB', glyph: 'dynamodb' }]}
+  rows={[
+    { label: 'Availability', cells: ['Your engineers ensure it', 'The provider', 'AWS gives it to you'], k: 'L-0304' },
+    { label: 'Scaling and surges', cells: [{ text: 'Your engineers manage, scale and react', bad: true }, 'The provider', 'AWS'], k: 'L-0313' },
+    { label: 'Observability, profiling', cells: ['Your pain points to handle', 'Made easy by the service', 'Made easy by the service'], k: 'L-0099' },
+    { label: 'Fits when', cells: ['You have the expertise and the engineering bandwidth', 'You lack one of them: Redis Labs, AWS and GCP all offer one', 'A lean team that wants to offload everything'], k: 'L-0140' },
+  ]} />
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="Vendor lock-in" crumb="3.4 Vendor lock-in"
+  dek="DynamoDB exists on one cloud. Most of the time that is fine. Here is when it isn’t."
+  meta="About 7 min · class 00:48–00:55, Q&A 02:42–02:43">
+
+Now the case for Redis. Whether a managed solution makes sense depends on your team size, and Redis can help you prevent vendor lock-in, if that is a concern you have: DynamoDB more or less locks you into AWS, and it is harder to migrate off. [[L-0074]]
+
+Why is lock-in such a big issue? Cloud pricing that becomes unmanageable, the rest of your infrastructure slowly moving to another provider, or a better deal elsewhere for your business. A caution, though: people often think it is a big issue, and very often it doesn’t end up being one. [[L-0075]]
+
+<MarginNote title="From practice: why teams switched clouds" why="skip unless you’ve lived through a migration" k="L-0076">
+
+Teams switch for reasons other than cost. Security is one: a team that saw access to a cloud provider’s databases messed up has a very big concern if it runs something like a bank. Another is a provider somewhat infamous for discontinuing services (GCP gets named here), which pushes teams to shift slowly to another cloud. Both are valid: the vendor messes up, or you lose trust in it, or you eventually find it too complex to use.
+
+</MarginNote>
+
+What does lock-in actually mean? **Vendor lock-in** is being tied to one cloud vendor because the tool you use exists only there. DynamoDB exists only on AWS, not on GCP or Azure. If you ever want to move, you have to rewrite your code for another technology. That is exactly why DynamoDB is the other candidate in this comparison. [[L-0077]]
+
+Moving clouds, GCP to AWS or AWS to Azure, means rewriting a lot of code. That is why organisations that reach a certain maturity think about vendor lock-in a lot. [[L-0078]]
+
+The reason people miss, in the lecture’s view, is **competition**. Amazon is known to enter hundreds of businesses. Amazon launched a food business in India. If the food-delivery companies there run on AWS (which cloud Swiggy and Zomato actually use is not stated), then the bill they pay AWS goes into Amazon’s pocket, which can then power Amazon’s food business: they are literally feeding their competitor. And this is not settled in advance. You may already be on AWS when Amazon enters your business. [[L-0079]]
+
+<SourceNote label="Since the class" href="https://techcrunch.com/2022/11/25/amazon-to-shut-down-food-delivery-business-in-india" site="techcrunch.com" k="L-0079">
+
+Amazon’s food-delivery service ran in parts of Bengaluru from May 2020 and was announced to close on 29 December 2022. The competition argument stands; the example is now historical.
+
+</SourceNote>
+
+<Figure id="fig-3c" max={580} no="Fig 3·c" k="L-0079 L-0080"
+  caption="The example: a food-delivery company paying a cloud vendor that runs a food business (Amazon’s, 2020–2022). The bill funds the business that competes with you.">
+  <Desk><FeedingCompetitor /></Desk>
+  <Phone><FeedingCompetitor layout="phone" /></Phone>
+</Figure>
+
+The classic example is Walmart, which is not on AWS: Walmart and Amazon are both in e-commerce, so being on AWS would mean feeding its competitor. Walmart is often said to be on GCP; in fact it runs a hybrid of Microsoft Azure <Cite href="https://news.microsoft.com/source/2018/07/17/walmart-establishes-strategic-partnership-with-microsoft-to-further-accelerate-digital-innovation-in-retail/">news.microsoft.com</Cite>, Google Cloud and its own private cloud <Cite href="https://www.infoworld.com/article/3666468/how-walmart-abstracts-its-hybrid-cloud-for-developers.html">infoworld.com</Cite>; either way, not AWS. [[L-0080]]
+
+The stakes grow with the bill. As an illustration: an organisation with a cloud bill of, say, $10 million a month would be paying its competitor $10 million a month. Amazon is only one example; Microsoft, Google and Alibaba are known for entering other businesses too. [[L-0081]]
+
+A very early startup doesn’t need to worry about any of this. With a bill of about $10,000 a month it hardly matters to Amazon at all. Big customers always think about it. [[L-0082]]
+
+There is a counter-example. Netflix existed before Amazon’s Prime Video became its competitor, and Netflix still runs on AWS, because moving out would mean rewriting so much code. Most likely there is some mutual agreement, perhaps a better deal, since Netflix is said to be AWS’s biggest customer; the details are not known. [[L-0083]]
+
+These are critical points in real systems, even though they rarely come up when you draw one. Lock-in is why many teams go towards open-source technologies rather than proprietary ones: they don’t want to be locked in to one vendor. [[L-0084]]
+
+When doesn’t lock-in matter? If you work at Google and are bound to GCP, you are the vendor yourself and will never move out, so there is nothing to compare. Likewise, a company that knows it will always stay on AWS, whatever happens, need not worry about lock-in at all. [[L-0301]]
+
+Put on a manager’s hat and one more factor appears: talent. Is it easy to find people who know a technology that only one vendor offers, compared with an open-source technology that everyone uses? That alone may tempt a manager towards open source. [[L-0302]] For example, TigerGraph is a proprietary graph database and Neo4j is widely known, so you would find hundreds of developers who know Neo4j but few who know TigerGraph. [[L-0303]]
+
+</Section>
+
+<Section id="s3-5" no="3.5" title="Room to grow" crumb="3.5 Room to grow"
+  dek="Today the feature needs a key and a timer. Pick the store for what the feature might need next."
+  meta="About 4 min · class 00:57–01:01">
+
+A frequent argument compares data types: Redis only has string types for what we store, while DynamoDB also has numbers. That is not right. Even Redis has numbers, and it is not just strings: Redis has a whole set of data structures. [[L-0088]]
+
+The real point inside that answer is **future extensibility**. If the feature might later need more than a key and a value, for example advanced data structures such as Bloom filters, HyperLogLogs or geospatial queries, you may lean towards Redis. It may not matter for an online/offline indicator, but it matters for other use cases. [[L-0089]]
+
+DynamoDB can do similar things with DynamoDB Streams and Lambda. Databases keep evolving and offer many features, so keep track of what they offer and whether you need it. And just as DynamoDB has Streams, Redis also gives you change data capture. [[L-0090]] Redis’s version is weaker, though: keyspace notifications are best-effort Pub/Sub <Cite href="https://redis.io/docs/latest/develop/pubsub/keyspace-notifications/">redis.io</Cite>, or you write to a Redis Stream from your application, whereas DynamoDB Streams with Lambda <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.Lambda.html">docs.aws.amazon.com</Cite> is a durable change feed.
+
+<Figure id="fig-3d" max={640} no="Fig 3·d" k="L-0089 L-0090"
+  caption="Room to grow. Redis brings its data structures with it; DynamoDB reaches similar ground by adding Streams and Lambda next to the table.">
+  <Desk><RoomToGrow /></Desk>
+  <Phone><RoomToGrow layout="phone" /></Phone>
+</Figure>
+
+The world of databases is converging fast, and every database is growing everything: MongoDB supports ACID, SQL databases support sharding now. [[L-0091]] Both need a qualifier. MongoDB has multi-document ACID transactions on replica sets since 4.0 and on sharded clusters since 4.2 <Cite href="https://www.mongodb.com/docs/manual/core/transactions/">mongodb.com</Cite>, while mainstream SQL engines still shard mostly through add-ons such as Citus for PostgreSQL <Cite href="https://www.citusdata.com/">citusdata.com</Cite> or Vitess for MySQL <Cite href="https://vitess.io/">vitess.io</Cite>, not in the core engine.
+
+So be open, and dive deep into each candidate. Every database has its own feature set: Redis has Pub/Sub, DynamoDB has its own features, and Aerospike, often called proprietary, has its own too. [[L-0095]] Aerospike does have an open-source variant, the AGPLv3 Community Edition; only its Enterprise Edition is closed-source <Cite href="https://aerospike.com/docs/reference/faq">aerospike.com</Cite>.
+
+All this effort is worth it because the database is the most critical, most brittle component of your infrastructure. Know early what features it offers and what its performance numbers are, and build your intuition for using it over time. [[L-0096]]
+
+</Section>
+
+<Section id="s3-6" no="3.6" title="How fast you hear about an expiry" crumb="3.6 Hearing about expiry"
+  dek="“Redis is in memory, so it’s faster” is the usual answer. The better one is about the connection, and about being told."
+  meta="About 3 min · class 00:59–01:02">
+
+The last argument picks Redis on speed. Online/offline is time-sensitive, and Redis, being in memory with better performance, would be faster than DynamoDB, say when querying 500 million active users. Is that only because it’s in memory? “Not really”: in the lecture’s view, being in memory is not the main reason. [[L-0093]]
+
+What you get for time sensitivity is the persistent connections Redis lets you hold. With Redis you create persistent connections, which is what gives you the extremely low latency you need; it comes at a cost, but you get it. DynamoDB is stateless, and you cannot create persistent connections to it. [[L-0094]]
+
+<SourceNote href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DAX.html" site="docs.aws.amazon.com" k="L-0093 L-0094">
+
+Redis is fast mainly because it serves from RAM with a light protocol, at sub-millisecond latency over long-lived TCP connections. DynamoDB is an HTTPS request/response API with single-digit-millisecond latency; its SDKs do reuse TCP connections <Cite href="https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-reusing-connections.html">docs.aws.amazon.com</Cite>, and AWS’s own route to microseconds is DAX, an in-memory cache in front of it. The real contrast for presence is that Redis can push events on an open connection and DynamoDB can’t.
+
+</SourceNote>
+
+That push is the feature that makes the difference here. Suppose that as soon as a user’s key expires, you want to show them offline, immediately. Redis gives you hooks that tell you a key just expired, on the fly, over a persistent connection. DynamoDB does not: it tells you through its streams, and that takes a long time to process. Knowing fancy features like these is part of knowing your database. [[L-0097]] Two details from the documentation: Redis fires its “expired” event when it actually deletes the key, on access or in a background sweep, so it can arrive well after the TTL reaches zero; and these notifications are off by default and fire-and-forget <Cite href="https://redis.io/docs/latest/develop/pubsub/keyspace-notifications/">redis.io</Cite>. DynamoDB’s TTL deletions can take days <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">docs.aws.amazon.com</Cite>.
+
+<Figure id="fig-3e" max={640} no="Fig 3·e" k="L-0094 L-0097"
+  caption="Left: the API server keeps one connection open to Redis, and Redis pushes “expired” on it when it deletes the key. Right: DynamoDB answers separate calls; an expired item lingers until it is deleted, and the stream tells you later. RAM is a big part of Redis’s speed too; the difference that matters here is the push.">
+  <Desk><HearingExpiry /></Desk>
+  <Phone><HearingExpiry layout="phone" /></Phone>
+</Figure>
+
+On Redis, turning the hook on and listening for it takes two commands:
+
+```text
+CONFIG SET notify-keyspace-events Ex        # E = key-event channel, x = expired events (off by default)
+SUBSCRIBE __keyevent@0__:expired            # this connection now receives the name of each expired key
+# → message  __keyevent@0__:expired  presence:42
+```
+
+</Section>
+
+<Section id="s3-7" no="3.7" title="Staying portable, and where to stop" crumb="3.7 Where to stop"
+  dek="Avoid every database-specific feature and you end up writing a database. Draw a line, and write down where it is."
+  meta="About 3 min · class 02:50–02:52">
+
+TTL is a feature that not every database has, so shouldn’t a design avoid features specific to one database, in case you need to move later? No. The design needed expiration, so it picked a database that gives it, and both DynamoDB and Redis do. Some features you can’t live without, ACID for instance. You would only move to a database that gives you similar features, and if it doesn’t, you can always re-implement the feature yourself, for example with a cron job that does the same thing. [[L-0314]]
+
+So draw a line on how far you go. Don’t make everything an abstraction: drop the unrealistic concerns, focus on the realistic ones and then design the system. Otherwise you fall down a rabbit hole and eventually write your own database. Don’t do that. [[L-0315]]
+
+If you did leave DynamoDB, you would lose DynamoDB Streams, but change-data-capture tools give you the same thing. If you are on MySQL, use Debezium to capture the changes. Either a managed service gives it to you, or you write a small service that does it. [[L-0316]] Debezium’s MySQL connector reads the MySQL binlog and publishes row-level change events to Kafka topics <Cite href="https://debezium.io/documentation/reference/stable/connectors/mysql.html">debezium.io</Cite>. And on DynamoDB, an archiver can tell expiries apart from explicit deletes: TTL deletions appear in Streams as service deletions <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">docs.aws.amazon.com</Cite>.
+
+<MarginNote title="From practice: “that only works on Dynamo”" why="skip unless a reviewer has said this to you" k="L-0316">
+
+A design for archival used TTL and then listened to the stream of deletions. A senior engineer on the team challenged it: you can only do this with DynamoDB, and it won’t work if we ever move to something else. The answer is the one above: off DynamoDB you would use a CDC tool such as Debezium instead of Streams, so the design moves with a known amount of work.
+
+</MarginNote>
+
+What you do owe your team is a record. Document the limitations of your design, and the steps you would take if you ever had to migrate. Being aware of your design’s limits is a good place to be. [[L-0317]]
+
+Here is the whole comparison for the presence store in one place, with managed Redis split out from self-hosted Redis, since that is where most of the argument lies.
+
+<TradeoffTable caption="Redis or DynamoDB for presence"
+  k="L-0070 L-0073 L-0077 L-0089 L-0094 L-0097 L-0311"
+  columns={[{ label: 'Redis (self-hosted)', glyph: 'redis' }, { label: 'Redis (managed)', glyph: 'redis' }, { label: 'DynamoDB', glyph: 'dynamodb' }]}
+  rows={[
+    { label: 'TTL behaviour', cells: ['Deletes the key on expiry; send the TTL on every write', 'Same as self-hosted', { text: 'Deletes “within a few days”; check expires_at', bad: true }], k: 'L-0070' },
+    { label: 'Persistence', cells: ['AOF and RDB, if you configure them', 'AOF and RDB, as the provider offers them', 'Built in: the first tick on the board'], k: 'L-0311' },
+    { label: 'Who runs it', cells: ['Your engineers: availability, scaling, surges', 'The cloud provider, at its own pricing', 'AWS'], k: 'L-0073' },
+    { label: 'Lock-in', cells: ['Low: runs anywhere', 'Low: a managed Redis exists on every cloud', 'AWS only'], k: 'L-0077' },
+    { label: 'Room to grow', cells: ['Bloom filters, HyperLogLog, geo', 'Same data structures', 'Streams and Lambda'], k: 'L-0089' },
+    { label: 'Push on expiry', cells: ['Expired events on an open connection (best-effort, when the key is deleted)', 'Same mechanism', 'Only through Streams, later'], k: 'L-0097' },
+    { label: 'Typical latency', cells: ['Sub-millisecond, from RAM', 'Sub-millisecond, from RAM', 'Single-digit milliseconds (DAX for microseconds)'], k: 'L-0094' },
+  ]} />
+
+<h3 id="s3-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Why is “Redis is faster” a weak reason for this choice, and what is the stronger timing argument?">
+
+Both stores already do what presence needs, and “it’s in memory” is, by this chapter’s argument, “not really” the reason. (The note in §3.6 adds that RAM is in fact a big part of Redis’s speed, and DynamoDB answers in single-digit milliseconds, fast enough for a green dot.) The stronger argument is how fast you *hear* about an expiry: Redis can push an “expired” event on a connection you keep open, while DynamoDB tells you only through its streams, much later.
+
+  </RecallItem>
+  <RecallItem q="Give two cases where vendor lock-in is a real risk and one where it isn’t.">
+
+A real risk: your cloud vendor enters your business, so your bill funds a competitor (Walmart avoids AWS for this reason); or you may need to move clouds because of pricing, a security incident or lost trust, and a vendor-only tool like DynamoDB means rewriting code. Not a risk: a very early startup with a $10,000 bill, or a company that is the vendor itself, or one that knows it will stay on AWS whatever happens.
+
+  </RecallItem>
+  <RecallItem q="A five-person startup with no ops engineer: which store, and what does it trade away?">
+
+A managed store: DynamoDB, or a managed Redis. Lean teams go managed so they don’t carry the infrastructure and its pain points (availability, scaling, surges, observability); you throw money at the provider and it becomes your extended engineering team. With DynamoDB you trade away portability (it is AWS-only) and Redis’s push on expiry and data structures; with managed Redis you pay the provider’s pricing.
+
+  </RecallItem>
+</RecallQuestions>
+
+Whichever store you pick, look at how it is doing: six million writes a minute are coming.
+
+<SectionEnd next={{ title: '4 · Six million heartbeats a minute', href: '#s4' }}
+  concepts={[{ label: 'persistence (AOF, RDB)', href: '#s3-2' }, { label: 'managed vs self-managed', href: '#s3-3' }, { label: 'vendor lock-in', href: '#s3-4' }, { label: 'future extensibility', href: '#s3-5' }, { label: 'expiry notifications', href: '#s3-6' }, { label: 'change data capture', href: '#s3-7' }]} />
+
+</Section>

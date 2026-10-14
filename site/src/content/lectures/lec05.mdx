@@ -1,0 +1,99 @@
+---
+title: "Locking the airline seats"
+kicker: "Lecture 03 · week 2, day 1 · running cases: airline check-in, a key-value store on MySQL"
+dek: "See pessimistic locking work live on an airline check-in, then build a key-value store on top of MySQL."
+description: "Lecture 03: row locks, deadlocks and isolation; an airline check-in fixed by two SQL words at a time; a key-value store on MySQL where every clause has a cost; Redis expiry; replicas and range shards."
+reviewed: 14 Oct 2026
+status: published
+ledger: lectures/lec05/ledger/ledger.jsonl
+contents:
+  - no: "1"
+    title: "Locks, in theory"
+    href: "#s1"
+    children:
+      - { no: "1.1", title: "Why relational databases are strict", href: "#s1-1" }
+      - { no: "1.2", title: "Why lock at all", href: "#s1-2" }
+      - { no: "1.3", title: "Shared and exclusive locks", href: "#s1-3" }
+      - { no: "1.4", title: "Don’t wait: SKIP LOCKED and NOWAIT", href: "#s1-4" }
+      - { no: "1.5", title: "Deadlocks", href: "#s1-5" }
+      - { no: "1.6", title: "Isolation levels: why not one at a time?", href: "#s1-6" }
+      - { no: "1.7", title: "Where locks live, and how they end", href: "#s1-7" }
+  - no: "2"
+    title: "Building the airline check-in"
+    href: "#s2"
+    children:
+      - { no: "2.1", title: "The check-in problem", href: "#s2-1" }
+      - { no: "2.2", title: "Approaches 0 to 2: no checks at all", href: "#s2-2" }
+      - { no: "2.3", title: "Approach 3: the first free seat", href: "#s2-3" }
+      - { no: "2.4", title: "Approach 4: FOR UPDATE", href: "#s2-4" }
+      - { no: "2.5", title: "Approach 5: SKIP LOCKED", href: "#s2-5" }
+      - { no: "2.6", title: "When the passenger picks the seat", href: "#s2-6" }
+      - { no: "2.7", title: "Fixed inventory plus contention", href: "#s2-7" }
+  - no: "3"
+    title: "A key-value store on MySQL"
+    href: "#s3"
+    children:
+      - { no: "3.1", title: "The problem, and one node first", href: "#s3-1" }
+      - { no: "3.2", title: "Storing keys and values", href: "#s3-2" }
+      - { no: "3.3", title: "Expiry as a timestamp", href: "#s3-3" }
+      - { no: "3.4", title: "Delete is an update", href: "#s3-4" }
+      - { no: "3.5", title: "Put is an upsert", href: "#s3-5" }
+      - { no: "3.6", title: "Get filters expiry in SQL", href: "#s3-6" }
+      - { no: "3.7", title: "The cleanup job and the last clause", href: "#s3-7" }
+  - no: "4"
+    title: "If it were in memory: how Redis expires keys"
+    href: "#s4"
+    children:
+      - { no: "4.1", title: "Lazy deletion", href: "#s4-1" }
+      - { no: "4.2", title: "Sampling 20 keys", href: "#s4-2" }
+  - no: "5"
+    title: "Making it distributed"
+    href: "#s5"
+    children:
+      - { no: "5.1", title: "One MySQL, more API servers", href: "#s5-1" }
+      - { no: "5.2", title: "Read replicas", href: "#s5-2" }
+      - { no: "5.3", title: "Range shards and routing", href: "#s5-3" }
+      - { no: "5.4", title: "ACID after partitioning", href: "#s5-4" }
+      - { no: "5.5", title: "Build it yourself", href: "#s5-5" }
+  - no: "6"
+    title: "Craft, opinions, and what to keep"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "ORMs or raw SQL", href: "#s6-1" }
+      - { no: "6.2", title: "Why the demo is in Go", href: "#s6-2" }
+      - { no: "6.3", title: "How to learn this", href: "#s6-3" }
+      - { no: "6.4", title: "What to keep", href: "#s6-4" }
+chapters:
+  - no: "1"
+    slug: 1-locks
+    parts: [s1-locks]
+    summary: "Before coding the check-in, the tools: why relational databases are strict, shared and exclusive row locks, SKIP LOCKED and NOWAIT, deadlocks, isolation levels, and where a lock lives."
+  - no: "2"
+    slug: 2-check-in
+    parts: [s2a-check-in, s2b-check-in]
+    summary: "120 passengers, 120 kiosks, one moment. Six versions of one program: four double-book, FOR UPDATE makes it correct, SKIP LOCKED makes it ten times faster."
+  - no: "3"
+    slug: 3-kv-store
+    parts: [s3a-kv-store, s3b-kv-store]
+    summary: "GET, PUT, DELETE and per-key expiry on one table. Each operation starts with the obvious query and ends with a cheaper one."
+  - no: "4"
+    slug: 4-redis-expiry
+    parts: [s4-redis-expiry]
+    summary: "On disk you batch. In memory a delete is nearly free: delete on access, and sample twenty keys at a time for the rest."
+  - no: "5"
+    slug: 5-distributed
+    parts: [s5-distributed]
+    summary: "Grow the single node one bottleneck at a time: more API servers, read replicas, range shards with routing in the API, and what happens to ACID."
+  - no: "6"
+    slug: 6-craft-and-keep
+    parts: [s6-keep]
+    summary: "The instructor's views on ORMs, languages and learning, the heuristics from both builds, and where this lecture stops."
+---
+import Header from './lec05/s0-header.mdx';
+
+{/* Lecture 03 (lec05). This body is the lecture overview page (/lectures/lec05/): the header block (About this class,
+    Where we are) from s0-header.mdx. Each chapter is its own page (/lectures/lec05/<slug>/), built from the parts listed
+    under `chapters` in the frontmatter, in outline order. Section ids: #s1 … #s6, subsections #s<n>-<m>. A link to a
+    section on another chapter page is written as a plain #id: the page template sends it to the right chapter. */}
+
+<Header />

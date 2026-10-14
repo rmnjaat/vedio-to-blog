@@ -1,0 +1,41 @@
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import { LbSoFar } from '../../../figures/lec08/s0-header';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec08.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec08.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 05 · week 3, day 1 · running case: a load balancer you build yourself"
+      title: Building a load balancer
+      dek: "How to approach any distributed system, shown by building the box everyone draws and nobody opens, and then by locking things across machines."
+      contents: 1 How to approach distributed systems … 8 What to keep (eight chapters, one page each).
+    Placed here (section "about"): L-0001 L-0004 L-0006 L-0009 L-0017 L-0019. The "so far" block is untagged: it
+    restates where Lectures 1–4 left the load balancer and teaches nothing new. Its unnumbered "so far" sketch
+    (figures/lec08/s0-header.tsx) was added by the design fix (critic C-09), as lec01 has "Medium so far". */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 1 of week 3, and week 3 is all about distributed systems. The next session, tomorrow, covers distributed ID generators. [[L-0001]] <ForwardChip when="Lecture 6" k="L-0001">distributed ID generators</ForwardChip>
+
+The board’s agenda for this session had four items: how to approach designing a distributed system, designing a load balancer, remote and distributed locks, and synchronizing consumers. The first one is about approach, not theory, and there is no secret sauce to it. [[L-0004]] The load balancer gets a very realistic design plus a short walk through the source code of a tiny load balancer written for the class, to see the core logic rather than just draw boxes; that code is in no way production-ready. [[L-0006]] Remote and distributed locks came after the break, and this page keeps the class’s order. [[L-0009]]
+
+**How to study this page.** Real design discussions run three or four hours straight, and covering a system has to happen in one go, because re-setting the context costs about 20 minutes; so read a chapter in one sitting. [[L-0019]] Advice for sessions this long: keep your phone in another room, and keep pen and paper beside you to scribble on. Sketch rather than type, because a browser is one click away from every distraction. [[L-0017]]
+
+</MarginNote>
+
+### The load balancer so far
+
+So far in this course the load balancer has only been a box. In Lecture 2 Medium’s API servers scaled out behind one. The pieces this lecture builds it from are already here. Lecture 1’s online indicator turned heartbeats into a failure detector, and chapter 4 turns them into health checks. [[L-0165 L-0350]] Lecture 3 locked rows inside one database for an airline check-in, and chapters 6 and 7 do the same across machines. [[L-0014]] Lecture 4 pushed Slack’s membership changes over Pub/Sub, and chapter 4 pushes configuration the same way. [[L-0177]]
+
+<Figure id="fig-0-sofar" max={700} k="L-0165 L-0350 L-0014 L-0177" caption="The load balancer so far: a closed box in front of the API servers, as Lecture 2 left it. Three pieces from earlier lectures point into it, and this page uses each one to open the box.">
+  <Desk><LbSoFar /></Desk>
+  <Phone><LbSoFar layout="phone" /></Phone>
+</Figure>
+
+This page opens the box. After a chapter on how to approach any distributed system and one on load-balancing algorithms, it starts with one TCP proxy on one laptop and grows a chapter at a time. From there on, each chapter starts with whatever broke at the end of the one before.
+
+</div>

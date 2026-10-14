@@ -1,0 +1,965 @@
+{
+ "lecture": "lec04",
+ "title": "Lecture 04 - Online/offline indicator, Redis vs DynamoDB, connection pooling, database and caching",
+ "sources": [
+  "lectures/lec04/transcript/transcript.md",
+  "lectures/lec04/board/board_log.md",
+  "lectures/lec04/board/diagrams.md"
+ ],
+ "count": 119,
+ "skipped_windows": [],
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "Can the systems discussed in the course be implemented without massive infrastructure, and what part of each system should you implement?",
+   "answer": "Yes: every single system discussed is implementable on a local machine. Implement the core of each system (e.g. the flash-sale module), not the whole thing with CRUD APIs and UI, because the devil lies in the details and implementing shows where the system can falter.",
+   "source": "transcript 00:04:47; board S02 00:01:00",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q002",
+   "q": "Why does implementing the core of a system matter more than drawing boxes, according to the teacher?",
+   "answer": "Because when you implement it you realize where the system could falter and what challenges come with implementation; in real organizations you are expected to implement, not just draw boxes.",
+   "source": "transcript 00:04:47",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q003",
+   "q": "What two items were on the agenda for the second half of this session, and what example application were they discussed in?",
+   "answer": "Databases and caching, discussed in the context of designing a multi-user blogging platform like Medium.",
+   "source": "transcript 00:13:05; board S09 00:12:45",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q004",
+   "q": "Why did the teacher say the online/offline indicator would be designed without worrying much about scale?",
+   "answer": "Because it is day one; the design changes a lot once other concepts (sharding etc.) are covered in later weeks, so the focus is first principles and intuition, with some performance improvements but not scale.",
+   "source": "transcript 00:13:05; board S10 00:14:15",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q005",
+   "q": "What is the 'spiral' approach to building a system, and what is usually its core?",
+   "answer": "Decide the core of the system (the single point of focus that makes it possible) and build everything around it as needed. The core is use-case specific: most often the database (schema), but it can be the communication layer, e.g. WebSockets for a messaging app.",
+   "source": "transcript 00:15:22; board S10 00:14:15",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q006",
+   "q": "List the steps of the 'incremental building' approach in the order written on the board, and say which step the loop arrow returns to.",
+   "answer": "1. Start with a day-zero architecture; 2. see how each component would behave under load and at scale; 3. identify the bottleneck; 4. re-architect; 5. repeat. The loop arrow runs from 'repeat' back to step 2.",
+   "source": "board S11 00:15:15; board S12 00:16:45; transcript 00:16:46",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q007",
+   "q": "When do you typically choose the spiral approach versus incremental building?",
+   "answer": "Spiral when the system is simple/no-brainer and you have built similar systems before, so you know how things will transpire. Incremental when you are in an ambiguous, uncertain situation, e.g. a startup: push a day-zero architecture to users and re-architect over time.",
+   "source": "transcript 00:17:30",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q008",
+   "q": "What simple day-zero architecture did the teacher give as an example for incremental building?",
+   "answer": "User, load balancer, API server, database; then check whether a server is overburdened and whether to split it into another service.",
+   "source": "transcript 00:16:46",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q009",
+   "q": "What are the three 'points to remember' written on the board before the online/offline design began?",
+   "answer": "Understand the core property and access pattern; affinity towards a tech comes second; build an intuition towards building systems.",
+   "source": "board S13 00:19:00; transcript 00:19:04",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q010",
+   "q": "What misconception about choosing technology did the teacher warn against at the start of the design?",
+   "answer": "Having a rigid affinity for a particular tech ('I'll only use Redis/Postgres/DynamoDB/Cassandra'). Instead pick on the core property/access pattern you need; e.g. if your company is not on AWS you cannot use DynamoDB, and many systems people build on Cassandra can be built on a relational DB.",
+   "source": "transcript 00:19:04; transcript 00:20:37",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q011",
+   "q": "In the first storage model for the indicator, what types were stored and what access pattern did it reveal?",
+   "answer": "user → online/offline: the user ID as an int and the status as a bool (true = online). The access pattern is key-value (get status for one user, for a set of users, update one user's status); the DB was still not decided.",
+   "source": "board S13 00:19:00; transcript 00:22:56",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q012",
+   "q": "What is the first critical API design decision for rendering statuses, and why?",
+   "answer": "Expose a batch endpoint (GET /status/users?ids=u1,u2,u3,u4) that takes many user IDs and returns all their statuses, instead of only a per-user endpoint; otherwise rendering four users needs four API calls from the front end. Batching reduces network calls and keeps heavy lifting on the backend.",
+   "source": "transcript 00:24:35; board S14 00:22:30",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q013",
+   "q": "In the 'Interfacing API' diagram, what are the components and how are they connected?",
+   "answer": "User (with a device) ⟷ API Server ⟷ Database, both arrows double-headed.",
+   "source": "board S14 00:22:30",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q014",
+   "q": "Why can't the API server use a pull-based model to learn whether a user is online?",
+   "answer": "HTTP is stateless and there is no persistent connection, so the API server cannot proactively talk to the client; the client has to push its status (unless there is a persistent connection).",
+   "source": "transcript 00:26:33; board S20 00:26:00",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q015",
+   "q": "What endpoint do clients use to report they are alive, and what does it do?",
+   "answer": "POST /heartbeat: the authenticated user is marked as alive. Every user periodically sends a heartbeat to the service.",
+   "source": "transcript 00:27:33; board S21 00:26:30",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q016",
+   "q": "Why isn't it enough to send one call when the user comes online and one when they log out?",
+   "answer": "Because you cannot reliably tell when you go offline: the device may crash, run out of battery or be unplugged with no chance to make a final API call, so the UI would keep showing the user online. Hence periodic heartbeats are needed.",
+   "source": "transcript 00:28:40",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q017",
+   "q": "When is a user considered offline in the heartbeat design, and how long is 'long enough'?",
+   "answer": "When no heartbeat has been received for long enough. 'Long enough' is subjective/business logic, configured per system (10 s, 1 min, 10 min...); the class used 30 seconds.",
+   "source": "transcript 00:29:43; board S23 00:27:45; board S25 00:30:30",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q018",
+   "q": "How did the stored data change once heartbeats were introduced?",
+   "answer": "Instead of a bool, store the time the last heartbeat was received: table pulse(user_id, last_hb), last_hb in epoch seconds. Every heartbeat runs UPDATE pulse SET last_hb = NOW() WHERE user_id = u1.",
+   "source": "transcript 00:30:43; board S25 00:30:30",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q019",
+   "q": "The teacher draws tables and writes SQL on the board. Does that mean the design uses a relational database?",
+   "answer": "No. A table drawing only helps visualize the schema and SQL is just an easy way to express it; you can model it however you want.",
+   "source": "transcript 00:31:28",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q020",
+   "q": "State the getStatus business logic rules in order.",
+   "answer": "If there is no entry in the DB for the user → offline (user never came online). If there is an entry and entry.last_hb < now() - 30 s → offline. Otherwise → online. Same holds for the batch endpoint.",
+   "source": "transcript 00:32:07; board S26 00:31:00; board S28 00:32:18",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q021",
+   "q": "How often did the board say a user sends a heartbeat?",
+   "answer": "Every 10 seconds.",
+   "source": "board S26 00:31:00; transcript 01:04:14",
+   "kind": "number",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q022",
+   "q": "How large is each row of the pulse table and why?",
+   "answer": "8 bytes: two columns, user_id and last_hb (epoch seconds), each a 4-byte int.",
+   "source": "transcript 00:33:50; board S30 00:33:45",
+   "kind": "number",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q023",
+   "q": "What is the total storage for 1 billion users and what does it tell you about the system?",
+   "answer": "1B entries × 8 B = 8 GB. Storage is not the challenge (it fits in the RAM of a cheap machine; a phone has 128 GB); the system needs something else.",
+   "source": "transcript 00:35:14; board S30 00:33:45",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q024",
+   "q": "Even though storage is not a problem, why did the teacher still ask 'can we do better on storage?'",
+   "answer": "At every step you should ask critical questions and consider alternatives, because design is about analyzing trade-offs; documenting every possibility (and why you chose one path) is what makes a better senior engineer.",
+   "source": "transcript 00:36:53; transcript 00:37:53",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q025",
+   "q": "What is the 'absence == offline' idea and how does it reduce storage?",
+   "answer": "The user only sees green/grey, so if the entry exists the user is online and if it doesn't they are offline. Expire/delete entries 30 s after the last heartbeat, so the table only holds active users: total entries = active users.",
+   "source": "transcript 00:38:47; board S35 00:39:30",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q026",
+   "q": "With absence == offline, what is the storage for 1B total users of whom 100k are active?",
+   "answer": "100k entries, total size 800 KB.",
+   "source": "board S38 00:41:00",
+   "kind": "number",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q027",
+   "q": "What was 'Approach 1' for deleting expired entries, and what were its drawbacks?",
+   "answer": "A cron job that scans for entries whose last_hb is older than 30 s and deletes them. Works for a startup but not robust: you must handle edge cases in business logic, and it adds another moving part/process whose uptime, monitoring and telemetry you must manage.",
+   "source": "transcript 00:40:53; transcript 00:42:01; board S38 00:41:00",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q028",
+   "q": "What design warning did the teacher give about adding extra components like the cron job?",
+   "answer": "Never just draw boxes for the sake of it; think about implementing, monitoring and managing each component. Making your diagram look complex is the worst thing you can do; look for a simpler alternative.",
+   "source": "transcript 00:43:13",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q029",
+   "q": "What was 'Approach 2' and which databases did the teacher name for it?",
+   "answer": "Offload expiration to the datastore ('never re-invent the wheel'): a DB with key-value access plus expiration (TTL), e.g. Redis or DynamoDB.",
+   "source": "transcript 00:43:43; board S41 00:44:00",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q030",
+   "q": "With a TTL-based store, what happens on each heartbeat and what determines online/offline?",
+   "answer": "Each heartbeat updates the entry with TTL = 30 s, moving the expiration time forward. If no heartbeat arrives within 30 s, the DB deletes the key automatically. Entry exists → online; no entry → offline.",
+   "source": "transcript 00:44:40; board S41 00:44:00",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q031",
+   "q": "In the Redis vs DynamoDB table, which column got the ticks for 'persistence' and 'managed', and what qualifier was added to 'managed'?",
+   "answer": "DynamoDB got both. 'Managed' was qualified with team size and expertise: a lean team offloads infrastructure management to the cloud vendor.",
+   "source": "board S48 00:48:30; transcript 00:47:34",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q032",
+   "q": "What is vendor lock-in?",
+   "answer": "Being locked into a particular cloud vendor because the tool you use only exists there (e.g. DynamoDB only on AWS); moving clouds means rewriting a lot of code for another technology.",
+   "source": "transcript 00:50:10; transcript 00:50:51",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q033",
+   "q": "Besides cost and security incidents, what 'very interesting' reason for avoiding vendor lock-in did the teacher add?",
+   "answer": "Competition: if your cloud vendor enters your business, your cloud bill funds your competitor (e.g. Swiggy/Zomato on AWS when Amazon launched food delivery). That's why Walmart is on GCP, not AWS.",
+   "source": "transcript 00:51:21; transcript 00:51:52",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q034",
+   "q": "What counter-example did the teacher give to the competitor rule, and why?",
+   "answer": "Netflix stays on AWS despite Amazon Prime Video being a competitor, because moving out would mean rewriting too much code; it is AWS's biggest customer and likely gets a good deal.",
+   "source": "transcript 00:54:05",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q035",
+   "q": "When does vendor lock-in not matter much for a company?",
+   "answer": "At an early startup with a small bill (e.g. $10k/month), it doesn't matter; it matters for big customers (e.g. $10M/month bills).",
+   "source": "transcript 00:53:12",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q036",
+   "q": "Why do many companies prefer open-source technologies over proprietary ones?",
+   "answer": "To avoid being locked into a particular vendor.",
+   "source": "transcript 00:54:53",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q037",
+   "q": "A student said DynamoDB gives persistence. What did the teacher say about Redis persistence?",
+   "answer": "Redis also gives persistence (AOF files, RDB files, configurable flush frequency), with some limitations; you should know how it is done, not just that it exists.",
+   "source": "transcript 00:55:59",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q038",
+   "q": "Which column of the table did 'vendor lock-in' and 'future extensibility' go to, and what Redis features make it extensible?",
+   "answer": "Redis. It has many data structures beyond key-value (Bloom filters, HyperLogLog, geospatial queries), useful if future features need them.",
+   "source": "transcript 00:57:39; board S48 00:48:30; board S49 00:58:30",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q039",
+   "q": "Is it true that Redis only stores strings while DynamoDB has numbers?",
+   "answer": "No: Redis has numbers too and a bunch of data structures.",
+   "source": "transcript 00:57:39",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q040",
+   "q": "What did the teacher say about databases' features converging?",
+   "answer": "Every database is adding features: DynamoDB has streams, Redis gives CDC, MongoDB supports ACID, SQL databases support sharding. Go in depth into each candidate's pros and cons before deciding.",
+   "source": "transcript 00:58:47",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q041",
+   "q": "Why is Redis better for time sensitivity than DynamoDB, according to the teacher (it is not only because it is in-memory)?",
+   "answer": "Redis supports persistent connections, giving extreme low latency; DynamoDB is stateless (no persistent connections). Redis also gives hooks telling you immediately that a key expired, whereas DynamoDB only gives that through streams, which take longer to process.",
+   "source": "transcript 01:00:14; transcript 01:01:23; board S50 01:00:30",
+   "kind": "tradeoff",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q042",
+   "q": "Name the final five rows of the Redis vs DynamoDB table and which side each favoured.",
+   "answer": "DynamoDB: persistence; managed (team size & expertise). Redis: vendor lock-in; future extensibility; time sensitivity.",
+   "source": "board S50 01:00:30",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q043",
+   "q": "Why do teams go for managed services?",
+   "answer": "Lean teams (5-10 people) don't want the pressure of managing infrastructure, or lack expertise; managing any database comes with pain points (observability, profiling). Managed services make it easy.",
+   "source": "transcript 01:02:13",
+   "kind": "tradeoff",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q044",
+   "q": "How are online/offline indicators actually built in the real world?",
+   "answer": "With WebSockets (plus a lot of tuning and optimization), not the day-one HTTP heartbeat design.",
+   "source": "transcript 01:03:03; board S51 01:03:30",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q045",
+   "q": "How many requests per minute does the heartbeat design generate for 1 million active users, and what does each cause?",
+   "answer": "Heartbeat every 10 s → 6 per user per minute → 6 million requests per minute; each heartbeat results in one DB call, so the DB must handle 6 million updates per minute.",
+   "source": "transcript 01:04:14; board S51 01:03:30; board S52 01:04:15",
+   "kind": "number",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q046",
+   "q": "For this system, which is the challenge: storage or computation?",
+   "answer": "Computation (the number of queries/updates), not storage: the whole data fits in 8 GB.",
+   "source": "transcript 01:05:19",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q047",
+   "q": "How many network trips does setting up and tearing down a TCP connection cost, and why does this matter here?",
+   "answer": "Five: three-way handshake to set up, two-way teardown. With each request opening a new DB connection, this is expensive; the board called 'creating a new connection every time' the hectic part.",
+   "source": "transcript 01:06:25; board S53 01:05:00",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q048",
+   "q": "What is a connection pool?",
+   "answer": "The API server pre-establishes a set of TCP connections to the DB (e.g. 3 at startup) and keeps them open; each query picks a free connection, marks it unavailable, fires the query and returns it, avoiding setup/teardown per request.",
+   "source": "transcript 01:08:20; transcript 01:09:01; board S53 01:05:00",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q049",
+   "q": "The number of queries stays the same with a connection pool. Why does it still reduce load on the database?",
+   "answer": "Establishing/terminating TCP connections costs the DB CPU and network bandwidth (reading handshake packets, OS buffers); reusing pre-established connections saves that work, which dominates for micro updates.",
+   "source": "transcript 01:10:42",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q050",
+   "q": "List the benefits of connection pooling the teacher gave.",
+   "answer": "Faster API response (saves 5 network trips: just one request and one response), lower DB load freeing it for other queries, lower infrastructure cost.",
+   "source": "transcript 01:09:44; transcript 01:12:01",
+   "kind": "recall",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q051",
+   "q": "What happens when all pooled connections are busy and a new request arrives?",
+   "answer": "Either it waits for a connection to be freed, or it creates a new TCP connection, fires the query and adds the connection to the pool (stretching the pool on demand) up to a configured maximum; beyond the max it must wait.",
+   "source": "transcript 01:13:05; transcript 01:14:05",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q052",
+   "q": "Why do connection pools need a maximum size and an idle TTL?",
+   "answer": "Every DB has a limit on TCP connections; hundreds of servers each holding 100 connections can exhaust it. The max caps per-server connections (e.g. min 3, max 100) and an idle TTL (e.g. 10 min unused) terminates unused connections.",
+   "source": "transcript 01:14:05",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q053",
+   "q": "Is a connection pool a separate service? How is it implemented?",
+   "answer": "No. It is a library running inside the API server: on boot it creates multiple DB connection objects and puts them in a blocking queue; callers pop a connection, or wait (loop) until one is put back.",
+   "source": "transcript 01:15:23",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q054",
+   "q": "When does a connection pool give a massive boost, and when is the benefit outweighed?",
+   "answer": "Massive boost for micro queries such as a one-row update by primary key. For big SQL queries whose run time is long, execution time outweighs connection setup so the benefit is small. In general having a pool is always a good option.",
+   "source": "transcript 01:16:23; transcript 01:17:15",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q055",
+   "q": "What other system can be built with the same pattern as the online/offline indicator?",
+   "answer": "Failure detection in a distributed system: nodes send heartbeats to a central server that tracks which are alive (e.g. detecting EC2 machines down, or a load balancer detecting dead backends).",
+   "source": "transcript 01:17:40; board S57 01:17:45",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q056",
+   "q": "If a new API server cannot get a DB connection because the DB hit its TCP connection limit, what happens?",
+   "answer": "It waits, retrying until an existing server terminates a connection. The fix is to scale the DB to handle more connections (vertically, or by sharding).",
+   "source": "transcript 01:19:33; transcript 01:20:05",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q057",
+   "q": "What is the most common bottleneck of a database, according to the teacher, and how does concurrency relate to DB size?",
+   "answer": "The maximum number of connections it can handle. The concurrency you want to support determines the concurrent connections the DB must handle, which determines DB size; beyond that scale vertically, or shard.",
+   "source": "transcript 01:20:05",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q058",
+   "q": "Self-hosted Redis vs DynamoDB for a small team that needs to autoscale: what order of choice did the teacher give?",
+   "answer": "With a lean team without expertise go for DynamoDB or another managed solution; next option is managed Redis (Redis Labs, AWS, GCP); self-host only if you have team expertise and engineering bandwidth. Otherwise throw money at the cloud provider.",
+   "source": "transcript 01:21:10",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q059",
+   "q": "If a pool has max 100 and some connections expired, what happens when demand rises again? Are there always 100 connections?",
+   "answer": "New connections are created on demand and added to the pool with the same expiration; there are at most 100, and the actual number depends on incoming requests.",
+   "source": "transcript 01:22:41",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q060",
+   "q": "Why is the number of connections the key factor in scaling the DB for this system?",
+   "answer": "Reads and writes are micro (one row by key, no big analytics query), so the bottleneck becomes the network, specifically establishing TCP connections. Board: micro reads/updates → hence network bottleneck.",
+   "source": "transcript 01:23:34; board S62 01:24:45",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q061",
+   "q": "When would you not stress on connections and focus elsewhere?",
+   "answer": "When queries are heavy (aggregations, 10-15 table joins) and take longer than establishing a connection; then focus on the CPU and memory side of the DB.",
+   "source": "transcript 01:24:24",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q062",
+   "q": "How do you find how many concurrent connections a database can handle?",
+   "answer": "It depends on RAM and the network card. Managed services (e.g. AWS RDS) give a formula/show it in the UI/docs; self-managed: benchmark (it also depends on load). Often you need instances with dedicated/high network bandwidth.",
+   "source": "transcript 01:25:26; transcript 01:26:08",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q063",
+   "q": "What are the four things in computer science that determine scaling, with an example of each?",
+   "answer": "Memory, CPU, disk and network (GPU counts as CPU). CPU: massive aggregations; memory: big joins pulling lots of data; disk: storing large data, e.g. data warehouses; network: number of queries a machine can serve.",
+   "source": "transcript 01:27:14",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q064",
+   "q": "How do you set the minimum and maximum size of a connection pool?",
+   "answer": "Minimum: typically 3 or 5. Maximum: DB max connections ÷ max number of servers at any time (e.g. 1000 / 100 = 10), padded since some servers get more traffic (e.g. 15); a practice is about 1.2x the average. Start conservative, monitor pool metrics (about a week of production), retune.",
+   "source": "transcript 01:29:22; transcript 01:30:27",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q065",
+   "q": "After setting initial pool sizes, how should you tune them, and what should you monitor?",
+   "answer": "Start with a conservative setting, observe metrics, then retune. Monitor how the pool performs: the number of connections in the pool at any moment and the number of servers; about one week of production data gives the numbers to tune on.",
+   "source": "transcript 01:30:27",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q066",
+   "q": "For a festival with 2x users, how should you handle the connection load?",
+   "answer": "Vertically scale the DB so it supports the needed concurrent requests (and scale back down later), then tune the connection pool maximum; have the right monitoring.",
+   "source": "transcript 01:32:34; transcript 01:33:14",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q067",
+   "q": "What are the six foundational components to think about when designing systems?",
+   "answer": "Database, caching, scaling, delegation, concurrency, communication. Any decision affects one of these 6 factors.",
+   "source": "transcript 01:40:25; board S64 01:34:00",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q068",
+   "q": "Describe the schema of the blogging platform.",
+   "answer": "users: id, name, bio. blogs: id, author_id, title, body, published_at, is_deleted. One user can write multiple blogs; multiple users.",
+   "source": "transcript 01:41:37; board S66 01:41:00",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q069",
+   "q": "What happens when a user deletes a blog with soft delete?",
+   "answer": "Instead of DELETE you UPDATE: set is_deleted = true.",
+   "source": "board S66 01:41:00; transcript 01:41:37",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q070",
+   "q": "What are the three key reasons for soft delete, in the order on the board?",
+   "answer": "Recoverability, archival, audit.",
+   "source": "board S67 01:41:45; transcript 01:43:07",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q071",
+   "q": "What example illustrates recoverability?",
+   "answer": "Google Drive: a deleted file goes to trash for 30 days and can be recovered during that time.",
+   "source": "transcript 01:43:07",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q072",
+   "q": "How does soft delete enable archival?",
+   "answer": "Deleted user content is valuable (e.g. for ML training); soft delete, then a job collects soft-deleted rows into S3 / blob storage.",
+   "source": "transcript 01:43:49",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q073",
+   "q": "What real story illustrated the audit reason?",
+   "answer": "A user harassed another online and deleted the comment after a police complaint; the police asked the platform for details. With soft delete the evidence was still there; the teacher visited the police station with printed traces.",
+   "source": "transcript 01:44:45; transcript 01:45:53",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q074",
+   "q": "Why is soft delete 'easy on the database engine'?",
+   "answer": "Most storage engines use B+ trees; a hard delete removes the entry and can unbalance the tree, forcing rebalancing that costs CPU. Soft delete only updates a column, so no rebalancing.",
+   "source": "transcript 01:46:52; board S67 01:41:45",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q075",
+   "q": "How does the DB store a LONGTEXT column vs a VARCHAR column?",
+   "answer": "VARCHAR (short text) is stored inline with the other columns in the (fixed-width) row. LONGTEXT is stored at a separate disk location with only a reference in the row, so reading it costs an extra disk read.",
+   "source": "transcript 01:49:33; board S69 01:48:15",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q076",
+   "q": "Which fields of the blogging schema are short text and which long text, and why not make everything inline?",
+   "answer": "Bio, email, names are VARCHAR; blog body (and long comments, e.g. 5000 chars = 5000 bytes) are long text. Keep rows small so they scan easily; the body is only needed when someone opens the blog page, while listings need title/excerpt.",
+   "source": "transcript 01:50:46; transcript 01:51:27",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q077",
+   "q": "What are the three ways to store date-time on the board, in order?",
+   "answer": "Datetime as datetime; datetime as epoch integer; datetime as custom format (int), YYYYMMDD.",
+   "source": "board S72 01:53:00; transcript 01:52:34",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q078",
+   "q": "Why can a native datetime type be slow for a query like published_at > now() - 7 days?",
+   "answer": "If the DB serializes it as a string on disk, it must read each value, parse it into a datetime object (year, month, day, hour, minute, second) and compare. Each DB stores it differently (MySQL, Postgres, MongoDB...; some as epoch seconds/ms), so check yours.",
+   "source": "transcript 01:54:30; transcript 01:55:29",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q079",
+   "q": "What labels did the board attach to 'datetime as datetime'?",
+   "answer": "Convenient; sub-optimal; heavy on size and index; serialized in some format.",
+   "source": "board S72 01:53:00",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q080",
+   "q": "What is an epoch integer, and how much space does it save compared with the string?",
+   "answer": "Seconds (or ms) elapsed since 1 January 1970. The string '02-04-2022T09:01:36Z' takes about 20 bytes; the integer takes 4 bytes.",
+   "source": "transcript 01:57:06; transcript 01:57:48; board S72 01:53:00",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q081",
+   "q": "What is the trade-off of storing date-time as an epoch integer?",
+   "answer": "Efficient, optimal, lightweight on index (plain integer comparison), but not readable: you cannot tell the time by looking at it.",
+   "source": "transcript 01:59:24; board S72 01:53:00",
+   "kind": "tradeoff",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q082",
+   "q": "What did Redbus do in 2016 with date-time and why?",
+   "answer": "A datetime column caused a performance bottleneck through massive date comparisons. They needed readability (they viewed raw values in IDEs/UI) and only date-level granularity, so they stored the date as an integer in YYYYMMDD format (e.g. 20220402): readable and fast integer comparison/index.",
+   "source": "transcript 02:00:04; transcript 02:01:11",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q083",
+   "q": "Does the YYYYMMDD integer perform better than an epoch integer?",
+   "answer": "No: both are integers with the same performance; the custom format only adds readability. It was a company/use-case choice (analytics, not transactional).",
+   "source": "transcript 02:03:35; transcript 02:04:07; transcript 02:06:00",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q084",
+   "q": "What does storing epoch time lose compared with a datetime, and how do you handle it?",
+   "answer": "Time zone information. Store in Unix/UTC and render in the device's local time zone; be careful to take everything in UTC.",
+   "source": "transcript 02:04:35; transcript 02:04:51",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q085",
+   "q": "If soft-deleted rows are eventually hard-deleted, is the no-rebalancing benefit lost?",
+   "answer": "No. Batch the hard deletes: e.g. deleting 100 rows at once and committing triggers one rebalance instead of up to 100, cutting rebalances by the batch size.",
+   "source": "transcript 02:07:08; transcript 02:08:07",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q086",
+   "q": "What limitation of a 4-byte epoch integer was raised, and what did the teacher recommend reading?",
+   "answer": "A 4-byte integer maxes out soon (teacher said around 2032); 8 bytes doubles space, and pre-1970 dates need negative values. Read MySQL's official datetime docs: it stores datetime compactly (~6 bytes) over a huge range (BCE to ~20,000 years).",
+   "source": "transcript 02:09:24; transcript 02:10:15; board S79 02:09:00",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q087",
+   "q": "What is caching, according to the teacher's definition?",
+   "answer": "Anything that saves a heavy computation or expensive operation: disk I/O, network I/O or computation. Memoization in dynamic programming is caching.",
+   "source": "transcript 02:11:51; board S80 02:11:45",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q088",
+   "q": "Are caches only RAM based? Give an example otherwise.",
+   "answer": "No: disk or even network can be a cache. E.g. caching on local disk to avoid an expensive network call.",
+   "source": "transcript 02:13:04; board S80 02:11:45",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q089",
+   "q": "What are caches fundamentally, according to the board?",
+   "answer": "Glorified hash tables (key-value), some with advanced data structures (Redis: HyperLogLog, Bloom filters, geo).",
+   "source": "board S80 02:11:45; transcript 02:13:04",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q090",
+   "q": "Describe the blogging platform diagram with the cache.",
+   "answer": "Users → LB → three API servers → Database; one central cache that all three API servers connect to (the cache sits logically between API and DB).",
+   "source": "board S84 02:14:45; transcript 02:14:47",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q091",
+   "q": "Describe the read path through the central cache.",
+   "answer": "API server checks the cache; on hit return; on miss read from DB, put it in the cache, return to the user.",
+   "source": "transcript 02:14:47",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q092",
+   "q": "Why use a central remote cache for the blogging platform?",
+   "answer": "Every request, whichever API server it hits, reads the same single copy; it saves expensive DB queries (e.g. 3-4 table joins for a popular blog) and cuts DB load massively.",
+   "source": "transcript 02:14:47",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q093",
+   "q": "What was the 'fun exercise' for the next class?",
+   "answer": "Find possible places that can be used as a cache with an example (e.g. central RAM cache for app-level data saves DB computations; think CDN, load balancer).",
+   "source": "board S85 02:17:00; transcript 02:18:41",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q094",
+   "q": "Can the DB itself hold pre-computed results as a cache?",
+   "answer": "Yes, that is a possible place: ask 'why not this?'; caching isn't limited to RAM.",
+   "source": "transcript 02:20:42",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q095",
+   "q": "Soft-deleted rows grow the DB. What do you do?",
+   "answer": "Periodic hard delete (e.g. once a day) of soft-deleted rows, or move them elsewhere (archival).",
+   "source": "transcript 02:22:35",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q096",
+   "q": "What does GDPR's right to be forgotten require, and how soon?",
+   "answer": "A user can ask the company to delete everything about them; the company must hard delete within roughly a month (a time buffer).",
+   "source": "transcript 02:22:53; transcript 02:25:31",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q097",
+   "q": "In practice, is data fully removed after a right-to-be-forgotten request?",
+   "answer": "No: PII is hard-deleted from the transactional systems and tracked places, but logs and historical DB snapshots keep data (nobody updates all snapshots). Atlassian recovered hard-deleted data in 14 days during an outage.",
+   "source": "transcript 02:23:40; transcript 02:24:43",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q098",
+   "q": "Should a cache compress data, and where?",
+   "answer": "Trade-off: decompression cost vs memory. Worth it for large blobs (e.g. 10 KB to 1 KB), not small fields like email. Do it in the application before sending, so you also save network bandwidth; the cache shouldn't offer compression.",
+   "source": "transcript 02:26:17; transcript 02:28:58",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q099",
+   "q": "An interviewer said a background job hard-deleting soft-deleted rows would cause downtime because of locking. How did the teacher answer?",
+   "answer": "Deleting causes no downtime of the service; do staggered deletions at a linear pace. Locking rows while deleting is about strong consistency (avoiding stale reads of a deleted entry), not availability.",
+   "source": "transcript 02:30:54; transcript 02:31:28",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q100",
+   "q": "If the same pre-computed result is stored in Redis and in a database table, what decides which is faster to read?",
+   "answer": "Both use persistent connections, so that cancels out. Redis reads from memory in one hashed lookup; a disk-based DB traverses a B+ tree on disk (about log n reads). For tiny reads disk is much slower, for larger reads (e.g. 1 KB) the gap is small. RAM is more expensive and limits cache size (disk allows a larger cache), and using the main DB adds load to existing requests. Overall not much difference; it is a trade-off.",
+   "source": "transcript 02:32:33; transcript 02:34:08; transcript 02:34:42; transcript 02:36:21",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q101",
+   "q": "How should you hard delete 100,000 soft-deleted rows without hurting a busy database?",
+   "answer": "Do staggered deletion, like garbage collection: never delete them all in one shot; spread it across the day, e.g. an hourly job deleting about 10,000 rows per run.",
+   "source": "transcript 02:37:39",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q102",
+   "q": "A table has a unique index on email and uses soft delete. A user deletes their account and wants to sign up again with the same email. What must you do?",
+   "answer": "In this use case the row has to be hard deleted (a soft-deleted row would block the new account).",
+   "source": "transcript 02:39:02; transcript 02:39:31",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q103",
+   "q": "Instead of a cron job, can you set a retention policy in the DB to delete old rows? Which approach is better for DB performance?",
+   "answer": "Yes; then the DB runs a thread doing the cron job for you (you offload it to the database). Best: offload it to the database and delete in a staggered way.",
+   "source": "transcript 02:40:21; transcript 02:40:49",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q104",
+   "q": "If the cached field in the DB is indexed, isn't it read from RAM, making the DB as fast as Redis?",
+   "answer": "Only in the best case, when the table/index is small enough for the DB to keep in RAM; then there is no difference. Always reason about the worst case: if RAM can't hold the index, it is a disk read.",
+   "source": "transcript 02:41:38; transcript 02:41:59",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q105",
+   "q": "If you work at Google and will always use GCP, does vendor lock-in matter? What other concern might a manager still have?",
+   "answer": "No: you are your own vendor (or always on one cloud), so lock-in is out of the picture. But a manager weighs how easy it is to hire talent: many developers know an open-source tech like Neo4j, few know a proprietary one like TigerGraph.",
+   "source": "transcript 02:42:20; transcript 02:42:35",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q106",
+   "q": "Why wasn't availability one of the rows comparing Redis and DynamoDB?",
+   "answer": "It was assumed equal: availability is a property of the engineers (expertise to run it), not of the database. With DynamoDB AWS provides it; with self-hosted Redis your engineers must.",
+   "source": "transcript 02:43:49",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q107",
+   "q": "How would you support showing 'last seen' in the online/offline design?",
+   "answer": "It was out of scope. If you need it, you cannot delete the rows: keep them, and the last heartbeat received is the last-seen time. Whether to show it is a product call; storage (8 GB) is not a problem anyway.",
+   "source": "transcript 02:44:20; transcript 02:54:10; transcript 02:54:21",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q108",
+   "q": "Are soft delete and archival the same thing?",
+   "answer": "No. Soft delete allows you to archive: you have time to collect soft-deleted rows later (e.g. after a day), move them elsewhere, then hard delete. Hard deleting and immediately copying to S3 would be slow.",
+   "source": "transcript 02:45:57; transcript 02:46:17",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q109",
+   "q": "Is it fine to use Redis as the primary database for the online/offline indicator?",
+   "answer": "Yes. Configure AOF-based persistence for on-disk persistence, and the data is small enough (8 GB) to fit in RAM. The choice depends on the guarantees the system needs, not stereotypes about what a DB is for.",
+   "source": "transcript 02:47:42; transcript 02:48:04",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q110",
+   "q": "Should autoscaling for sudden surges count against self-managed Redis versus DynamoDB?",
+   "answer": "Yes, as one more point: self-hosting needs engineering expertise to manage, scale and react to surges, an added strain on the team. With a lean team, offload to DynamoDB: you pay them and they become your extended engineering team.",
+   "source": "transcript 02:48:53; transcript 02:49:21",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q111",
+   "q": "Should you avoid database-specific features like TTL so you can switch databases later?",
+   "answer": "No: you picked the DB because you needed expiration. Other DBs offer similar features, or you can re-implement them (a cron job; Debezium CDC instead of DynamoDB streams). Document the migration steps and know your design's limitations, but draw a line and stop overthinking, or you end up writing your own database.",
+   "source": "transcript 02:50:38; transcript 02:51:23; transcript 02:52:09",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q112",
+   "q": "What did the teacher recommend for understanding how connection pooling behaves when the database is scaled?",
+   "answer": "Write a hello-world with a connection pool against a local database to see its configuration options and limitations; horizontal scaling of databases is covered the next week.",
+   "source": "transcript 02:53:11",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q113",
+   "q": "What is the downside of a connection pool configured with a minimum of 100 connections per server when the DB supports at most 1000?",
+   "answer": "It limits how many API servers you can run: about 10 servers use up the DB's 1000 connections, so adding 20 more during a spike fails. The pool configuration and the DB's max connections cap the number of servers.",
+   "source": "transcript 02:55:15; transcript 02:55:53",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q114",
+   "q": "What goes wrong if pools may grow freely and the idle-connection TTL is very long (e.g. 10 minutes)?",
+   "answer": "Existing servers keep hogging DB connections; new servers added for load cannot get connections, and users routed to them see an outage.",
+   "source": "transcript 02:56:37",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q115",
+   "q": "What conservative starting configuration for a connection pool did the teacher recommend?",
+   "answer": "Start with a minimum of 3 or 5 connections and let it grow to a limit, maybe under 50 or 100. The idle TTL must be neither too short nor too long (too long leaves many unused connections); find the sweet spot for your use case.",
+   "source": "transcript 02:57:26; transcript 02:58:02",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q116",
+   "q": "What single metric matters most for tuning a connection pool, and why?",
+   "answer": "Average SQL query completion time on the database: long-running queries keep connections open longer, so the TTL can't be short and the pool may need to grow.",
+   "source": "transcript 02:58:02; transcript 02:59:07",
+   "kind": "heuristic",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q117",
+   "q": "Using TTL saves space but makes Redis do deletions. Is that computation a concern?",
+   "answer": "No: in-memory deletion is peanuts for Redis. TTL was used because space mattered; if space doesn't matter, skip it and keep the entries.",
+   "source": "transcript 03:00:22; transcript 03:00:34; transcript 03:00:48",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q118",
+   "q": "HTTP is stateless. Does that mean HTTP connections can never stay open?",
+   "answer": "No. HTTP is stateless (one request, one response), but connections can persist: the keep-alive header tells the web server not to terminate it, HTTP/2 keeps persistent connections, and WebSocket (not HTTP) does too. For design, think of HTTP as stateless and use better options (WebSockets, MQTT) when you need state.",
+   "source": "transcript 03:03:10; transcript 03:03:49; transcript 03:04:16",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q119",
+   "q": "What is the relationship between HTTP and TCP?",
+   "answer": "HTTP is a protocol/specification that usually runs on top of TCP (a layer-4 protocol); they are independent, and you could send HTTP messages over UDP too.",
+   "source": "transcript 03:05:08; transcript 03:05:15",
+   "kind": "qa",
+   "difficulty": "medium"
+  }
+ ]
+}

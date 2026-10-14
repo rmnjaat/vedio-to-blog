@@ -1,5 +1,5 @@
 ---
-// Course home: the ten lectures in course order.
+// Course home: the lectures in course order (lectures/course.json; numbers are course positions).
 import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import { COURSE, LECTURES, pad } from '../data/course';
@@ -22,10 +22,10 @@ const written = new Map((await getCollection('lectures')).map((e) => [e.id, e]))
               <span>
                 <a href={url(`lectures/${l.id}/`)}>{e.data.title}</a>
                 {e.data.status === 'draft' && <span class="tag hand"> draft</span>}
-                <span class="lec-dek">{e.data.dek}</span>
+                <span class="lec-dek">{l.promise ?? e.data.dek}</span>
               </span>
             ) : (
-              <span><span class="pending">Lecture {pad(l.number)}</span><span class="lec-dek hand">in preparation</span></span>
+              <span><span class="pending">{l.title ?? `Lecture ${pad(l.number)}`}</span><span class="lec-dek hand">{l.promise ? `${l.promise} · ` : ''}in preparation</span></span>
             )}
           </li>
         );

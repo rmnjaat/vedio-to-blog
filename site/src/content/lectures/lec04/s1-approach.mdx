@@ -1,0 +1,98 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoWaysToBuild, PropertyFirst } from '../../../figures/lec04/s1-approach';
+
+{/* Chapter 1 "How to approach a design" (1.1–1.2). Writer w1. Board: "Approaching System Design" and "Points to remember".
+    The two-panel figure passes Figure's `max` so it shows at about 1:1; below 640px the <Phone> layout takes over. */}
+
+<Section id="s1" no="1" title="How to approach a design" crumb="1 Approach"
+  dek="Before any box: decide whether you are building outward from a known core or growing a day-zero design, and pick tools by the property you need, not the tool you like."
+  meta="About 6 min · class 00:15–00:22 · approach">
+
+A product team asks for green dots next to user names: green if the person is online, grey if not. Where do you even start? With the database, or with a whole small system that you then watch under load?
+
+That choice comes before any box is drawn, and so does a second one: what you let decide which tool goes in each box. This chapter settles both. Every later chapter applies them.
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Two ways to build" crumb="1.1 Two ways to build"
+  dek="Spiral grows outward from a core you are sure of. Incremental starts with a day-zero system and lets load show you where to change it."
+  meta="About 3 min · class 00:15–00:19">
+
+In the lecture's experience of ten or eleven years of building systems, there are only two approaches to building any system: **spiral** and **incremental**. Which one fits depends on the system, and there is no hard rule that you must always use one of them. This course uses both, spiral in some places and incremental in others. [[L-0022]]
+
+**Spiral.** Decide the core of the system first. In most cases the core is the database, so you design the database; then you need API servers; then, with a bunch of API servers, a load balancer; and so on. The core becomes the single point of focus, the part that makes the system possible, and every other component is built around it as and when you need it. “Spiral” here is the course’s own name for building outward from a chosen core. It is not Boehm’s risk-driven Spiral model of software development <Cite href="https://en.wikipedia.org/wiki/Spiral_model">wikipedia.org</Cite>. [[L-0023]]
+
+The core is use-case specific. It can be a database schema, or it can be a communication layer: in a messaging app the WebSocket layer is the core, and everything else is built around it. [[L-0024]]
+
+<Figure id="fig-1a" max={660} no="Fig 1·a" k="L-0023 L-0024 L-0025 L-0026 L-0027" caption="Two ways to build. Left: spiral, the core first and parts added around it as you need them. Right: incremental, the board’s five steps with the loop from “repeat” back to step 2. Spiral when you’ve built it before; incremental when you’re unsure. Redrawn from the class board at 00:17–00:18.">
+<Desk><TwoWaysToBuild /></Desk>
+<Phone><TwoWaysToBuild layout="phone" /></Phone>
+</Figure>
+
+**Incremental.** This is for when you are unsure how to implement or how to scale. Start with the simplest day-zero architecture you can draw: user, load balancer, API server, database. Then see how each component behaves under load and at scale, and ask implementation questions as you go: is this server overburdened, and should part of it split into another service? Identify the bottleneck, re-architect, and repeat until you are content. On the board that is five steps: (1) start with a day-zero architecture, (2) see how each component behaves, under load and at scale, (3) identify the bottleneck, (4) re-architect, (5) repeat, looping back to step 2. [[L-0025]]
+
+When to use which comes down to how well you know the ground. Use spiral when the system is a no-brainer: you have built similar systems before, so you know exactly how things will transpire and which parts it will need. [[L-0026]] Use incremental when the situation is ambiguous and you are a little uncertain. It resonates with startups: ship a day-zero architecture to some users, then re-architect over time and make it better and better. [[L-0027]]
+
+Large organisations blur the line. In a multi-year project at a big organisation, where you know what has to be built and it is complex, you typically start with some parts and grow organically around them. There are no hard lines between the two approaches; knowing both simply gives you confidence when you build. [[L-0028]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="The property before the tool" crumb="1.2 Property first"
+  dek="Ask what the component must do and how it will be read and written. Which tool you like comes second."
+  meta="About 3 min · class 00:19–00:22, with echoes at 00:58, 01:18 and Q&A 02:48">
+
+“I’ll use Redis here, because I love Redis.” Or only Postgres, only DynamoDB, only Cassandra. Many engineers carry an affinity like this, and that rigidity hampers the growth of the system. So for every technical decision, first understand the **core property** and the **access pattern** you need from the component, then see which tools, technologies and frameworks fit. Your affinity for a particular tech comes second. [[L-0029]]
+
+Affinity also fails on plain practical grounds. A company that is not on AWS cannot use DynamoDB. A company that doesn’t run Redis still needs the system built. Either way, you pick whatever satisfies the requirement. [[L-0030]]
+
+This course will discard Cassandra in many places. For a simple use case a relational database can solve it, and, counterintuitively, there are systems operating at scale that are built on relational databases instead of Cassandra. [[L-0031]]
+
+The habit that goes with this is to go deep before you decide. Take every candidate technology, understand its pros and cons, and pick what suits the case best, staying open to all of them. [[L-0092]] It also means dropping stereotypes such as “DynamoDB is only for this” or “SQL is only for that”. What matters is knowing how to use a particular tech well. [[L-0312]]
+
+<RuleBox rule="Understand the ==core property & access pattern==. Affinity towards a tech comes second." k="L-0029 L-0032">
+
+The board’s third point sits under it: build an intuition towards building systems. There is no single way to build a system. Every system can be built in endless ways and keeps evolving, and in the real world you will be asked to build systems that don’t exist yet. That is where intuition matters most.
+
+<Desk><PropertyFirst /></Desk>
+<Phone><PropertyFirst layout="phone" /></Phone>
+
+</RuleBox>
+
+That is why these pages put the reasoning before the boxes. There is no single correct design to memorise, and the systems you will build at work may not exist anywhere yet. [[L-0032]] So observe the pattern and the core properties a system needs instead of memorising a question and its answer, and build your intuition from them. The online/offline indicator in the next chapter is a good test: its heartbeats come back almost unchanged as failure detection in [§4.9](#s4-9). [[L-0134]]
+
+<h3 id="s1-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="You have built three chat apps before and now build a fourth. Spiral or incremental, and what is its core?">
+
+Spiral: you have built similar systems, so you know how things will transpire. The core of a messaging app is its communication layer, the WebSocket layer, and everything else is built around it.
+
+  </RecallItem>
+  <RecallItem q="Your startup is unsure how a new feature will be used. Which approach, and what are its five steps?">
+
+Incremental, because the situation is uncertain. (1) Start with a day-zero architecture, (2) see how each component behaves under load and at scale, (3) identify the bottleneck, (4) re-architect, (5) repeat from step 2.
+
+  </RecallItem>
+  <RecallItem q="Why is “we use Redis everywhere” a weak reason to pick Redis for the next feature?">
+
+It is affinity, not a requirement. Start from the core property and access pattern the feature needs, then see which tools fit. Affinity also breaks in practice: a company without Redis, or not on AWS for DynamoDB, still has to ship.
+
+  </RecallItem>
+</RecallQuestions>
+
+Next, apply it: the green dot, built spiral-style from its core.
+
+<SectionEnd next={{ title: '2 · Green dots: the online/offline indicator', href: '#s2' }}
+  concepts={[{ label: 'spiral approach', href: '#s1-1' }, { label: 'incremental approach', href: '#s1-1' }, { label: 'core property & access pattern', href: '#s1-2' }]} />
+
+</Section>

@@ -1,0 +1,194 @@
+{
+  "lecture": "lec04",
+  "verdict": "pass",
+  "issues": [
+    {
+      "id": "C-01",
+      "severity": "medium",
+      "owner": "content",
+      "where": "final_shots/sweep/1440-light/3-redis-or-dynamodb/004.png, 007.png, 009.png, 011.png; fig/1440-light-fig-3b.png, fig/390-dark-fig-3b.png, fig/1440-light-fig-3d.png, fig/390-light-fig-3d.png",
+      "problem": "Figure desert. §3.2 (persistence, Redis as the primary store), §3.3 (managed or self-managed) and §3.5 (room to grow) are prose plus 'More precisely' boxes and an aside, with no drawing. The sample's paragraph–figure–paragraph rhythm breaks for most of the chapter. Fig 3·a and 3·c bracket a long grey run.",
+      "fix": "Add three small sheets and brief the illustrator: (a) §3.2: a write going to RAM, then the AOF appended every 1 s or on 'always', plus a periodic RDB snapshot, with a crash marker showing what is lost under everysec. (b) §3.3: a two-column 'who runs it' split (self-hosted: your team does patching, failover, scaling and surges; managed: the provider does, you pay for it). (c) §3.5: the Redis toolbox (Bloom filter, HyperLogLog, geo) next to DynamoDB + Streams + Lambda. Put each one after the paragraph that sets up its question.",
+      "status": "resolved",
+      "recheck": "Resolved. §3.2 has Fig 3·b (AOF everysec ticks, red crash, '≤ 1 s lost', RDB 'every write since the snapshot lost'), and it reads well on desk and on phone dark. §3.3 has the 'who carries the work' table with glyph headers. §3.5 has Fig 3·d (redis built-ins vs dynamodb → streams → lambda), which is redrawn stacked on phone. §3.4 keeps Fig 3·c. Across the sampled sweep, no stretch goes more than about 1.5 screens without a drawing or table."
+    },
+    {
+      "id": "C-02",
+      "severity": "medium",
+      "owner": "content",
+      "where": "final_shots/sweep/1440-light/5-blog-rows/018.png–021.png; fig/1440-light-fig-5i.png, fig/390-dark-fig-5i.png",
+      "problem": "Figure desert of about 5 screens. The Redbus story, the two objections, time zones, the 2038 overflow and negative epochs are all prose, a pause-and-think, three 'More precisely' boxes and one aside. The comparison table comes only at the very end. §5.9 is the most visual topic in the chapter: a number line that runs out.",
+      "fix": "(a) §5.8: a Redbus before/after sheet: a DATETIME column compared field by field → a YYYYMMDD int compared as one integer, labelled 'readable' and 'same speed as epoch'. (b) §5.9: an epoch number line: −1 = 31 Dec 1969 on the left, 0 = 1 Jan 1970, a red 2038-01-19 wall at the int32 limit, and a dashed int64 continuation. Use the same zone glyph as fig-5g. Place it before the first 'More precisely' so the correction reads against the drawing.",
+      "status": "resolved",
+      "recheck": "Resolved. §5.8 has a before/after SQL sketch and the think card. §5.9 has Fig 5·i: −1/0, the red 2038 wall with 2,147,483,647, and a dashed int64. It is clean on desk and on phone dark. The figure sits just after the 'More precisely' note rather than before it, but the note and the drawing are on the same screen (sweep 021), so they still read together. §5.8's code block is clipped; see C-16."
+    },
+    {
+      "id": "C-03",
+      "severity": "medium",
+      "owner": "content",
+      "where": "final_shots/sweep/1440-light/3-redis-or-dynamodb/005.png, 010.png, 013.png; 5-blog-rows/019.png, 021.png; 6-cache/008.png; page_text_r2.md",
+      "problem": "The copy reads as a summary of a recording. 'the instructor' appears 27 times and 'the class' 72 times, with teacher biography in the body ('went to the police station himself', 'built GDPR compliance himself… that is why he knows', 'the instructor didn't disclose', 'details he couldn't share'). Turn-by-turn Q&A reporting ('The instructor agreed', 'the recording leaves unclear whether the instructor agreed') appears mid-argument. This is the same defect lec01 was flagged for (lec01 critic #14).",
+      "fix": "State claims directly, as the sample does. Keep provenance in the meta lines and the 'Redrawn from the class board' captions. Keep the war stories in the 'From practice' asides, written in the third person about the event, not the teacher. Delete the 'recording leaves unclear' sentence. Target: 'the instructor' 5 times or fewer, and 'the class' about half of now.",
+      "status": "resolved",
+      "recheck": "Resolved. In the current page text 'instructor' appears 0 times. There is no teacher biography and no turn-by-turn Q&A. Chapters 3 and 5 read as direct teaching ('The broader point: drop the hard stereotypes…', 'In 2016, Redbus…'). War stories sit in collapsed 'From practice' asides. What remains is a handful of hedges ('as taught' about 8 times, 'in the lecture's view' about 4 times) that the fact-check policy keeps, plus three recording-report phrases, logged as low C-17."
+    },
+    {
+      "id": "C-04",
+      "severity": "medium",
+      "owner": "design",
+      "where": "final_shots/step/390-light-fig-2e-s1.png, step/390-light-fig-4b-s3.png, step/390-light-fig-4b-s5.png, sweep/390-light/2-green-dots/010.png",
+      "problem": "On a 390 px screen the swim lanes are about 550–600 px tall and mostly empty in the early steps. Prev/Next and the step sentence sit below them, so the arrow that changed and the sentence explaining it are never on screen together. At fig-2e step 1, a whole screen (sweep 010) shows only empty lane lines above the controls. This is the same problem as lec01 critic #6.",
+      "fix": "On phone, crop the step-through viewBox to the rows up to the current step (or shorten the lifelines to about 360 px), and pin Prev/Next plus the current step text in a bar stuck to the bottom of the figure. Check fig-2e, fig-4b and fig-4e.",
+      "status": "resolved",
+      "recheck": "Resolved. At fig-2e step 1 on phone, the lane heads, the first blue arrow, 'u7 = online', the green dot, Prev/Next and the step sentence all fit in about 380 px. In fig-4b steps 3 and 5, the active row sits directly above the step bar. Sweep 010 now shows the arrow, the controls and the step text together."
+    },
+    {
+      "id": "C-05",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/fig/1440-light-fig-6b.png, fig/390-light-fig-6b.png",
+      "problem": "Routing: api 1 and api 3 run to the cache and the db on shared vertical trunks (x≈530 and x≈590) that cross each other's horizontal runs, so you can't tell which server reaches which store. The green ✓ floats below the cache with no arrow. The phone redraw (fig/390-light-fig-6b.png) is cleaner.",
+      "fix": "Give each api server its own short stub to a cache bus above and a db bus below, with no crossings (NOTES: orthogonal, non-crossing routing). Put the ✓ beside the blue arrowhead at the cache.",
+      "status": "resolved",
+      "recheck": "Resolved. Each api has its own stub to a cache bus and a db bus, and the db stubs hop over the cache bus, so no two routes merge ambiguously. The blue read runs from the middle api to the cache, and the ✓ sits at its arrowhead. Desk and phone match."
+    },
+    {
+      "id": "C-06",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/fig/1440-light-fig-4c.png, step/1440-light-fig-4e-s5.png, fig/1440-light-fig-4f.png, fig/1440-light-fig-4g.png",
+      "problem": "Glyph drift from the notation key:\n- fig-4c labels a plain box 'server' and adds a stray offset outline behind it.\n- fig-4e uses unlabeled plain boxes.\n- fig-4f uses 'min 100' and 'new' stacked boxes.\nThe key's api-server glyph (chamfered box, mono 'api') is used everywhere else in the lecture. fig-4g draws 'data warehouse' in faded grey, which on this site means 'not yet' or 'past step', for no stated reason.",
+      "fix": "Use the api-server glyph (a stack of api glyphs for a fleet) in 4c, 4e and 4f, and remove the ghost outline in 4c. In fig-4g, draw 'data warehouse' in the same ink as the other two examples.",
+      "status": "resolved",
+      "recheck": "Resolved. 4c is a single 'api' box with no ghost outline. 4e's boxes are labelled 'api', under the header 'api server'. 4f panel b uses the fleet glyph ('api / pool min 100', 'api / new'). Panel a's ten small boxes are an abstract count ('each box: 10 servers'), which is acceptable. 4g's 'data warehouse' is in full ink with the same blue link."
+    },
+    {
+      "id": "C-07",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/fig/1440-light-fig-4d.png, fig/390-light-fig-4d.png",
+      "problem": "Speech bubbles: NOTES allows at most one per section, and only for the misconception being corrected. fig-4d's bubble states a fact rather than voicing a misconception. Two bubbles in one lecture is fine, but the fig-4d one is decoration.",
+      "fix": "Turn fig-4d's bubble into a plain hand annotation with a leader line ('a library inside the process, not a service'). Keep fig-6a's.",
+      "status": "resolved",
+      "recheck": "Resolved. Fig 4·d now has a plain hand annotation, 'a library inside the process, not a service', with a leader line to the queue, on desk and on phone."
+    },
+    {
+      "id": "C-08",
+      "severity": "low",
+      "owner": "animation",
+      "where": "final_shots/clip/390-light-l04-heartbeat-expiry-fig-poster.png",
+      "problem": "In the portrait poster, 'deleted' sits on top of the crossed-out 'u42' and ⏱ inside the redis cylinder, so the three marks collide. 'laptop' and 'heartbeat' are drawn in pale ink and read at the 12 px floor. 'sped up' crowds the '0 s' tick label.",
+      "fix": "Move 'deleted' below the cylinder, or fade u42 out before 'deleted' is written. Draw 'laptop' and 'heartbeat' in normal ink. Put 'sped up' on its own line above the second timeline.",
+      "status": "resolved",
+      "recheck": "Resolved. In the phone poster the cylinder holds only 'deleted'. 'laptop' and 'heartbeat' are in full ink, and 'sped up' is on its own line between the two timelines."
+    },
+    {
+      "id": "C-09",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/sweep/1440-light/3-redis-or-dynamodb/007.png, 016.png",
+      "problem": "The two Redis column headers carry a cube icon above the name, but DynamoDB has none. The DynamoDB header sits about 40 px higher than its neighbours, so the header row looks broken.",
+      "fix": "Either give DynamoDB its key glyph (table/cylinder) or drop the icons from all three headers, and bottom-align the header cells.",
+      "status": "resolved",
+      "recheck": "Resolved. DynamoDB has a cylinder glyph, and all three header cells sit on one baseline in both the §3.3 and §3.7 tables. The §6.3 table still has the old mismatch; see C-15."
+    },
+    {
+      "id": "C-10",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/step/390-light-fig-2e-s1.png",
+      "problem": "When a step-through scrolls into view by deep link (#fig-2e/step-n) or keyboard stepping on phone, the sticky 'On this page' bar covers the top of the figure. The lane-head boxes are hidden, so the step reads 'laptop … store friend' with the api lane unlabeled.",
+      "fix": "Set scroll-margin-top on figures (and on step anchors) to the height of the top bar plus the 'On this page' bar, about 110 px on phone.",
+      "status": "resolved",
+      "recheck": "Resolved. At step 1 on phone all four lane heads (laptop, api, store, friend) are fully visible."
+    },
+    {
+      "id": "C-11",
+      "severity": "low",
+      "owner": "content",
+      "where": "final_shots/report.json (390-light: 4-heartbeats 28,348 px, was 31,987; 5-blog-rows 29,995 px, was 32,648)",
+      "problem": "Two chapters are each about 40 phone screens. Much of the length is repetition: the §4.7 closing paragraph restates §4.5, §5.8 repeats the objections in prose and then in the think card, and §5.7 carries provenance notes ('The board's example epoch value was illustrative… The figure above uses the real value') that the fig-5g caption already gives.",
+      "fix": "When doing C-03, cut about 15% from chapters 4 and 5. Drop the §4.7 restatement, collapse the §5.8 objections into the think card's reveal, and remove provenance sentences that duplicate captions.",
+      "status": "resolved",
+      "recheck": "Resolved as far as the fix asked. On phone, chapter 4 is 11% shorter and chapter 5 is 8% shorter, even with the new Fig 5·i. The §5.7 provenance sentence is gone (the Fig 5·g caption carries it), and §5.8 goes straight from the story to the sketch and the think card. Both chapters are still about 34–36 phone screens long, but the length is content now, not repetition."
+    },
+    {
+      "id": "C-12",
+      "severity": "medium",
+      "owner": "design",
+      "where": "final_shots/step/390-light-fig-4e-s5.png (element shot); fixes_design_shots/followup/slow-390-fig-4e-s5.png (viewport)",
+      "problem": "Regression from the C-04 'grow' change. At step 5 the fifth row of fig-4e (the idle connection, the red timer, 'idle 10 min') lands under the sticky Prev/Next + step-text bar, so the step text describes a drawing the reader cannot see.",
+      "fix": "When stepping forward with grow on, scroll so the bottom of the newly revealed rows sits above the sticky step bar. Re-shoot fig-4e steps 1–5 at 390.",
+      "status": "resolved",
+      "recheck": "Resolved in the reader's view; the pipeline's element shot still shows the artifact. The element shot (final_shots/step/390-light-fig-4e-s5.png) still shows the bar over row 5. The same fixed bar offset appears in every phone step shot (for example 4b-s5, where '5 trips of setup + teardown' is half covered), so this is how the harness captures the page. The viewport capture of real stepping (followup/slow-390-fig-4e-s5.png) shows row 5 fully above the bar. QA note: take viewport shots for phone steps so this can be checked automatically."
+    },
+    {
+      "id": "C-13",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/fig/1440-light-fig-2c.png, fig/390-light-fig-2c.png",
+      "problem": "The double-headed api ⟷ db arrow was squeezed into a few pixels, so its two heads merged into a diamond.",
+      "fix": "Move the db glyph about 30 units right in both panels so the link has a visible shaft.",
+      "status": "resolved",
+      "recheck": "Resolved. The api ⟷ db arrow has a clear shaft with a head at each end, on desk and on phone, in both panels."
+    },
+    {
+      "id": "C-14",
+      "severity": "low",
+      "owner": "design",
+      "where": "final_shots/fig/390-light-fig-4d.png",
+      "problem": "On phone the 'take()' label touched the handler box corner.",
+      "fix": "Shift 'take()' and 'put(c)' about 8 units right.",
+      "status": "resolved",
+      "recheck": "Resolved. 'take()' and 'put(c)' both clear the handler box."
+    },
+    {
+      "id": "C-15",
+      "severity": "low",
+      "owner": "design",
+      "where": "6-cache §6.3 comparison table; final_shots/sweep/1440-light/6-cache/008.png–009.png",
+      "problem": "The header glyph row doesn't match the columns. A cylinder and a small table box sit side by side over 'Table in the app database'. 'Table in a separate database' has no glyph, and Redis has a cube. This is the same broken-header look C-09 fixed in chapter 3.",
+      "fix": "One glyph per column: cube for Redis, and the db cylinder (or the table glyph) for both table columns. If two are kept for the app-database column, give the separate-database column the same pair.",
+      "status": "open",
+      "recheck": "Still open. Sweep 008 shows the cube and then the cylinder + table pair, with nothing over the third column."
+    },
+    {
+      "id": "C-16",
+      "severity": "low",
+      "owner": "content",
+      "where": "§3.2 redis.conf sketch and §5.8 SQL sketch; final_shots/sweep/1440-light/3-redis-or-dynamodb/004.png, sweep/390-light/3-redis-or-dynamodb/005.png, sweep/390-light/5-blog-rows/030.png",
+      "problem": "The code blocks added in the C-01/C-02 fixes are wider than their boxes. On desktop the everysec comment is cut mid-sentence ('a crash can lose about'), which hides the key point. On phone about half of every comment in both blocks (redis.conf and the Redbus SQL) is off-screen, with no visible cue to scroll.",
+      "fix": "Put each comment on its own line above its directive (e.g. '# flush once a second (default): a crash can lose about 1 s'), or shorten the comments so the block fits 680 px on desk and needs no horizontal scroll on phone.",
+      "status": "open",
+      "recheck": "Still open, and confirmed for both blocks. Desktop §3.2 still ends at 'can lose about'. Phone §3.2 and §5.8 clip every comment at the right edge."
+    },
+    {
+      "id": "C-17",
+      "severity": "low",
+      "owner": "content",
+      "where": "§3.7 table DynamoDB persistence cell ('Built in: the first tick on the board'), §5.9 ('offered with an \"I think\"'), §6.3 ('One condition was added in class, only partly audible on the recording'); final_shots/sweep/1440-light/3-redis-or-dynamodb/016.png, 6-cache/008.png; page_text_r2.md",
+      "problem": "A few recording-report phrasings survive the C-03 rewrite. 'the first tick on the board' in a comparison-table cell means nothing to a reader who wasn't there. '(offered with an \"I think\")' and 'only partly audible on the recording' read as transcript notes in the middle of the argument.",
+      "fix": "Rewrite the table cell as a claim ('Built in, no configuration'). Turn the §6.3 sentence into a plain condition ('This holds only when the computation you save is large; treat it as a rule of thumb.'). Fold the 'I think' hedge into the existing 'More precisely' note. Keep 'as taught' only where the fact-check policy requires it.",
+      "status": "open",
+      "recheck": "Still open. All three phrases are on the current pages."
+    },
+    {
+      "id": "C-18",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-2c phone, right panel; final_shots/fig/390-light-fig-2c.png",
+      "problem": "New, a side effect of the C-13 widening. In the phone 'one batch call' panel, 'GET /status/users' and '?ids=u1,u2,u3,u4' run right up to the api box's left edge, so the last letters touch the box outline. The desk version has room.",
+      "fix": "Right-align the request label a few units short of the box, or break it as 'GET /status/users' / '?ids=u1…u4'. Keep a gap of 6 units or more to the box.",
+      "status": "open"
+    },
+    {
+      "id": "C-19",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-7a phone; final_shots/fig/390-light-fig-7a.png",
+      "problem": "New, a side effect of the F-007 relabel to 'redis or / dynamodb'. On phone, the two-line store label, 'pool' and 'ttl 30s' crowd into one corner under the cube, so the label block reads as one jumble. In the blog-rows panel, the '§5' tag sits on top of the 'users' table label.",
+      "fix": "Move 'ttl 30s' to the clock's right or above the cube, and centre 'redis or / dynamodb' under the cube with a line of clearance from 'pool'. Nudge the §5 tag left of the cylinder so it clears 'users'.",
+      "status": "open"
+    }
+  ]
+}

@@ -175,3 +175,209 @@ b_010715: gallery view, not kept for publication. b_010730, b_010742: blank blac
 
 ## S31 - 01:07:45-01:08:00 (b_010800.jpg)
 Back on the board: D-03 (S21) re-shown in full. The connection map reads `{ tcp1 → tcp2` / `tcp3 → tcp4 }`; the second line's last digit is cramped and could also be read `tcp3` - the drawing (TCP3 from user 2, TCP4 to the backend) supports `tcp4`. No new content.
+
+## S32 - 01:08:15-01:09:42 (b_010815.jpg, b_010818.jpg, b_010824.jpg, b_010827.jpg, b_010900.jpg, b_010915.jpg, b_010930.jpg, b_010939.jpg, b_010942.jpg)
+D-03 re-shown while the teacher moves to the brainstorm (scrolls/zooms). Emphasis: 01:08:27 blue dashed laser loop around the whole drawing; 01:09:00 red highlighter along TCP1 and TCP3 (the client-side connections). b_010942 scrolled up: backend ports now visible `10.0.0.7 : 8081` (both `7` and `8081` underlined), `10.0.0.8 : 8081`, `10.0.0.9 : 8081`. No new content.
+
+## S33 - 01:09:45-01:11:18 - LB configuration (b_011000.jpg, b_011015.jpg, b_011045.jpg, b_011054.jpg, b_011100.jpg, b_011103.jpg, b_011112.jpg, b_011115.jpg, b_011118.jpg)
+Topic: what configuration the LB server holds.
+Diagram (D-04, first form), new drawing below the Brainstorm line: rectangle `LB` (drawn at 01:09:45, b_011000 shows the empty box being placed); three rectangles on the right `B Srv` / `B Srv` / `B Srv` (01:10:15-01:10:45).
+Text under the LB (white): `{` / `b.servs: [` / `ip: pr.` (`ip` underlined twice; "ip:port") / `],` / `balancing: algo:` (written `balancy: algo:`, handwriting cramped; audio "balancing algorithm") / `}`.
+01:11:15: three curved lines from LB to the three B Srv boxes; blue dashed laser circle around the config block at 01:11:15 (emphasis). b_011118 scrolled up to show the Brainstorm line above.
+
+## S34 - 01:11:30-01:13:48 - Where the config lives: DB and sync (b_011330.jpg, b_011342.jpg, b_011345.jpg, b_011348.jpg)
+New in D-04:
+- two stick-figure users on the left, each with a line to `LB`
+- backends numbered `B Srv1`, `B Srv2`, `B Srv3`; `B Srv2` hatched over with pink zig-zag strokes (the server is down / removed)
+- a small yellow square in the top-right corner of `LB` (in-memory copy of the config)
+- a cylinder `DB` below the LB, joined by a vertical line; a yellow dotted curve from the LB's square down to the DB labelled `syn-` (sync, word cut short)
+- the config block `{ b.servs: [ ip: pr. ], balancing: algo: }` moved to the lower left
+b_011342/b_011348: zoomed-out views (blue dashed laser loop around everything at 01:13:48, emphasis). b_011345 = same.
+
+## S35 - 01:14:00-01:14:27 - Orchestrator (b_011400.jpg, b_011415.jpg, b_011418.jpg, b_011424.jpg, b_011427.jpg)
+New: above the diagram, a stack of three rectangles (several instances), the front one labelled in pink `Orchestrator` (written `Orchestrahe`, last letters cramped; [sic] "Orchestrator"). b_011418 shows the stacked box just drawn, before the label; b_011415 the label written. b_011424/b_011427 same.
+
+## S36 - 01:14:30-01:15:45 - Orchestrator heartbeats (b_011515.jpg, b_011530.jpg, b_011533.jpg, b_011539.jpg, b_011545.jpg)
+New: three light-blue curves from the orchestrator stack down to `B Srv1`, `B Srv2`, `B Srv3` (01:15:15), labelled `hb` (heartbeat, 01:15:30). b_011533 is a frame with a gallery strip; diagram unchanged. b_011545 slightly zoomed out.
+
+## S37 - 01:16:00-01:17:48 - Health endpoint (b_011630.jpg, b_011645.jpg, b_011700.jpg, b_011715.jpg, b_011724.jpg, b_011727.jpg, b_011730.jpg, b_011733.jpg, b_011739.jpg, b_011742.jpg, b_011745.jpg, b_011748.jpg)
+New in D-04:
+- right of the heartbeat curves: `/status` (written `/stat[cut off]`, completed later as `/status`) above `/health`, and `8081` underlined twice (the backend's port the orchestrator pings) - written 01:17:15-01:17:30.
+- in the config block: new line `health_endpoint: "  "` (written `health_endpo[cut off]:`, an empty quoted string; 01:17:48).
+b_011630 short red emphasis stroke over `B Srv1`; b_011645/b_011700 pans; b_011739/b_011742 views of the config block; b_011745 zoomed-out view of the whole page.
+
+## S38 - 01:18:00-01:18:45 (b_011830.jpg, b_011845.jpg)
+Same D-04. b_011845 is a zoomed-out overview; red highlighter circles the orchestrator and the `health_endpoint` line (emphasis at 01:18:45). No new content.
+
+## S39 - 01:19:00-01:20:15 - Orchestrator updates the DB (b_011930.jpg, b_012000.jpg, b_012015.jpg)
+New in D-04: the heartbeat curves now end in arrowheads at `B Srv1`, `B Srv2`, `B Srv3` (orchestrator → backends); a vertical white line from the orchestrator down to the level of `DB`, then a horizontal line into `DB` (orchestrator writes backend health to the DB). Red highlighter circles the hatched `B Srv2` at 01:20:00 (emphasis). Config block closed with `}` below `health_endpoint`.
+
+## S40 - 01:20:30-01:23:45 - Polling the DB every 10 s (b_012215.jpg, b_012245.jpg, b_012300.jpg, b_012303.jpg, b_012345.jpg, b_012400.jpg)
+New, top left of D-04: a horizontal time line with tick marks, `10sec` under the first interval; at one tick a `1` above, with wavy marks above and below the line between two ticks (the window during which the LB's copy is stale) and the label `poll`. Red highlighter circles the wavy window (01:22:45) and the word `poll` (01:23:03) for emphasis.
+01:23:45: a second small square drawn below the yellow square inside `LB` (second copy of the config, b_012345/b_012400).
+
+## S41 - 01:24:15-01:26:30 - LB Console API (b_012630.jpg)
+New in D-04: below the backends, a rectangle `LB Console API` with a line up into `DB` (it writes config to the DB); below it a stick figure labelled `Dev` connected to it; to the right of `B Srv3`, a stack of three blank rectangles (several instances).
+
+## S42 - 01:26:39-01:27:15 - Admin port (b_012639.jpg, b_012642.jpg, b_012645.jpg, b_012715.jpg)
+b_012639/b_012642 zoom/pan on D-04 (no new content). New: above `LB`, port `9090` (01:26:45), then `9091` boxed above it with a short line to the label `Meta` (01:27:15) - a second port on the LB server for config/metadata calls.
+
+## S43 - 01:27:30-01:28:48 - CDC to the LB (b_012730.jpg, b_012830.jpg, b_012845.jpg, b_012848.jpg)
+b_012730 zoomed-out view (no new content). New at 01:28:30: the dotted yellow `syn-` curve is gone; in its place a horizontal pipe (queue/stream) left of the LB-DB line, with a light-blue curve from `DB` labelled `CDC` into the pipe and a light-blue curve from the pipe up into `LB` (change data capture pushes config changes to the LB). b_012845/b_012848 same.
+
+## S44 - 01:29:00-01:30:18 (b_012900.jpg, b_013000.jpg, b_013015.jpg, b_013018.jpg)
+Same D-04, panned (b_013015 zoomed out). The stack of three blank rectangles to the right of `B Srv3` is visible. No new content.
+
+## S45 - 01:30:30-01:34:15 - Multiple LB servers watched by the orchestrator (b_013200.jpg, b_013245.jpg, b_013257.jpg, b_013300.jpg, b_013315.jpg, b_013400.jpg, b_013415.jpg)
+New in D-04: a second LB server box above the first, labelled `LB` with two small yellow circles (`o` / `o`) at its right; a yellow line from the orchestrator stack down to this LB area (the orchestrator monitors the LB servers too). The timeline and `9091`/`Meta`/`9090` now sit at top left. b_013300 is a zoomed-out overview of the whole page; b_013315-b_013415 same content.
+
+## S46 - 01:34:30-01:36:42 - Metrics store (b_013545.jpg, b_013554.jpg, b_013557.jpg, b_013630.jpg, b_013639.jpg, b_013642.jpg)
+New, top right of the page: a cylinder labelled `Metric` / `Vitals` (01:35:45). 01:36:30: a third small blue circle added in the upper LB box (`o` / `oo`) and a small blue circle in the main LB box; a light-blue line from the upper LB box up and across to the metrics cylinder (agents on the LB servers push vitals to the metrics store). b_013554/b_013557 same as b_013545; b_013630 zoomed on the centre; b_013642 same as b_013639.
+
+## S47 - 01:36:45-01:39:30 - Prometheus (b_013700.jpg, b_013715.jpg, b_013718.jpg, b_013930.jpg)
+New at the metrics cylinder: pink `Prometheus` to its left, light-blue `monitoring` under `Metric Vitals` (written `monitrng`, cramped). b_013700/b_013718 zoomed-out views.
+01:39:30 (b_013930): light-green curves from the metrics cylinder down to `B Srv1`, `B Srv2`, `B Srv3` and to the orchestrator (backends' telemetry agents also push to Prometheus; the orchestrator reads utilisation from it).
+
+## S48 - 01:39:45-01:41:12 (b_014030.jpg, b_014045.jpg, b_014048.jpg, b_014100.jpg, b_014109.jpg, b_014112.jpg)
+Zoomed-out overview of the finished monitoring picture (D-04) while moving to the next question; b_014112 slightly zoomed in. No new content.
+
+## S49 - 01:41:15-01:42:00 - Two LB servers need one address: DNS (b_014200.jpg)
+New in D-04: green IPs on the two LB servers (`10.0.0.1` above the upper LB, `10.0.0.2` below the main LB); at left a rectangle `DNS` with green `10.0.0.1` / `10.0.0.2` under it (one name resolving to both LB servers).
+
+## S50 - 01:42:15-01:50:30 - CoreDNS (b_014830.jpg, b_014845.jpg, b_015030.jpg, b_015045.jpg)
+New: yellow `CoreDNS` above the `DNS` box; green `paym.lb.` / `googl.com` (handwriting compressed; audio: "payments.lb.google.com") with an arrow `→` to `10.0.0.1` / `10.0.0.2`. Red highlighter (01:48:30-01:48:45) traces user → DNS → back to user → LB (emphasis, the resolution path).
+01:50:30 (b_015030): white curved arrows between the top user and `DNS` (ask / answer), two curved arrows from the users into the LB; a horizontal line from `DNS` to the orchestrator (the orchestrator updates DNS entries).
+b_015045: zoomed-out overview of the page; a third entry `10.0.0.3` [partly illegible] appears under the DNS IPs.
+
+## S51 - 01:50:48-01:50:51 (b_015048.jpg, b_015051.jpg)
+D-04 with the third DNS entry now readable: `10.0.0.1` / `10.0.0.2` / `10.0.0.3` (third written `(0 -0.0.3`, cramped). No other new content.
+
+## S52 - 01:50:54 - Pre-written page: Orchestrator responsibilities (b_015054.jpg)
+Topic: a prepared summary page (neat handwriting, shown zoomed out), flipped through quickly.
+Text:
+- Top: `Read about` / `φ-accrual failure detection algorithm` (written `ϕ-accrual`), with an arrow from the heading below up to it.
+- Yellow heading `Orchestrator` - right: `[ Focussed responsibilities ]`
+- `- keeps an eye on the health of the backend servers` (`on the health` highlighted, `backend servers` underlined)
+- `- if any backend server is unhealthy,` / `orchestrator updates the DB ———→ { b_servers : [ ..... ] }` / `changes then reach the` / `LB servers through pubsub`
+- `- Monitors health of LB servers & scales them up and down` (`LB servers` underlined)
+Diagram (D-05, first form): see diagrams.md - stick-figure users (`End Users`) → stacked `LB Servers` (lilac) → two backend rectangles (`Backend Servers`); pink stacked `Orchestrator` above with `hb` lines to the LB servers and the backends and an `updates` line into `DB`; yellow pipe `Redis as PubSub` under the LB servers with three up-arrows into them; `CDC` arrow from `DB` into the pipe; pink `LB Console` / `APIs` below `DB`, with a pink `Developer` stick figure.
+
+## S53 - 01:50:57 - Pre-written page: how the orchestrator decides scaling (b_015057.jpg)
+Text:
+- `How will Orchestrator decide scaling LB servers ?`
+- `Scaling will happen on CPU, Mem, # TCP connections`
+- `where do we have this data ? Monitoring Component` (pink) / `↳ Prometheus !!`
+Diagram (D-05, second form): as S52 plus a cyan cylinder `prometheus` top right; cyan line from the LB servers labelled `CPU, mem, N/w` and from the backends `CPU, Mem, N/w` into it; a highlighted `Query` arrow from the orchestrator to Prometheus.
+
+## S54 - 01:50:59-01:52:30 - Pre-written page: final load balancer design (b_015059.jpg, b_015100.jpg, b_015105.jpg, b_015109.jpg, b_015112.jpg, b_015200.jpg, b_015230.jpg)
+Topic: the complete design (D-06, final form; extra frames pulled at 00:50:59 and 01:51:05).
+Text on the page: `↻` / `private infra` (above `Core DNS`); pink `lb.payments.google.com` under the top user (written `lb.paymenb.google.com`, the "ts" cramped); `10.0.0.1` on the DNS answer arrow; `End Users`; `lb.paymenb.g.com/pay/arpit` [sic, "lb.payments.g.com/pay/arpit"] (an example URL) below; `leaderElec` above the orchestrator; `Autoscaling` (yellow box); `LB Console` / `APIs`; `Developer`; bottom: `Read this paper : Maglev : A fast and reliable software load balancer`.
+Emphasis: 01:52:00 red highlighter loops user ↔ `Core DNS` and circles `lb.payments.google.com` (DNS lookup then connect to LB); 01:52:30 red trace from `LB Console` through `CDC` / pubsub to the LB servers and the orchestrator (config-change path).
+
+## S55 - 01:52:45-01:59:33 (b_015245.jpg, b_015257.jpg, b_015315.jpg, b_015345.jpg, b_015400.jpg, b_015545.jpg, b_015900.jpg, b_015915.jpg, b_015930.jpg, b_015933.jpg)
+D-06 page re-shown during the questions on local DNS cache and CoreDNS availability (scrolled up/down; b_015315 shows the bottom line `Read this paper : Maglev : A fast and reliable software load balancer` in full; b_015930 zoomed out). Emphasis at 01:52:45: red circle on the small yellow square inside `LB Servers` (the in-memory config copy). No new content.
+
+## S56 - 01:59:45-02:04:42 - Remote locks (b_020015.jpg, b_020430.jpg, b_020442.jpg)
+Topic: second half of the lecture (break 01:59:39-02:04:59; the page was already on screen).
+Text (pre-written page):
+- Yellow `Remote locks:` `Locks managed by a central machine` `↓` `Lock Manager`
+- Pink: `The 3 machines co-ordinate through a central lock manager`
+- `Multiple threads synchronize through` pink `Mutex & Semaphore`
+- `Multiple processes synchronize through` pink `Disk`
+- `Multiple machines synchronize through` pink `Remote lock`
+- pink bracket from the "processes" line to light-blue `Interesting example: "apt-get upgrade" cannot be run twice concurrently`
+- `To understand remote locks better, lets synchronize` (continues below)
+Diagram (D-07): yellow rectangle `Lock Manager` on top; three white rectangles `Machine 1`, `Machine 2`, `Machine 3` below, each with an arrow up to the lock manager.
+b_020430/b_020442: same page, camera tile hidden.
+
+## S57 - 02:04:45-02:09:30 (b_020515.jpg, b_020615.jpg, b_020930.jpg)
+Same page zoomed in and scrolled (dpkg / apt-get discussion). b_020930 shows the next lines: yellow `To understand remote locks better, lets synchronize` / pink `multiple consumers` `over an` pink `unprotected remote queue`. Start of a drawing below (cut off).
+
+## S58 - 02:09:45-02:10:30 - Unprotected remote queue (b_021030.jpg)
+Text (pre-written, below the remote-locks page): `Queue is unprotected` / `We want one consumer to make call to the queue at a time`.
+Diagram (D-08, first form): an L-shaped arrow into the left end of a horizontal pipe (queue) holding a row of small yellow squares (messages) near its right end; from the right end, three lines down to rectangles `Consumer 1`, `Consumer 2`, `Consum[cut off]` (Consumer 3).
+
+## S59 - 02:10:45-02:14:15 - Brainstorm: locking (b_021145.jpg, b_021157.jpg, b_021245.jpg, b_021300.jpg, b_021303.jpg, b_021345.jpg, b_021415.jpg)
+New page: yellow `Brainsterm :` [sic, "Brainstorm"] `locking , Core properties`; the queue drawing D-08 copied below it, the queue labelled `Queue 7` (blue dashed laser circle around it at 02:11:45, emphasis), consumers `Consumer 1`, `Consumer 2`, `Consumer 3`.
+02:14:15: `Remok` [sic, "Remote"] written under the queue; red highlighter arcs from the queue's end to Consumer 1 and Consumer 2 (two consumers reading at once, emphasis).
+
+## S60 - 02:14:30-02:17:45 - Lock in a database, TTL, Redlock (b_021545.jpg, b_021645.jpg, b_021700.jpg, b_021745.jpg)
+New in D-08: a cylinder (database) below the consumers, with a line from each consumer down to it; beside it `queue7 → C3` (02:15:45), changed to `queue7 → C1` with short underlines under `queue7` and `C1` (02:16:45); `TTL` below; a `k` at the right edge [cut off]; `Redlock` written to the left of the cylinder and double-underlined (02:17:00). Red highlighter circles `TTL` and underlines `queue7 → C1` at 02:17:45 (emphasis).
+
+## S61 - 02:18:00-02:18:57 - Consumer's pseudocode and lock-manager requirements (b_021845.jpg, b_021857.jpg)
+Text (pre-written page):
+- yellow `Consumer's pseudocode` then a purple double bar, pink `ACQ_LOCK()` / light-blue `READ_MSG()` (blue dashed laser oval around it at 02:18:45) / green `REL_LOCK()`
+- `All consumers wait on` pink `ACQ_LOCK()` `while one of them` light-blue `READ_MSG()`
+- yellow `Our requirements from the lock manager ?`
+- `- Atomic Operations →` pink `so that two machines do not ACQ_LOCK()`
+- `- Automatic Expiration →` pink `avoid perpetual locking` (written `perpehial`, [sic] "perpetual")
+- yellow `So, which DB ?` `Redis , DynamoDB` with an arrow up to Redis from `Popular choice because in-mem (fast)`
+- yellow `Implementation:` `Set the key in Redis that says which consumer holds the LOCK and can read the mes[cut off]` ("message")
+- `eg:` pink `queue7 : consumer 2 [ex : 300]` with arrows up from `lock held by consumer 2` and `expiration : 5 min`
+
+## S62 - 02:19:00-02:19:39 (b_021930.jpg, b_021939.jpg)
+Same page scrolled to the `Implementation` / `eg:` lines. No new content.
+
+## S63 - 02:19:45-02:22:15 - acquire_lock / release_lock pseudocode (b_021945.jpg, b_022000.jpg, b_022003.jpg, b_022009.jpg, b_022045.jpg, b_022100.jpg, b_022103.jpg, b_022115.jpg, b_022130.jpg, b_022133.jpg, b_022139.jpg, b_022145.jpg, b_022200.jpg, b_022209.jpg, b_022212.jpg, b_022215.jpg)
+Topic: the teacher scrolls back and forth between the requirements page (S61) and the code page below it.
+Diagram (D-09): `Consumer 1`, `Consumer 2`, `Consumer 3` boxes at the top, each with a pink line and arrow pointing left into a pink cylinder labelled `Redis` / `lock Manager` (b_022215).
+Text (code page, pre-written):
+- top right, lilac: `queue7 : consumer 1`
+- `def acquire_lock (q):` / `consumer_id = get_my_id()` / `While True:` / `v = redis.setnx (q , consumer_id , ex = 300)` (`setnx` pink) / `if v == 1 : return` (`return` green) / `else : continue` (`continue` pink)
+- `def release_lock (q):` / `consumer_id = get_my_id()` / `v = redis.get (q)` (`get` pink) / `if v == consumer_id : redis.delete (q)` (`delete` green)
+- right of release_lock: pink `"EVAL"` and a brace `}` with pink `Executed atomically using LUA script` (end of line [cut off] in most frames).
+Emphasis: 02:19:48 red dot; 02:20:09 red circle on `queue7 : consumer 2`; 02:20:45 red brace beside `setnx`; 02:21:03 red arc from `q` to `consumer_id`; 02:21:30 red circle on `ACQ` (acquire); 02:21:45 red loops around the while loop (busy wait); 02:22:00-02:22:09 blue laser marks on the double bar of the pseudocode; 02:22:12 blue dashed circle around `return` / `continue`.
+
+## S64 - 02:22:18-02:24:48 - Building up release_lock (b_022218.jpg, b_022224.jpg, b_022227.jpg, b_022230.jpg, b_022233.jpg, b_022245.jpg, b_022300.jpg, b_022303.jpg, b_022330.jpg, b_022342.jpg, b_022345.jpg, b_022348.jpg, b_022415.jpg, b_022430.jpg, b_022433.jpg, b_022445.jpg, b_022448.jpg)
+Topic: why release must check ownership. The teacher hides most of `release_lock` and reveals it again.
+- 02:22:18-02:22:33: requirements page and code page alternately; blue laser marks on `ACQ_LOCK()` (02:22:18), circle around the while loop (02:22:27), circle on `READ_MSG()` (02:22:33).
+- 02:22:45-02:24:45 (b_022245, b_022300, b_022303, b_022330, b_022415, b_022433, b_022445): under `def release_lock (q):` only `redis.delete (q)` is visible (the `consumer_id = ...`, `v = redis.get (q)` and `if v == consumer_id :` parts are hidden), with `"EVAL"` / `Executed atomically using LUA script` still beside it. Red circle on `redis.delete (q)` at 02:24:45 (emphasis: deleting without checking can release someone else's lock).
+- b_022342, b_022348, b_022430, b_022448: requirements page (S61) re-shown; red circle on `READ_MSG()` at 02:24:48. b_022345: zoomed-out view of D-09 (queue, consumers, Redis lock manager).
+No new written content.
+
+## S65 - 02:25:00-02:29:39 - Full release_lock again; distributed locks / Redlock (b_022730.jpg, b_022745.jpg, b_022748.jpg, b_022800.jpg, b_022830.jpg, b_022845.jpg, b_022900.jpg)
+b_022730/b_022748: full `release_lock` re-shown (as S63). b_022800/b_022845: D-09 re-shown.
+New page (b_022745, b_022830, b_022900), pre-written:
+- yellow `Where else do see this in action ?` [sic, missing "we"]
+- `MongoDB transaction uses remote locks on involved rows`
+- yellow `Distributed locks` pink `[Redlock]` `← Distributed locks with Redis` (`Distributed` written `Distribukd` throughout, "t" looped)
+- yellow `Idea: What we did in remote lock, just distribute it`
+- Diagram (D-10): five identical cylinders in a row.
+- `5 master nodes of Redis , No replication , All independent`
+- `Acquire lock:` / `- client goes through 5 nodes, trying to ACQ_LOCK` with `with timeout` inserted above (caret) / `- if lock acquired on > 50% then` green `ACQUIRED`
+
+## S66 - 02:29:03-02:32:15 - Redlock acquire, failure, why (b_022903.jpg, b_022930.jpg, b_022939.jpg, b_023045.jpg, b_023054.jpg, b_023115.jpg, b_023200.jpg, b_023209.jpg, b_023212.jpg, b_023215.jpg)
+Same page (S65) scrolled down, revealing:
+- `- else release the lock on acquired instances and return` pink `FAILED`
+- yellow `But why are we doing this?`
+- pink, underlined: `With distributed locking we now do not have a SPoF`
+b_022903/b_023215: scrolled back to the top of the page. No other new content.
+
+## S67 - 02:32:30-02:35:00 - Further reading (b_023245.jpg, b_023315.jpg, b_023415.jpg, b_023424.jpg, b_023500.jpg)
+Text (pre-written):
+- yellow `Read this paper` / `- Chubby : lock service for loosely coupled distributed systems`
+- yellow `Read these blogs:` / `- https://arpitbhayani.me/blogs` / `> 13 blogs on distributed systems` / `- REDLOCK . Martin Kleppmann and implementation on GitHub` (written `implementaion` [sic], `GitHub` partly cut off in close-ups)
+- yellow `Watch these videos:` / `- Distributed Transactions & its implementation on AsliEngineering by Arpit Bhayani`
+b_023500: zoomed-out overview of the Redlock page (S65-S66).
+
+## S68 - 02:35:15-02:35:30 (b_023530.jpg)
+Zoomed-out overview of the further-reading page. No new content.
+
+## S69 - 02:35:45-02:44:15 - Q&A over the lock pages (b_023545.jpg, b_023548.jpg, b_023554.jpg, b_023557.jpg, b_023630.jpg, b_023715.jpg, b_023830.jpg, b_023930.jpg, b_024030.jpg, b_024045.jpg, b_024115.jpg, b_024130.jpg, b_024200.jpg, b_024415.jpg)
+Wrap-up and Q&A. The teacher flips between earlier pages: Redlock page zoomed out (b_023545), further-reading page zoomed out (b_023548), the whole Redis lock-manager page zoomed out (b_023554: D-09 plus full `acquire_lock` / `release_lock`), then D-09 (b_023557 to b_023930, b_024115, b_024200, b_024415), full `release_lock` (b_024030, b_024045), and the `So, which DB?` / `eg: queue7 : consumer 2 [ex : 300]` lines (b_024130; the `Implementation` line now reads in full `... and can read the message`). No new content.
+
+## S70 - 02:44:30-02:50:27 (b_024445.jpg, b_024500.jpg, b_024730.jpg, b_024900.jpg, b_024930.jpg, b_024939.jpg, b_024942.jpg, b_025000.jpg, b_025015.jpg, b_025024.jpg, b_025027.jpg)
+Q&A continues (synchronizing over shared storage, lock TTL, mutex vs network lock, Redlock edge case). Pages re-shown: D-09 (b_024445, b_024500, b_025000), the remote-locks page with the threads/processes/machines lines (b_024730), the `So, which DB?` / `eg:` lines (b_024900), the full acquire/release code (b_024930-b_024942), the Redlock page with the five cylinders (b_025015, b_025024, b_025027). Emphasis at 02:50:27: a short red tick at the first cylinder (one Redis node going down). No new content.
+
+## S71 - 02:50:30-03:01:18 (b_025930.jpg, b_030100.jpg, b_030115.jpg, b_030118.jpg)
+Redlock page held on screen during the Redlock edge-case answer, the malloc digression and the ZooKeeper vs Redis question (b_025930, b_030100, b_030118). b_030115: the `Brainsterm : locking , Core properties` page (S59-S60) re-shown with the text at the right edge now readable: `k,v` / `Ato[cut off]` (`Atomic`, fully visible at 03:02:24) / `TTL` (properties the lock store needs: key-value, atomic, TTL; written at 02:17 behind the tiles, first legible here).
+
+## S72 - 03:01:30-03:02:27 (b_030215.jpg, b_030224.jpg, b_030227.jpg)
+b_030215: final load-balancer design page (D-06) re-shown. b_030224: horizontal pan across two pages - right edge of the brainstorm page (`k,v` / `Atomic` / `TTL` readable) and the consumer's pseudocode page. b_030227: D-09 re-shown. No new content.
+
+## S73 - 03:02:30-03:06:27 (b_030345.jpg, b_030400.jpg, b_030403.jpg, b_030430.jpg, b_030445.jpg, b_030448.jpg, b_030600.jpg, b_030615.jpg, b_030627.jpg)
+Q&A (ZooKeeper vs Redis, can a consumer read multiple messages). Redlock page (S65-S66) re-shown (b_030345-b_030430, b_030448); b_030445 a horizontal pan between the D-09 page and the Redlock page; D-09 re-shown (b_030600, b_030615, b_030627). No new content.
+
+## S74 - 03:06:30-03:36:30 - Final design page during the closing Q&A (b_030630.jpg, b_030830.jpg, b_030845.jpg, b_031030.jpg, b_031045.jpg, b_031300.jpg, b_031530.jpg, b_032100.jpg, b_032315.jpg, b_032715.jpg, b_032730.jpg, b_032830.jpg, b_032845.jpg, b_032857.jpg, b_032930.jpg, b_033245.jpg, b_033400.jpg, b_033415.jpg, b_033418.jpg, b_033424.jpg, b_033427.jpg, b_033630.jpg)
+D-06 (final load balancer design) held on screen for the remaining questions (DNS and active-passive LBs, sessions, orchestrator SPOF / leader election, private CoreDNS vs public DNS, LB vs reverse proxy, auth, Prometheus, heartbeats, autoscaling). Emphasis: 03:13:00 small red mark at the left edge of `LB Servers`; 03:28:45 red loop tracing the `hb` lines from the orchestrator to the LB servers and to the backend servers (who sends heartbeats); 03:28:57 scrolled down to show `Read this paper : Maglev : A fast and reliable software load balancer`.
+New at 03:34:00 (b_033400, b_033415, b_033418, b_033424, b_033427): a short white vertical line drawn from `Autoscaling` down towards `Developer` (b_033424/b_033427 zoomed in on the bottom part: `Redis as PubSub`, `CDC`, `DB`, `Autoscaling`, `LB Console` / `APIs`, `Developer`). b_033630: last frame, D-06 zoomed. No other new content.

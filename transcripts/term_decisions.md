@@ -1,4 +1,4 @@
-# Term decisions — project (lec01; lec02 rows added 2026-10-12; lec03, lec04, lec05, lec06, lec07, lec08 rows added 2026-10-13)
+# Term decisions — project (lec01; lec02 rows added 2026-10-12; lec03, lec04, lec05, lec06, lec07, lec08, lec09, lec10 rows added 2026-10-13)
 
 Lecture 1 is almost entirely spoken ENGLISH (Indian-accented), with very little Hindi. Romanization rules apply only to the rare Hindi words.
 Course context: system design class covering scaling, concurrency, delegation (queues/Kafka), communication (polling, WebSockets), caching, databases.
@@ -635,6 +635,355 @@ Kleppmann critique), Q&A on locks and LB (sessions, CoreDNS HA, orchestrator HA,
 | Route 53 / GCP / Flipkart / AWS / Lua / EVAL / HAProxy / Nginx | as written | casing only; "Nginx" (00:41:54+) and "NGINX" (00:02:18) both kept as ASR wrote (NGINX rule above: no casing churn). |
 | Q7 | Q7 | 02:20:23, 02:24:06 - name of the locked key; NOT converted by the Q -> queue rule. |
 | (flag only, lec08) | crawl job (cron job?); blocks (blogs?, REJECT rule); system code (system call?); goes on (goes down?); threat (thread?); server sending / service and events (server-sent events?); who keep her (ZooKeeper?); all service / off service (auth service?); cold in this / code units (CoreDNS?); lvc (LBs?); Challah (Chalo?); locket / a lot (lock?) | flagged `[?...]` in the chunks; real words or too uncertain. |
+### Added for lec09 (2026-10-13, Pass 0b) — every term_scan.md row + unknown-token table decided
+
+lec09 = Week 4 Day 1 ("social networks"), spoken English (one Hindi word seen: "pehle" 03:21:09). Content: intro
+(tech-stack waves: PHP/MySQL -> Instagram year-one stack: Django, Celery, RabbitMQ/Redis, Postgres, AWS) 00:00-00:06;
+how a CDN works as a black box (origin, CDN property, DNS CNAME, live demo with the teacher's own domain and
+edge.* host) 00:06-00:31; image upload design (API server vs direct to S3, pre-signed URLs, GitHub upload demo)
+00:31-00:57; Q&A (CDN URL, S3 cost vs CDN, Akamai PoPs in India); post/photo storage (store image ID not URL,
+"if something is derivable, don't store it", signed URLs, Instagram FBCDN URL params OE/OH, on-the-fly resize,
+DRM/proprietary-format Q&A) 01:04-01:47; BREAK; hashtag service (top-100 photos per hashtag, data-science black
+box, counting at scale, Kafka partitioned by hashtag/user ID, counting servers, batching, read/write path)
+01:54-02:36; Q&A (Kafka partitions, Redis Pub/Sub vs Kafka, popularity webhooks, SLAs/stateful components, Kafka
+retention, profiling/RAM vs CPU, hashtag GC, Kafka as first point of entry, dead letter queue, MapReduce/Spark)
+02:36-03:26.
+
+The scan matches case-insensitively, so the large counts for `IT` (1085), `right`, `S3`, `over`, `see`, `has`,
+`read`, `by`, `part`, `start`, `two`, `put` are ordinary words. There is NO upper-case "IT"/"ITs" token in lec09 (grep).
+
+**A. Corrections (apply in every chunk)**
+
+| # | Canonical | ASR forms (lec09) | AMB | Rule / evidence | Conf |
+|---|---|---|---|---|---|
+| 1 | arpitbhayani.me (teacher's own domain) | arpitpani.me; arpitbhani.me; arpidhani.me; arvidbari.me; arpitbany.me; arpitbani.me; Artitani.me; arpidani.me; arpitbhane.me; arpidbhani.me; "any.me" (00:13:00) | | CDN-demo stretch 00:07:42-00:25:17 ("my own website" 00:07:42). Board evidence in the project: lec07 board 01:24:00 screen-shared URL "arpitbhayani.me/blogs/..." (ledger K3-015), lec04 board. Correct the domain token only (TERM medium, one log row per segment group). "any.me" 00:13:00 -> keep + `[?arpitbhayani.me \| asr: "any.me"]` (could be "any domain"). | medium |
+| 2 | edge.arpitbhayani.me | edge.arpetbhany.me; edge.arpitbhane.me; edge.arpegbari.me; h.arpidbhani (00:21:04); h.arpitbhany.me (00:48:30) | | teacher: "took a fancy name, edge..." 00:19:56, 00:20:36. "h." = "edge" mis-heard (same host, same demo). | medium |
+| 3 | (image file names in the demo) | arpid.png; arpitbhane.png; arpidbhani.png; arpeg.png; "imd" | | File name not knowable from audio -> keep ASR form, add `[check: demo file name]` once per chunk. "imd" -> keep + `[?img \| asr: "imd"]` (teacher says "slash img slash" 00:20:53, 00:21:21) - real path segment is "img": correct "imd" -> "img" ONLY in a path read aloud next to "static" (TERM medium). | flag / medium |
+| 4 | Arpit Bhayani | Arpit Bari | | 00:18:52 "only Arpit Bari, like only the site you own" (teacher's own name) -> TERM medium. | medium |
+| 5 | mycdn.net | mycedient.net; mycedon.net | | teacher says "a.mycdn.net" 00:14:57 for the same CDN property (00:12:06, 00:13:06). | high |
+| 6 | S3 | Esri; Esri's; ST; NS3 ("an S3"); | AMB | "Esri gives you nine nines", "Esri doesn't store on SSDs", "Esri's egress cost" 01:01:08-01:01:32 -> S3 (high; S3 named 01:01:05). "uploaded to ST" 00:44:31, "raw ST path" 01:10:00 -> S3 (medium). "make an NS3 call" 01:02:54 -> "an S3 call" (medium). Keep "S3" as spoken; never expand to "Amazon S3". "SD server" 00:57:54 and "SE service" 03:03:53 -> flag `[?S3 \| asr: "SD"]` / `[?S3 \| asr: "SE"]` only. | high / medium |
+| 7 | CDN | Cedian; CD; cd and | | "Cedian gives you different guarantees" 01:01:11, 01:01:29 (high). "served from the CD." 00:18:08, "CD" 01:05:38 ("the actual cd and url" -> "the actual CDN URL"), 01:10:47 -> CDN when the sentence is about CDN serving (TERM medium); if cut off, `[?CDN \| asr: "CD"]`. "CDL on the fly" 01:38:28 -> CDN (medium, "change your CDN" 01:10:04). | high / medium |
+| 8 | Akamai | Akama | | 00:59:56, 01:00:31, 01:00:39; teacher says "Akamai" 00:01:00, 01:45:49. | high |
+| 9 | pre-signed URL | present URL; side URL | AMB | "present URL" (00:38:51-00:39:05 student, 00:42:11-00:47:26, 01:05:38 teacher) -> pre-signed URL (TERM high; "pre-signed URL" said 40+ times in the same stretch). 01:02:48 "generating that side URL" -> signed URL (medium). "pre-URLs" 03:03:53 keep + `[?pre-signed URLs \| asr: "pre-URLs"]`. "signed URL" stays as spoken (teacher uses both). | high / medium |
+| 10 | Redis / Redis Pub/Sub | Reddit's PubSub; Reddit pubs up; Reddit (02:44:28); redis | | Student 3's Pub/Sub question 02:43:13-02:44:14 opens with "redis pub sub" -> "Reddit's PubSub" -> "Redis Pub/Sub", "Reddit pubs up" -> "Redis Pub/Sub" (high). Teacher 02:44:28 "whichever server is connected to Reddit" -> Redis (medium). "a resist" 02:45:26 -> flag `[?Redis \| asr: "a resist"]`. Lower-case "redis" -> "Redis". | high / medium |
+| 11 | Pub/Sub | pubs up; pub sub; pub-sub; PubSub; !pops up | AMB | all Pub/Sub sentences (02:11:04, 02:43:13-02:44:55). "real time pops up" 02:11:37 ("redis does not persist anything it's real time pops up") -> Pub/Sub (project rule: after "real-time"/"Redis"; high). | high |
+| 12 | Kafka | kafta; Kappa | | "ingested in kinases not kafta" 03:21:02 (high). "instead of like having a separate Kappa" 02:46:58 student (popularity service, Kafka in the design) -> Kafka (medium). | high / medium |
+| 13 | Kinesis | kinases; Kyrus | | "kinases" 03:21:02 (project row). "Kafka or Kyrus" 02:57:53 and "Kafka, Kyrus, Flume, Flink" 03:23:50 -> Kinesis (TERM medium: streaming-system list; teacher pairs Kafka/Kinesis in lec01/lec06). | medium |
+| 14 | Flink | fling | | "flume fling map reduce" 03:25:08 (teacher says "Flume, Flink" 03:23:50, 03:24:02). | high |
+| 15 | MapReduce | map reduce; map-reduce | | join -> "MapReduce" (03:22:35, 03:25:10-03:25:16; "Hadoop MapReduce" 03:22:51 already). Log each join TERM (verifier drop+add). Keep "spark map" 03:23:30 as spoken. | trivial |
+| 16 | transaction outbox pattern | transition outbox pattern | | 03:22:06; teacher repeats "transaction outbox pattern" 03:22:10. | high |
+| 17 | dead letter queue | dead letter Q; data queue (03:21:48) | | "What you need to know is dead letter Q." 02:54:46 -> queue (high). "as your data queue for that" 03:21:48 -> flag `[?dead letter queue \| asr: "data queue"]` only. | high / flag |
+| 18 | write(s) / write path | !right; !rights | AMB | -> write ONLY in read/write-path sentences: "Have we optimized our right path?" 02:28:52, "Are you doing enough on the right path?" 02:29:24, "if this is my right path" 02:29:26, "Same thing goes for right path." 02:32:52, "think of what the right paths are" 02:35:39, student "when the right path" 02:37:57 (read path / write path contrast 02:36:30, 02:36:58), "I make eight rights onto this DB" 02:33:31, "a lot of micro rights onto database" 02:33:38, "the right would take time" 02:46:03 (DB overwhelmed) -> write(s) (TERM high/medium). 03:21:09 "let's accept the rights that are there from the user" -> writes (medium, Kafka-as-first-entry ingestion). 03:14:24 "micro register database" -> flag `[?micro writes on the database \| asr: "micro register database"]`. Every "right?"/"right." tag stays. | high / medium |
+| 19 | cache | !cash | AMB | "So either CDN or cash, pick your favorite." 02:26:32 and "you may add cash if it" 02:32:24 -> cache (high; caching / TTL / invalidation stretch). "Now I can catch who is doing mischief" 01:41:54 and "don't catch me on that" 03:16:55 = real "catch", keep. | high |
+| 20 | ID | !idea | AMB | ONLY 02:09:41-02:09:45 "Either user idea or post ID." / "User idea." / "Probably user idea." (partition key; teacher says "partitioned by user ID" 02:11:56) -> user ID (high). All other "idea" ("the idea is", "rough idea", "no idea") stay. | high |
+| 21 | Hotstar | hot stuff | | 00:30:04 student (Gaurav): "live matches on hot stuff" (Indian live-cricket streaming) -> Hotstar (TERM medium). | medium |
+| 22 | New Relic, Datadog | neural link data dog | | 03:06:20 "profiling ... using neural link data dog or any sort of open telemetry system" -> "New Relic, Datadog" (TERM medium; APM/profiling tool list). "open telemetry" -> casing "OpenTelemetry" (trivial). | medium |
+| 23 | local disks | local days | | 01:01:17 "They are storing it on local days. They might be storing it on the SSDs." (WORD medium). | medium |
+| 24 | LAMP stack | LAP, STEC | | 00:02:22 "PHP, MySQL, LAP, STEC and whatnot" (college stack, PHP era) -> "LAMP stack" (TERM medium; one log row). | medium |
+| 25 | hashtag service | hashtag survey | | 00:00:02 agenda "when we discuss this hashtag survey" -> service (WORD medium; "hashtag service" 01:47:29, 01:54:59). | medium |
+| 26 | city | CT | | 01:34:01 "one poor guy in tier 3 CT on geo internet" -> "tier 3 city" (WORD medium). "geo" keep as spoken (= Jio? flag `[?Jio \| asr: "geo"]`). | medium / flag |
+| 27 | asynchronously / async | a synchronously; a synchronous | AMB, meaning flips | Never change silently. 02:55:08 "Third, write to a dead letter queue. And then a synchronously process." -> keep + `[?asynchronously \| asr: "a synchronously"]`. 02:48:32 "...should not be done in a synchronous way" -> keep as written; chunk adds `[check: sync vs async]` only if the sentence contradicts itself. "async job" 00:34:23 is already correct. | flag |
+| 28 | Arpit | Arfit | | 02:36:28 student "So, Arfit, one question" (students address the teacher as Arpit, e.g. 00:24:50, 00:57:47) -> WORD medium. | medium |
+| 29 | goroutines | go routines; Go routine | | 03:10:33-03:11:22, 03:10:57 (lec08 row). | trivial |
+| 30 | iOS | IOS; iOS | | 01:17:03 "whatever is an iOS" (client platform: browser / Android / iOS) - keep "iOS". | trivial |
+| 31 | EC2 | ec2 | | 03:09:43 "aws ec2 instance" -> casing "AWS EC2". | trivial |
+| 32 | CloudFront | Cloud front | | 00:27:17 CDN product list. | trivial |
+| 33 | NoSQL / multi-master / key-value store / load balancer / in-memory / trade-off / round robin | no SQL; no-SQL; multi master; key value store; key-value; load-balancer; in memory; trade off; round-robin | | project rules: hyphen/join; "in-memory" only adjectival ("in-memory queues" 03:17:19, "in-memory thing" 03:17:12); "hold some posts in memory" 02:07:43, "drop it in memory" 02:52:44, "Buffer in memory" 02:55:02 stay. "trade-off" noun only. "round robin" keep spoken noun. Log joins as TERM. | trivial |
+| 34 | FYI | FII; fii | | teacher's tic (lec03 row): 00:46:36 "This is the YouTube ID FII." -> FYI (medium), 00:56:26, 01:43:01, 01:57:32 (check each; FYI where it is the sentence tag). 03:15:10 "FYI." already correct. | medium |
+| 35 | githubusercontent.com | GitHubusercontent.com | | 00:48:28 casing per product domain (lowercase). | trivial |
+| 36 | queue (dead letter) / Q | Q | | see #17. | high |
+
+**A2. Flag only (real words or unproven - mark, never correct)**
+
+| ASR text (time) | Flag |
+|---|---|
+| "Dappe dappe, boxes, boxes, my toy or kit can draw." 00:00:02 | `[unclear: "Dappe dappe, boxes, boxes, my toy or kit can draw"]` - probably Hindi ("dabbe dabbe" = boxes; "koi bhi draw kar sakta"?) mis-decoded; do NOT back-translate. |
+| "state material" 00:00:02 | `[unclear: "state material"]` |
+| "GP uses CDN" 00:17:19 ("I have a video on my YouTube channel on how GP uses CDN") | `[unclear: "GP"]` (product name not recoverable) |
+| "wattage map to ABC." 00:26:59 | `[unclear: "wattage"]` |
+| "OneQ with a RabbitMQ or Redis" 00:03:01 | `[unclear: "OneQ"]` |
+| "IAM role in the ADEM, right?" 00:37:38-00:37:45 (student) | `[unclear: "ADEM"]` |
+| "This is the actual PNG3, RDA format, RDA syntax." 00:54:15 | `[unclear: "PNG3, RDA"]` |
+| "B would make a APAC or look" 01:15:54 | `[?API call \| asr: "APAC"]` |
+| "CDN cocks up" 01:04:19 | keep + `[check: "cocks up" - CDN kicks in?]` |
+| "And some EDN, some certificate" 01:25:12 | keep + `[check: URL parameter name]` |
+| "CRS CDN's IP address" 01:45:21 | `[unclear: "CRS"]` |
+| "So like carpet, we can have one text table" 01:57:04 (student) | `[unclear: "carpet"]` (name? "Arpit"?) - not corrected |
+| "Buffer in memory, loss, like letter data be lost." 02:55:02 | `[unclear: "letter data be lost"]` (let the data be lost?) |
+| "you have partition DBI" 02:56:10; "But the digital is a leaderless components" 02:56:34 (student) | `[unclear: "DBI"]`, `[unclear: "the digital"]` |
+| "leader, leader and applicators" / "applicator too" 02:56:13-02:56:16 (student) | `[?replicas \| asr: "applicators"]` (replicators?) |
+| "Kafka is something which rules up a system around" 02:51:37 (student) | keep + `[check: ...]` |
+| "thanks rajay" 03:22:21 | `[?Rajiv \| asr: "rajay"]` (teacher called "Go on Rajiv" 01:44:51) |
+| "do we cover map reduce in this code course" 03:22:35 | `[?cohort \| asr: "code"]` |
+| "Kafka, Kyrus" -> see A#13 (decided); "Normal VMs, spark map, it is" 03:23:30 | keep + `[unclear: "spark map, it is"]` |
+| "Start with a book for effective Spark." 03:24:36, "effective spark is mostly the name of the book" 03:25:20 | keep as spoken (book title not verified; no correction) |
+| "geo internet" 01:34:01 | `[?Jio \| asr: "geo"]` |
+| "Yeah, Azure window is not visible." 01:22:42 (STUDENT_1; teacher replies "Oh, sorry ... I should always share my full screen") | `[?your window \| asr: "Azure window"]` |
+| "Asset is what the meta information was" 00:48:14, 00:53:35 | keep "asset" (GitHub asset/attachment metadata) - REJECT ACID. |
+
+**B. Rejected / keep as spoken (real words in lec09 context - do NOT change)**
+
+| ASR form (hits) | Suggested by scan | Decision / evidence |
+|---|---|---|
+| it / its (1085 + 8) | ID / IDs | REJECT. No upper-case IT/ITs token in lec09; all pronoun "it"/"its" ("it is asking its image upload service"). |
+| right (438) / rights (4) | write(s) | REJECT except the explicit write sentences in A#18. |
+| S3 (127) | Amazon S3 | keep as spoken; never expand. Same for SQS (03:21:46, 03:21:58). |
+| over (85) | O(1) | REJECT ("go over here"). |
+| ID (79) | idea | REJECT reverse mapping - "random image ID", "post ID" are correct IDs. |
+| see (75) | C / CDEFG | REJECT (verb). |
+| has (70) | hash | REJECT (verb; the lecture's hash word is "hashtag", already correct). |
+| read (69) | Redis | REJECT ("ACL public read", "read path"). Redis forms are in A#10. |
+| by (67) | byte | REJECT. |
+| part (56) | port | REJECT ("this part", "persistence part"). |
+| start (38) | star | REJECT (no SQL SELECT). |
+| two (37) | to | REJECT ("one or two years", "two Kafka"). |
+| put (35) | foot | REJECT (scan row inverted; "put load on my backend" correct). |
+| cache (27) / catch (4) | catch / cache | cache already correct; catch handled in A#19. |
+| happen (26) / happened (4) | hyphen | REJECT. |
+| idea (22) | ID | REJECT except A#20. |
+| try (20) | trie | REJECT ("not try random BGP protocol", "try with that"). |
+| easy to (14) | EC2 | REJECT ("very easy to spot", "easy to implement", "easy to learn"). Real EC2 at 03:09:43 (A#31). |
+| MB (12) | (scan row "23") | keep "MB" ("10 MB of image"). |
+| folks (12) | forks | REJECT (people). |
+| stuff (12) | stub | REJECT. |
+| RAM (10) | run | keep RAM (03:04-03:11 RAM vs CPU, correct). |
+| Arpit (9) | | correct (students addressing the teacher; teacher's own name 00:18:52 A#4). |
+| Redis (9) | read | correct. |
+| website (8) | WebSocket | REJECT ("my own website"). |
+| account (8) | count | REJECT ("Create an AWS account"). |
+| code (7) | cohort | REJECT ("Android code", "source code"); exception flag 03:22:35 (A2). |
+| writes (7) | | already correct. |
+| asset (6) | ACID | REJECT (A2). |
+| TTL (6) / detail (3) | detail / TTL | TTL correct (00:29:11, 01:20:24, 02:26:15); "in much more detail" stays. |
+| disk (5) / desk | | "disk" correct (01:46:36, 03:02:12, 03:10:13, 03:18:12); no "desk" hit. |
+| link (4) | Flink | REJECT ("copy image link"). Real Flink A#14. |
+| go routines (4) | goroutines | A#29. |
+| quick / QUICK (4) | QUIC | REJECT ("quick demo"). |
+| little (4) | brittle | REJECT ("a little bit"). |
+| key value store (4) | key-value store | A#33. |
+| blog (3) | | correct ("Cloudflare has a blog on it"). |
+| CD (3) | CDN | A#7. |
+| site (3) | side | REJECT ("only the site you own"). |
+| where it (3) | varchar | REJECT. |
+| slow (1) | SLO | REJECT ("slow things down"). |
+| block (1) / blocks (1) | blob / blogs | REJECT ("building block(s)"). "blob storage" already correct (00:31:31, 00:50:30, 00:59:14). |
+| hash map (1) | | correct. |
+| clients (1) | | correct ("WebSocket clients"). |
+| Rajiv (1) | | correct (01:44:51 teacher call). |
+| hours (1) | | correct. |
+| salary (1) | Celery | REJECT: 01:03:35 "Take out $100 from a salary." = money example. "Celery" already correct (00:02:57). |
+| relog (1) | | keep "relog" (teacher's own product, project row). |
+| memcache (1) | Memcached | keep "Memcache" (spoken form, casing only). |
+| rest (1) | REST | REJECT ("rest all the workers"). |
+| Decision (1) | Token | REJECT ("decision making"). |
+| async (1) | | correct (00:34:23). |
+| a synchronous (1) | async | A#27 (flag rule). |
+| consumer to (1) | consumer two | REJECT: 03:00:36 "a new consumer to this Kafka" (infinitive/preposition). |
+| grab (1) | graph | REJECT ("grab the image"). |
+| email (1) | image | REJECT ("notified over email"). |
+| shot (1) | shard | REJECT ("in one shot"). |
+| worker (1) | varchar | REJECT ("asynchronous worker"). |
+| pulling (2) | polling / pooling | REJECT: 02:46:30 "push ... rather than users pulling it out" (push vs pull) - real word. |
+| Microsoft (2) | microservice | REJECT: 01:07:31-01:07:34 "Microsoft changed their billing of Bing APIs" (company). |
+| log (2) | lock | REJECT ("log into any of the CDN"). |
+| photo stable (2) | photos table | A: "Photo stable is out of question" 01:57:20, 01:57:30 -> "photos table" (WORD high, project row). |
+| cohort (1) | code | correct ("Every single cohort" 01:05:54). |
+| Transition (2) | transaction | A#16. |
+| Q (1) | queue | A#17. |
+| semantic rejects (lec05/lec06) rows | | same real words as above - keep. |
+
+**C. Unknown acronyms / tokens (bottom table of term_scan.md)**
+
+| Token | Decision |
+|---|---|
+| DRM (10), PHP (7), BGP (4), GCS (3), US (2), HREF (2), ACL (2), SSD (2), OTT (2), SDK (2), IAM (1), APK (1), DBA (1), SOS (3, "Uber's SOS emergency"), GC (2, student defines "Garbage collection" 03:11:58), AB (01:10:04 "AB testing" -> keep "AB testing"), PC (01:15:24), AI (00:05:02), GoDaddy, ABC (00:26:59, example letters), IG (01:25:09 "IG cache key", URL param) | correct as ASR wrote; keep (casing only). |
+| FBCDN (3) | correct: "FBCDN.net" read off Instagram URL (01:23:43-01:26:14); keep casing as spoken "FBCDN". |
+| OE (3), OH (2), OW (1) | Instagram/CDN URL parameters read from screen (01:24:48-01:34:41: "OE ... expiry", "OH is the hash", "W or width or OW") - keep. |
+| PubSub (2) | -> Pub/Sub (A#11). |
+| ST (2), NS3 (1) | -> S3 (A#6). |
+| SD (1), SE (1) | flag `[?S3]` (A#6). |
+| CT (1) | -> city (A#26). |
+| CDL (1) | -> CDN (A#7). |
+| LAP / STEC | -> LAMP stack (A#24). |
+| OneQ, ADEM, PNG3, RDA, CRS, DBI, GP, EDN, APAC | flag only (A2). |
+| GitHubusercontent | -> githubusercontent.com (A#35). |
+
+#### lec09 Pass 5 additions (lead reconciliation of chunk notes, 2026-10-13)
+
+Each row was re-checked against every corrected chunk (grep of corrected + raw files); only the chunk named had the form. P = Pass 5 row.
+
+| # | Canonical | ASR forms (lec09) | Decision / evidence | Conf |
+|---|---|---|---|---|
+| P1 | Cloudflare | cloud player; Cloud Fair; cloud fair; !Cloudflare (for AWS) | CDN-provider sentences only: 00:11:25 "let's say cloud player", 00:13:18 "your Cloud Fair" (chunk_02), 00:27:06 "whatever the cloud fair or cloud provides" (chunk_03, upgraded from a flag at Pass 5 for consistency) -> Cloudflare. 00:10:58 "even AWS Cloudflare" stays flagged `[?CloudFront]` (teacher may have misspoken). | medium |
+| P2 | arpitbhayani.me (A#1 extended) | artedhany.me; urbanvary.me; !Dorpidmany.me | 00:14:00, 00:14:05 corrected (chunk_02). "Dorpidmany.me" 00:09:26 has "to" fused in -> stays flagged `[?arpitbhayani.me]`. | medium |
+| P3 | a.mycdn.net (A#5 extended) | A.mycedian.net | 00:13:41-00:13:56 (4x, chunk_02); "Cedian" = CDN (A#7). | high |
+| P4 | pre-signed URL (A#9 extended) | pre-send URL; pre-site URL; !present (no "URL") | 00:43:22, 00:44:45 corrected (chunk_04). 00:52:52 "asking for a present" stays flagged. | high |
+| P5 | CDN(s) | CDMs; !seed | 00:30:49, 00:30:52 "CDMs" -> CDNs (high, lec06 CDM row). 00:55:48 "coming from seed" flagged only. | high |
+| P6 | cached | cast (in CDN) | 00:28:54 "cast in CDN" -> cached (medium, caching sentence). | medium |
+| P7 | DB | DP | 00:52:26 "store it in DP" -> DB (high; "database" 00:52:08). | high |
+| P8 | EC2 | e-c2 | 00:40:03, 00:40:08 casing/hyphen (A#31). | trivial |
+| P9 | billed | built (for egress) | 00:40:18 WORD medium. | medium |
+| P10 | instacdn.net | Insta CDN.net | 01:16:41 (ASR writes "instacdn.net" 01:17:35). "Insta CDN over here" stays. | high |
+| P11 | DOM | dome; !dog | 01:16:54 "in the dome" -> DOM (medium, front-end render). 01:35:40 "in the dog" flagged only (real word). | medium / flag |
+| P12 | grant access; theoretical; URL; toggle | grant taxes; heretical; you are; tagal | 01:20:51, 01:20:56, 01:21:37, 01:22:53 (chunk_07, WORD). | high / medium |
+| P13 | batch it | !patch it | 02:33:48 batching sentence only (chunk_13). 00:29:56 "patches it back" (cache miss) flagged `[?fetches]`. | medium |
+| P14 | count plus plus | count us plus; !call plus plus | 02:39:58 corrected; 02:06:58 "call plus plus" flagged `[?count]`. | medium / flag |
+| P15 | pull based | full based | 02:45:41, 02:45:49 push vs pull sentence (chunk_14). | high |
+| P16 | cProfile | C profile; cpropyl | 03:08:35-03:09:02 Python profiler (chunk_16). Nagios kept as spoken. | high / medium |
+| P17 | SRE | sre | 02:53:26 casing. "sra" 02:53:38 flagged `[?SLA]`. | trivial |
+| P18 | NoSQL | noisequill | 02:49:44 (chunk_15). | medium |
+| P19 | Giphy (?) | GP; Jiffy | 00:17:19 / 00:17:25 "how GP uses CDN ... how beautifully Jiffy leverages CDN" - probably the teacher's Giphy-CDN video; NOT confirmed from audio -> both stay flagged (`[unclear: "GP"]`, `[?Giphy]`). Open question. | flag |
+| P20 | (flag only, chunk-local) | shots (shorts?); overflow (overall flow?); selects are (select star?); firepower (Firefox?); rpd underscore behind me (teacher's Instagram handle); scheme (schema?); serial (CDN URL?); Forex (4x?); skis (keys?); image stack (IMG tag?); ur (URL?); heading (headache?); area (array?); text/texts (tags?); party (partitioning key?); Roller; accounting services; Hashtag extension (extraction?); synchronous workers (asynchronous?); rights 02:52:19 (writes?); foreign (400?); five access (5xx?) | real words or unproven -> kept as `[?...]` / `[unclear]` flags in the chunks. Not corrected. | flag |
+
+### Added for lec10 (2026-10-13, Pass 0b) — every term_scan.md row decided
+
+lec10 = "Week 5, day 2" (00:00:01), spoken English, no Hindi/Devanagari seen. Part 1 (00:00-01:53): build a word dictionary (1 TB, 170,000 words, weekly changelog, Sundays) WITHOUT a traditional database — text vs JSON file, sorted file, index + header + data in one file ("AODB"), index-size estimate (17,000,000 / 1.7 MB), API servers + network attached storage (S3 / HDFS / network hard disk) with range reads, weekly updates (merge of sorted dictionary + sorted changelog, new S3 path, metadata file, polling vs reactive Redis Pub/Sub vs triggering a redeploy / rolling deployment), Athena / cold storage. Break 01:53:04-01:59:52. Part 2 (01:59:52-02:42:50): super-fast key-value store on magnetic disk (head/sector/seek), append-only file, put/get/delete with in-memory hash table of key -> offset, delete marker, merge & compaction of immutable files, record format (CRC, timestamp, key size, value size, key, value), this is Bitcask (embedded, Riak). Q&A 02:42:50-03:06:32.
+
+The scan matches case-insensitively and also produces rows from the inherited decision tables (rows whose "Canonical" cell is a number or a "(REJECTED)"/"semantic rejects" label, and reversed rows like "by (50) | byte"). Those rows are decided below too.
+
+#### A. Inherited / generic rows
+
+| Canonical (scan) | ASR form | Decision for lec10 (evidence) |
+|---|---|---|
+| ID / IDs | IT (759); ITs (8) | REJECT. Pronoun "it"/"its" ("It's not something...", "it has its own encoder"). Never change. Only odd hit: 02:39:56 "And this is where you see it in IT." -> keep + flag `[unclear: "see it in IT"]` (see Open questions). |
+| ID / IDs | idea (10); ideas (1) | REJECT. "The idea is about...", "I had an idea", "I have two ideas". Keep. "idea (25) \| ID" row: "document ID", "order ID" already correct. |
+| write(s) | right (514) — AMBIGUOUS | Context rule: -> "write" ONLY in (a) "right ahead" 02:04:46, 02:04:47 -> "write-ahead" (student said "write ahead log" 00:06:57; STUDENT_3 02:11:51), TERM high; (b) "on every right" 02:44:44 -> "write" (memtable-flush-per-write point), TERM medium; (c) any other hit where "right" is the object of put/flush/append ("every right/each right/the rights") -> TERM medium per hit. Every "Right."/"right?" tag, "right sector", "right exact point", "right term" stays. |
+| write(s) / writes | rights (1) — AMBIGUOUS | 02:50:15 "all the rights are happening" (active file) -> "writes", TERM high. |
+| in-memory | in memory (232 scan; 58 "43" row) | Hyphen only when adjectival before a noun ("in memory hash table" 00:34:18, 01:03:02 -> "in-memory hash table"; trivial). Predicate / adverbial "in memory" stays ("build it up in memory", "store values in memory"). Rows "43 \| in-memory" = already canonical. |
+| (REJECTED) Redis / Redis | read (135) — AMBIGUOUS | REJECT. "read-only", "read heavy", "random read", "read path". "read (39) \| Redis" row: "Redis" (8) already correct (00:01:05, 00:04:46, 01:32-01:43). |
+| Amazon S3 | S3 (98) | Keep "S3" as spoken; never expand. Lower-case "s3" -> "S3" (casing). "SE" 00:58:59 "this one file on SE" -> "S3" (TERM high: previous sentence 00:58:52 "store this file on S3"). |
+| desk (30) / disk | disk (84); desk (6) — AMBIGUOUS | "disk" correct. "desk" -> "disk" in all lec10 hits (00:11:42 "read side on desk", 02:30:23 "write to the desk", 02:41:07 "on desk key value store" -> "on-disk key-value store"), TERM high/medium: all in disk-IO sentences. |
+| disk | disc (5) | 02:01:25-02:02:37 magnetic-disk stretch ("your disc spins", "translated to a particular disc") -> "disk" (project spelling, lec04 precedent; silent spelling normalisation, log once TERM low if the verifier lists it). |
+| O(1) (?) | over (72) | REJECT. Every hit is "over here" / "over email" / "over network". Spoken "order one" (01:52:21, 02:10:36, 02:14:12, 02:35:39, 02:36:19) stays as spoken words - do NOT write O(1). |
+| hash / hashing | has (62) — AMBIGUOUS | REJECT in lec10. All hits are the verb ("dictionary in total has 170,000 words", "S3 has", "it has its own"). "hash table"/"hash map" are already written correctly everywhere. |
+| port / (REJECTED) port / part (66) | part (60) — AMBIGUOUS | REJECT "part" (core part, calculation part). "port" (3) 01:36:30-01:36:42 "give a new port to it ... changes the port" = correct (LB/networking). Keep both. |
+| byte / by (50) | by (55); byte (24) | REJECT "by" ("step by step", "line by line", "by, by offset"). "byte" correct. 03:01:46 "byte byte byte byte" = LOOP (see structure notes). |
+| to (messages-table column) | two (47) — AMBIGUOUS | REJECT. "two very interesting problem sets", "two files". No from/to column in lec10. |
+| key-value store | key value store (40); key value (21); key-value (42) | Hyphenate adjectival "key-value store", "key-value database", "key-value pairs" (trivial). "key values" (plural noun, 02:44:20 "sorted key values") stays. |
+| star (SQL SELECT *) | start (42) | REJECT. No SQL select in lec10 ("let's start", "start serving"). |
+| CDEFG / "B maps to see" | see (40) | REJECT. Verb "see". The teacher's merge example letters are already written as letters ("A, A dash", "CC dash", "DD dash EE dash", "FF dash") - keep as spoken. |
+| foot (1) / replace into / put | put (35); foot (1) — AMBIGUOUS | "put" correct. 02:08:17 "any foot comes, you go and add" -> "any put comes" (TERM high: put/get/delete stretch; lec05 precedent). |
+| load balancer | load-balancer (33); load balance or (1); load balance (1) | "load balancer" spelled open. 00:50:16 "have a load balance or something" -> "a load balancer or something" (TERM high; "load balancer" said 00:50:22). Rows "41 \| load balancer" = already canonical. |
+| (REJECTED) lock / lock / locks | log (21); logs (1) — AMBIGUOUS | REJECT. "write ahead log", "MySQL bin log", "Postgres commit log", "create some logs" = real logs. No locking in lec10. |
+| hyphen | happen (21); happened (3) | REJECT ("what would happen?"). Note: the teacher's spoken "dash" (A dash, CC double dash) stays as the word "dash". |
+| JSON / JSON / JVM / MB / ORM | Jason (16); jason | -> "JSON" in every lec10 hit (00:05:16-00:47:35; all "Jason format/file/decoder"), TERM high (format discussion, "JSON" written 23x in the same stretch). One log row per segment. |
+| forks | folks (14) — AMBIGUOUS | REJECT ("you folks", "see you folks"). |
+| transaction | version (14); Transition / transition (6 / 3) — AMBIGUOUS | REJECT. "version number" (00:42:48+, header version), "transition be smooth enough" (deployment, 01:22:35, 01:23:35, 01:43:42). Keep. |
+| EC2 / (REJECTED) EC2 | easy to (12 / 6) — AMBIGUOUS | REJECT ("it's easy to build complex systems", "easy to understand"). |
+| Pub/Sub | pubsub (12); PubSub (6/3); pubs up (3); pops up (1) — AMBIGUOUS | "Redis Pubsub/PubSub" (01:32:14-01:43:16) and "Radis PubSub" (03:00:58) -> "Redis Pub/Sub" (casing/slash; "Radis" -> Redis TERM high). "reactive pops up" 01:43:42 and "reactive pubs up" 01:51:12 -> "reactive Pub/Sub" (TERM medium: recap of the Redis Pub/Sub option). |
+| (REJECTED) Pub/Sub | pop-up / pop up (1) | 03:01:27 "No, Dan, no pop-up allowed." - keep (real phrase; whole line `[check]` for the name). |
+| SLO / (REJECTED) SLO | slow (11) | REJECT ("very slow"). |
+| cohort / (REJECTED) ... | code (11) | REJECT ("write the code", "line of code"). |
+| brittle | little (11) — AMBIGUOUS | REJECT ("a little high response time", "a little more deeper"). |
+| stub | stuff (9) — AMBIGUOUS | REJECT ("a lot of stuff"). |
+| ZooKeeper / Postgres / ... | postgres (10) | casing "Postgres". |
+| connection pooling | polling (10) — AMBIGUOUS | REJECT. "polling" is correct here (API servers polling the metadata file, 01:32-01:39). Keep. |
+| polling / connection pooling | pulling (2) — AMBIGUOUS | 01:30:36 STUDENT_5 "they will keep on pulling this metadata let's say at some frequency" -> do NOT change; flag `[?polling \| asr: "pulling"]` (student says "continuously poll" 01:31:45, but "pull" is plausible). "pull the metadata" 01:51:12 / "pull it" 01:33:40 stay. |
+| SSTable | SS table (8); sstable | -> "SSTable" (TERM trivial: spacing/casing; 02:03:39, 02:11:43, 02:43:30-02:45:13). |
+| memtable | mem table (3); MAM table (1); Memetable (2) | -> "memtable". "mem table" spacing trivial; "MAM table" 02:44:20, "Memetable" 02:44:41, 02:44:59 -> TERM high (non-words, memtable discussed 02:43:30-02:45:13). |
+| blogs / blob / (REJECTED) blob | blocks (8); block (4) — AMBIGUOUS | REJECT ("building blocks", "eight kilobyte block", "add more blocks", "marked as blocked"). "medium blog post" 02:55:33 already correct. |
+| shard / (REJECTED) shard | shared (8/4); shot (1) | REJECT ("shared disk storage", "shared storage", "in one shot"). |
+| trie / (REJECTED) trie | try (8/4); tree (1) | REJECT ("we can try", "B plus tree"). |
+| MB / 23 | MB (7); MD (1); MP / MPs (1/1); MBS (1) | "MB" correct. 00:37:35 "1.751 MD" -> "1.751 MB" (TERM high: index size; "1.7 MB" 01:51:44). 02:59:53 "turns out to be MP" -> "MB", 02:59:58 "we take MPs very lightly, but M stands for a million, a million bytes" -> "MBs" (TERM high; lec05 MP->MB precedent). 02:56:37 "an MBS of record" -> "MBs" (casing; student, "per MB records" 02:57:45). |
+| cache / catch (4) | cache (7) | "cache" correct (CPU cache, L1 cache, 01:28 "their cache"). No "cash" in lec10. |
+| QUIC / (REJECTED) QUIC | quick (6); QUICK (3) — AMBIGUOUS | REJECT ("a quick summary"). |
+| varchar | where it (6) — AMBIGUOUS | REJECT ("figure it out where it is"). |
+| writes / 5 | writes (5) | correct. |
+| RAM / run (7) | run (5); RAM (5) — AMBIGUOUS | REJECT "run" ("run some sort of compaction", "job ran"). "RAM" correct. |
+| (REJECTED) QUIC/session/... / session | section (4/2) — AMBIGUOUS | REJECT ("data section"). |
+| hash map / 19 | hash map (4) | correct. |
+| Arpit (lec04/05/06/08 forms) | Arpit (4); arpit; Arbit; Arvit; Arpet; ARPIT's | Teacher = Arpit (project). "Hi, Arbit." 00:27:26, "Yeah, Arvit." 00:20:09, "But Arpet now" 03:03:07 -> "Arpit" (WORD medium). "AODB, ARPIT's outstanding database" 00:43:48 -> "Arpit's" (casing). 00:15:08 teacher "It might seem like Arpit is adding random constraint" = teacher speaking of himself, keep. 00:14:30 STUDENT_1 "I have a bit different of Arpit there." -> keep + `[check: ASR may have garbled "a bit different opinion"]`. |
+| REST / gRPC | rest (4) | 01:35:00 "expose a rest endpoint" -> "REST endpoint" (casing). Other "rest" ("the rest file", "rest of") stay. |
+| check-in (airline) | checking (4) — AMBIGUOUS | REJECT ("checking the offset"). |
+| BookMyShow / ... / IOs | IOS (3) | 02:27:11, 02:41:01, 02:41:21 "disk IOs" -> "IOs" (casing; disk-IO context). |
+| WAL (write-ahead log) | wall (3); well (2); val (1) — AMBIGUOUS | "wall" -> "WAL" at 02:53:05 "wall thing goes", 02:53:30 "a separate wall system", 02:53:48 "write it in a wall file" (TERM high: durability/fsync discussion). STUDENT_3 02:12:01 "as soon as it's appended to the well", 02:12:08 "go to the offset in the well", 02:13:45 "go to the val and you go to the offset" -> "WAL" (TERM medium: same turn opened with "write ahead log" 02:11:51). Every other "well" ("as well", "Well, okay") stays. |
+| WAL / write-ahead log / 4 | write ahead log (2) | -> "write-ahead log" (hyphen; 00:06:57, 02:11:51). Do NOT shorten to WAL. |
+| hyphen | happened (3) | REJECT. |
+| read-heavy | read heavy (3) | -> "read-heavy" when adjectival ("a read-heavy operation", "read-heavy searchable system"). |
+| Elasticsearch | elastic search (2) | -> "Elasticsearch" (02:40:29). |
+| TTL / (REJECTED) TTL | detail (2) — AMBIGUOUS | REJECT ("implementation detail", "one detail there"). |
+| graph (database) | grab (2) — AMBIGUOUS | REJECT ("up front grab 1gb space"). |
+| linked list / 51; clients / 26; blog / 34; consistent hashing / 45; data movement / 58 | as written | already canonical. |
+| B+ tree | B plus tree (1); b plus trees | -> "B+ tree" / "B+ trees" (lec03/lec05 style; 00:20:33, 01:14:19). |
+| JSON / JVM / MB / ORM | MP (1) | -> "MB" (see MB row). |
+| Martin Kleppmann | Martin Kleppman (1); martin | 02:45:25 -> "Martin Kleppmann" (spelling, TERM high: DDIA storage chapter). "the martin book" 02:46:21 stays as spoken. |
+| Memcached | memcache (1) | 00:04:46 "no Memcache" - keep the teacher's word "Memcache" (casing only). Do not change to Memcached. |
+| Socket.io / ... / timestamp | time stamp (1) | 02:31:41 "CRC time stamp" - project rule: keep "time stamp" (no join). |
+| TIFF (?) | TAPE (1) | REJECT - 02:00:38 "your tape storage" is real (storage hierarchy). |
+| flush | flash (1) — AMBIGUOUS | REJECT ("flash memories", 02:25:23). But 02:03:54 STUDENT_1 "if you have to immediately plus it" -> "flush it" (TERM medium: teacher said "immediately flush to the disk" 02:03:47). |
+| cores | codes (1) — AMBIGUOUS | 00:47:35 "the JSON decoder decodes curly braces, codes, it's string" -> do not correct; flag `[?quotes \| asr: "codes"]`. |
+| image | email (1) — AMBIGUOUS | REJECT ("changelog file over email"). |
+| rollback | roll back (1) | verb "roll back" 01:22:47 stays. |
+| write-around | write around (1) | REJECT - 01:11:02 "if I write around fruit" = inserting a word near "fruit" (file-IO insert example), not the cache policy. Keep. |
+| (REJECTED) trie / ... | tree (1) | see B+ tree row. |
+
+#### B. lec10-specific terms (found while reading the raw)
+
+| Canonical | ASR forms seen | Decision for lec10 (evidence) |
+|---|---|---|
+| storage engines | standard engines | 00:00:01 "continue our discussion on standard engines" -> "storage engines" (TERM high: "storage engine" 00:03:45; storage week; lec07 open item "storage agents -> storage engines"). |
+| portability | quotability | 00:04:56 "around storage query, quotability and seamless updates" -> "portability" (TERM medium: goal stated as "portability" 00:02:28-00:02:54). |
+| changelog | change lock; change log | "change lock" 03:04:04, 03:05:10, 03:05:15, 03:05:24-29 -> "changelog" (TERM high: "changelog file" 00:03:36+, 01:15:06). "change log" (01:09:10) -> "changelog" (join, TERM low). |
+| Bitcask | BitCask; bitcask; BitCast; bitcast | -> "Bitcask" everywhere (official name; teacher "The database that we just designed is called BitCask" 02:37:28). "BitCask"/"bitcask" = casing (silent). "BitCast"/"bitcast" (02:40:22-02:42:51, 02:41:53, 02:43-02:45, 02:55:24) -> TERM high (non-word in the same Bitcask stretch). One log row per segment. |
+| Riak | React; React's | AMBIGUOUS. ONLY in 02:38:17-02:40:29 ("React is a simple key value store and React uses Bitcask as a back-end", "React is a wrapper over BitCask", "React's responsibility is to make BitCask distributed", "react most of them have bitcast as their backend", "react does it with bitcast") -> "Riak" / "Riak's" (TERM medium: Riak is the distributed KV store whose default backend is Bitcask; React.js is not a KV store). "reactive" (polling vs reactive, 01:32-01:51) stays. Confirm with the board. |
+| Redis | Radis | 03:00:58 "Radis PubSub" -> "Redis Pub/Sub" (TERM high). |
+| cloud provider | Cloud Prodder | 03:00:40 "By default, Cloud Prodder gives you this out of the box" -> "cloud provider" (TERM medium; rolling deployment out of the box; lec04 "crowd providers" precedent). |
+| BTRFS | PTRFS | 02:18:59 "PTRFS has its limitation, NTFS has its limitation" -> "BTRFS" (TERM medium; teacher says "BTRFS, NTFS, EXT234" 02:48:40). "EXT234" kept as ASR wrote (= ext2/3/4 spoken as one run; casing only). |
+| CSV | PSV | 01:10:02 STUDENT_1 "replace ... the whole line of the PSV" -> "CSV" (TERM medium: the file is the CSV format set up 00:22:11-00:39:09). |
+| K1 V1 | K1 B1 | 02:06:30 STUDENT_1 "So put K1 B1" -> "put K1 V1" (WORD high: echoes teacher "put K1 V1" 02:06:23). Key/value labels k1/v1/k2/o2 -> upper-case "K1", "V1", "O1" (casing). |
+| lightning fast | lightning pass | 01:52:44 "another database which is lightning pass database" -> "lightning fast" (WORD medium: "super fast db" 01:52:15-01:52:21). |
+| Anubhav | Anupak; kyanav | 00:56:18 "the thing that is on it with Anupak" -> "Anubhav" (WORD medium: 00:58:08 "what first Anubhav said, let's put it in a shared storage" = STUDENT_3 00:51:59 proposal). 00:51:56 STUDENT_11 "kyanav" = teacher's call -> flag `[?Anubhav \| asr: "kyanav"]` + SPEAKER Teacher. |
+| Hemant | Heman; himan; hey man; Heyman; Amen; heaven | Student name (lec07 Hemant). 00:08:51 "before I move to Heman", 00:09:45 "uh himan", 00:09:24 "hey man" (call leaked into STUDENT_4), 01:24:22 "what Heyman said", 02:11:38 "what hey man had mentioned earlier" -> "Hemant" (WORD medium; teacher says "Hemant" 00:47:04). 02:03:26 "Amen." (call answered by STUDENT_1, whose SSTable/memtable idea STUDENT_3 attributes to "hey man" 02:11:38) -> "Hemant." (WORD medium). 02:43:05 "go on heaven" -> flag `[?Hemant \| asr: "heaven"]`. |
+| Rahul | Raul; Raghun | 00:06:55 "Raul, what will be the format" -> "Rahul" (WORD medium: same STUDENT_4 answers "Rahul?" 01:38:03; "Anyone except Rahul" 00:35:31). 00:05:03 "Go on, Raghun." -> keep + `[check: name spelling]` (probably Rahul). |
+| (names kept as ASR) | Sidesh; Siddesh; Sitesh | 00:19:57 "Sidesh", 01:34:56 "Sidesh.", 01:50:26 "Sitesh", 02:14:36 "Siddesh", 02:51:51 "Sitesh." - one student (STUDENT_2), project spelling still open -> keep each as ASR wrote + `[check: name spelling]` once per chunk. |
+| AODB | AODB | 00:43:48, 00:43:58 teacher's joke file-format name "AODB, Arpit's outstanding database" - keep. |
+| HDFS / Athena / NAS / SDK / IDE / SSD(s) / CRC / NTFS / MP3 / MP4 / PDF / TIF / CSV(s) / Lucene / Uber / Oxford / Dell / AWS | hdfs; csvs; ssds; api | casing only ("HDFS", "CSVs", "SSDs", "API", "AWS SDK"). "TIF format" 00:48:39 kept (valid spelling). |
+| LSM trees | lsm trees | casing (02:43:12, 02:45:13). |
+| range reads (spoken "random read", "read at") | as written | keep as spoken ("do a read at", "random read"). |
+
+#### C. Flag-only (do not correct; marker in transcript)
+
+| ASR text | Time | Marker |
+|---|---|---|
+| "caching, matching and all" | 00:02:18 | `[?batching \| asr: "matching"]` |
+| "Apple or MSN" | 00:24:24 | keep + `[check: "MSN"]` |
+| "TPT format, PDF format" | 00:47:53 | `[?PPT \| asr: "TPT"]` |
+| "not ready to oblique the data across" | 00:58:16 | `[?replicate \| asr: "oblique"]` |
+| "Subha. I'll just pull in in a minute." | 00:57:42 | keep + `[check: name spelling]` |
+| "DD dash rotten over here" | 01:16:37 | `[?written \| asr: "rotten"]` |
+| "magnet is discard best for that" / "why magnet is discard best for append only thing?" | 02:05:03, 02:05:08 | `[unclear: "magnet is discard best"]` (magnetic disk is the best?) |
+| "the first metric removes over" | 02:12:57 | `[unclear: "the first metric removes"]` |
+| "BitCask is an embedded database S-FM." | 02:37:54 | `[unclear: "S-FM"]` |
+| "hash paste, consistent hashing" | 02:38:57 | `[unclear: "hash paste"]` |
+| "see it in IT" | 02:39:56 | `[unclear: "see it in IT"]` |
+| "The artist is getting flushed." | 02:55:49 | `[unclear: "The artist"]` (dirty page / buffer?) |
+| "Hussain Nasir" | 02:55:29 | keep + `[check: name spelling]` (project "Hussain Nasser" open question) |
+| "have APIs Expos and whatnot" | 03:01:02 | `[?APIs exposed \| asr: "APIs Expos"]` |
+| "Thanks sir. ... No, Dan, no pop-up allowed." | 03:01:27 | keep + `[check: name / "Thanks sir"]` |
+| "merging ... becomes order and operation" | 03:05:29 | `[?order n \| asr: "order and"]` |
+| "AWS S3 Athena will build a multi-tiered storage, a cost efficient auto solution for Amazon next week" | 02:58:42-02:58:46 | keep + `[check: garbled list of next-week designs]` |
+| "So that's why my team." (STUDENT_5) | 02:57:37 | `[unclear: "So that's why my team."]` |
+| "It may be a good, but not very good." | 00:11:26 | keep (RATE only) |
+| "Did you mean cron job, batch job?" / "See, batch job is batch processing." under STUDENT_1 | 01:06:24-01:06:31 | teacher interjections inside Vikram's turn -> SPLIT/SPEAKER if clear, else keep |
+
+#### D. lec10 Pass 5 additions (lead reconciliation of chunk notes, 2026-10-13)
+
+| Canonical | ASR forms seen | Decision for lec10 (evidence) |
+|---|---|---|
+| Parquet / Avro | paracet; parquet; avro | 00:16:38 "famous paracet" -> Parquet (TERM high; teacher "parquet, avro" 00:17:08, 00:18:37, 00:47:11). Casing "Parquet", "Avro". |
+| MB / MBs | MVs; mbp (add to row A "MB") | 00:26:31 "iterating around MVs of data" -> MBs (TERM medium); 02:52:48 "1 mbp" -> "1 MB" (TERM medium). |
+| offset | !opposite | 00:27:54 only (index-offset sentence, TERM high). Real word elsewhere. |
+| disk IO | disk.io | 00:13:41 (TERM high). Teacher's "I.O." at 02:28 left as ASR wrote. |
+| changelog | change law (add to row B) | 01:17:34 (TERM high). |
+| metadata / meta.json | matter data; matter dot Jason | 01:30:01 -> metadata; 01:38:46-01:38:59 -> "meta dot JSON" (spoken "dot" kept), TERM high. |
+| hash table | hashtag | 02:13:12 "memory hashtag" -> hash table (TERM medium). |
+| merge and compaction | merger compaction; Merger Compaction; margin complexion; merger compact | 02:22:29, 02:22:51, 02:32:24, 02:34:17 (TERM medium/high). "mergers and compaction" 02:35:14 and "this merger" 03:03:23 = real words, keep. |
+| Bitcask | bitcars (add to row B) | 02:41:29 (TERM medium). |
+| Hemant | Hey, man (01:18:26) | teacher's call, Student 1 answers -> "Hemant." (WORD medium, row B pattern). |
+| (kept as spoken) | network attached storage; get object; graveyard entries; blindfoldedly; file rotation; sawtooth pattern; Hudi; Hive; Jenkins; data lake | correct or teacher/student's own words; casing only. |
+| (flag only, new) | marshaling (unmarshaling?) 00:05:26; breaking (bringing?) 00:05:58; score (store?) 00:07:23; the trees (B-trees?) 00:09:32; starting/start (sorting/shard?) 00:12:50-00:13:07; downturn (downtime?) 01:19:25; graduated (uploaded?) 01:21:49; reactor (reactive?) 01:35:06; bursting (versioning?) 01:40:44; a stone process (tombstone?) 02:08:10; torque 02:21:07; fedis 02:26:26; backlit disk 02:41:13; bit custom repetition 02:51:07; keep on the keeper 03:05:00 | chunk agents placed `[?...]`/`[unclear]` markers; left for listening. |
+
+New student names (calls answered right after; `[check: name spelling]`): Anmol (00:37:11 -> STUDENT_10 = `Student 10 (Anmol)`), Amrita (00:40:10, 01:33:59 -> STUDENT_3 = `Student 3 (Amrita)`), Jodhinda (01:12:50 -> STUDENT_3 = `Student 3 (Jodhinda)`; project "Jodhinder"/"Jyotinder"), Abdur (01:29:22 -> STUDENT_8 = `Student 8 (Abdur)`), Mohit (02:46:31 -> STUDENT_1). STUDENT_3 therefore mixes Anubhav, Amrita and Jodhinda; un-called STUDENT_3 turns stay plain `Student 3`.
 
 ## Course-specific names (products, tools, people, companies the teacher uses)
 
@@ -674,12 +1023,18 @@ Kleppmann critique), Q&A on locks and LB (sessions, CoreDNS HA, orchestrator HA,
 | Arpit (lec08) | arpit; Arpit | lec08: students address the teacher "arpit" 02:35:49, "Hi, Arpit" 02:38:50-02:38:51, "Hey, Arpit" 03:32:51 -> capitalise "Arpit". Never a label. |
 | lec08 student names | Rahul (00:05:13), Aditi (01:06:25), Shalendra (01:10:17), Gaurav (01:32:03, 02:47:41), Shreeram (01:56:52), Heyman [check] (01:58:59), Sampai [check] (02:44:57), Sidesh / Sitesh (02:59:48, 03:15:40, 03:32:49 - same person, spelling [check]), Sunit (03:04:05), Harsh, Josh (03:22:00), Rajeev (03:23:24), DK (03:27:41) | Same attach rule: name only on the turn right after the teacher's call (e.g. `Student 6 (Shalendra)` 01:10:19, `Student 4 (Aditi)` 01:06:27, `Student 3 (Sitesh)` 03:32:51). The call itself often leaks into the student label - SPLIT to Teacher. Added after the chunk pass: Rajiv (00:38:08, 02:17:09; = Rajeev 03:23:24? spelling [check]), Anupab (00:33:30 [check], lec03 "Anupam"), Anubhav (01:15:38) and Anwar (01:20:42) - both answered by STUDENT_7, Rahul (01:23:08, 03:28:44), Alok (01:34:52 [check]), Akshay (01:35:29, 02:11:49 - not attached), Shreya (01:41:04) / Shriya (01:47:00) - both STUDENT_8, probably one person, kept as ASR wrote, Salpolio [unclear] (02:11:46). |
 | Facebook / Twitter / Instagram / WhatsApp / TikTok / Ubuntu / Docker / Kubernetes / Redshift / BigQuery / AWS / Google / Chubby (Google paper) | as written | lec08 examples; casing only. |
+| Arpit (lec09) | Arpit; Arfit | students address the teacher "Hi Arpit" 00:24:50, 00:57:47, 02:48:50; "Arpit" 00:30:04, 03:03:37, 03:24:22; "Arfit" 02:36:28 -> Arpit (A#28). Never a label. |
+| lec09 student names | Rahul (00:22:43 "Go on, Rahul."), Gaurav (00:30:02 "Go on Gaurav."), Sandeep (00:31:30, 02:11:56, 02:19:47), Anubhav ("Anubav" 00:35:12 -> Anubhav, WORD medium, project spelling), Amrit (01:39:48 "Yes, Amrit."), Harsh (01:43:54), Rajiv (01:44:51; "rajay" 03:22:21 flagged), Mohit (02:10:59 "Let me pull in Mohit. Mohit got." = "Mohit, go on"? -> keep "Mohit got." + `[check]`; 02:41:49), Mohan (02:30:59, 02:40:04, 02:40:31, 02:40:50, 02:57:00), DK (02:19:24, 03:03:35, 03:24:21) | Same attach rule: name only on the turn right after the teacher's call. Mohit vs Mohan = two different students (Mohan's Kafka-partition question 02:37:51 under STUDENT_4; Mohit's questions 02:11:04 STUDENT_1 and 02:41:51 STUDENT_3) - keep both spellings as ASR wrote. |
+| lec09 student names (added Pass 5) | Anamal (00:24:45 call, = lec05 Anamol? STUDENT_6 00:24:50, label kept plain `Student 6`); chira / Chirak / siraq (00:37:23-00:40:24, probably Chirag; credited with the pre-signed URL proposal; Student 1 turns 00:37:29+ unnamed); Devashish (00:57:12, STUDENT_1 00:57:15); Prashant (01:03:47 "Prashant Raji" = Prashant, Rajiv? `[check]`) | Kept as ASR wrote + `[check: name spelling]` where flagged; no speaker relabel. |
+| Instagram / Django / Celery / RabbitMQ / Postgres / Memcache / Facebook / ChatGPT / Rust / Golang / Akamai / Cloudflare / CloudFront / Route 53 / GoDaddy / Namecheap / Netflix / Udemy / Uber / GitHub / Bing / Spark / Hadoop / Flume / O'Reilly / Google Analytics / Hotstar / New Relic / Datadog | as written (after A-row fixes) | lec09 examples; casing only. |
 
 ## Romanization overrides
 
 | Spoken word | House spelling | Notes |
 |---|---|---|
 | (none — English lecture) | | |
+| ki | ki | lec09 02:58:21 "you can tell kafka ki hey i am this consumer" - second Hindi word in lec09; keep as spoken. |
+| pehle | pehle | lec09 03:21:09 "pehle let's accept the rights ..." - only Hindi word seen in lec09; keep as spoken (house spelling), do not translate. |
 
 ## Speaker map
 
@@ -746,6 +1101,64 @@ plus every STUDENT_5/9/11-20 line and the STUDENT_1-10 lines.
 
 Diarization boundaries lag speaker changes by a phrase (e.g. 01:09:38 "what we are doing right okay" teacher text under STUDENT_5; 01:13:11/01:13:25 Shalendra vs teacher mid-segment; 03:33:27, 03:34:09) -> SPLIT at grammar boundaries, log SPLIT.
 
+### lec09 speaker map (FROZEN — this is the map for this lecture)
+
+Same teacher (Arpit). Evidence: speaker_stats.md + raw stretches 00:00-00:09 (start), 00:57-01:03 (~1 h),
+01:44-02:00 (break / ~2 h), 03:20-03:26 (end), plus every STUDENT_1..STUDENT_15 line and every teacher name-call.
+One teacher label, no lec04-style split: TEACHER = 85.7% talk, 130 turns, 225.5 words/turn. BUT in lec09 the
+TEACHER label also swallows several whole student questions (Q&A turns right after a name call) and two student
+labels (STUDENT_5, STUDENT_7) are mostly the teacher.
+
+| Diarization label | Role | Evidence |
+|---|---|---|
+| TEACHER | Teacher | opens "Great week 4, day 1st, it's about social networks" 00:00:02, explains CDN / upload / hashtag designs, calls names, announces break 01:47:21 ("take a break till 10.55"), closes "Thanks, folks, for tuning in. See you folks tomorrow" 03:25:58-03:26:29. **Student turns under TEACHER (relabel, log SPEAKER/SPLIT):** 00:30:04 "Arpit, can CDN cache live content like ... live matches on hot stuff?" = `Student (Gaurav)` (after "Go on Gaurav." 00:30:02; next label unknown -> `Student?` number, name in parentheses); 00:57:47-00:57:56 "Hi, Arpit. So Arpit, my question is, in the URL ... trying to upload the image to the SD server. So from where that CDN URL has been generated." = student (continues under STUDENT_5 00:58:44 "front end know what URL to enter") -> `Student?`; 01:44:53 "How does the image service know that what is the nearest CDN to a user?" = Rajiv (after "Go on Rajiv." 01:44:51) -> `Student? (Rajiv)`; 02:19:29-02:19:33 "Sorry, I wanted to ask some questions later. After this, after this." = DK answering "DK?" 02:19:24 -> `Student? (DK)` (then 02:19:33 "We have changed the context." onward = teacher, decide boundary in chunk); 02:48:50-02:49:xx "Hi Arpit. So Arpit first, my first question is related to the DB here." = student -> `Student?` (read to the teacher's answer); 03:03:37 "So Arpit, I have a question related to the SLA here." (after "DK?" 03:03:35) -> `Student? (DK)`; 03:21:26-03:21:38 "So, uh, you have mentioned that we can use a dead letter queue ... does Kafka also has its own dead letter queue?" = student (teacher answers 03:21:44; teacher later says "thanks rajay" 03:22:21) -> `Student?` (name only as flag `[?Rajiv]`); 03:22:06-03:22:13 "We rather can put it in our database also if we are not using transition outbox pattern." / "Okay, yes." = same student interjecting -> SPLIT `Student?` (teacher: "Sorry? Either way. Basically transaction outbox pattern is what you are talking about."); 03:24:22-03:24:33 "Just a small question, Arpit. So I never got a chance to work on data engineering problems ... I can start with Spark." (after "DK?" 03:24:21) -> `Student? (DK)`; 03:25:29 "okay thanks" = DK -> `Student?`. Decide each boundary at grammar breaks. |
+| STUDENT_1 | Student 1 (mixes several students; name only after a call) | Real student turns: 00:22:44-00:23:30 CDN-for-private-content question = **Rahul** (after "Go on, Rahul." 00:22:43); 00:31:31-00:32:53 blob storage / persistent-connection proposal = **Sandeep** (after "Sandeep?" 00:31:30); 00:35:16-00:39:13 upload-failure + pre-signed URL proposal = **Anubhav** (after "Anubav, what's the problem in this approach?" 00:35:12); 00:57:15 content-moderation question; 01:39:52-01:41:48 OTT/DRM questions = **Amrit** (after "Yes, Amrit." 01:39:48); 02:00:23-02:02:43 storage-schema answers; 02:11:04-02:14:40 Redis Pub/Sub per hashtag / sharding proposal = **Mohit** (after "Let me pull in Mohit." 02:10:59); 02:19:48-02:21:52 top-100 flow = **Sandeep** (after "Sandeep?" 02:19:47); 02:36:28-02:37:11 read/write-path separate-services question ("So, Arfit"). TEACHER LEAKS (relabel Teacher): 00:32:57 "How big is your image?", 00:37:36 "What are pre-signed URLs?", 01:42:28 "Basically, you became white hat hacker." (teacher's own story 01:42:00-01:42:19 -> likely Teacher, `Teacher?` if unsure). 01:22:42 "Yeah, Azure window is not visible." = a student telling the teacher the screen is not shared -> keep `Student 1`. 00:37:51 "no, no, no, no, no, no, no" LOOP (see notes). |
+| STUDENT_2 | Student 2 (mixes several students + teacher leaks) | Real student turns: 01:02:09 S3 signed-URL question, 01:04:58-01:05:31 post schema, 01:44:57? (see below), 01:46:13-01:46:54 S3 location question, 01:57:04-02:00:06 hashtag/tag table + top-100 array, 02:51:20-02:56:53 SLAs / stateful components / leaderless, 03:11:37-03:13:48 hashtag GC question, 03:14:12-03:15:21 1M images, 03:15:25-03:18:22 paginated store + Kafka just for counting + Kafka as storage, 03:19:50?, 03:22:30 batching question. TEACHER LEAKS (relabel Teacher, log SPEAKER/SPLIT): 01:44:57 "I mean, that's CDN internal." (teacher repeats "That's CDN internal." 01:44:59 and continues - default Teacher); 01:58:52 "we don't have to care that's what i said why are you assuming" (mid-segment split), 01:59:08 "What will you store in this array?"; 03:11:56 "GC is what?" (student answers "Garbage collection. Sorry." 03:11:58-03:11:59); 03:14:54 "You said how many?"; 03:15:04-03:15:10 "You just scaled your requirements by ... FYI."; 03:15:17 "Correct." / 03:15:18 "Let's do it."? (decide in context); 03:16:31 "Correct."; 03:18:27 "Kafka does not give you that database has transaction properties." (teacher's line, repeated 03:21:44); 03:19:50 "Ingestion high ingestion rate was the use case." (likely teacher summarising - `Teacher?`); 03:22:30 "from the previous one or the new one" = teacher asking, then "no no this is a new one uh for batching i had read about" = student, then 03:22:35 TEACHER "map reduce do we cover..." starts mid-question (student) -> SPLIT at grammar boundaries. |
+| STUDENT_3 | Student 3 (Mohit on 02:41:50-02:46:23) | 02:41:49 "Mohit." = teacher's call leaked -> SPLIT to Teacher; 02:41:50-02:42:33 popularity-service adapter question and 02:43:06-02:46:23 Redis Pub/Sub vs Kafka question = **Mohit**. One voice, consistent. |
+| STUDENT_4 | Student 4 (Mohan) | 02:37:51-02:39:36 Kafka-partitioning / counting-server question (teacher: "What are you asking Mohan?" 02:40:04, "It's not being sharp Mohan." 02:40:31) = **Mohan**; 02:40:18-02:40:26 "not everybody is as sharp as you ... please don't disperse the questions" = Mohan; 02:57:02-02:59:48 Kafka retention question after "Yes, Mohan?" 02:57:00 = **Mohan**; 03:01:20-03:01:37 retention horizon. Leaks: 02:38:39-02:38:52 run-on segments mix teacher ("that's how kafka works ... yes no wait wait") -> SPLIT at grammar boundaries; 02:40:26 "No, I'm not disperse the question." = teacher replying -> SPLIT/`Teacher?`; 02:58:42 "showing something that i cannot no it's there on the screen is it not there" = screen-share exchange (mixed) -> SPLIT with care; 03:01:36-03:01:37 "Big difference. Big difference." = teacher answering ("Is that a big difference?") -> Teacher. |
+| STUDENT_5 | MOSTLY TEACHER -> relabel per turn to Teacher (log SPEAKER) | Teacher calls/prompts: "Sandeep?" 00:31:30, 02:19:47; "Okay, great. Anubav, what's the problem in this approach?" 00:35:10-00:35:12; "So are you saying it will upload directly to S3? Yes." 00:38:38-00:38:40; "No, it does not. It has AWS access keys and secret keys." 01:02:50; "OTT will talk later." 01:40:09; "That's exactly. That's the black box for us. Why would we know which server to go to?" 01:46:56-01:46:58; "So this is your post service where the post is made. You push it to Kafka." 02:07:19-02:07:22; "go over here? Now start." 02:12:27; "It's a simple server processor service service. It's not a service." 02:21:39; "What service are you talking about?" 02:36:52; "you were talking about read path and write path this is that only ..." 02:36:58; "Persistence and speed of consumption." 02:45:14; "Right." 02:47:12; "MySQL gives you, DynamoDB gives you both of them." 02:49:49; "What you need to know is dead letter Q." 02:54:46; "For hashtag service?" 03:11:49; "But then you show that number to investors and ask for more money." 03:13:42; "You are not doing it for persistent just to count valuable information. It can be picked by other services" 03:16:58-03:17:05. EXCEPTIONS (keep student): 00:23:34 "Don't jump." (could be either -> `Speaker?`... default `Teacher?`); 00:58:44 "front end know what URL to enter." = end of the 00:57:47 student question -> `Student?`; 01:46:36 "So why would we need to know the disk where S3 is storing it?" = teacher probing Student 2 (Student 2 replies "No, no, that's not the question") -> Teacher; 02:41:43-02:41:47 "And then that's how we move forward. Right. Sure. Thank you." = end of Mohan's exchange -> `Student?` (decide in context). |
+| STUDENT_6 | Student 6 | 00:24:50-00:26:06 "Hi Arpit. ... how would the user know about the CDN URL?" (no name called); 02:07:03-02:09:45 hashtag batching / partition-key proposal ("User idea" -> user ID, A#20); 02:48:44-02:48:45 "Got it. Thank you." One voice. Possible teacher leak: 02:07:06 "Correct." / 02:09:45 "Correct." inside the student's run -> teacher back-channel, SPLIT only if clear, else leave. |
+| STUDENT_7 | MOSTLY TEACHER -> relabel per turn | Teacher: 01:39:48 "Yes, Amrit." (call); 01:54:50 "let's start with the second half just confirming if mic and speaker are correct yeah okay" (admin); 02:56:56-02:57:00 "You get some, you lose some. Right? Okay. Great. Yes, Mohan?"; 03:11:27 "... also need 20 mb extra right you need that yeah yeah sure thanks for that thank you" (mixed: teacher answer + student thanks -> SPLIT at "thanks for that"); 03:15:23 "Now,"; 03:18:32 "lookups get a post by id will you be able to do that on kafka no not this use case ..." (teacher); 03:21:13 "do with that great i'm excited for that question okay any other question anymore" (teacher). Student-like back-channel (keep `Student?`): 02:40:17 "Okay.", 02:51:14 "Got it. Got it. Got it. Yeah.", 03:03:06 "Okay. Thank you.", 03:03:32-03:03:33 "Makes sense. Thank you." (03:03:34 "Great." = teacher), 03:15:22 "Okay.". 01:54:29 "Thank you." = HALLUCINATION (see notes). |
+| STUDENT_8 | Student 8 | 02:46:46-02:47:18 popularity service via webhooks instead of separate Kafka question; 01:40:51 "Okay." back-channel. |
+| STUDENT_9 | Student 9 (Harsh on 01:43:57 turn) | 01:43:57-01:44:47 storage-wasted / why-Kafka question = **Harsh** (after "Yes, Harsh?" 01:43:54). 02:11:46 "right" back-channel -> `Student?`/leave. |
+| STUDENT_10 | Student? (back-channel; some teacher) | "Got it." 01:00:59, 01:01:36, 02:51:02; "Right, right." 02:50:54 = student back-channel. 00:34:43 "Yes, that's correct." = likely teacher confirming Student 1 -> `Teacher?`; 01:22:05 "inspect" = teacher (browser inspect demo) -> Teacher; 03:16:46 "I mean, I was thinking, I was thinking like," = Student 2's voice continuing (03:16:50 STUDENT_2) -> `Student?`. |
+| STUDENT_11 | Student? | "Okay. Got it. Thank you." 00:29:58-00:29:59 (answer to Gaurav-era question - student thanks), 01:41:23 "Okay.", 02:53:19 "Number of workers. Yeah." (student answering), 02:54:49 "Okay.". |
+| STUDENT_12 | Student? | 02:02:05 "Less data to fetch." (student answer). |
+| STUDENT_13 | Student? | 00:57:41-00:57:42 "Okay. Thanks." |
+| STUDENT_14 | Student? | 03:11:47-03:11:49 "I didn't get it. What?" (reply to Student 2's GC question - student). |
+| STUDENT_15 | Student? | 03:23:35 "Okay." |
+
+Naming: Student N = label number for STUDENT_1/2/3/4/6/8/9 (`**Student 4 (Mohan):**` only on turns right after a
+call). STUDENT_10-15 one-word labels -> `Student?`. Student questions under the TEACHER label get `Student?`
+(+ name in parentheses when a call precedes) and a SPEAKER/SPLIT log row. Diarization boundaries lag speaker
+changes by a phrase -> SPLIT at grammar boundaries.
+
+
+### lec10 speaker map (FROZEN — this is the map for this lecture)
+
+Same teacher (Arpit: "Hi, Arbit" 00:27:26, "Yeah, Arvit" 00:20:09, "Hey, Arpit" 01:34:59, "But Arpet now" 03:03:07; teacher's "AODB, Arpit's outstanding database" 00:43:48). Source: speaker_stats.md + raw read 00:00:01-00:11:02 (start), 00:57:37-01:06:31 (~1 h), 01:51:25-02:06:59 (break + ~2 h), 02:41:50-02:49:51 and 02:55:24-03:06:32 (end Q&A), plus every line of STUDENT_3/5-17 and every teacher name call. One teacher label; no lec04-style split (TEACHER 72.5% talk, 145.7 words/turn). Student labels are long here (brainstorm-heavy lecture) and the teacher's calls/short reactions leak into them.
+
+| Diarization label | Role | Evidence |
+|---|---|---|
+| TEACHER | Teacher | 72.5% talk, 152 turns, 145.7 words/turn; opens "Week 5, day 2nd ... storage engines" 00:00:01, sets the problem, calls names ("Go on, Raghun." 00:05:03, "Sidesh, given this file" 00:19:57, "Harsh." 00:27:23, "Alok." 00:35:45, "Gaurav, what else can you do?" 00:38:25, "Pankaj." 00:56:39, "Vikram?" 01:06:13, "Sidesh." 01:34:56, "Rahul?" 01:38:03, "Amen." 02:03:26, "Pankaj, how will you do deletes?" 02:08:41), break 01:52:05-01:53:04, closes "See you next week. Bye-bye." 03:06:23-03:06:28. EXCEPTIONS: 00:56:43 "so can can we use something like amazon s3 in this case to store this file" = Pankaj (STUDENT_5 continues 00:56:50; teacher: "So what Pankaj said" 00:57:50) -> Student 5 (Pankaj), SPEAKER. 00:05:25 "a Jason format?" = tail of teacher's question begun under STUDENT_4 00:05:20 (boundary lag). 03:04:04-03:04:09 / 03:05:32-03:05:36 boundary lags with STUDENT_1 -> SPLIT at grammar boundary. |
+| STUDENT_1 | Student 1 — MIXES several students; name only on the turn right after a call | 14.7% talk. Hemant: 00:09:52 after "uh himan" 00:09:45 (key-value/read-heavy framing), 02:03:28 after "Amen." (= Hemant; "memtable or SS table" idea attributed to "hey man" by STUDENT_3 02:11:38), probably 02:43:12 after "go on heaven" (LSM / Bitcask / Kleppmann question - `[check]`). Gaurav: 00:38:27 after "Gaurav, what else can you do?". Vikram: 01:06:15 after "Vikram?" (batch/cron job update). Mohit: 02:46:31 "thanks mohit yeah a bit like my question may sound naive" -> the append-only-file question that follows is Mohit's. Unnamed: 00:14:29 multi-file/zip idea, 01:08-01:22 update flow, 01:49:57, 03:01:39-03:05:42 offsets/sorting question. TEACHER LEAKS (SPLIT/SPEAKER to Teacher): 00:11:00 "What did you say about the last thing when you are modifying something?"; 00:38:27-00:38:29 "These are two good approaches. What else can you do?" (teacher echo before Gaurav answers - decide in chunk); 01:06:24 "Did you mean cron job, batch job?" and 01:06:31 "See, batch job is batch processing." (teacher probing Vikram - Teacher if clear, else `Teacher?`); 02:06:01 "Perfect." inside Hemant's append-only explanation; 02:46:07-02:46:31 "do read the paper in case you have it that's a fabulous paper ... thanks mohit" (teacher, split before Mohit's question); 03:04:24 "Why is that complex?" and 03:04:09 "very efficient." (teacher continuing 03:04:04), 03:05:36 "new file created. You don't have to do n square complexity." (tail of teacher 03:05:32). |
+| STUDENT_2 | Student 2 (Sitesh / Sidesh) | 5.3% talk. Turns after "Sidesh" calls: 00:20:09 "Yeah, Arvit." (search proposal), 01:34:59 "Hey, Arpit. I would either expose a REST endpoint", 02:51:53 after "Sitesh." (implementation question, checksum / fsync / WAL 02:51-02:53), long Q&A 02:56:05-03:01:23 (1 TB justification, S3 cost, redeployment) - same voice, keep Student 2; add "(Sitesh)" only on the turns right after a call. TEACHER LEAKS: 00:09:32 "the trees or something like that wait wait wait wait wait we'll come to that" (teacher deferring Rahul's B-tree idea; LOOP) -> Teacher; 01:13:29 "Uh, Shreya." (teacher call) -> Teacher; 02:43:01-02:43:05 "no no questions on bitcast right it was that simple super go on heaven" -> "no questions on Bitcast" may be a student reply but "super, go on, [Hemant]" is the teacher -> SPLIT, doubt `Teacher?`; 02:51:51 "Sitesh." (call) -> Teacher; 02:56:42-02:56:43 "You know, great. Like you should ask this critical question." -> Teacher; 03:02:41-03:02:43 "This is the size of the index. Yes, the size of the index." -> Teacher (answers STUDENT_1). |
+| STUDENT_3 | Student 3 (Anubhav) | 00:51:59 "can we have a shared disk storage for all the api servers" = the proposal the teacher credits to Anubhav ("what first Anubhav said, let's put it in a shared storage" 00:58:08; "with Anupak" 00:56:18), preceded by the call "kyanav" 00:51:56 (leaked under STUDENT_11). Other turns: 00:40:13 reserve index slot, 01:12:53 graveyard (tombstone) entries + compaction, 01:34:02 version in header, 02:11:08-02:14:19 WAL + in-memory hash table ("what hey man had mentioned"), 02:49:23 delete-in-merge question. Name "(Anubhav)" only on 00:51:59 (turn right after the call); others plain Student 3. |
+| STUDENT_4 | Student 4 (Rahul) | 00:05:05 after "Go on, Raghun." (text vs JSON), 00:06:57 after "Raul, what will be the format" (write-ahead-log-like text file), 01:38:05 after "Rahul?" (upload to same path); teacher 00:35:31 "Anyone except Rahul". Label = Rahul throughout -> `Student 4 (Rahul)` on the turns after a call. Leaks: 00:05:20-00:05:25 "how do you, how do you query a Jason format?" = teacher -> SPLIT; 00:09:03-00:09:04 "No, there is no constraint. Will you keep it sorted?" = teacher restating -> SPLIT/`Teacher?`; 00:09:24 "...okay fine okay hey man" = teacher's call to Hemant -> SPLIT; 01:38:17 "Just a second." (REPEAT-SEG) keep. |
+| STUDENT_5 | Student 5 (Pankaj) | 00:56:50-00:57:37 S3 + GetObject byte-range proposal right after "Pankaj." 00:56:39 (teacher: "So what Pankaj said" 00:57:50); 01:30:01-01:33:40 metadata file / polling proposal right after "uh pankaj" 01:29:52 (call leaked under STUDENT_8); 02:08:54-02:10:23 delete with -1 marker right after "Pankaj, how will you do deletes?" 02:08:41. Consistent voice -> Student 5 (Pankaj) on those turns. Leaks: 01:34:12 "But you're still polling for that." = teacher -> SPEAKER (`Teacher?`); 02:57:37 "So that's why my team." -> `[unclear]`, `Student?`. |
+| STUDENT_6 | Student 6 (Harsh) | 00:27:28-00:30:05 index-size estimate (26-letter index, "17,000,000") right after "Harsh." 00:27:23. 00:28:00 "That's your concern." / 00:28:02 "Right." may be teacher -> decide in chunk. |
+| STUDENT_7 | Student 7 (Alok) | 00:35:47-00:37:07 "Do we need to create a file for the index? ... build it up in memory", one file with partition line - right after "Alok." 00:35:45. |
+| STUDENT_8 | Student 8 | 01:29:25-01:29:47 latecomer "What if we had each word in one file?" (name not called). TEACHER LEAKS: 01:29:52 "having everything okay i don't have anything okay uh pankaj" (teacher wrapping up + call) -> Teacher; 03:05:47 "These are the details" (continues into TEACHER 03:05:48 "I want. Thanks for asking this question") -> Teacher (SPLIT/SPEAKER). |
+| STUDENT_9 | Student 9 (Shreya) | 01:13:33-01:14:03 naive rewrite-the-file approach right after the call "Uh, Shreya." 01:13:29. Leak: 01:14:03 "no no it's not naive it's not naive it's kind of" = teacher -> SPLIT. |
+| STUDENT_10 | Student 10 | 00:37:15-00:38:22 pre-allocate index space proposal (name not called). 01:34:32 "Okay.", 02:09:19 "Yeah.", 02:56:51 "Okay, yeah." back-channel -> `Student?` unless in a student's exchange. |
+| STUDENT_11 | MOSTLY TEACHER -> relabel per turn | 00:07:39 "There are no columns. You only have words and meanings." (teacher answering Rahul's CSV point) -> Teacher; 00:37:25 "What do you mean by pre-allocate?" (teacher probing Student 10) -> Teacher; 00:51:56 "kyanav" (call to Anubhav) -> Teacher. EXCEPTION: 00:27:25-00:27:26 "Yeah. Hi, Arbit." = Harsh greeting the teacher after "Harsh." -> `Student 6 (Harsh)` (SPEAKER; same student as STUDENT_6 00:27:28). |
+| STUDENT_13 | Student? | 01:50:20 "Sure.", 02:49:17-02:49:18 "Okay. Right." (after the append-only answer to Mohit -> could be Mohit) - back-channel. |
+| STUDENT_14 | Student? / Teacher? per turn | 01:08:18 "Correct.", 01:09:46-01:09:47 "Okay. Correct." (inside Student 1's update discussion - may be the teacher confirming -> `Teacher?` if it answers the student's "right?"), 03:05:45 "So yeah, that's good." (student wrap-up) -> `Student?`. |
+| STUDENT_15 | Student? | 00:12:09 "Yes.", 00:17:57 "Yes.", 00:18:00 "I know." - one-word answers to the teacher's questions. |
+| STUDENT_17 | Student? | 01:10:55 "Yeah. Correct." (answers "Will this entry move down?"), 02:18:54 "Yeah.". |
+
+Naming: Student N = label number. Name in parentheses ONLY on the turn right after the teacher's call (`Student 4 (Rahul)`, `Student 5 (Pankaj)`, `Student 1 (Hemant)`, `Student 1 (Vikram)`, `Student 1 (Gaurav)`, `Student 1 (Mohit)`, `Student 3 (Anubhav)`, `Student 6 (Harsh)`, `Student 7 (Alok)`, `Student 9 (Shreya)`, `Student 2 (Sitesh)` - spelling as the call was written, `[check: name spelling]`). Name calls that leaked into a student label (00:09:24, 00:51:56, 01:13:29, 01:29:52, 02:43:05, 02:51:51) -> SPLIT to Teacher. Boundary lag of a phrase is common (00:05:20-00:05:25, 03:04:04-03:04:09, 03:05:32-03:05:36, 03:05:47-03:05:48) -> SPLIT at grammar boundaries, log SPLIT.
+
 ## Known structure notes
 - 01:38:25–01:44:37: break (teacher: "see you folks at 10 45"). Mark as admin, add `[break ~01:38:25-01:44:37]`, not [missing]. (lec01 carry-over - NOT lec07: in lec07 that stretch is continuous teaching on concurrency / optimistic locking.)
 - Class opens with teacher discussing feedback from students (admin) then topics: scaling, concurrency, delegation, communication.
@@ -775,6 +1188,45 @@ Diarization boundaries lag speaker changes by a phrase (e.g. 01:09:38 "what we a
   - RATE candidates (7-10 w/s, e.g. 02:32:52 10.4 w/s, 01:34:12 9.3 w/s) are short fast sentences - no other signal, keep.
   - Heavy speaker-mixing zones: 00:08:44-00:09:00 (STUDENT_5 = teacher), 01:10-01:16 (Shalendra/teacher interleaved), 01:32-01:36 (STUDENT_1/4/9 + teacher calls), 02:36:46-02:38:48 (STUDENT_5 = teacher), 02:38-02:50 (STUDENT_1 and STUDENT_9 contain teacher answers), 03:04-03:16 (STUDENT_1 interleaves teacher), 03:29-03:34 (STUDENT_5 = teacher). Q&A stretch ~02:35:49-03:36:08 (lock questions, then LB questions from 03:06:15).
   - 03:30:33-03:31:10 very short (1-3 word) teacher segments - merge into sentences, no content issue.
+- lec09 (03:26:36 long, 3821 segments, 17 chunks; class "wrap by 11.30"):
+  - 00:00:02 #0 opening run-on segment (28 s) with garbled bits ("Dappe dappe, boxes, boxes, my toy or kit can draw", "state material") -> keep + `[unclear: ...]` (A2); "hashtag survey" -> service (A#25).
+  - 00:06-00:25 CDN demo: teacher reads URLs/paths aloud ("slash static slash img") - keep spoken form; domain forms -> arpitbhayani.me (A#1-3). REPEAT-SEG #326 00:20:50 "I configured arpitbhane.me slash static as my origin." = teacher repeating #324 for emphasis (different sentence between) -> keep + `[check: possible ASR duplicate]`. #394 00:23:37 "First try out CDN." (repeat of #393) -> same rule.
+  - 00:22:43-00:39:13 first Q&A/brainstorm (Rahul, Gaurav under TEACHER label 00:30:04, Sandeep, Anubhav under STUDENT_1; teacher prompts under STUDENT_5/10). #493 00:28:15 "No, no, no, no." (teacher, emphatic) -> keep up to 3, log LOOP if trimmed. #663 00:37:51 STUDENT_1 "...to kind of, no, no, no, no, no, no, no." = LOOP x7 (probably teacher interrupting) -> collapse to "no, no, no" + `[check: speaker]`, log LOOP.
+  - 00:40-00:56 pre-signed URL explanation + GitHub upload demo (teacher reads request fields "Key, ACL, policy ... content type", "PNG3, RDA" unclear).
+  - 00:57:47-01:03:30 Q&A: student under TEACHER label 00:57:47; Akamai PoP list for India 01:00:14-01:00:49 is chopped into 1-3-word segments -> merge, no content issue.
+  - 01:06:03-01:06:06 #1199 "This is suboptimal." repeat and #1202 "Always, always, always, always remember" = teacher's emphatic style (cf. 00:03:30 "always, always, always remember") -> keep (max 3-4 as spoken; LOOP log only if trimmed). #1335 01:13:10 "so, so, so, so simple" same. #1493 01:22:47 "My bad, my bad, my bad, my bad." emphatic -> keep or trim to 3 with LOOP log. #1506 01:23:19, #1590 01:28:02, #1619 01:29:29, #1972 01:47:11 ("For this system, CDN is black box" after "S3 is black box" = parallel, NOT a duplicate), #2272 02:12:06, #2441 02:20:53, #3716 03:21:45 "Kafka does not give you that." x2 -> default keep + `[check: possible ASR duplicate]` (teacher repeats for emphasis in this course).
+  - 01:22:42-01:22:48 screen-share admin ("Azure window is not visible" -> flag; "I should always share my full screen").
+  - 01:23-01:35 Instagram FBCDN URL dissection (OE/OH/IG/EDN/OW params read off screen) - keep tokens as spoken.
+  - 01:37:44-01:47:50 last questions before break (Amrit DRM 01:39:48, Harsh 01:43:54, Rajiv under TEACHER 01:44:53, Student 2 S3 question).
+  - **BREAK 01:47:21-01:54:59**: teacher "We'll take a break till 10.55 ... See you folks at 10.55, 7, 8 minutes from now ... Thanks folks." 01:47:21-01:47:50; gap 01:47:51-01:54:29 (398 s). Write `[break ~01:47:51-01:54:29]` (not [missing]). #1987 01:54:29 STUDENT_7 "Thank you." = AFTER-GAP(398 s) + outro phrase (2 signals) -> remove, log HALLUCINATION. 01:54:50 STUDENT_7 "let's start with the second half just confirming if mic and speaker are correct" = teacher, admin.
+  - 01:54:59-02:36 hashtag service design (problem statement 01:55:02; brainstorm with Student 2/1/6; "User idea" -> user ID 02:09:43). #2268 02:12:01 "Wait, wait, wait, wait, wait, wait, wait, wait." LOOP x8 + COMPRESS 2.6 -> collapse to "Wait, wait, wait." log LOOP.
+  - 02:36:28-03:26 long Q&A. Heavy speaker-mixing zones: 02:36:28-02:41:47 (STUDENT_1/4/5 + teacher, Mohan exchange), 02:43:06-02:46:23 (Mohit, Redis Pub/Sub), 02:48:50 (student under TEACHER), 03:03:35-03:04 (DK under TEACHER), 03:11:27-03:19:50 (STUDENT_2 interleaves teacher lines), 03:21:13-03:25:31 (student questions under TEACHER label: dead letter queue 03:21:26, outbox 03:22:06, batching/MapReduce 03:22:30-03:22:35, DK resource question 03:24:22).
+  - 03:21:09 "pehle" = only Hindi word (keep).
+  - 03:25:58-03:26:29 real goodbye ("Thanks, folks, for tuning in. See you folks tomorrow ... bye") -> keep. #3820 03:26:36 TEACHER "Thank you." 7 s after "bye", last segment -> plausible real closing OR outro hallucination (only 1 signal: PHRASE at end) -> keep + `[check: possibly hallucinated in silence]`.
+  - ~95 single "Okay."/"Thanks."/"Thank you."/"Got it." PHRASE candidates = real back-channel in a live class -> keep. RATE candidates (7-11.3 w/s: #1160, #1290, #1455, #1459, #1604, #1705, #1765, #1770, #1814 11.3 w/s "and then we're going to break.", #2422, #2989, #2999, #3035, #3083 "Let's, let's, let's start.", #3157, #3269, #3465, #3503 10.9 w/s) = short fast sentences, no second signal -> keep. #2285 02:12:33 STUDENT_1 lone "so" = real filler fragment, keep/clean-verbatim.
+  - No gap other than the break (gaps.md has one row). No Devanagari / Urdu script seen.
+
+- lec10 (03:06:32 long, 3207 segments, 15 chunks; spoken English, no Hindi/Devanagari - romanization rules unused):
+  - 00:00:01-00:05:03 problem statement (word dictionary, no DB); no admin opening. 00:00:01 "standard engines" -> storage engines (row B).
+  - 00:05:03-00:11:30 Rahul / Hemant exchange: heavy boundary lag between TEACHER, STUDENT_4, STUDENT_2, STUDENT_1 (00:05:20-00:05:25, 00:09:03-00:09:45) -> per-turn SPLIT. #195 00:09:32 LOOP "wait" x5 (teacher, under STUDENT_2) -> collapse to 2-3, log LOOP.
+  - 00:21:04 #385 "Now, wait, wait, wait, wait, why only 1000 keys" = teacher's emphatic style -> keep up to 3, log LOOP if trimmed.
+  - 00:29:26-00:29:53 gap 26 s ("Take your time.") = students computing the index size - real silence, NOT [missing]. 00:29:53-00:30:05 "17,000,000." x5 (#529 STUDENT_6, #530 TEACHER, #532/#533 STUDENT_6, #534 TEACHER) = student answer + teacher repeating it back -> keep one per speaker turn that is plausibly spoken; drop only exact back-to-back same-speaker copies (#533 after #532, 2 s apart) as DUPLICATE; doubt -> keep + `[check: possible ASR duplicate]`.
+  - 00:39:16 #706 "hash table, hash table, hash table, hash table" = teacher drawing entries one by one -> keep (counting), or collapse to 3 with LOOP log; prefer keep + `[check]`.
+  - 00:57:42 #1010 "Great, great, great, great, great." -> collapse to 3, log LOOP.
+  - 01:06:37 #1140 "periodic periodic periodic periodic job" and 01:06:50 #1144 "where, where, where, where" (STUDENT_1 stutters) -> single-word stutter, clean verbatim ("periodic job"; "where" kept once), log LOOP.
+  - 01:15:20-01:16:49 merge-of-two-sorted-files board walkthrough (A, A dash, CC double dash, DD dash, EE dash, FF dash): REPEAT-SEG #1318 "This is sorted.", #1348 "This is the updated one.", #1354 "Then FF dash EE dash." = teacher re-reading as he writes -> keep + `[check: possible ASR duplicate]` unless timing overlaps.
+  - 01:32:02 #1618 "we can make things reactive" (REPEAT-SEG) and 01:39:05 #1764 "That is still polling." (REPEAT-SEG) = emphatic -> keep.
+  - 01:36:38 #1706 STUDENT_2 "Complex, complex, complex, complex, complex, complex." (LOOP + COMPRESS 2.5 = two Whisper signals) -> collapse to "Complex, complex." max, log LOOP; `[check]`.
+  - 01:38:17 #1737 "Just a second." (STUDENT_4 REPEAT-SEG) -> keep.
+  - BREAK 01:52:05-01:59:52: teacher "we'll go on a break ... break till 11 ... see you folks at 11." (01:52:05-01:53:04). Gap 01:53:04-01:59:52 filled by TWELVE "Thank you." segments #2015-#2026 (01:53:32 ... 01:59:03, every 30 s, TEACHER label, each AFTER-GAP 27-30 s) = classic silence hallucination (outro phrase + gap + periodic loop = 3 signals) -> remove all 12, log each HALLUCINATION; write `[break ~01:53:04-01:59:52]` (not [missing]). Resume "okay let's start with the second half" 01:59:52 (topic change: super-fast key-value store / magnetic disk).
+  - 02:03:26-02:06:59 Hemant append-only proposal: "right ahead" -> write-ahead (row A), "plus it" -> flush it, "magnet is discard best" flagged, #2088 "why, why, why, why" stutter -> "why" (clean verbatim, LOOP log), #2107 "What, what, what, what will you do?" (teacher) -> keep up to 3 / log LOOP.
+  - 02:37:28-02:41:58 Bitcask reveal: Bitcask / Riak decisions (row B), Uber claim kept as said, "S-FM", "hash paste", "see it in IT" flagged.
+  - 02:41:59-02:42:50 teacher closes the planned content ("Folks who may want to drop off ... I'll upload the recording by evening ... Next week is all about high throughput systems") = admin, keep. #2711 "Next week is all about high throughput systems." REPEAT-SEG of #2709 = teacher restarting after "Yeah." -> keep both + `[check]`.
+  - Q&A 02:42:50-03:06:09 (LSM/memtable vs Bitcask, append-only file creation, delete in merge, checksum/WAL/fsync, Hussain Nasir recommendation, S3 cost / 1 TB justification, redeployment, offsets & sorted merge) -> `## [02:42:51] Q&A`. Many teacher leaks in STUDENT_1/STUDENT_2 (see speaker map).
+  - 03:01:46 #3089 "the actual byte byte byte byte" (STUDENT_1) -> "byte" (stutter, LOOP log). 03:04:29 #3148 "what, what, what, what" -> stutter, LOOP log.
+  - 03:05:05-03:05:07 #3168-#3171 "This is sorted." x4 (teacher pointing at original dictionary / changelog / new file in turn) -> keep, at most collapse exact copies <1 s apart; default keep + `[check: possible ASR duplicate]`.
+  - 03:06:09-03:06:28 real close ("Thanks folks for tuning in ... See you next week. Bye-bye.") -> keep. 03:06:32 #3206 "Thank you." (last segment, after "Bye-bye.") = plausibly real or outro hallucination (1 signal) -> keep + `[check: possibly hallucinated in silence]`.
+  - ~95 PHRASE candidates "Okay."/"Thanks." = real back-channel -> keep. RATE candidates (7-10 w/s: 00:00:49, 00:33:46, 02:07:14 9.8 w/s, 03:05:09 10.0 w/s) = short fast sentences, no second signal -> keep.
 
 ## Open questions
 
@@ -799,3 +1251,23 @@ Diarization boundaries lag speaker changes by a phrase (e.g. 01:09:38 "what we a
 - lec08 (flag, do not guess): "HLB" (01:32:30, each LB?); "YYM" (00:46:55); "CVS database" (02:17:55); "OCI queue implementation" (02:41:57, Oracle Cloud?); "PPA" (02:47:52, TTL?); "DC progression" (03:19:46, TCP connection?); "InplexDB" (03:27:22, InfluxDB?); "DBS part" (01:18:47); "public desk" (03:19:19, public DNS?); "single point of view" (00:15:32, single point of failure?); "internal Microsoft" / "configure your Microsoft" (01:56:55, 01:57:48); "two links" (00:39:29, toolings?); "It just picks one idea" (03:12:30, IP?); "ready for that" (02:50:03, Redis?); "places a log" (02:41:08, lock?); "Each consumer is a mission ... no course" (03:04:49, machine / cores?); "scale up or run" (03:24:40, down?); "unit tech economic" (00:16:04, unit economics?); "load presenter" (00:38:45, load balancer?); "load answer" (00:38:28) / "load register" (01:33:06); "infinite clue" (02:36:57) / "infinite tube" (02:49:10) (infinite loop?); "rapid use mutex" (02:49:55); "codeways" (03:12:44); "answering those vives" (03:36:28, whys?); "water cover" / "Moo and cat" (02:07:55-02:07:58, Ubuntu packages); "Rahul please go and view it" (00:05:13, mute it?); "half in second, fifth of today" (02:04:59-02:05:06); "orchestras responsibility" kept as spoken; "lead run" (03:24:11); name spellings Heyman, Sampai, Sidesh/Sitesh, Shalendra. After the chunk pass: "crawl job" (02:39:21, cron job?); "system code" (01:01:09, system call?); "server sending" / "service and events" (03:14:00-03:14:34, server-sent events?); "who keep her" (03:14:48, ZooKeeper?); "all service" / "off service" (03:22:33, auth service?); "Prometheus Overkill" (01:38:15); "Java bomb" (03:03:06); STUDENT_7 = Anubhav or Anwar (01:15-01:21); Shreya vs Shriya (STUDENT_8); Rajiv vs Rajeev.
 - Note: the inherited structure note "01:38:25-01:44:37: break" belongs to lec01; lec08's only break is 02:00:26-02:04:59.
 - Unknown acronyms as ASR wrote them: GCVM (00:29:35), EPS (00:31:03), MPT (00:38:25), FII (02:28:21), SSC (03:05:25), ACT (02:48:44), STD (02:06:45). Keep as-is with [?term | asr: "..."] if they don't make sense in context.
+- lec09 (flag in transcript, do not guess):
+  1. "Dappe dappe, boxes, boxes, my toy or kit can draw" / "state material" 00:00:02 (Hindi mis-decoded?) -> `[unclear]`.
+  2. "GP uses CDN" 00:17:19 (which company's CDN video?) -> `[unclear: "GP"]`.
+  3. "wattage map to ABC" 00:26:59; "OneQ" 00:03:01; "ADEM" 00:37:45; "PNG3, RDA" 00:54:15; "CRS" 01:45:21; "EDN" 01:25:12; "DBI" / "the digital" / "applicators" 02:56:10-02:56:34; "carpet" 01:57:04; "letter data be lost" 02:55:02; "spark map, it is" 03:23:30 -> `[unclear]` / `[check]`.
+  4. "SD server" 00:57:54, "SE service" 03:03:53 (S3?); "APAC" 01:15:54 (API call?); "a resist" 02:45:26 (Redis?); "data queue" 03:21:48 (dead letter queue?); "micro register database" 03:14:24 (micro writes?); "pre-URLs" 03:03:53; "geo internet" 01:34:01 (Jio?); "Azure window" 01:22:42 (your window?); "code course" 03:22:35 (cohort course?); "any.me" 00:13:00 -> `[?...]` flags.
+  5. Sync vs async (meaning flips): 02:55:08 "a synchronously process", 02:48:32 "should not be done in a synchronous way".
+  6. Demo image file names (arpid.png / arpitbhane.png / arpidbhani.png / arpeg.png) - not knowable from audio; board reader may confirm.
+  7. Medium-confidence decisions to confirm with the board (lecture-board-reader): arpitbhayani.me + edge.arpitbhayani.me domain forms (A#1-2), Kyrus -> Kinesis (A#13), Kappa -> Kafka (A#12), neural link data dog -> New Relic, Datadog (A#22), LAP, STEC -> LAMP stack (A#24), hot stuff -> Hotstar (A#21), ST/NS3 -> S3 (A#6), CDL -> CDN (A#7).
+  8. Names: "Mohit got." 02:11:02 (= "Mohit, go on"?); "rajay" 03:22:21 (Rajiv?); who asked at 00:57:47, 02:48:50, 03:21:26 (student under TEACHER label, no name call); Mohit vs Mohan are treated as two students.
+  9. "Start with a book for effective Spark" 03:24:36 / "effective spark is mostly the name of the book by O'Reilly" 03:25:20 - title as spoken, not verified; keep.
+  10. Added at Pass 5: "GP" / "Jiffy" 00:17:19-00:17:25 = Giphy? (row P19); "Dorpidmany.me" 00:09:26; "AWS Cloudflare" 00:10:58 (CloudFront?); student names Anamal (Anamol?), chira/Chirak/siraq (Chirag?), "Prashant Raji" 01:03:47; who speaks 02:12:30-02:14:40 (Mohit called 02:10:59 vs Sandeep addressed 02:11:56); "Kafka is not single instance. Kafka is a single instance." 02:51:49 (ASR may have dropped "not"); "19 to 10 ratio" 03:07:39 (90 to 10?).
+- lec10 (flag in transcript, do not guess; unknown-token table decided as follows - CSV, CRC, BitCask/BitCast (-> Bitcask), SS (-> SSTable), CC/DD/EE/FF/AA/ABC/ABCD (board letters, keep), PubSub (-> Pub/Sub), MP3/MP4/PDF/TIF/SSD/NTFS/NAS/SDK/IDE/PM/BTRFS/EXT234 (correct, casing only), AODB (teacher's joke name, keep), MD/MP/MBS (-> MB/MBs), SE (-> S3), PSV (-> CSV), PTRFS (-> BTRFS), MAM (-> memtable); remaining open items below):
+  1. "MSN" 00:24:24 student's example word ("Apple or MSN") -> keep + `[check]`.
+  2. "TPT format" 00:47:53 (PPT?) -> `[?PPT | asr: "TPT"]`.
+  3. "S-FM" 02:37:54 ("BitCask is an embedded database S-FM") -> `[unclear: "S-FM"]`.
+  4. "React" = Riak? (02:38:17-02:40:29) - corrected at TERM medium; confirm with the board (lecture-board-reader).
+  5. "caching, matching" 00:02:18 (batching?); "oblique the data" 00:58:16 (replicate?); "rotten" 01:16:37 (written?); "magnet is discard best" 02:05:03-08; "the first metric removes" 02:12:57; "hash paste" 02:38:57; "see it in IT" 02:39:56; "The artist is getting flushed" 02:55:49; "APIs Expos" 03:01:02; "order and operation" 03:05:29 (order n?); "So that's why my team." 02:57:37; "a cost efficient auto solution for Amazon next week" 02:58:46.
+  6. Names: "Raghun" 00:05:03 (= Rahul?); "Subha" 00:57:42; "Dan" 03:01:27 and "Thanks sir" (Thanks, Sitesh?); "Sidesh"/"Siddesh"/"Sitesh" spelling (project-wide); "Hussain Nasir" 02:55:29 vs project "Hussain Nasser"; "heaven" 02:43:05 (= Hemant?); "kyanav" 00:51:56 (= Anubhav?); STUDENT_1 02:43:12 = Hemant or another student.
+  7. 00:14:30 STUDENT_1 "I have a bit different of Arpit there." (a bit different opinion?) -> keep + `[check]`.
+  8. Added at Pass 5 (lead): new student names Anmol (STUDENT_10), Amrita and Jodhinda (STUDENT_3), Abdur (STUDENT_8), Mohit (STUDENT_1) - spellings unconfirmed; flag-only items from chunk notes listed in row D of the lec10 terms block (marshaling, breaking, score, the trees, downturn, graduated, reactor, bursting, a stone process, torque, fedis, backlit disk, bit custom repetition, keep on the keeper).

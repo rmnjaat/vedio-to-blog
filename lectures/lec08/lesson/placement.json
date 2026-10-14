@@ -1,0 +1,3205 @@
+{
+ "lecture": "lec08",
+ "ledger": "lectures/lec08/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1": "How to approach distributed systems",
+  "1.1": "What \"distributed\" means",
+  "1.2": "Day zero, then scale each component",
+  "1.3": "Every layer must scale out",
+  "2": "Choosing a backend: load balancing algorithms",
+  "2.1": "The box we take for granted",
+  "2.2": "Round robin",
+  "2.3": "Weighted round robin",
+  "2.4": "Least connections",
+  "2.5": "Why not route on CPU?",
+  "2.6": "Long requests and users who leave",
+  "3": "A load balancer on one laptop",
+  "3.1": "Why build one",
+  "3.2": "Two kinds of server, two TCP connections",
+  "3.3": "Copy one socket to the other",
+  "3.4": "Reading the code",
+  "3.5": "Build it locally",
+  "4": "The control plane: keeping every LB server right",
+  "4.1": "One LB server is not enough",
+  "4.2": "Where the configuration lives",
+  "4.3": "The orchestrator and health checks",
+  "4.4": "Getting the change to every LB server",
+  "4.5": "Make it reactive: Pub/Sub and CDC",
+  "4.6": "Watching the LB servers: metrics and Prometheus",
+  "5": "One name, many LB servers",
+  "5.1": "Two LB servers, one address",
+  "5.2": "DNS answers; it doesn't forward",
+  "5.3": "Who keeps DNS up?",
+  "5.4": "The whole design",
+  "5.5": "Who watches the watcher?",
+  "5.6": "Public front doors, private load balancers",
+  "5.7": "What a load balancer is, and is not",
+  "6": "Remote locks",
+  "6.1": "Why lock across machines",
+  "6.2": "Threads, processes, machines",
+  "6.3": "A queue that protects nothing",
+  "6.4": "A database as lock manager, and why locks must expire",
+  "6.5": "Acquire with SET NX",
+  "6.6": "Release: never delete a lock that isn't yours",
+  "6.7": "Other ways to build the lock",
+  "6.8": "Where remote locks really live: MongoDB",
+  "7": "Distributed locks",
+  "7.1": "One Redis is a single point of failure",
+  "7.2": "Redlock: a majority of five",
+  "7.3": "The edge case",
+  "7.4": "Simulate it on one machine",
+  "7.5": "Distribute for fault tolerance, scale for throughput",
+  "8": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "8",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Week 3 day 1 is distributed systems; next session = distributed ID generators (ForwardChip Lecture 6, repeated in section 8)."
+  },
+  "L-0002": {
+   "section": "1.1",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Neglected in the instructor's degrees yet everywhere in industry; attributed (unverifiable anecdote)."
+  },
+  "L-0003": {
+   "section": "1.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Literature algorithms are the foundation; real systems show how they fit."
+  },
+  "L-0004": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Agenda: approach, LB design, remote and distributed locks, synchronizing consumers. Becomes the TOC."
+  },
+  "L-0005": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "LB is the core component that makes distributed systems possible by hiding many backends."
+  },
+  "L-0006": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Realistic LB design plus a short walk through a tiny LB's source; not productionizable."
+  },
+  "L-0007": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Drawing boxes anyone can do; granular implementation is the differentiator."
+  },
+  "L-0008": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Core LB is ~10 lines (even that an exaggeration); an engineer wrote NGINX."
+  },
+  "L-0009": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Locks come after the break: lecture order in the About note. Quality remark not repeated."
+  },
+  "L-0010": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Why distributed locking: processes coordinating to keep data consistent; two transactions on one row."
+  },
+  "L-0011": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Remote and distributed locks are the heart of data correctness."
+  },
+  "L-0012": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Order of the locks part: why first, then how with Redis."
+  },
+  "L-0013": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Core property of a lock manager matters more than Redis; build your own."
+  },
+  "L-0014": {
+   "section": "6.1",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "BackLink to Lecture 3 airline check-in; this time a hypothetical synchronization example."
+  },
+  "L-0017": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "'How to study this page': phone in another room, pen and paper, sketch not type."
+  },
+  "L-0019": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Real design discussions run 3-4 hours; re-setting context costs ~20 min: read a chapter in one sitting."
+  },
+  "L-0021": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening: 'distributed systems' is a misused term (attributed opinion)."
+  },
+  "L-0022": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition: abstract out the distributedness; one coherent system to an outsider. Board definition quoted."
+  },
+  "L-0023": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The outsider is contextual: user, microservice, internal portal."
+  },
+  "L-0024": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Facebook.com example: one site, many services for one home feed."
+  },
+  "L-0025": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Professor's love/hate quote, attributed (unverifiable)."
+  },
+  "L-0026": {
+   "section": "1.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Murphy's law board line; body of RuleBox section 1."
+  },
+  "L-0027": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Hate part: broken distributed transaction leaves undesigned state = corruption."
+  },
+  "L-0028": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Love part: horizontal scaling."
+  },
+  "L-0029": {
+   "section": "1.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox section 1: assume anything and everything goes wrong. Heuristics card."
+  },
+  "L-0030": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Day-zero architecture: one machine, server, DB, cache; 'pinch of salt' kept."
+  },
+  "L-0031": {
+   "section": "1.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Scale each component, load, rectify, re-architect, repeat: Fig 1·a loop."
+  },
+  "L-0032": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Low-level details are the pain points under load."
+  },
+  "L-0033": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Incremental approach is how complex systems are built."
+  },
+  "L-0034": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Microscope analogy."
+  },
+  "L-0035": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: remote machines talking != distributed system. Simplified/low: left as taught."
+  },
+  "L-0036": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Must be horizontally scalable; inline: also fault tolerance (board bullet). Simplified/low: left as taught."
+  },
+  "L-0037": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Check every layer, not just autoscaled API servers."
+  },
+  "L-0038": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Non-scalable layer = SPOF. SN-01: bottleneck; SPOF only without standby (A-DSC-08).",
+   "source_note": "SN-01"
+  },
+  "L-0039": {
+   "section": "1.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Every component must scale out (Fig 1·b list). Simplified/low: left as taught."
+  },
+  "L-0040": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Autoscaling policy is not horizontal scalability."
+  },
+  "L-0041": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Unit economics, linear amplification. Simplified/low: left as taught; A-DSC-09 woven in as a separate sourced sentence."
+  },
+  "L-0042": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Without per-server capacity: leaking money, under/over-provisioning."
+  },
+  "L-0043": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Capacity varies by service; every layer counts."
+  },
+  "L-0044": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Cutting corners: non-scalable DB is fine if it handles the load."
+  },
+  "L-0045": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor changed algorithms in practice; covered practically (attributed)."
+  },
+  "L-0046": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "LB is the box taken for granted, yet just code; board line."
+  },
+  "L-0047": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Build intuition from first principles."
+  },
+  "L-0048": {
+   "section": "2.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "From practice: Flipkart built its own LB for on-prem data centres (attributed)."
+  },
+  "L-0049": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Advantages: fault tolerance, no over-clocked server (board)."
+  },
+  "L-0050": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Single point of entry, one name/IP: Fig 2·a."
+  },
+  "L-0051": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "LB forwards each request to one backend."
+  },
+  "L-0052": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The algorithm decides; three covered."
+  },
+  "L-0053": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Round robin: most common, default."
+  },
+  "L-0054": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "LB remembers last backend, sends next to next."
+  },
+  "L-0055": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Use RR with uniform infra and load; RuleBox section 2 line 1."
+  },
+  "L-0056": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Uniform load pattern = fixed response-time range, low variance."
+  },
+  "L-0057": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "RR spreads load almost equally; Fig 2·b panel a counts 1,4/2,5/3,6."
+  },
+  "L-0058": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Uniform infra true in most cases (hedged as said)."
+  },
+  "L-0059": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "WRR definition; A-DSC-07 nginx default weighted RR."
+  },
+  "L-0060": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Non-uniform infra from reserved instances."
+  },
+  "L-0061": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "4/8/4 GB: 80% vs 40%. Simplified/low: left as taught."
+  },
+  "L-0062": {
+   "section": "2.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    },
+    {
+     "section": "2.4",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Weights 1:2:1, Fig 2·b panel b; RuleBox line 2."
+  },
+  "L-0063": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Each LB offers algorithms; read its docs."
+  },
+  "L-0064": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Hidden option: support ticket. Inline: managed LBs expose a fixed set (imprecise/low)."
+  },
+  "L-0065": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's reserved-instance blunder (attributed) + optional A-LBL-13."
+  },
+  "L-0066": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "It's always about money; heuristics card."
+  },
+  "L-0067": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "60 GB machine behind plain RR is waste."
+  },
+  "L-0068": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Saving money = quantified impact, promotion (attributed opinion)."
+  },
+  "L-0069": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Three algorithms; intuition transfers; least connections taken for granted."
+  },
+  "L-0070": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Least connections definition."
+  },
+  "L-0071": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Connection-pooling analogy with the instructor's caveat; BackLink Lecture 1."
+  },
+  "L-0072": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "LB counts active connections; freed on completion: Fig 2·c."
+  },
+  "L-0073": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Open connection = busy. Inline + A-LBL-15: in-flight request is what counts."
+  },
+  "L-0074": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Least burdened machine, quicker response."
+  },
+  "L-0075": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "High-variance workload, analytics."
+  },
+  "L-0076": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Walkthrough requests 1-5: Fig 2·c steps."
+  },
+  "L-0077": {
+   "section": "2.4",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "RR piles long requests onto a busy server: clip l08-rr-vs-leastconn."
+  },
+  "L-0078": {
+   "section": "2.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Big variance -> least connections; RuleBox line 3; A-LBL-01 ALB LOR."
+  },
+  "L-0079": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "LB sees only connections, must be stateless. Simplified/low: left as taught; A-LBL-19 woven in as a separate sourced sentence."
+  },
+  "L-0080": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: route on CPU; impractical. Simplified/low: left as taught."
+  },
+  "L-0081": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Heuristics because microseconds."
+  },
+  "L-0082": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Think about practicality; heuristics card."
+  },
+  "L-0083": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: no persistent connections needed; pool counts active ones."
+  },
+  "L-0084": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Hour-long request over raw TCP. Simplified/medium: light inline clarification + A-DSC-01, A-DSC-02 (middleboxes time out)."
+  },
+  "L-0085": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Keep-alive; long server-to-server HTTP. Inline + A-DSC-03."
+  },
+  "L-0086": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "gRPC over HTTP/2. Simplified/low: left as taught; A-DSC-04 woven in as a separate sourced sentence."
+  },
+  "L-0087": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirements page: balance, tunable algorithm, scale beyond one machine."
+  },
+  "L-0088": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: 5th request on a busy server assumes one query per server; add servers."
+  },
+  "L-0089": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Ties broken at random. Simplified/low: left as taught; A-LBL-02 woven in as a separate sourced sentence."
+  },
+  "L-0090": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Local optimization is enough."
+  },
+  "L-0091": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Data warehouses use least connections. SN-02: workload management/slots instead.",
+   "source_note": "SN-02"
+  },
+  "L-0092": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Closed browser + resubmit: business logic; go async."
+  },
+  "L-0093": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "No tooling to stop a job but buildable. Inline + A-DSC-05 (Go Context; no FIN from vanished host)."
+  },
+  "L-0094": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Redshift/BigQuery cancel. A-DSC-06 best effort."
+  },
+  "L-0095": {
+   "section": "3.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's first LB in Go, 2021 (attributed)."
+  },
+  "L-0096": {
+   "section": "3.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Algorithms it had."
+  },
+  "L-0097": {
+   "section": "3.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "5-6x faster than Nginx, no breakthrough (attributed)."
+  },
+  "L-0098": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Implement everything you see."
+  },
+  "L-0099": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Low level first this cohort, then high level."
+  },
+  "L-0100": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "LB server definition."
+  },
+  "L-0101": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Backend servers definition, black box."
+  },
+  "L-0102": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "LB = VM running a TCP server process. Simplified/low: left as taught."
+  },
+  "L-0103": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "LB at 10.0.0.1 (Fig 3·a)."
+  },
+  "L-0104": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Day zero: single LB machine; scale on day zero is worst."
+  },
+  "L-0105": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Backends any HTTP framework on 8081."
+  },
+  "L-0106": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "IP + port; 10.0.0.7-9 (Fig 3·a)."
+  },
+  "L-0107": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "LB stores backend list = console config."
+  },
+  "L-0108": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Client opens TCP to LB; LB listens on 9000."
+  },
+  "L-0109": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Client only has the LB's address."
+  },
+  "L-0110": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "HTTP over TCP. Simplified/low: left as taught."
+  },
+  "L-0111": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Pick backend by algorithm, random in simplest case."
+  },
+  "L-0112": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Two TCP connections per request. Simplified/low: left as taught."
+  },
+  "L-0113": {
+   "section": "3.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Source->target map; board {tcp1->tcp2, tcp3->tcp4}."
+  },
+  "L-0114": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Source vs target connection terms."
+  },
+  "L-0115": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor's first-principles design, nothing fancy."
+  },
+  "L-0116": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Map in an in-memory hash table; DB useless."
+  },
+  "L-0117": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Forward bluntly. Inline: byte stream not packets."
+  },
+  "L-0118": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Protocol-agnostic. Inline: only protocols over TCP; not ICMP/UDP."
+  },
+  "L-0119": {
+   "section": "3.3",
+   "component": "StepThrough",
+   "also": [],
+   "note": "Backend answers; LB copies back (Fig 3·b)."
+  },
+  "L-0120": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Two lines: that is the whole LB."
+  },
+  "L-0121": {
+   "section": "3.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Second client TCP3->TCP4."
+  },
+  "L-0122": {
+   "section": "4.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "2X connections; 10,000 -> 5,000 clients. Simplified/low: left as taught; A-LBL-14 woven in as a separate sourced sentence."
+  },
+  "L-0123": {
+   "section": "3.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Run all on localhost ports (Fig 3·c)."
+  },
+  "L-0124": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Keep algorithm config; pick per connection."
+  },
+  "L-0125": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Just a mapping; RuleBox section 3 body."
+  },
+  "L-0126": {
+   "section": "3.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "lb.go: 9090, four Flask backends 8081-8084."
+  },
+  "L-0127": {
+   "section": "3.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Accept loop, request ID, proxy()."
+  },
+  "L-0128": {
+   "section": "3.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "GetNextBackend, dial."
+  },
+  "L-0129": {
+   "section": "3.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "copy twice in goroutines."
+  },
+  "L-0130": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "copy blocks; needs its own goroutine."
+  },
+  "L-0131": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Not efficient: unlimited goroutines."
+  },
+  "L-0132": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Five-hour project with networking basics."
+  },
+  "L-0133": {
+   "section": "3.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Strategies; RR (index+1) mod n."
+  },
+  "L-0134": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Consistent hashing strategy; instructor's blog; BackLink/forward Lecture 9."
+  },
+  "L-0135": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Be curious; you may need a lightweight proxy."
+  },
+  "L-0136": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Events channel for exit/add/strategy change."
+  },
+  "L-0137": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: no connection counts, request counts only."
+  },
+  "L-0138": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: closed connection 'raises panic'. Inline: io.Copy returns in Go."
+  },
+  "L-0139": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: no REST between LB and API, raw TCP."
+  },
+  "L-0140": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "copy until EOF."
+  },
+  "L-0141": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Two copies in parallel, one per direction."
+  },
+  "L-0142": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "CDN buildable in an hour; hard to scale."
+  },
+  "L-0143": {
+   "section": "3.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "8",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "CDN in depth next week: Lecture 7."
+  },
+  "L-0144": {
+   "section": "3.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Building vs scaling: RuleBox section 3."
+  },
+  "L-0145": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "LB servers need horizontal scaling; brainstorm also covers internal scaling."
+  },
+  "L-0146": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Four brainstorm factors."
+  },
+  "L-0147": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Config stores IP and port of each backend."
+  },
+  "L-0148": {
+   "section": "4.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Bare minimum config: algorithm + backend list (board block, Fig 4·b)."
+  },
+  "L-0149": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Store it in a DB."
+  },
+  "L-0150": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "LB adds minimal latency; no DB call per request."
+  },
+  "L-0151": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "DB call 3-5 ms. Simplified/low: left as taught."
+  },
+  "L-0152": {
+   "section": "4.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Pull at start, in-memory copy (Fig 4·b)."
+  },
+  "L-0153": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Demo code: in-memory list."
+  },
+  "L-0154": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Copy goes stale when config changes."
+  },
+  "L-0155": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Detect first: health check service."
+  },
+  "L-0156": {
+   "section": "4.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Orchestrator named (Fig 4·c)."
+  },
+  "L-0157": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Up = health endpoint returns 200."
+  },
+  "L-0158": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Idea from class: TCP ping instead (open). Simplified/low: left as taught."
+  },
+  "L-0159": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "VM runs many processes; only the balanced service matters."
+  },
+  "L-0160": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Every HTTP server should expose /health."
+  },
+  "L-0161": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Health endpoint is part of LB config (and Q&A 03:29)."
+  },
+  "L-0162": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "VM up != service up (divide by zero, NPE)."
+  },
+  "L-0163": {
+   "section": "4.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Orchestrator fires continuous HTTP checks, needs 200 (Fig 4·c)."
+  },
+  "L-0164": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Orchestrator updates DB on failure. Simplified/low: left as taught; A-LBL-03 woven in as a separate sourced sentence."
+  },
+  "L-0165": {
+   "section": "4.3",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Same idea as online/offline indicator: BackLink Lecture 1."
+  },
+  "L-0166": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Key problem: DB change to in-memory map."
+  },
+  "L-0167": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Naive: poll the DB."
+  },
+  "L-0168": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Event-based idea."
+  },
+  "L-0169": {
+   "section": "4.4",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "10 s poll, 9 s to dead backend: clip l08-stale-config + Fig 4·d. A-LBL-05."
+  },
+  "L-0170": {
+   "section": "4.4",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Stale copy = error spike; why polling fails."
+  },
+  "L-0171": {
+   "section": "4.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Meta port 9091 push (Fig 4·d, 4·e)."
+  },
+  "L-0172": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Separate LB handler service rejected."
+  },
+  "L-0173": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Changes also from devs via LB console APIs."
+  },
+  "L-0174": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Push is near immediate."
+  },
+  "L-0175": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "No one right answer; trade-off."
+  },
+  "L-0176": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Goal almost zero staleness."
+  },
+  "L-0177": {
+   "section": "4.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Same problem as Slack real-time Pub/Sub: BackLink Lecture 4."
+  },
+  "L-0178": {
+   "section": "4.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Redis Pub/Sub fed via CDC (Fig 4·e). Simplified/low: left as taught."
+  },
+  "L-0179": {
+   "section": "4.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "8",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "CDC sneak peek; in depth Lecture 9."
+  },
+  "L-0180": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Publisher can be orchestrator, console, or DB via CDC."
+  },
+  "L-0181": {
+   "section": "4.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Reactive not polling: RuleBox section 4."
+  },
+  "L-0182": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Two reactive options; LB updates in-memory copy."
+  },
+  "L-0183": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Orchestrator watches LB servers too: health + overload."
+  },
+  "L-0184": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Adds/removes LB servers on CPU."
+  },
+  "L-0185": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Vitals: CPU, memory, network, disk (+ # TCP connections on board)."
+  },
+  "L-0186": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: orchestrator polls each LB; point-in-time not enough."
+  },
+  "L-0187": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Need history."
+  },
+  "L-0188": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Infrastructure-wide trends, stored."
+  },
+  "L-0189": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Not config DB: time series vs key-value."
+  },
+  "L-0190": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "At 100% too late; react at 60-80%."
+  },
+  "L-0191": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Custom heartbeat DB = re-implementing."
+  },
+  "L-0192": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Reuse existing tools; heuristics card."
+  },
+  "L-0193": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "'Connection pooling' as collector dismissed (one clause)."
+  },
+  "L-0194": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "From practice: CloudWatch, manual scaling."
+  },
+  "L-0195": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Telemetry agent definition."
+  },
+  "L-0196": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Don't go into alarms here."
+  },
+  "L-0197": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Prometheus scales amazingly. Simplified/low: left as taught."
+  },
+  "L-0198": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Think org-wide; cost-efficient answer."
+  },
+  "L-0199": {
+   "section": "4.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "One central ingestion place (Fig 4·f)."
+  },
+  "L-0200": {
+   "section": "4.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Agents -> Prometheus -> orchestrator. Inline + A-LBL-08 (pull/scrape)."
+  },
+  "L-0201": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Same as AWS autoscaling policies; BackLink Lecture 2; A-LBL-16."
+  },
+  "L-0202": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Orchestrator scales LB servers itself."
+  },
+  "L-0203": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Recap of the build so far."
+  },
+  "L-0204": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening problem: two LB servers, one address."
+  },
+  "L-0205": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Answer: DNS."
+  },
+  "L-0206": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "DNS entry holds IPs not ports (Fig 5·a)."
+  },
+  "L-0207": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: all LBs public; private LB still needs >1 server."
+  },
+  "L-0208": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "IP fixed to one machine. Inline + A-LBL-11 (VIP, ECMP, Maglev)."
+  },
+  "L-0209": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "One domain per LB, payments.lb.google.com."
+  },
+  "L-0210": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: DNS = public only."
+  },
+  "L-0211": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Advice: SRE team 1.5 years (attributed)."
+  },
+  "L-0212": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Run your own DNS; CoreDNS."
+  },
+  "L-0213": {
+   "section": "5.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Private CoreDNS as every machine's resolver."
+  },
+  "L-0214": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Clouds run many DNS servers like this."
+  },
+  "L-0215": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "DNS picks with RR/weighted. Simplified/low: left as taught; A-LBL-20 woven in as a separate sourced sentence."
+  },
+  "L-0216": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Resolve -> client connects -> LB flow. Simplified/low: left as taught."
+  },
+  "L-0217": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Bottleneck worry (open in class); premise dissolved."
+  },
+  "L-0218": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Correction: DNS doesn't forward; client connects (Fig 5·b)."
+  },
+  "L-0219": {
+   "section": "5.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "DNS is not a proxy: RuleBox section 5."
+  },
+  "L-0220": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Client caches IP. Simplified/low: left as taught."
+  },
+  "L-0221": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Orchestrator adds LB IP to DNS. A-LBL-09."
+  },
+  "L-0222": {
+   "section": "5.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Final design (Fig 5·c)."
+  },
+  "L-0223": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Further reading: φ-accrual failure detection."
+  },
+  "L-0224": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Client can be another microservice."
+  },
+  "L-0225": {
+   "section": "5.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Request path traced on Fig 5·c."
+  },
+  "L-0226": {
+   "section": "5.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Config path traced on Fig 5·c."
+  },
+  "L-0227": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Pub/Sub guarantees delivery. SN-03: at-most-once (wrong/medium), A-LBL-06.",
+   "source_note": "SN-03"
+  },
+  "L-0228": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "In-memory pushed copy, no performance loss."
+  },
+  "L-0229": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Maglev paper reading."
+  },
+  "L-0230": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Pieces floating around are previews of later weeks."
+  },
+  "L-0231": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Dead LB in cached DNS: invalidate and re-ask. Simplified/low: left as taught."
+  },
+  "L-0232": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Toothache analogy."
+  },
+  "L-0233": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Multiple CoreDNS servers."
+  },
+  "L-0234": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "DNS for CoreDNS, base of recursion. Inline: root is 13 identities, ~2,047 instances."
+  },
+  "L-0235": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Traceroute ~21 levels. Simplified/low: left as taught."
+  },
+  "L-0236": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "External users via public DNS. Inline: public recursive resolver."
+  },
+  "L-0237": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Public LB -> public DNS."
+  },
+  "L-0238": {
+   "section": "5.6",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Public DNS updates via proxy layers; seven layers not covered; Maglev."
+  },
+  "L-0239": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "LB balances homogeneous servers; not an API gateway."
+  },
+  "L-0240": {
+   "section": "8",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Intuition over memorizing; won't compromise quality."
+  },
+  "L-0241": {
+   "section": "6.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Lock manager definition (Fig 6·a part 1, D-07)."
+  },
+  "L-0242": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Airline check-in kept lock state in one DB process."
+  },
+  "L-0243": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Threads sync through memory. Simplified/low: left as taught."
+  },
+  "L-0244": {
+   "section": "6.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "apt-get two terminals story (attributed)."
+  },
+  "L-0245": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "dpkg lock file. Inline + A-LDA-16 (fcntl lock)."
+  },
+  "L-0246": {
+   "section": "6.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Threads-memory, processes-disk, machines-network. Simplified/low: left as taught."
+  },
+  "L-0247": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Practical beats theory."
+  },
+  "L-0248": {
+   "section": "6.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Hypothetical unprotected queue (Fig 6·b)."
+  },
+  "L-0249": {
+   "section": "6.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Requirement: one consumer at a time (P7)."
+  },
+  "L-0250": {
+   "section": "6.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Rejected: synchronized block."
+  },
+  "L-0251": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Rejected: lock on queue's server."
+  },
+  "L-0252": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Rejected: gatekeeper layer."
+  },
+  "L-0253": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Rejected: process on queue's machine."
+  },
+  "L-0254": {
+   "section": "6.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "DB as lock manager, key Q7 -> owner."
+  },
+  "L-0255": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Holder removes name; others race."
+  },
+  "L-0256": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Lock manager stores resource + owner."
+  },
+  "L-0257": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Holder dies -> perpetual lock -> TTL."
+  },
+  "L-0258": {
+   "section": "6.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "k-v + atomic + TTL -> Redis. Inline: single-instance lock vs Redlock."
+  },
+  "L-0259": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Must build the protection ourselves."
+  },
+  "L-0260": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "How the store was chosen."
+  },
+  "L-0261": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Acquire, read, release loop (board)."
+  },
+  "L-0262": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis or DynamoDB; Redis in-memory."
+  },
+  "L-0263": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Lock entry queue7:consumer 2, 5 min."
+  },
+  "L-0264": {
+   "section": "6.5",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "SET NX with 300 s. Simplified/low: left as taught; A-LDA-01, A-LDA-02 woven in as a separate sourced sentence."
+  },
+  "L-0265": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "SET NX semantics. Simplified/low: left as taught."
+  },
+  "L-0266": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Every Redis command atomic."
+  },
+  "L-0267": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Spin loop. Simplified/low: left as taught."
+  },
+  "L-0268": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Plain delete is wrong."
+  },
+  "L-0269": {
+   "section": "6.6",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Timeout edge case (Fig 6·d, clip l08-lock-ttl)."
+  },
+  "L-0270": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Never delete a lock that isn't yours."
+  },
+  "L-0271": {
+   "section": "6.6",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Get-then-delete races. A-LDA-04 fencing."
+  },
+  "L-0272": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Edge cases = 'glory'."
+  },
+  "L-0273": {
+   "section": "6.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Atomic release with EVAL/Lua. A-LDA-03 DELEX."
+  },
+  "L-0274": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "After every line something lags."
+  },
+  "L-0275": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Single Redis = SPOF."
+  },
+  "L-0276": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Few companies need distributed locks; Chubby (attributed opinion)."
+  },
+  "L-0277": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Distributed locks exist to remove the SPOF. Simplified/low: left as taught."
+  },
+  "L-0278": {
+   "section": "7.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Five independent Redis (Fig 7·a)."
+  },
+  "L-0279": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Majority rule. Simplified/medium: light inline + A-LDA-05, A-DSC-11."
+  },
+  "L-0280": {
+   "section": "7.2",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Release on failure; retry. Simplified/low: left as taught; A-LDA-06 woven in as a separate sourced sentence."
+  },
+  "L-0281": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Throughput cost. Simplified/low: left as taught; A-LDA-09 woven in as a separate sourced sentence."
+  },
+  "L-0282": {
+   "section": "7.2",
+   "component": "Prose",
+   "also": [],
+   "note": "One node down OK; edge cases remain. Simplified/medium: light inline + A-LDA-08."
+  },
+  "L-0283": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Single node of X made distributed. Simplified/low: left as taught."
+  },
+  "L-0284": {
+   "section": "7.5",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Chubby paper reading."
+  },
+  "L-0285": {
+   "section": "7.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Kleppmann on Redlock."
+  },
+  "L-0286": {
+   "section": "7.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's distributed-transaction videos and blogs."
+  },
+  "L-0287": {
+   "section": "7.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Distributing reduces throughput, buys fault tolerance."
+  },
+  "L-0288": {
+   "section": "7.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Scale vs distribute: RuleBox section 7."
+  },
+  "L-0289": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Idea from class: single-connection network lock."
+  },
+  "L-0290": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Held back because queue was a black box (open)."
+  },
+  "L-0291": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "TCP server accepting one connection. Simplified/low: left as taught."
+  },
+  "L-0292": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Cost argument; 'you need the other parts' (open)."
+  },
+  "L-0293": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Holder death closes connection (open). Simplified/low: left as taught; A-LDA-15 woven in as a separate sourced sentence."
+  },
+  "L-0294": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Not equivalent without side-by-side comparison."
+  },
+  "L-0295": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Fundamental idea; build it in a few hours."
+  },
+  "L-0296": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "MySQL as lock store with TTL. Simplified/low: left as taught; A-LDA-11 woven in as a separate sourced sentence."
+  },
+  "L-0297": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Cron TTL. Simplified/low: left as taught."
+  },
+  "L-0298": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Core properties over the store."
+  },
+  "L-0299": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Lua isn't magic; Redis runs it atomically."
+  },
+  "L-0300": {
+   "section": "6.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Client stays Python; script via EVAL."
+  },
+  "L-0302": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "OCI visibility. Simplified/low: left as taught."
+  },
+  "L-0303": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Real queues guarantee no double delivery. SN-05: at-least-once; A-LDA-13.",
+   "source_note": "SN-05"
+  },
+  "L-0304": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Nothing ties Redis to queue; our consumer code takes the lock."
+  },
+  "L-0305": {
+   "section": "6.8",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.8",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "MongoDB multi-shard transaction locks (Fig 6·e). SN-07.",
+   "source_note": "SN-07"
+  },
+  "L-0306": {
+   "section": "6.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.8",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "MongoDB lock manager; second waits. SN-07: aborts after 5 ms; A-LDA-14.",
+   "source_note": "SN-07"
+  },
+  "L-0307": {
+   "section": "6.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Queue example = distributed transaction. Inline: lock is not a transaction."
+  },
+  "L-0308": {
+   "section": "6.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Nearest shared storage: RuleBox section 6. Simplified/low: left as taught."
+  },
+  "L-0309": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Two distributed systems still share the network."
+  },
+  "L-0310": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "TTL bounds hold time; perpetual-lock risk. Simplified/low: left as taught; A-LDA-10 woven in as a separate sourced sentence."
+  },
+  "L-0311": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Mutex two lines. Simplified/low: left as taught."
+  },
+  "L-0312": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Network is costliest; prefer in-memory signalling."
+  },
+  "L-0313": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Single server: local primitives."
+  },
+  "L-0314": {
+   "section": "7.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Edge case: two holders (Fig 7·b)."
+  },
+  "L-0315": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Not foolproof, minimizes. Simplified/low: left as taught; A-LDA-07 woven in as a separate sourced sentence."
+  },
+  "L-0316": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Converges to C1 on all nodes. SN-08.",
+   "source_note": "SN-08"
+  },
+  "L-0317": {
+   "section": "7.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Cluster-unhealthy option. Simplified/low: left as taught."
+  },
+  "L-0318": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Window 2-3 s. SN-08: window is TTL.",
+   "source_note": "SN-08"
+  },
+  "L-0319": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Holder keeps acquiring. Inline: it doesn't in Redlock."
+  },
+  "L-0320": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Simulate with load + injected delays."
+  },
+  "L-0321": {
+   "section": "7.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Five Redis on 6379-6383."
+  },
+  "L-0322": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Minimized never mitigated; the one line."
+  },
+  "L-0323": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Read papers, implement them, edge cases."
+  },
+  "L-0324": {
+   "section": "8",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Writing own malloc (attributed)."
+  },
+  "L-0325": {
+   "section": "8",
+   "component": "MarginNote",
+   "also": [],
+   "note": "malloc doesn't involve inodes (corrected suggestion)."
+  },
+  "L-0326": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Devil in details; ~180 projects (attributed)."
+  },
+  "L-0327": {
+   "section": "8",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Intrinsic motivation, reads docs before class (attributed)."
+  },
+  "L-0328": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "ZooKeeper does exactly this. SN-06; A-LDA-12.",
+   "source_note": "SN-06"
+  },
+  "L-0329": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "ZooKeeper more guarantees vs Redis persistence. Simplified/low: left as taught."
+  },
+  "L-0330": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Know how ZooKeeper works inside."
+  },
+  "L-0331": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "ZooKeeper replaces Redis Pub/Sub. Simplified/low: left as taught; A-LBL-17 woven in as a separate sourced sentence."
+  },
+  "L-0332": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "ZooKeeper notifications = Pub/Sub. Simplified/low: left as taught."
+  },
+  "L-0333": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Startups avoid ZooKeeper (attributed opinion)."
+  },
+  "L-0334": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Reading many messages depends on queue."
+  },
+  "L-0335": {
+   "section": "6.3",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "8",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Queue internals: own message broker, week 7 (beyond this series)."
+  },
+  "L-0336": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "SQS 10 messages per call."
+  },
+  "L-0337": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "DNS doesn't route by load. Simplified/low: left as taught."
+  },
+  "L-0338": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Active-passive via DNS. A-LBL-10."
+  },
+  "L-0339": {
+   "section": "5.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "DNS is a stupid service (RuleBox body)."
+  },
+  "L-0340": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Sessions via consistent hashing. Simplified/low: left as taught; A-LBL-12 woven in as a separate sourced sentence."
+  },
+  "L-0341": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Consistent hashing is an array in LB memory."
+  },
+  "L-0342": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Don't add boxes; every service is a hop."
+  },
+  "L-0343": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "3-5-10 ms per hop. Simplified/low: left as taught; A-LDA-17 woven in as a separate sourced sentence."
+  },
+  "L-0344": {
+   "section": "5.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Four services, petabytes (attributed)."
+  },
+  "L-0345": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "RR needs one integer, no session service."
+  },
+  "L-0346": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "CoreDNS holds array of LB IPs."
+  },
+  "L-0347": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "CoreDNS has no brain; ~50 lines. A-LBL-20."
+  },
+  "L-0348": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Prometheus vitals vs orchestrator health checks. Optional A-LBL-18."
+  },
+  "L-0349": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Why Redis Pub/Sub; SSE/ZooKeeper/HTTP also work; BackLink Lecture 2."
+  },
+  "L-0350": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Heartbeats = online indicator building block."
+  },
+  "L-0351": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Orchestrator leader-follower, leader election (Fig 5·d)."
+  },
+  "L-0352": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Idle standbys refined to working followers."
+  },
+  "L-0353": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Every component HA. Inline: CoreDNS replicas, no election."
+  },
+  "L-0354": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Leader election automates takeover. A-DSC-12."
+  },
+  "L-0355": {
+   "section": "5.3",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Explore CoreDNS hands-on. Inline: no dedicated HA guide."
+  },
+  "L-0356": {
+   "section": "5.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Design oversimplified; more layers (Fig 5·e)."
+  },
+  "L-0357": {
+   "section": "5.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "payments.google.com -> API gateway -> LB."
+  },
+  "L-0358": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Private CoreDNS between gateway and LB."
+  },
+  "L-0359": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Gateway not the first entry either."
+  },
+  "L-0360": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Student's partition summary, unanswered (open thought)."
+  },
+  "L-0361": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "LB in public DNS possible; in practice private."
+  },
+  "L-0362": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "LBs are reverse proxies."
+  },
+  "L-0363": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "API gateways are powered proxies."
+  },
+  "L-0364": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Auth is business logic. Simplified/low: left as taught; A-LBL-21 woven in as a separate sourced sentence."
+  },
+  "L-0365": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Learn Prometheus from official docs."
+  },
+  "L-0366": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Orchestrator stateless; no state replication."
+  },
+  "L-0367": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "New leader just starts health checks."
+  },
+  "L-0368": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Prometheus read load small."
+  },
+  "L-0369": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Prometheus scales by query servers + replication. SN-04.",
+   "source_note": "SN-04"
+  },
+  "L-0370": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Prometheus uses InfluxDB. SN-04 (wrong/medium); A-LBL-07.",
+   "source_note": "SN-04"
+  },
+  "L-0371": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Backends don't send heartbeats; orchestrator asks."
+  },
+  "L-0372": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Success codes configurable."
+  },
+  "L-0373": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "What /health checks is owner's call. A-LBL-04."
+  },
+  "L-0374": {
+   "section": "4.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Backends don't know orchestrator's IP (P4)."
+  },
+  "L-0375": {
+   "section": "4.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Self-report can lie (hedged)."
+  },
+  "L-0376": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Push heartbeat thread is complex; keep devs' life simple."
+  },
+  "L-0377": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Autoscaling separate service."
+  },
+  "L-0378": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Split depends on orchestrator bulk."
+  },
+  "L-0379": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Orchestrator multi-node, never down."
+  },
+  "L-0380": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Global monitor (Fig 5·d); referent unclear kept."
+  },
+  "L-0381": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Base condition of the recursion."
+  }
+ },
+ "dropped": [
+  {
+   "id": "L-0015",
+   "reason": "Pure logistics: pre-reads come by email and on the platform, not on Discord, and why. No course content."
+  },
+  {
+   "id": "L-0016",
+   "reason": "Pure logistics: this is the instructor's 16th course and the format evolved by experiment. No course content or structure a reader needs."
+  },
+  {
+   "id": "L-0018",
+   "reason": "Pure logistics: sessions are not split into parts (tried in cohorts 7-9). The study advice that does carry over (read in one sitting) is placed via L-0019."
+  },
+  {
+   "id": "L-0020",
+   "reason": "Pure logistics: breaks will be added in two future systems."
+  },
+  {
+   "id": "L-0301",
+   "reason": "Pure logistics: load balancer questions were deferred until the locking questions were done. Every deferred question is placed under its topic in sections 4-5."
+  }
+ ],
+ "source_notes": {
+  "SN-01": [
+   "L-0038"
+  ],
+  "SN-02": [
+   "L-0091"
+  ],
+  "SN-03": [
+   "L-0227"
+  ],
+  "SN-04": [
+   "L-0369",
+   "L-0370"
+  ],
+  "SN-05": [
+   "L-0303"
+  ],
+  "SN-06": [
+   "L-0328"
+  ],
+  "SN-07": [
+   "L-0305",
+   "L-0306"
+  ],
+  "SN-08": [
+   "L-0316",
+   "L-0318"
+  ]
+ },
+ "additions": {
+  "A-DSC-01": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "note": "With L-0084: ALB idle timeout 60 s; send a byte before each idle period."
+  },
+  "A-DSC-02": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "note": "With L-0084: TCP keep-alives default off, interval >= 2 h (RFC 9293)."
+  },
+  "A-DSC-03": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "note": "With L-0085: HTTP/1.1 persistent by default; 1.0 needed keep-alive."
+  },
+  "A-DSC-04": {
+   "section": "2.6",
+   "component": "MarginNote",
+   "note": "With L-0086: gRPC HTTP/2 PING keepalives; server MAX_CONNECTION_IDLE/AGE."
+  },
+  "A-DSC-05": {
+   "section": "2.6",
+   "component": "Prose",
+   "note": "With L-0093: Go net/http cancels request Context on disconnect."
+  },
+  "A-DSC-06": {
+   "section": "2.6",
+   "component": "Prose",
+   "note": "With L-0094: BigQuery cancellation is best effort, may still be billed."
+  },
+  "A-DSC-07": {
+   "section": "2.3",
+   "component": "Prose",
+   "note": "With L-0059: nginx default upstream is weighted round robin, weight default 1."
+  },
+  "A-DSC-08": {
+   "section": "1.3",
+   "component": "SourceNote",
+   "note": "SN-01: RDS Multi-AZ standby is redundancy, not scale-out."
+  },
+  "A-DSC-09": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Optional, used with L-0041: Google SRE measures capacity in CPU, not QPS."
+  },
+  "A-DSC-11": {
+   "section": "7.2",
+   "component": "Prose",
+   "note": "With L-0279/L-0287: a 5-node Raft cluster survives 2 failures; majorities buy fault tolerance."
+  },
+  "A-DSC-12": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "With L-0354: ZooKeeper leader-election recipe (lowest ephemeral sequential znode)."
+  },
+  "A-LBL-01": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "With L-0078: ALB least outstanding requests for requests of varying complexity."
+  },
+  "A-LBL-02": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "With L-0089: nginx least_conn ties broken in weighted round-robin order."
+  },
+  "A-LBL-03": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "With L-0164: ALB marks targets unhealthy, keeps checking, fails open."
+  },
+  "A-LBL-04": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "With L-0373: deep health checks on a shared dependency can fail every server at once."
+  },
+  "A-LBL-05": {
+   "section": "4.4",
+   "component": "Prose",
+   "note": "With L-0169: nginx passive checks (max_fails/fail_timeout) shrink the stale window."
+  },
+  "A-LBL-06": {
+   "section": "4.5",
+   "component": "SourceNote",
+   "note": "SN-03: Redis Pub/Sub at-most-once; Streams at-least-once."
+  },
+  "A-LBL-07": {
+   "section": "4.6",
+   "component": "SourceNote",
+   "note": "SN-04: Prometheus local TSDB, two-hour blocks, remote write."
+  },
+  "A-LBL-08": {
+   "section": "4.6",
+   "component": "Prose",
+   "note": "With L-0200: Prometheus scrapes (pulls); Pushgateway for short jobs."
+  },
+  "A-LBL-09": {
+   "section": "5.2",
+   "component": "Prose",
+   "note": "With L-0221: AWS ELB updates DNS with node IPs, 60 s TTL."
+  },
+  "A-LBL-10": {
+   "section": "5.2",
+   "component": "Prose",
+   "note": "With L-0338: Route 53 weight-0 records answer only when others fail."
+  },
+  "A-LBL-11": {
+   "section": "5.1",
+   "component": "Prose",
+   "note": "With L-0208: Maglev runs many LB machines behind one IP via ECMP."
+  },
+  "A-LBL-12": {
+   "section": "5.7",
+   "component": "Prose",
+   "note": "With L-0340: nginx hash $key consistent (ketama) remaps few keys."
+  },
+  "A-LBL-13": {
+   "section": "2.3",
+   "component": "MarginNote",
+   "note": "Optional, used with L-0065: standard Linux RIs can be modified within a family."
+  },
+  "A-LBL-14": {
+   "section": "4.1",
+   "component": "Prose",
+   "note": "Optional, used with L-0122: Linux ephemeral port range ~28k per backend ip:port."
+  },
+  "A-LBL-15": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "With L-0073: ALB connection multiplexing; open connections != busyness."
+  },
+  "A-LBL-16": {
+   "section": "4.6",
+   "component": "Prose",
+   "note": "With L-0201: EC2 Auto Scaling target tracking manages CloudWatch alarms."
+  },
+  "A-LBL-17": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "With L-0331: ZooKeeper watches one-time; persistent watches since 3.6."
+  },
+  "A-LBL-18": {
+   "section": "4.6",
+   "component": "Prose",
+   "note": "Optional, used with L-0348: Prometheus records up=1/0 per target."
+  },
+  "A-LBL-19": {
+   "section": "2.5",
+   "component": "Prose",
+   "note": "Optional, used with L-0079: gRPC client-side weighted round robin from backend-reported load."
+  },
+  "A-LBL-20": {
+   "section": "5.2",
+   "component": "Prose",
+   "note": "With L-0215/L-0347: CoreDNS loadbalance plugin shuffles record order."
+  },
+  "A-LBL-21": {
+   "section": "5.7",
+   "component": "Prose",
+   "note": "With L-0364: ALB can authenticate users via OIDC/Cognito."
+  },
+  "A-LDA-01": {
+   "section": "6.5",
+   "component": "CodeBlock",
+   "note": "With L-0264: SET q token NX EX 300 in one command, not SETNX + EXPIRE."
+  },
+  "A-LDA-02": {
+   "section": "6.5",
+   "component": "Prose",
+   "note": "With L-0264: token unique per lock request, not the host name."
+  },
+  "A-LDA-03": {
+   "section": "6.6",
+   "component": "Prose",
+   "note": "With L-0273: Redis 8.4 DELEX key IFEQ value replaces the Lua script."
+  },
+  "A-LDA-04": {
+   "section": "6.6",
+   "component": "Prose",
+   "note": "With L-0271: fencing tokens stop an expired holder's writes."
+  },
+  "A-LDA-05": {
+   "section": "7.2",
+   "component": "Prose",
+   "note": "With L-0279: majority AND acquire time < TTL; validity = TTL - elapsed."
+  },
+  "A-LDA-06": {
+   "section": "7.2",
+   "component": "Prose",
+   "note": "With L-0280: unlock all instances; retry after random delay."
+  },
+  "A-LDA-07": {
+   "section": "7.3",
+   "component": "Prose",
+   "note": "With L-0315/L-0317: delayed restarts or fsync=always."
+  },
+  "A-LDA-08": {
+   "section": "7.2",
+   "component": "Prose",
+   "note": "With L-0282: fencing tokens; non-monotonic clock for TTL."
+  },
+  "A-LDA-09": {
+   "section": "7.2",
+   "component": "Prose",
+   "note": "With L-0281: Kleppmann's efficiency vs correctness rule."
+  },
+  "A-LDA-10": {
+   "section": "6.4",
+   "component": "Prose",
+   "note": "With L-0310: extend the lease instead of a long TTL."
+  },
+  "A-LDA-11": {
+   "section": "6.4",
+   "component": "Prose",
+   "note": "With L-0296: MySQL GET_LOCK released when the session ends."
+  },
+  "A-LDA-12": {
+   "section": "6.7",
+   "component": "SourceNote",
+   "note": "SN-06: ZooKeeper lock recipe with ephemeral sequential znodes."
+  },
+  "A-LDA-13": {
+   "section": "6.3",
+   "component": "SourceNote",
+   "note": "SN-05: SQS/RabbitMQ at-least-once; consumers must be idempotent."
+  },
+  "A-LDA-14": {
+   "section": "6.8",
+   "component": "SourceNote",
+   "note": "SN-07: MongoDB transaction lock wait 5 ms then abort."
+  },
+  "A-LDA-15": {
+   "section": "6.7",
+   "component": "Prose",
+   "note": "With L-0293: crashed host leaves the socket open; lease needed."
+  },
+  "A-LDA-16": {
+   "section": "6.2",
+   "component": "Prose",
+   "note": "With L-0245: dpkg fcntl lock released by the kernel on exit."
+  },
+  "A-LDA-17": {
+   "section": "5.7",
+   "component": "Prose",
+   "note": "Optional, used with L-0343: ~0.5 ms in-DC round trip; 3-10 ms is a per-hop budget."
+  }
+ },
+ "additions_not_used": {
+  "A-DSC-10": "usefulness 'drop' (verifier): duplicates A-LDA-03 (DELEX IFEQ), which is used in 6.6."
+ }
+}

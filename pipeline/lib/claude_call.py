@@ -30,6 +30,7 @@ import concurrent.futures as cf
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import threading
@@ -38,10 +39,30 @@ import time
 BASE = ["Read", "Write", "Edit", "Glob", "Grep", "Skill", "TodoWrite",
         "Bash(python3 *)", "Bash(ls *)", "Bash(wc *)", "Bash(head *)", "Bash(tail *)", "Bash(grep *)",
         "Bash(mkdir *)", "Bash(cp *)", "Bash(diff *)", "Bash(sort *)", "Bash(jq *)"]
-TOOLS = {"base": BASE, "web": BASE + ["WebFetch", "WebSearch"], "board": BASE + ["Bash(ffmpeg *)", "Bash(ffprobe *)"]}
+# page stages: site and lab work only through pipeline/bin/site.sh and lab.sh (they take the machine lock)
+SITE = BASE + ["Bash(pipeline/bin/site.sh *)", "Bash(pipeline/bin/lab.sh *)", "Bash(cat *)"]
+TOOLS = {"base": BASE, "web": BASE + ["WebFetch", "WebSearch"], "board": BASE + ["Bash(ffmpeg *)", "Bash(ffprobe *)"],
+         "site": SITE, "site_web": SITE + ["WebFetch", "WebSearch"]}
 RL_RE = re.compile(r"rate.?limit|usage limit|limit reached|429|overloaded|529|resets? (at|in)|too many requests|"
                    r"quota", re.I)
 LOCK = threading.Lock()
+CHILDREN = set()  # running claude processes: terminated with us, so a killed pipeline leaves no orphan agents
+
+
+def _terminate(signum, frame):
+    with LOCK:
+        procs = list(CHILDREN)
+    for p in procs:
+        try:
+            p.terminate()
+        except Exception:
+            pass
+    for p in procs:
+        try:
+            p.wait(timeout=10)
+        except Exception:
+            p.kill()
+    os._exit(128 + signum)
 
 
 def log_line(logdir, row):
@@ -78,7 +99,7 @@ def call_once(job, root, logdir, attempt, prompt):
            "--permission-prompts", "none", "--allowedTools", *TOOLS[job.get("tools", "base")],
            "--disallowedTools", "Agent", "Task", "--add-dir", root,
            "--model", os.environ.get("PIPE_MODEL", "opus"),
-           "--max-turns", os.environ.get("PIPE_MAX_TURNS", "250")]
+           "--max-turns", str(job.get("max_turns") or os.environ.get("PIPE_MAX_TURNS", "250"))]
     if os.environ.get("PIPE_EFFORT"):
         cmd += ["--effort", os.environ["PIPE_EFFORT"]]
     if os.environ.get("PIPE_DRY_RUN"):
@@ -87,7 +108,15 @@ def call_once(job, root, logdir, attempt, prompt):
         return "ok", {}, ""
     t0 = time.time()
     # the prompt goes in on stdin (never as an argv word: a prompt starting with "-" would parse as a flag)
-    r = subprocess.run(cmd, cwd=root, input=prompt, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(cmd, cwd=root, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    with LOCK:
+        CHILDREN.add(proc)
+    try:
+        out, err = proc.communicate(prompt)
+    finally:
+        with LOCK:
+            CHILDREN.discard(proc)
+    r = subprocess.CompletedProcess(cmd, proc.returncode, out, err)
     secs = int(time.time() - t0)
     open(os.path.join(logdir, "%s.a%d.json" % (name, attempt)), "w", encoding="utf-8").write(r.stdout)
     open(os.path.join(logdir, "%s.a%d.stderr" % (name, attempt)), "w", encoding="utf-8").write(r.stderr)
@@ -107,8 +136,9 @@ def call_once(job, root, logdir, attempt, prompt):
 
 
 def run_job(job, root, logdir):
-    """Optional job keys: "sentinel" (path; job skipped if it exists, written on success) and "lock" (a directory
-    claimed with mkdir for the whole job, so two lectures never edit a shared file at the same time)."""
+    """Optional job keys: "sentinel" (path; job skipped if it exists, written on success), "lock" (a directory
+    claimed with mkdir for the whole job, so two lectures never edit a shared file at the same time) and
+    "max_turns" (overrides PIPE_MAX_TURNS for this job)."""
     name = job["name"]
     sentinel = os.path.join(root, job["sentinel"]) if job.get("sentinel") else None
     if sentinel and os.path.exists(sentinel):
@@ -180,7 +210,33 @@ def _run_job(job, root, logdir):
     return False
 
 
+def _orphaned():
+    """True when the pipeline above us was killed: our parent is gone (we were re-parented to init), or our parent is
+    a page-stage script (pipeline/stages/*.sh) whose own parent, run.sh, is gone."""
+    pp = os.getppid()
+    if pp == 1:
+        return True
+    try:
+        out = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(pp)], capture_output=True, text=True).stdout.strip()
+        gpp, cmd = out.split(None, 1)
+        return "pipeline/stages/" in cmd and int(gpp) == 1
+    except Exception:
+        return False
+
+
+def _watchdog():
+    while True:
+        time.sleep(30)
+        if _orphaned():
+            print("[%s] the pipeline that started this batch is gone: stopping its claude calls" % time.strftime("%T"))
+            _terminate(signal.SIGTERM, None)
+
+
 def main():
+    threading.Thread(target=_watchdog, daemon=True).start()
+    signal.signal(signal.SIGTERM, _terminate)
+    signal.signal(signal.SIGINT, _terminate)
+    signal.signal(signal.SIGHUP, _terminate)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("mode", choices=["run", "batch"])
     ap.add_argument("--root", required=True)

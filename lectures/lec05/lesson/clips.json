@@ -1,0 +1,18 @@
+[
+ {"id": "l05-deadlock", "section": "1.5", "title": "Two transactions, two rows, one cycle", "seconds": 26,
+  "ledger": ["L-0025", "L-0026", "L-0028", "L-0031", "L-0032", "L-0033", "L-0096"],
+  "predict": "T1 holds row 2, T2 holds row 1, and each now asks for the other's. What does the database do?",
+  "caption": "One wait is harmless; the second wait in the opposite order closes the cycle. The engine rolls one transaction back (InnoDB picks the smaller one) and your code retries it. Lock rows in the same order and the loop can't form."},
+ {"id": "l05-wait-vs-skip", "section": "2.5", "title": "120 passengers, two queries", "seconds": 36,
+  "ledger": ["L-0112", "L-0113", "L-0115", "L-0121", "L-0122", "L-0154", "L-0155"],
+  "predict": "Same 120 passengers, same seats. One line waits its turn at every seat; the other walks past locked seats. Watch the clocks.",
+  "caption": "FOR UPDATE queues everyone at the same seat and re-checks after every commit; SKIP LOCKED walks past locked seats. Both fill 120/120 correctly: about 1.7 s vs 147 ms in this demo. Time not to scale."},
+ {"id": "l05-expiry-window", "section": "3.7", "title": "Expired, hidden, then gone", "seconds": 32,
+  "ledger": ["L-0201", "L-0221", "L-0222", "L-0236", "L-0258", "L-0259", "L-0263", "L-0202"],
+  "predict": "A key expires at 12:00. The cron runs at 12:07. What does a GET at 12:03 return, and is the row still on disk?",
+  "caption": "Between expiry and the next cleanup run the row is still on disk, so every GET filters it in SQL. Deleting an already-expired key writes nothing; one cleanup query removes expired and deleted rows alike. Keys with no TTL: use a sentinel, not NULL."},
+ {"id": "l05-redis-sampling", "section": "4.2", "title": "Twenty keys at a time", "seconds": 30,
+  "ledger": ["L-0243", "L-0244", "L-0247", "L-0249", "L-0250", "L-0251", "L-0252", "L-0301"],
+  "predict": "A Redis with a million keys, 30% of them expired. How many rounds before the job stops, and what's left?",
+  "caption": "The classic rule: sample 20 keys with a TTL, delete the expired ones, go again while more than 25% were expired. Leftovers are deleted lazily on the next read. Example numbers. Since Redis 6.0: keep going above ~10%, within a time budget."}
+]

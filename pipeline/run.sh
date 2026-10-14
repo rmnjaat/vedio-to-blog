@@ -1,21 +1,22 @@
 #!/bin/bash
-# One lecture video -> checked knowledge base (and later a page). Resumable; see pipeline/README.md.
+# One lecture video -> checked knowledge base -> finished, verified page on the course site. Resumable; see pipeline/README.md.
 #
 #   pipeline/run.sh <id|video> [--from STAGE] [--only STAGE] [--dry-run]
 #   pipeline/run.sh --all [--from STAGE] ...          # every lecture in pipeline/lectures.tsv, one after another
 #   pipeline/run.sh <id> --smoke                      # one tiny claude -p call through the wrapper (no lecture work)
 #
-# Stages (in order): ingest asr diarize merge correct board ledger factcheck teachmap | lesson animate page qa
+# Stages (in order): ingest asr diarize merge correct board ledger factcheck teachmap lesson animate page qa
 # Each finished stage writes lectures/<id>/.done/<stage>; sub-steps write lectures/<id>/.done/<stage>.<step>.
 # A rerun skips everything that has a sentinel. --from STAGE clears the sentinels of STAGE and every later stage
 # (their outputs are kept and fixed/overwritten by the agents). --only STAGE runs just that stage (clearing it).
 # LLM steps go through pipeline/lib/claude_call.py (claude -p on the subscription; logs in lectures/<id>/logs/).
 # Env: PIPE_MODEL (opus) PIPE_EFFORT PIPE_MAX_TURNS (250) PIPE_CORRECT_PARALLEL (4) PIPE_PARALLEL (3)
+#      PIPE_ANIM_PARALLEL (2) PIPE_WRITER_PARALLEL (3) PIPE_EXAM_MIN (0.95)
 #      PIPE_RL_WAIT (900) PIPE_RL_MAX (21600) PIPE_DRY_RUN=1 (print the claude calls, run nothing)
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
-STAGES="ingest asr diarize merge correct board ledger factcheck teachmap"
-PAGE_STAGES="lesson animate page qa"
+STAGES="ingest asr diarize merge correct board ledger factcheck teachmap lesson animate page qa"
+PAGE_STAGES="lesson animate page qa"   # implemented in pipeline/stages/<stage>.sh
 PY=python3
 CC="$PY pipeline/lib/claude_call.py"
 SKC=.claude/skills/hinglish-transcript-correction/scripts
@@ -35,7 +36,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --all) TARGET="--all"; shift;; -h|--help) sed -n 2,16p "$0"; exit 0;;
   *) TARGET="$1"; shift;; esac; done
 [ -n "$TARGET" ] || { sed -n 2,16p "$0"; exit 1; }
-for s in $FROM $ONLY; do case " $STAGES $PAGE_STAGES " in *" $s "*) ;; *) die "unknown stage '$s'";; esac; done
+for s in $FROM $ONLY; do case " $STAGES " in *" $s "*) ;; *) die "unknown stage '$s'";; esac; done
 if [ "$TARGET" = "--all" ]; then
   for id in $(cut -f1 pipeline/lectures.tsv); do
     args=(); [ -n "$FROM" ] && args+=(--from "$FROM"); [ -n "$ONLY" ] && args+=(--only "$ONLY")
@@ -75,7 +76,7 @@ FORCE=" "   # stages to rerun regardless of sentinels (--only / --from)
 clear_stage(){ FORCE="$FORCE$1 "; [ -n "${PIPE_DRY_RUN:-}" ] || rm -f "$DONE/$1" "$DONE/$1".*; }
 if [ -n "$ONLY" ]; then clear_stage "$ONLY"
 elif [ -n "$FROM" ]; then hit=0
-  for s in $STAGES $PAGE_STAGES; do [ "$s" = "$FROM" ] && hit=1; [ $hit -eq 1 ] && clear_stage "$s"; done; fi
+  for s in $STAGES; do [ "$s" = "$FROM" ] && hit=1; [ $hit -eq 1 ] && clear_stage "$s"; done; fi
 
 # json helper: emit a job object (python keeps quoting right)
 job(){ $PY - "$@" <<'EOF'
@@ -242,21 +243,23 @@ stage_teachmap(){
   validate teachmap $PY $SKT/validate_teaching_map.py "$LEC/teaching_map.md" --transcript "$LEC/transcript/transcript.md" --ledger "$LEC/ledger/ledger.jsonl"
 }
 
-# ---------- page stages: hooks (not built yet) ----------
-# To add one: write pipeline/stages/<stage>.sh (receives ID LEC VIDEO LOGDIR DONE; use pipeline/lib/claude_call.py
-# with a prompt in pipeline/prompts/ and a validator, exit non-zero on failure), then add it to STAGES above.
-page_hook(){ local s="$1"
-  if [ -x "pipeline/stages/$s.sh" ]; then ID="$ID" LEC="$LEC" VIDEO="$VIDEO" LOGDIR="$LOGDIR" DONE="$DONE" "pipeline/stages/$s.sh"
-  else say "stage '$s' is not implemented yet (hook: pipeline/stages/$s.sh)"; return 2; fi; }
+# ---------- page stages: pipeline/stages/<stage>.sh (lesson animate page qa) ----------
+# Each receives ID LEC VIDEO LOGDIR DONE, writes its own sub-sentinels (lesson.design, animate.<clip>,
+# page.writer_<w>, qa.blind1, ...) and exits non-zero when a gate fails.
+page_stage(){ local s="$1"
+  [ -x "pipeline/stages/$s.sh" ] || die "missing pipeline/stages/$s.sh"
+  ID="$ID" LEC="$LEC" VIDEO="$VIDEO" LOGDIR="$LOGDIR" DONE="$DONE" "pipeline/stages/$s.sh"; }
+for s in $PAGE_STAGES; do eval "stage_$s(){ page_stage $s; }"; done
 
 # ---------- main loop ----------
 say "start (video $VIDEO; only=${ONLY:-all} from=${FROM:-first pending})"
-for s in $STAGES $PAGE_STAGES; do
+T_START=$(date +%s)
+for s in $STAGES; do
   [ -n "$ONLY" ] && [ "$s" != "$ONLY" ] && continue
-  case " $PAGE_STAGES " in *" $s "*) [ -z "$ONLY" ] && continue; page_hook "$s"; exit $?;; esac
   if done_ "$s" && [ "${FORCE#* $s }" = "$FORCE" ]; then echo "  $s: done ($(cat "$DONE/$s")), skipped"; continue; fi
   say "== stage $s"
+  t0=$(date +%s)
   "stage_$s" || die "stage $s failed"
-  mark "$s"; say "== stage $s done"
+  mark "$s"; say "== stage $s done ($(( ($(date +%s) - t0) / 60 )) min)"
 done
-say "finished: knowledge base in $LEC/ (page stages: lesson animate page qa are hooks, run with --only when built)"
+say "finished ($(( ($(date +%s) - T_START) / 60 )) min): knowledge base in $LEC/, page at site/src/content/lectures/$ID/, QA in $LEC/qa/REPORT.md"

@@ -1,0 +1,848 @@
+[
+ {
+  "id": "Q001",
+  "answer": "The page does not quote a board agenda as such. It gives the class order: (1) relational databases briefly, then the theory of locking (pessimistic locking in particular), (2) a live demo coding an airline check-in system to show how locking changes everything, (3) after a short break, a long build of a (distributed) key-value store on top of a relational database.",
+  "evidence": "Overview 'About this class': 'The day is about relational databases: a brief look at them... most of the time on locking, pessimistic locking in particular. The class ran in this order... first the theory of locking, then a live demo in which an airline check-in system is actually coded... then a short break, then a long build of a key-value store on top of a relational database.'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Whenever a new, revolutionary, foundational technology comes up, its first applications are in finance: money and accounting (society runs on money; nothing magical). Examples: blockchain (introduced 'around 2012' per the teacher, actually 2008 with Bitcoin; first applications around money), relational databases (meant for accounting, hence rows and columns), and early computers whose first ported applications were spreadsheets, then called ledgers.",
+  "evidence": "Ch1 §1.1: 'Whenever a new, revolutionary, foundational technology comes up, its first applications are in finance... Blockchain is his example: introduced around 2012... Relational databases fit the same pattern... accounting'; 'Money first': ledgers; More precisely note: Bitcoin 2008.",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "Because they were built to make financial applications possible and dealt with money: you cannot lose a transaction, whatever you write must be correct and never corrupted, and many people must be able to update the same data. So ACID became a core part of them, and the transaction became the core component of a relational database.",
+  "evidence": "Ch1 §1.1: 'Because they were built to make financial applications possible and dealt with money, relational databases had to give very strong guarantees. That is why ACID became a core part... So the transaction became the core component.'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Data is stored and represented in rows and columns; the key highlight is relations (hence the name): 'you pick relational databases for relations'. They are known as the world's strictest databases (heart and soul of business, backbone of the internet), with strong ACID guarantees.",
+  "evidence": "Ch1 §1.1: 'A relational database stores and represents data in rows and columns, and its key highlight is relations... As the board put it: you pick relational databases for relations'; 'The lecture calls them the world's strictest databases.'",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "Indexes make reads faster and writes slower: every index is one more structure each write has to update.",
+  "evidence": "Ch1 §1.1: 'indexes make reads faster and writes slower. Every index is one more structure each write has to update.'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "Core idea: acquire the lock before you proceed (Database Locking: Pessimistic Locking). Flow: ACQ_LOCK(), then READ and UPDATE (the critical section), then REL_LOCK(); every transaction waits to acquire the lock, and only after the release may another transaction do the same.",
+  "evidence": "Ch1 §1.2: 'its core idea is that you acquire the lock before you proceed'; Fig 1·a: 'ACQ_LOCK(), then READ and UPDATE, then REL_LOCK().'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "count++ is not atomic (read, add, write). Two people clap on the same Medium story at the same moment: both transactions read the same old count and both write back count + 1, so the final value is count + 1, not count + 2: a lost update. Locking protects the sanity (consistency and integrity) of data against concurrent updates. (Note: a single UPDATE ... SET count = count + 1 is itself safe; lost updates come from reading into the app and writing back.)",
+  "evidence": "Ch1 §1.2: 'Take two people clapping on a Medium story at the same moment... Both transactions read the same old count and both write it back plus one, so the final value is count + 1, not the count + 2'; 'To protect the sanity of the data, its consistency and integrity, against concurrent updates.'",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Take a lock where the correctness of the data matters more than throughput (lock before you update); where correctness isn't important, it is fine to skip the lock.",
+  "evidence": "Ch1 §1.2 rule: 'Take a lock where the correctness of the data matters more than throughput. Where it doesn't, skip it.'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "T1 holds row 2 and wants (waits for) a lock on row 1, which T2 holds; T2 holds row 1 and wants row 2, which T1 holds. The waits form a cycle so nobody moves forward, like the OS deadlock. The board labelled it 'Risk: Transactional Deadlock!!' and noted the transaction that detects it is killed.",
+  "evidence": "Ch1 §1.5 and Fig 1·e: 'T1 holds row 2 and wants a lock on row 1, which T2 holds. T2 wants a lock on row 2, which T1 holds. Nobody moves forward.'",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Check whether it can deadlock: arrange your statements and the order in which you acquire and release locks, and if a deadlock is possible, protect against it (in any language). The standard defence is to lock rows in one fixed order, e.g. ascending primary key.",
+  "evidence": "Ch1 §1.5: 'whenever you write code or a SQL query that takes locks, in any language, check whether it can deadlock. Arrange your statements, and the order in which you acquire and release locks... protect against it. The standard defence is a single order'.",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "They don't let a deadlock persist: whenever a lock would make a transaction wait, the database runs a deadlock-detection algorithm (a cycle in the waits-for graph). If granting the lock would create a deadlock, the engine kills the transaction that fired that query, so the cycle-closing edge never forms ('the transaction that detects the deadlock kills itself'). Caveats: InnoDB checks at once and tries to pick the smaller transaction as victim (ERROR 1213, whole txn rolled back); PostgreSQL waits deadlock_timeout (1 s) first and its victim choice is unpredictable; Oracle rolls back one statement of the detecting transaction. Every transaction must be ready to retry.",
+  "evidence": "Ch1 §1.5: 'Whenever a lock would make a transaction wait, the database runs a deadlock detection algorithm'; 'the database engine kills the transaction that fired that query'; More precisely note on InnoDB/PostgreSQL/Oracle.",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "If it entered a deadlock everything would stall and nothing would move forward; the only way out would be to reboot the database, which means downtime. (Short of reboot, a lock-wait timeout, 50 s default, or killing a session also breaks it.)",
+  "evidence": "Ch1 §1.5: 'If a database did enter a deadlock, everything would stall... The only way out would be to reboot the database, which means downtime, so databases never let it happen.'",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "Start two transactions on two rows (e.g. two terminals connected to a local MySQL, SET autocommit = 0, begin a transaction in each) and take locks crosswise: T1 locks row 2, T2 locks row 1, then T1 asks for row 1 and T2 asks for row 2. When that final lock-acquiring query fires, the transaction that fired it is killed.",
+  "evidence": "Ch1 §1.5 'See it yourself' and §1.7 'Try it in two terminals'.",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Shared locks = read locks, taken with SELECT ... FOR SHARE (older MySQL spelling LOCK IN SHARE MODE). Exclusive locks = write locks, taken with SELECT ... FOR UPDATE.",
+  "evidence": "Ch1 §1.3: 'Shared locks are also called read locks; exclusive locks are also called write locks... end it with FOR SHARE'; 'To take an exclusive lock, end the SELECT with FOR UPDATE.'",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "From the page: (1) the holder can read the row; (2) other transactions can read (and share-lock) it too; (3) no other transaction may modify it - the rows are reserved for read by the current transaction; (4) T1 (holder) may read and modify, T2 may only read, and must wait to update until T1 commits or aborts. (Caveat: while both hold shared locks, neither can update; if both try, deadlock.)",
+  "evidence": "Ch1 §1.3: 'A shared lock lets the holder read the row and lets other transactions read it too, but no other transaction may modify it. The board called the rows reserved for read by the current transaction'; 'T1 may read and modify the row; T2 may only read and wait.'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "T1 gets shared locks on rows 1, 2, 6; T2 also gets its shared locks on 3, 4, 6 even though row 6 is already share-locked, so both may read row 6. If T2 tries to update row 6 it waits until T1 commits or aborts. More precisely, T1 can't update row 6 either while T2 shares it; if both try to update, each waits on the other and the DB detects a deadlock and rolls one back.",
+  "evidence": "Ch1 §1.3 and Fig 1·b, plus the More precisely note.",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Very high read throughput for read-only use cases: other transactions can still read the locked rows, while modification is prevented.",
+  "evidence": "Ch1 §1.3: 'Shared locks give very high read throughput for read-only use cases'.",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Its read lock is raised to an exclusive lock implicitly (without you doing anything), and only then does the modification happen. This upgrade is a classic deadlock source: if two transactions both hold the shared lock and both try to update, each waits for the other and InnoDB rolls one back.",
+  "evidence": "Ch1 §1.3: 'its read lock is raised to an exclusive lock implicitly... The upgrade is a classic source of deadlock'.",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "Really strict: other transactions are not even allowed to read the locked rows, let alone modify them; the rows are reserved for write by the current transaction. Any update requires an exclusive lock. (Caveat: under MVCC plain SELECTs still read the last committed version; it blocks modifications and other locking reads, except InnoDB SERIALIZABLE with autocommit off.)",
+  "evidence": "Ch1 §1.3: 'other transactions are not even allowed to read the locked rows, let alone modify them: the rows are reserved for write by the current transaction'; More precisely note.",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "T2's query does not complete; it waits until T1 commits or aborts, because of row 6 alone. If T2 had asked only for rows 3 and 4, its statement would have completed with those rows.",
+  "evidence": "Ch1 §1.3: 'T2's query does not complete. It waits until T1 commits or aborts... Without row 6 in its set, T2's statement would have completed with rows 3 and 4.'",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Exclusive locks severely hurt throughput, but where you need exclusivity you have to use them.",
+  "evidence": "Ch1 §1.3: 'Exclusive locks severely hurt throughput. But where you need exclusivity, you have to use them.'",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "SKIP LOCKED (SELECT ... FOR UPDATE SKIP LOCKED) skips rows locked by another transaction - removes them from the result set - and goes ahead best-effort with the unlocked rows instead of waiting. T2 moves on at once with rows 3 and 4 (row 6 left out).",
+  "evidence": "Ch1 §1.4: 'it removes the locked rows from the result set'; 'T2's query for rows 3, 4 and 6 with SKIP LOCKED moves on at once and gets rows 3 and 4 only.'",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "When you need all the rows (then you must wait, no other option) - e.g. when a user picks a specific seat (BookMyShow 14C) you can't hand them another. It gives an inconsistent view of the data, so it is not for general transactional work; only for queue-like tables where any free row will do.",
+  "evidence": "Ch1 §1.4: 'When you need all the rows, you have to wait; there is no other option'; 'an inconsistent view of the data, so it is not for general transactional work'; §2.6.",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "A NOWAIT locking read does not wait for the lock: if any wanted row is locked by another transaction it fails immediately ('kills itself'). Board error: ERROR 3572: Do not wait for lock (MySQL; only the statement errors there, while in PostgreSQL the whole transaction becomes aborted). After failure it may retry or not, depending on business.",
+  "evidence": "Ch1 §1.4: 'SELECT * FROM t WHERE id = 2 FOR UPDATE NOWAIT; -- ERROR 3572: Do not wait for lock'.",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "So you don't wait for nothing: without it T2 waits for the lock up to the query timeout (10 s in the class example), tying up that thread's share of the database and making the client wait, in a use case that doesn't care if the row is locked. (Real defaults: InnoDB innodb_lock_wait_timeout 50 s; PostgreSQL lock_timeout 0 = forever.) Teacher's image: the transaction has an existential crisis - someone else will process the row - so it kills itself.",
+  "evidence": "Ch1 §1.4: 'Why have NOWAIT at all? So you don't wait for nothing...'",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Don't build the whole system: implement only the core you want to understand (here the database part) as small prototypes, skipping CRUD for everything else and fancy boxes; the goal is understanding database locks.",
+  "evidence": "Ch2 §2.1: 'It does not build the whole airline system. It builds only the part it wants to understand, the database part... implement its core, skip the CRUD for everything else, and keep the prototypes small.'",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Several airlines (Air India, IndiGo, Go Air); each airline has several flights; each flight has 120 seats (deliberate oversimplification); each flight flies many trips; a passenger takes one seat on one trip of one flight. Not a reservation system: everyone already booked and paid, they only pick a seat. All 120 passengers reach 120 kiosks and pick at the same moment.",
+  "evidence": "Ch2 §2.1: 'There are several airlines... each flight has 120 seats (a deliberate oversimplification). Each flight flies many trips...'",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "airlines (id, name); flights (id, airline_id, name) -> airline; trips (id, flight_id, fly_time) -> flight; users (id, name); seats (id, name, trip_id, user_id) -> trip and the user sitting there. Each table points at the one above by id; on a new trip every user_id is NULL; user_id is the only column the demo writes.",
+  "evidence": "Ch2 §2.1, Fig 2·a.",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "Three boxes: a check-in service used by passengers (end-user facing check-ins), a MySQL database, and an admin service run by the airline. The admin service adds flights and trips and keeps them up to date; when a trip opens for booking it creates one seats row per seat with user_id NULL.",
+  "evidence": "Ch2 §2.1, Fig 2·b.",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "All 120 passengers of one flight/trip checking in (picking a seat) at the exact same moment at 120 kiosks.",
+  "evidence": "Ch2 §2.1: 'how will we handle all 120 people on one trip checking in at the same time?'",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "It is not a reservation system - booking and payment are already done; it only does seat picking. It also doesn't build the whole airline system (no frontend, no full backend, no CRUD for everything), only the database part.",
+  "evidence": "Ch2 §2.1: 'It is not a reservation system. Everyone has already booked the flight and paid'; 'It does not build the whole airline system'.",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "The instructor loves Go for its simplicity, elegance and easy concurrency (goroutines are cheap). Any language with concurrency works; without threads you would have to mimic 120 passengers with many processes.",
+  "evidence": "Ch2 'Why Go': 'Any language that supports concurrency works. Without threads you would have to mimic 120 passengers with many processes'.",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Takes a user id, asks which seat to book, and books it: begin txn, SELECT seat by id, UPDATE seats SET user_id=? WHERE id=?, commit ('last one wins'). Zero checks: nothing checks if the seat is already booked, so another user can book the same seat - two people on one seat.",
+  "evidence": "Ch2 §2.2.",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "The system picks a random seat instead of the passenger, with the same unchecked UPDATE ('overriding possible'). It fails because the random pick is from all seats, not just free ones, and a random function can pick the same seat in two calls.",
+  "evidence": "Ch2 §2.2.",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "main spawns one goroutine per passenger, 120, all booking at once (random seat from all seats, transaction, update, commit). Result: random didn't give 120 unique values; seat map mostly empty, far fewer than 120 booked, and 7-E and 12-E were each 'booked' by two passengers.",
+  "evidence": "Ch2 §2.2, Fig 2·c.",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "SELECT id, name, trip_id, user_id FROM seats WHERE trip_id = 1 AND user_id IS NULL ORDER BY id LIMIT 1; then update that seat and commit.",
+  "evidence": "Ch2 §2.3.",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "The transactions are concurrent: they read at the same time, nobody has committed a booking yet, so the database gives all of them the same NULL seat. Without locking, nothing stops them acting on the same old value.",
+  "evidence": "Ch2 §2.3: 'they read at the same time, nobody has booked the seat yet, so the database gives all of them the same NULL seat.'",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "Because of ORDER BY id (with LIMIT 1): every transaction sees seat 1 first, so everyone books the same seat.",
+  "evidence": "Ch2 §2.3: 'Because of ORDER BY id, every transaction sees seat 1 first'.",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "A handful of seats, varying: 3 seats (1, 2, 3), then 4, then 2; filled in seat order; the log printed the same seat repeatedly (1-C, 1-C, 1-C with 1-B and 1-A before). No guarantee how many.",
+  "evidence": "Ch2 §2.3: 'Seats 1, 2 and 3 filled. Run it again: four seats. Again: two.'",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Some goroutine found the first free row, wrote and committed before a later goroutine started its read; that later reader saw user_id no longer NULL, so WHERE user_id IS NULL handed it the next row - the condition moved it on, not the code or the transaction. (Under REPEATABLE READ the snapshot is taken at the first read.)",
+  "evidence": "Ch2 §2.3.",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Only two words added at the end of the SELECT: FOR UPDATE (an exclusive lock on the row returned); the code is otherwise line for line the same.",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Waiting is not deadlock. A deadlock happens when you wait on a row locked by someone who is in turn waiting on a row you hold - it needs a cycle; here transactions merely wait.",
+  "evidence": "Ch2 §2.4 predictions.",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "ACID holds at the level of a transaction; the check-in has concurrent transactions, and how concurrent transactions are scheduled depends on the isolation level (read uncommitted, read committed, repeatable read, serializable). Defaults aren't serializable, so read-then-book can race unless you lock (FOR UPDATE) or use a conditional UPDATE.",
+  "evidence": "Ch1 §1.6.",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "Yes - with serializable the transactions would (as taught) run one after another and you wouldn't face the seat problem, but it's pathetically slow. It isn't used because you need high throughput and parallel writes (why should a user updating row 100 wait for one on row 1); MySQL defaults to REPEATABLE READ, PostgreSQL READ COMMITTED. More precisely serializable doesn't literally queue; you must retry on serialization failures (PG) or deadlocks (InnoDB).",
+  "evidence": "Ch1 §1.6.",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "The engine must treat a range query and a pointed lookup (id = 67) uniformly; a lock on one pointed row would never move to a 'next row', so 'move to the next row' can't be the rule. Instead the engine re-evaluates the statement it is running and locks what now matches (for id=67, nothing).",
+  "evidence": "Ch2 §2.4 'You are the database engineer'.",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "All 120 seats filled on every run (1.25 s, 1.73 s, 1.79 s), in order: 1C, 1D, 1E, 1F, 2A, 2B ... Correct.",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "First transaction gets the lock on the first free row; the others get no row yet - the DB returns a row only once the transaction holds its lock - and wait. When the holder commits/aborts, the engine signals the waiters to re-evaluate the query inside the engine; the row no longer matches user_id IS NULL, so one of the 119 locks the second row and the rest wait again; repeat for third, fourth seat... (PostgreSQL READ COMMITTED behaviour; at REPEATABLE READ waiter errors and retries.)",
+  "evidence": "Ch2 §2.4 Fig 2·e and 'mechanism in words'.",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "No. Whichever transaction gets scheduled first gets the next seat; in the run, seat 1A went to a different user than user 1.",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Slow: in the worst case every waiter re-evaluates after every commit: N(N+1)/2 evaluations inside the DB, 7,260 for 120 - painful for the database (runs ~1.2-1.8 s).",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Add SKIP LOCKED to the approach 4 query (FOR UPDATE SKIP LOCKED). It completed in 147 ms vs about 1.7 s - about ten times faster - and still filled all 120 seats; ~120 evaluations instead of up to 7,260.",
+  "evidence": "Ch2 §2.5.",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "It still takes an exclusive lock, but seeing the row locked it moves straight on to the next row matching the WHERE and locks that for the second transaction (next for the third, etc.); nobody waits. At end of class: it doesn't re-evaluate the query at all - it reads a disk page / B+ tree node of many rows and if the first is locked moves to the next at once.",
+  "evidence": "Ch2 §2.5 and 'What the engine actually reads'.",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "False: relational databases scale beautifully well; they can't handle big data, but at scaling and high QPS they are champions - you just need performance tuning (here just normal SQL constructs). Never believe such a generic statement: you can do partitioning, sharding, everything (e.g. Vitess for YouTube).",
+  "evidence": "Ch2 §2.5 and end of §2.7.",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "0: book requested seat, no checks; 1: random seat, unchecked; 2: random for 120 concurrent goroutines (double-bookings, few seats); 3: first free seat via WHERE user_id IS NULL ORDER BY id LIMIT 1 (2-4 seats); 4: + FOR UPDATE, all 120 correct but slower; 5: + SKIP LOCKED, all 120, ~10x faster. First make sure it fails, then correct with exclusive lock, then SKIP LOCKED for performance - evolving by adding two or three words.",
+  "evidence": "Ch2 §2.5 table and summary.",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "'Fixed inventory + contention = locking.' Fixed inventory is the 120 seats; contention is 120 people trying to book them; to keep it correct you must take locks.",
+  "evidence": "Ch2 §2.7.",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "India's COVID-19 vaccination/appointment portal (CoWIN), IRCTC train booking, BookMyShow movie ticketing, and flash sales.",
+  "evidence": "Ch2 §2.7.",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "With locking (limited slots, e.g. 100 per hospital, everyone jumps at once), though not necessarily pessimistic: maybe optimistic locking or atomic instructions; built on a relational DB it would look exactly like the demo.",
+  "evidence": "Ch2 §2.7.",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "IRCTC: SKIP LOCKED is how you get high throughput; he expects its code base to be full of skip locks (and exclusive locks) - his inference, not seen. BookMyShow: with an exclusive lock whoever gets it moves forward and others wait for that transaction to complete.",
+  "evidence": "Ch2 §2.7.",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "No. Locking happens in the database engine on the CPU side - a mutex simply doesn't let the waiting transaction proceed; built with mutexes, semaphores, sometimes monitors, or atomic instructions (resting on hardware test-and-set/compare-and-swap). Engines differ: InnoDB keeps its lock table in memory, PostgreSQL marks row locks in the row itself (so FOR UPDATE can cause disk writes).",
+  "evidence": "Ch1 §1.7.",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "It's not a SQL lock or a database transaction - it's a 'hold'. Split into phases: a short transaction locks the seat for a moment, sets status HOLD and commits; payment happens outside any transaction; another short transaction sets BOOKED and commits. Never span a transaction across payment (throughput would collapse). Different system, discussed with flash sale later.",
+  "evidence": "Ch2 §2.7 'Hold, not lock', Fig 2·g.",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "No. Use plain SELECT ... FOR UPDATE pinned to that seat (AND id = 67). The losing transaction waits, re-evaluates for the same seat after release, finds it taken and gets no rows - the front end shows 'seat's gone'.",
+  "evidence": "Ch2 §2.6.",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Start a MySQL server, open two terminals, SET autocommit = 0 and begin a transaction in each, take shared and exclusive locks on the same rows from both, and watch one halt while the other moves (also discover deadlocks). No code needed; code out the FOR SHARE-then-update question.",
+  "evidence": "Ch1 §1.7 'Try it in two terminals'.",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "No. Seat 2 is not lost: the next transaction evaluating trip_id = 1 AND user_id IS NULL ORDER BY id matches it again (first, due to ORDER BY). Rows aren't assigned by transaction order; a row is never skipped altogether.",
+  "evidence": "Ch2 §2.5.",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "Dedicate one week to going through MySQL's source code (readable C/C++); read the official documentation (always rules); implement the core yourself.",
+  "evidence": "Ch6 §6.3.",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "N + (N-1) + ... + 1 = N(N+1)/2 evaluations (7,260 for N=120): all waiters re-evaluate after each commit, one succeeds, the rest re-evaluate again, and so on.",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "The isolation level governs it ('whatever the isolation level says, the transaction does'); you can't write FOR UPDATE on an UPDATE. To lock explicitly, run SELECT ... FOR UPDATE first, then the UPDATE. (More precisely, an UPDATE itself takes an exclusive lock on the rows it touches; isolation level decides what a waiter does.)",
+  "evidence": "Ch1 §1.7.",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "There is no explicit unlock: committing (txn.Commit()) - or aborting - the transaction releases all its locks.",
+  "evidence": "Ch1 §1.7: 'There is no explicit unlock. Committing the transaction releases all the locks it holds, and so does aborting it.'",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "The engine signals the waiting transactions when the lock is released (thread signalling): they sit in a wait queue and sleep; no busy loop. Each then re-evaluates the same statement inside the engine.",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Generic statements like 'relational databases don't scale' - you can do partitioning, sharding, everything on them.",
+  "evidence": "Ch2 end of §2.7.",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Don't design it distributed on day zero: build a single-node version first, then think about distribution; no leader election, Paxos or Raft up front. Start simple, scale out one bottleneck at a time.",
+  "evidence": "Ch3 §3.1, Ch5 §5.1.",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Infinitely scalable; four operations: get, put, delete a key, and TTL (automatic per-key expiry). Apache Ignite was named as built this way on a relational DB (page's note: Ignite actually has its own storage; it can front an RDBMS and uses H2 for SQL).",
+  "evidence": "Ch3 §3.1.",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Storage; optimizing the storage; insert and update; TTL (per key).",
+  "evidence": "Ch3 §3.1: 'storage (3.2), optimizing the storage (3.3 and 3.4), insert and update (3.5 and 3.6), and TTL, which is per key (3.7).'",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Key as primary key, VARCHAR(16). The key's type decides which keys the system supports, and once fixed it can't be changed (in MySQL usually a full table rebuild); storage size always matters; short keys also keep the PK and secondary indexes small.",
+  "evidence": "Ch3 §3.2.",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "How users are allowed to access the value (not what it holds). Here only keys are queried, the value is a black box, so a BLOB (or varchar/long text).",
+  "evidence": "Ch3 §3.2.",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "key: PK, VARCHAR(16); value: BLOB; 'id -> { ... }' with 'query inside? then not a blob'.",
+  "evidence": "Ch3 Fig 3·a step 1 labels.",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "A created_at column plus a ttl_sec column, with a background job that deletes keys where now() - created_at >= ttl_sec.",
+  "evidence": "Ch3 §3.3.",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "now() - created_at is a dynamic computation per row, so no index can be used; the DB scans every row every time the job runs.",
+  "evidence": "Ch3 §3.3.",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Store the absolute expiration time expired_at (computed once at write) instead of created_at + TTL, index it, and clean up with DELETE FROM store WHERE expired_at <= now() - a range scan on the index reading only expired rows.",
+  "evidence": "Ch3 §3.3.",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Soft delete with an is_deleted column set to true, and a periodic job DELETE ... WHERE is_deleted = true - requiring two background jobs (expired and soft-deleted).",
+  "evidence": "Ch3 §3.4.",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "As an update: UPDATE store SET expired_at = -1 WHERE key = 'k1' AND expired_at > now(); the batch cleanup job later hard-deletes it.",
+  "evidence": "Ch3 §3.4, §3.7.",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "The single cleanup query (DELETE WHERE expired_at <= now()) matches both expired and user-deleted rows, so one job instead of two, no is_deleted column, minimal load thanks to the expired_at index - saves CPU, disk, reads and storage.",
+  "evidence": "Ch3 §3.4.",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "INSERT INTO store VALUES ('k1', 'v1', e) - key, value and expired_at.",
+  "evidence": "Ch3 §3.5.",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "The key is the primary key and k1 already exists, so the second insert fails.",
+  "evidence": "Ch3 §3.5.",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "Every put becomes a get plus a put; the fetch is pure overhead (network round trip, maybe a large value, a big transaction around both) - slows the system by a massive margin ('pathetic'); also racy: two concurrent puts may both see absent and one INSERT fails.",
+  "evidence": "Ch3 §3.5.",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "Insert if the key doesn't exist, update if it does, in one atomic SQL statement at the DB level, without fetching the key first. Better: avoids a network round trip (2 trips vs 4) and a large transaction; keeps throughput high and load minimal.",
+  "evidence": "Ch3 §3.5.",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "PostgreSQL: INSERT ... ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value ... (the teacher said 'UPSERT', but there's no such keyword). MySQL: INSERT ... ON DUPLICATE KEY UPDATE, or REPLACE INTO (deletes and re-inserts).",
+  "evidence": "Ch3 §3.5.",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "With a large (e.g. 10 MB) value you transfer it to the API server only to discover the key has expired.",
+  "evidence": "Ch3 §3.6.",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "SELECT * FROM store WHERE key = 'k1' AND expired_at > now(); saves network IO/bandwidth on both server and DB and the DB's disk read of a huge value for expired keys. (Catch: NULL expiry for no-TTL keys needs sentinel or IS NULL.)",
+  "evidence": "Ch3 §3.6.",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "A relational database (MySQL), single node first; one table 'store' with columns key, value, ttl (absolute expiration time) and is_deleted for soft delete.",
+  "evidence": "Ch3 §3.2: 'The class's slides give the single-node schema as a table called store with four columns...'",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "Engineers habitually add one, but you don't always need it - add it only if needed; the habit comes from ORMs (makes the ORM's life simple).",
+  "evidence": "Ch3 §3.2.",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Drops the is_deleted column: -1 in the expiration column marks deletion, leaving key, value, expiration (3 columns), saving that column's space and a second job.",
+  "evidence": "Ch3 §3.4.",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "By a periodic batch cron job DELETE FROM store WHERE expired_at <= now(), removing expired and soft-deleted rows together - because pointed deletes are expensive (B+ tree rebalancing per delete); batching minimizes rebalancing. (InnoDB itself delete-marks and purges later.)",
+  "evidence": "Ch3 §3.4, §3.7.",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Key doesn't exist -> insert; key exists -> update (replace value). Use an upsert instead of GET + INSERT/UPDATE.",
+  "evidence": "Ch3 §3.5.",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Use chapter 1's locks or isolation levels - leverage what SQL gives. E.g. BEGIN; SELECT key ... FOR UPDATE NOWAIT (fail at once if another put holds it); UPDATE; COMMIT. NOWAIT picked hypothetically; no right choice between SKIP LOCKED, NOWAIT, waiting - depends on desired guarantees.",
+  "evidence": "Ch3 §3.5 'Two puts on one key'.",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Batch deletion with a cron job: every t minutes (10 in example) a hard delete DELETE FROM store WHERE expired_at < now() runs; between runs expired rows remain on disk, so reads through kv store to MySQL filter with SELECT * ... WHERE key = k AND expired_at > now().",
+  "evidence": "Ch3 §3.7, Fig 3·d.",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Between runs expired keys still exist, so GET adds AND expired_at > now(): the expired value is never returned; it saves network IO on both machines and the disk read of the value.",
+  "evidence": "Ch3 §3.6-3.7.",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "When a key that is read is found expired, delete it on the spot (and report it doesn't exist); never searches for expired keys. Suitable for in-memory databases (Redis), not disk-based ones.",
+  "evidence": "Ch4 §4.1.",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "In memory a delete is just free + removing from hash table (microseconds, no rebalance, no network IO). On disk every per-key delete may require B+ tree rebalancing - pathetically slow, so batch. (InnoDB delete-marks and purges, merges pages below 50%.)",
+  "evidence": "Ch4 §4.1.",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Keys that expire and are never read again would never be deleted, so a periodic job is still needed.",
+  "evidence": "Ch4 §4.1.",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "With millions of expired keys each run would take a long time; lazy deletion already solves ~90%; Redis is single-threaded (main thread) so cleanup time is time not serving; it optimizes speed over completeness.",
+  "evidence": "Ch4 §4.2.",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Sample 20 random keys from those with an expiry; delete the expired ones in the sample; if more than 25% of the 20 were expired/deleted, repeat; once below 25%, stop. (Since Redis 6.0: incremental cursor, batches of 20, continue while >~10% stale, within CPU budget.)",
+  "evidence": "Ch4 §4.2.",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "A random sample of 20 is representative of the population (keys with expiry): if under 25% of the sample is expired, the population has under 25% expired-but-not-deleted keys.",
+  "evidence": "Ch4 §4.2.",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "3/20 = 15% < 25%: Redis deletes those 3 and stops; about 15% of the population remains expired-not-deleted, which is okay - later reads or rounds handle them.",
+  "evidence": "Ch4 §4.2.",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Speed over completeness: accepts some leaked memory (expired keys up to ~25% of TTL keys, statistically ~20-25% worst case; current Redis aims ~10%) to spend minimal time in cleanup, because it's single-threaded and must leave time for get/put/delete.",
+  "evidence": "Ch4 §4.2 'Speed over completeness'.",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Per the instructor, the central limit theorem, with a proof in a paper linked from Redis's site (no public source found; in Redis's code 20 is a tunable constant). Works up to about 5 million keys by his figure.",
+  "evidence": "Ch4 §4.2.",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Add AND expired_at > now() to the user's delete UPDATE: if already expired, no write happens - saves two disk IOs (the row and the expired_at index); the batch job removes it anyway ('heads you win, tails you win'). Found in Apache Ignite's code.",
+  "evidence": "Ch3 §3.7.",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "Delete: UPDATE store SET expired_at = -1 WHERE key = 'k1' AND expired_at > now(); Batch cleanup: DELETE FROM store WHERE expired_at <= now(); Get: SELECT * FROM store WHERE key = 'k1' AND expired_at > now();",
+  "evidence": "Ch3 §3.7.",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Not every key has a TTL; a key without one never expires, so an explicit delete must do something in the DB - the -1 marks it so the cleanup job removes it. Any magic value works (e.g. date before 1970), column type permitting.",
+  "evidence": "Ch3 §3.4.",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "It's adding a cache in front of the store - possible, but not the core transactional database; limited by memory (all keys must fit) and must flush to disk periodically. Such optimizations come later (Lectures 9 and 10).",
+  "evidence": "Ch3 §3.5 'Could you buffer writes in memory?'.",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "When one node can't handle the load - network IO, disk, data size, or query volume. D-08: users -> load balancer -> fleet of KV API servers -> one MySQL; a separate batch cleanup job fires the cleanup query on MySQL.",
+  "evidence": "Ch5 §5.1, Fig 5·a.",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Add more API servers, as long as MySQL can sustain the load. When it can't, check the access pattern from metrics: which queries are fired most (select, update, upsert, delete).",
+  "evidence": "Ch5 §5.1.",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "When reads dominate (e.g. 99 reads per write) and one DB can't keep up, and some staleness is OK. Master: writes/puts, updates, deletes, consistent reads, and the batch cleanup; replica: reads that can be slightly stale (async replication). API servers hold connections to both and pick per request.",
+  "evidence": "Ch5 §5.2, Fig 5·b.",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "First scale it vertically; when you can't, shard the database (by key range).",
+  "evidence": "Ch5 §5.3.",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "Keys split by range: a-m on master 1, n-z on master 2, each owning an exclusive fragment, each with its own replica(s) pulling changes and its own batch cleanup; KV API servers behind the LB hold connections to all masters/replicas and the routing table.",
+  "evidence": "Ch5 §5.3, Fig 5·c.",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "The KV API servers. 'Google' (g in a-m) -> master 1; 'Zomato' (z in n-z) -> master 2.",
+  "evidence": "Ch5 §5.3.",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Very few real use cases need dynamic shard add/remove; changing shard count is a one-time activity (~once a quarter) done explicitly; ~90% of sharded databases work like this. Add a node and split into three ranges when needed.",
+  "evidence": "Ch5 §5.3.",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "Locally: two MySQL servers, one API server connecting to both, write the routing logic, expose an HTTP endpoint; stretch: a local replica (binlog/WAL replication), route critical reads to master. No cleanup job, no cloud.",
+  "evidence": "Ch5 §5.5.",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "The user delete soft-deletes only keys not yet expired (no need to write an already-expired row, saving disk IO); the batch cleanup is a separate job hard-deleting everything already expired (including -1 rows). Do disk IO only when needed.",
+  "evidence": "Ch3 §3.7.",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "The clause doesn't match, so the UPDATE writes nothing - no disk IO on row or index; the next cron batch removes the row.",
+  "evidence": "Ch3 §3.7.",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Unpartitioned, it inherits MySQL's ACID. Once partitioned, no ACID across partitions (needs distributed transactions, which cost much performance and typically aren't used); ACID still holds when all keys touched are on the same shard.",
+  "evidence": "Ch5 §5.4.",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "Mock only what matters: run the databases (e.g. two MySQL / one DB + one replica) locally with your app; no autoscaling, no cloud, no rewriting CRUD.",
+  "evidence": "Ch5 §5.5.",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Expired keys - the keys deleted from the sample are exactly the expired ones in it; measured on the sample of 20 keys with an expiry, not against a database-wide count (Redis doesn't keep one).",
+  "evidence": "Ch4 §4.2.",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "Picking 20 random rows costs 20 random disk IOs (pages from anywhere), very slow; on disk it's better to skim through/walk the expired_at index and batch-delete.",
+  "evidence": "Ch4 §4.2 'Not for disk'.",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "Autocommit = true commits a standalone statement as soon as it runs; inside an explicit BEGIN ... COMMIT the commit comes at the end - so wrap SELECT ... FOR UPDATE and the UPDATE in an explicit transaction, and then the locks behave the same whether autocommit is on or off.",
+  "evidence": "Ch1 §1.7: 'Autocommit = true means a standalone SQL statement is committed on its own... Inside an explicit BEGIN … COMMIT transaction, the commit comes at the end. So FOR UPDATE locks behave as shown here whether autocommit is on or off.'",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "No - they are evaluations done inside the database, not queries fired by the application.",
+  "evidence": "Ch2 §2.4.",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "No queue forms: each transaction's query passes locked rows and takes the next free one, once per passenger (~120). At end of class: SKIP LOCKED doesn't re-evaluate at all; the DB reads a whole disk page/B+ tree node holding many rows and moves to the next row immediately if one is locked; LIMIT applied at the last step.",
+  "evidence": "Ch2 §2.5 and 'What the engine actually reads'.",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "At the last step, when results are accumulated and filtered, not before the disk read. (More precisely: with index order MySQL can stop early; with filesort all matching rows are selected and sorted first; OFFSET rows are still computed.)",
+  "evidence": "Ch2 §2.5.",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Don't always generate optimal queries, bad at advanced SQL (N+1); take control away (poor stored-procedure support); select all columns, and explicit projections make code unreadable; built for the general case so DB-specific constructs unsupported; suck at connection pooling; Django prefetch_related and Hibernate an 'utter mess'; complex joins unreadable.",
+  "evidence": "Ch6 §6.1.",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "For startups / mid-scale: they increase shipping velocity, over-optimizing slows you down, and you can't rely on everyone's hand-written queries. He uses them daily; at high scale he wouldn't.",
+  "evidence": "Ch6 §6.1.",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "Yes - got a '100%': write native SQL inside the ORM for bigger/complex queries (e.g. 10-15 table joins with aggregations are readable in SQL).",
+  "evidence": "Ch6 §6.1.",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "Readability: Java abused with abstraction (bean/dynamic/singleton injection), zero readability, a labyrinth; he likes top-to-bottom code (C++, Go, Python). Go's concurrency better than Java's, minimal GC time; JVM takes ~200 MB to start (FizzBuzz Enterprise Edition example).",
+  "evidence": "Ch6 §6.2.",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "Languages start fresh, get messy over two decades, people move to something new (JavaScript -> TypeScript, which will get messy too; same will happen to Go and Rust): a language either dies a hero or lives long enough to become an enterprise version of code.",
+  "evidence": "Ch6 §6.2.",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "It shrinks the reply (no big value back) but still costs a network round trip: 4 trips vs 2 for an upsert, and the network is where most time goes.",
+  "evidence": "Ch3 §3.5 'Counting the trips'.",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "A transaction waited longer than the set timeout for the lock holder to commit or abort. Two usual reasons: the holder genuinely does long processing (raise the timeout), or processing finished but code forgot to commit/abort. MySQL rolls back only the waiting statement; code should roll back or retry.",
+  "evidence": "Ch1 §1.4 'Lock wait timeout exceeded'.",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "Per the lecture, each delete may put the B+ tree out of shape and force an expensive rebalance - pointed deletes are very expensive, so databases soft-delete and clean up in batches. (InnoDB actually delete-marks and purges later.)",
+  "evidence": "Ch3 §3.4 'Why not hard-delete right away?'.",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "Calling free is very lightweight (microseconds, no B+ tree); delegating may cost more than deleting there; and deleting now frees memory now, so inserts aren't turned away at full capacity.",
+  "evidence": "Ch4 §4.1 'Why not hand it to a cron job?'.",
+  "found": true
+ },
+ {
+  "id": "Q136",
+  "answer": "The server doesn't know the user's IP address unless the user opens the connection; a TCP connection needs the machine's IP. The user knows the server's address, so the user pushes to the server.",
+  "evidence": "Ch6 'Back to the green dot'.",
+  "found": true
+ },
+ {
+  "id": "Q137",
+  "answer": "It uses a WebSocket: if the connection exists the user is online, when it terminates offline, so no explicit heartbeat calls. (Liveness still uses protocol-level Ping/Pong or TCP keepalive.)",
+  "evidence": "Ch6 'Back to the green dot'.",
+  "found": true
+ },
+ {
+  "id": "Q138",
+  "answer": "No: Redis (in-memory) definitely not, DynamoDB not on a relational DB; Apache Ignite's code is very similar (though the page notes Ignite has its own storage). The RDBMS is a teaching vehicle; a persistent KV store differs only in its storage layer.",
+  "evidence": "Ch3 §3.1 'Is this how real KV stores are built?'.",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "On purpose: write it yourself, because making the mistakes (deadlocks, low throughput) is how you learn.",
+  "evidence": "Ch5 'No code to copy'.",
+  "found": true
+ },
+ {
+  "id": "Q140",
+  "answer": "A database is a fundamental layer: it gives building blocks (FOR UPDATE, FOR SHARE, SKIP LOCKED, NOWAIT) and stays out of the user's space; built-in soft delete would need its own batch cleanup and burden developers with questions; know what you don't want to do.",
+  "evidence": "Ch3 §3.4 'Why don't databases ship soft delete?'.",
+  "found": true
+ },
+ {
+  "id": "Q141",
+  "answer": "No. No frontend needed: expose a few APIs, do short and long polling, spin up Kafka (or RabbitMQ) and produce/consume messages.",
+  "evidence": "Ch5 §5.5.",
+  "found": true
+ }
+]

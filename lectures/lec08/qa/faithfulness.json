@@ -1,0 +1,157 @@
+{
+ "lecture": "lec08",
+ "coverage": {
+  "lec08.mdx (frontmatter, chapter summaries)": "1/1",
+  "s0-header": "7/7",
+  "s1-approach": "40/40",
+  "s2-algorithms": "86/86",
+  "s3-one-laptop": "64/64",
+  "s4a-control-plane": "34/34",
+  "s4b-control-plane": "65/65",
+  "s5a-dns": "41/41",
+  "s5b-design": "45/45",
+  "s6a-remote-locks": "47/47",
+  "s6b-remote-locks": "56/56",
+  "s7-distributed-locks": "54/54",
+  "s8-keep": "30/30",
+  "sourcenotes": "8/8",
+  "inline clarifications": "20/20",
+  "unverifiable attributions": "17/17",
+  "figures": "36/36",
+  "clips": "4/4"
+ },
+ "issues": [
+  {
+   "id": "F-001",
+   "severity": "medium",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec08/s5a-dns.mdx",
+   "line": 102,
+   "quote": "It might seem the site is unavailable to that client until the TTL expires. It isn’t: the client doesn’t wait for the TTL. When it can’t connect, it immediately invalidates its cache and asks CoreDNS again",
+   "problem": "The teacher answered with a design choice in the first person, after a hedge (\"Okay, I was not aware of this\"; \"I would explicitly invalidate my cache and make a call to CoreDNS\"). The page turns it into a statement of how clients behave in general. The L-0231 fact-check nuance (left as taught) says real clients usually try the other addresses from the same answer first, and a fresh query can still return the cached answer from an intermediate resolver until the TTL ends. The same universal claim is in Fig 5·b step 5 (line 92), the s5b TradeoffTable 'If it dies' cell for the LB server (s5b-design.mdx:133) and the recall answer at s5b-design.mdx:149.",
+   "evidence": "transcript 01:55:00 'So if you see that ... the IP address that I'm trying to connect is not there, I would explicitly invalidate my cache and make a call to CoreDNS'; L-0231 (student question, teacher's answer); factcheck_applied §3 row L-0231",
+   "fix": "Line 102: \"It need not be. The class's answer was to build the client so it doesn't wait for the TTL: when it can't connect, it invalidates its cached entry at once and asks CoreDNS again, which gives it another IP address. That is a reactive approach. [[L-0231]] (In practice, many client stacks first try the other addresses from the same DNS answer, and a fresh query can still hit an intermediate resolver's cached answer until the TTL ends.)\" Step 5: \"If that LB server is dead, a client built this way doesn't wait out the TTL: its connect fails, it asks DNS again, and it connects to 10.0.0.2.\" Recall answer: start with \"In the class's design, when the connect fails…\"."
+  },
+  {
+   "id": "F-002",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec08/s1-approach.mdx",
+   "line": 117,
+   "quote": "The database here is one machine: a bottleneck if it can’t keep up, a single point of failure only without a standby (dashed).",
+   "problem": "The SourceNote for L-0038 sits correctly after the teacher's sentence, but Fig 1·b (its caption and labels 'bottleneck if it can’t keep up' / 'SPOF if it also has no standby' / '+ standby = no SPOF, still no scale-out', s1-approach.tsx:121-123) and the second recall question (line 142) state only the corrected version. The teacher's own point (a non-scalable layer is a single point of failure) does not appear in the figure, and the recall question tests the reader against the teacher's sentence.",
+   "evidence": "L-0038 (00:15:14 'If it is not, then that is a single point of failure'); factcheck_applied SN-01 ('Teacher's point (kept)')",
+   "fix": "Caption: \"The class called any layer that can't scale out a single point of failure [[L-0038]]. More precisely (see the note): one machine is a bottleneck if it can't keep up, and a single point of failure only without a standby (dashed)…\". Recall q: \"The class said a layer that can't scale out is a single point of failure. What does the fact-check add?\""
+  },
+  {
+   "id": "F-003",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec08/s2-algorithms.mdx",
+   "line": 44,
+   "quote": "Yet it is a piece of code someone wrote: hundreds of engineers wrote AWS’s load balancers, and hundreds more install them.",
+   "problem": "L-0046 is unverifiable, and the policy says to present it as the instructor's observation. The page states the head counts as fact.",
+   "evidence": "factcheck_applied §4 row L-0046; transcript 00:17:53 'There are hundreds of engineers who have written AWS load balancers. There are hundreds of infrastructure folks who are installing those'",
+   "fix": "\"Yet, as the instructor put it, it is a piece of code someone wrote: hundreds of engineers wrote AWS’s load balancers, and hundreds more install them. [[L-0046]]\""
+  },
+  {
+   "id": "F-004",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec08/s2-algorithms.mdx",
+   "line": 46,
+   "quote": "the instructor has changed load balancing algorithms in production to get performance.",
+   "problem": "\"In production\" is added. The teacher said only that they had changed algorithms to get performance. The ledger has \"in practice\", and the item is unverifiable.",
+   "evidence": "L-0045; transcript 00:17:53 'I've changed load balancing algorithm by like in order to get performance.'",
+   "fix": "\"…the instructor has changed load balancing algorithms in practice to get performance. [[L-0045]]\""
+  },
+  {
+   "id": "F-005",
+   "severity": "low",
+   "kind": "voice",
+   "file": "site/src/content/lectures/lec08/s2-algorithms.mdx",
+   "line": 192,
+   "quote": "And when two servers tie for the fewest connections, the load balancer just picks one of them at random. [[L-0089]]",
+   "problem": "The words 'pick one at random' sit inside Student 3's turn. The ledger reads them as the teacher interjecting, but notes that this is uncertain. The page states the tie-break as settled class content, and repeats it in Fig 2·d step 4 (line 164, 'the tie is broken at random') and the figure label 'tie → pick one'. It is low risk because the fact-check rates it simplified/low and fine.",
+   "evidence": "L-0089 detail ('the words sit inside the student's turn, apparently the teacher interjecting'); transcript 00:35:45 Student 3 '...So pick one at random. What's the problem? It's random...'",
+   "fix": "\"And when two servers tie for the fewest connections, the answer in class was to pick one of them at random. [[L-0089]]\""
+  },
+  {
+   "id": "F-006",
+   "severity": "low",
+   "kind": "voice",
+   "file": "site/src/content/lectures/lec08/s2-algorithms.mdx",
+   "line": 246,
+   "quote": "“How can one HTTP request take an hour?” was asked in class.",
+   "problem": "This is the 'asked in class' framing of a student's question that the voice rule avoids. It also opens the section with a classroom report instead of the question itself.",
+   "evidence": "L-0084 detail (student question, 00:34:19)",
+   "fix": "\"How can one HTTP request take an hour?\""
+  },
+  {
+   "id": "F-007",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec08/s2-algorithms.mdx",
+   "line": 217,
+   "quote": "'Any; the counts adapt' … 'Uniform per unit of capacity'",
+   "problem": "Two TradeoffTable cells were never taught and have no source: least connections suits 'Any' infrastructure (line 217), and weighted round robin suits load that is 'Uniform per unit of capacity' (line 218). The class tied least connections only to high response-time variance and weighted round robin only to non-uniform infrastructure. The row k tags (L-0055 L-0062 / L-0055 L-0078) don't carry these claims.",
+   "evidence": "L-0055, L-0062, L-0078; transcript 00:21:32-00:31:23",
+   "fix": "Least connections / infrastructure: \"Not discussed in class\". Weighted round robin / load: \"Not discussed in class (the class's example assumed uniform load)\"."
+  },
+  {
+   "id": "F-008",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec08/s7-distributed-locks.mdx",
+   "line": 110,
+   "quote": "The line pointed at on the board was the failure branch of acquire: if you didn’t get a majority, release the lock on the instances you did acquire. [[L-0322]]",
+   "problem": "At 02:55:38 the teacher did not name 'the one line people miss'. The ledger says it is not named there. The page states which line it was as fact by joining it to the 'Look carefully. This line.' moment at 02:51:06. That reading is likely, but it is an inference. s8-keep.mdx:45 repeats it.",
+   "evidence": "L-0322 detail ('The line is not named here; at 02:51:06 the teacher pointed at \"this line\" before explaining that a client that fails to get the majority releases its locks')",
+   "fix": "\"The line was not named at that moment; most likely it is the one pointed at earlier in the same answer, the failure branch of acquire: if you didn’t get a majority, release the lock on the instances you did acquire. [[L-0322 L-0280]]\""
+  },
+  {
+   "id": "F-009",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec08/s0-header.mdx",
+   "line": 27,
+   "quote": "In Lecture 2 Medium’s API servers scaled out behind one, and it was one of the places a response could be cached, with a TTL; how it works inside was put off to this week.",
+   "problem": "The 'so far' recap is untagged by design. Its earlier-lecture facts are not in this lecture's ledger or transcript (the LB as a cache location, 'put off to this week'). Three of its links do have ledger support and could be tagged: heartbeats → L-0165/L-0350, the airline row locks → L-0014, Slack Pub/Sub → L-0177.",
+   "evidence": "s0-header comment ('The \"so far\" block is untagged'); L-0014, L-0165, L-0177, L-0350",
+   "fix": "Add [[L-0165 L-0350]], [[L-0014]] and [[L-0177]] after the matching sentences, and either link Lecture 2's page for the cache/'put off' claim or cut it to \"In Lecture 2 Medium’s API servers scaled out behind one.\""
+  },
+  {
+   "id": "F-010",
+   "severity": "low",
+   "kind": "voice",
+   "file": "site/src/content/lectures/lec08/s6a-remote-locks.mdx",
+   "line": 131,
+   "quote": "Some real queues, such as Oracle Cloud’s (OCI) queue, hide a message from the other consumers as soon as one consumer receives it.",
+   "problem": "A student raised the OCI example (L-0302 speaker is student/question). The page states it as class content. It is correct (factcheck: the student's description is right), but the fact-check adds that this is not specific to OCI: SQS does the same, with a 30 s default visibility timeout. The page leaves that out here and only alludes to it through the ForwardChip.",
+   "evidence": "L-0302 (student question, 02:40:45); factcheck_applied §3 row L-0302",
+   "fix": "\"Some real queues hide a message from the other consumers as soon as one consumer receives it; OCI's queue was the example raised in class, and SQS works the same way (a visibility timeout, 30 s by default). That is not part of this example. [[L-0302]]\""
+  },
+  {
+   "id": "F-011",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec08/s5b-design.mdx",
+   "line": 133,
+   "quote": "'The orchestrator has no fresh vitals to scale on'",
+   "problem": "The TradeoffTable 'If it dies' cell for Prometheus was not taught and has no source. The class discussed only Prometheus's capacity and scaling (L-0368, L-0369), not its failure. The row's k (L-0231 L-0351 L-0226) doesn't cover it.",
+   "evidence": "L-0368, L-0369; no ledger item on Prometheus failure",
+   "fix": "\"Not discussed in class\", or mark it as the page's own inference: \"(page's note) the orchestrator loses fresh vitals to scale on\"."
+  },
+  {
+   "id": "F-012",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec08/s7-distributed-locks.mdx",
+   "line": 72,
+   "quote": "Redis’s own Redlock page lists more of them: process pauses, clock jumps and fast restarts can still produce two holders … (redis.io)",
+   "problem": "The L-0282 inline treatment lists two sources: the Redis distributed-locks page and Kleppmann's post. The fencing-token sentence cites only redis.io. Kleppmann is cited two paragraphs earlier, for L-0281, not for this clarification.",
+   "evidence": "factcheck_applied §2 row L-0282 (sources redis.io · martin.kleppmann.com)",
+   "fix": "End the sentence with \"(<Cite href=\\\"https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/\\\">redis.io</Cite>, <Cite href=\\\"https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html\\\">Kleppmann</Cite>)\"."
+  }
+ ]
+}

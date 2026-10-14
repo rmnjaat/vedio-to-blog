@@ -1,0 +1,113 @@
+# Storyboard — clip l04-connection-pool (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l04-connection-pool
+title: Where a heartbeat's time goes
+lecture: 1          # course position 01 (folder lec04)
+section: "4.3 Keep the connections open"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  A repeated protocol and what it adds up to. One write with five trips is a static sequence (Fig 4·b); the
+  waste only shows when the same open/close overhead repeats write after write while the real work stays one
+  request and one reply, the time bar piles up mostly hollow, and the database's new-connection counter climbs
+  in one lane and stays at 0 in the other.
+static_twin: "Fig 4·c (D-11: server, three pre-established lines, db) for the pool lane; StepThrough Fig 4·b (five trips) for the no-pool lane; board b_010530.jpg, b_012230.jpg"
+ledger:
+  taught:
+    - L-0109  # three-way handshake + two-way teardown: five network trips for every call
+    - L-0111  # a micro update: the database does the bare minimum; the time goes into connecting
+    - L-0112  # pooling: don't shut the connection down, keep a bunch open and reuse them
+    - L-0113  # three connections created on startup, kept handy; any query uses a free one
+    - L-0114  # pick a free connection, mark it busy, fire the query: one request, one response
+    - L-0115  # two benefits: faster API call, less load on the database, same number of queries
+    - L-0116  # opening a connection is work for the database itself (counter on the db side)
+    - L-0103  # 6 million requests a minute (B5 "six million times a minute")
+  context_only:
+    - L-0108  # heartbeat POST in; the API server opens a second TCP connection to the db
+    - L-0129  # the gain is huge because each update is one row by primary key
+    - L-0131  # with micro updates a pool is "always a great option"
+fidelity_notes:
+  - "Five trips (SYN, SYN-ACK, ACK; FIN, FIN/ACK) is the lecture's count (L-0109) and is drawn exactly that way. Fact-check L-0109/L-0111 (inline): a real connect also runs the database login (and TLS if used); the setup label says 'open + close: 5 trips' followed by '(+ db login)' so the clip never claims the cost is TCP only. No login trip is drawn, so the teacher's count stays as taught."
+  - "Trip names SYN / SYN-ACK / ACK / FIN / FIN/ACK are the standard TCP names (RFC 9293), the same ones Fig 4·b uses; the lecture says 'three-way handshake ... two-way teardown'."
+  - "No millisecond values anywhere (the lecture gives none). Every trip is one equal segment of the time bar: bar lengths are illustrative, labelled on screen 'time, not to scale'. The predict line's '1 ms' stays on the page, not in the clip."
+  - "Writes run back to back in both lanes, one at a time. In the pool lane they rotate over lines 1, 2, 3, 1, 2 to show 'any free one' (L-0113); a real pool may hand out the same line each time."
+  - "The db counter counts new connections the database had to accept (L-0116: the database reads the handshake packets). Pool lane: 0 new during the clip; its 3 were opened at startup (L-0113, labelled 'pre-established / at startup', the board's words)."
+  - "B5's '6M new connections/min' is derived: 6 million writes a minute (L-0103) × one new connection per write without a pool (L-0108, L-0109). The pool lane says 'same 3, reused', not '0 new', because pools can stretch under load (4.5, not shown here)."
+  - "Not claimed: memory savings (L-0117 and its inline note stay in prose), pool sizing / min / max / stretch (4.5), where the pool lives (4.4), any database product."
+additions:
+  - {fact: "TCP segment names SYN, SYN-ACK, ACK, FIN", source_url: "https://www.rfc-editor.org/rfc/rfc9293.html", checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 920, note: "same two lanes stacked, narrower: api box 100 wide, db at x 380, bars 18 px per trip from x 24; 'pre-established / at startup' right of the db; counters right-aligned on the lane title rows; 30 px lettering, 32 px captions"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1180   # 39.3 s; 78.7 s at 0.5x
+start_frame_equals: "two lanes, each an api box and a db cylinder: top 'no pool' with a dashed 38% line (no connection open), bottom 'pool of 3' with three solid lines (Fig 4·c); both counters 'new connections: 0'; empty time axes; 'time, not to scale'"
+poster_frame: 1179
+reduced_motion_stills: [82, 356, 642, 906, 1018, 1179]   # 8 f before each next beat: the caption is fully up (its cross-fade starts at next - 6)
+glyphs:
+  lanes: {count: 2, wide_offset_y: [0, 318], phone_offset_y: [0, 372]}
+  api: {shape: server-box, label: "api (mono)", pos_wide: [40, 66, 140, 92], pos_phone: [24, 112, 100, 84]}
+  db: {shape: cylinder-solid, label: "db (mono)", wide: {cx: 730, rx: 56, top: 74, h: 74}, phone: {cx: 380, rx: 40, top: 118, h: 64}}
+  lane1_connection: {route: "api → db", style: "dashed 38% when closed; solid graphite while open; no arrowhead (a connection, not a message)"}
+  lane2_connections: {count: 3, route: "api → db", style: "solid graphite, always open; re-inked blue while busy", y_wide: [88, 112, 136]}
+  packets: {shape: dot r10 (r8 phone), colours: "graphite setup/teardown, blue UPDATE, green OK", direction: "→ api to db, ← db to api"}
+  trip_slot: {pos: "above the lane-1 line, centred", text: ["SYN →", "← SYN-ACK", "ACK →", "UPDATE →", "← OK", "FIN →", "← FIN/ACK", "closed", "write 2..5"], font: mono}
+  time_bar: {pos: "under each lane, from x 40 (24 phone)", segment: "one per trip, 28 px wide (18 phone), 8 px gap between writes", style: "hollow graphite = open/close trip, filled blue = UPDATE, filled green = OK"}
+  counters: {pos: "lane title row, right-aligned", text: ["new connections: N", "6M new connections/min", "same 3, reused"]}
+  done_marks: {shape: "green ✓ + 'all 5 done'", pos: "lane 1 below its bar end; lane 2 right of its bar end"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "Five writes. Top: no pool. Bottom: a pool of three."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0113]
+  - id: B1
+    step: 1
+    from: 90
+    to: 364
+    caption: "Five trips to open and close; one request and one reply do the work."
+    events:
+      - {at: 100, dur: 166, what: "write 1, seven trips of 24 f: SYN → (pen draws the line solid), ← SYN-ACK, ACK → (counter 0→1), UPDATE → (line re-inked blue), ← OK (green), FIN →, ← FIN/ACK; slot label names each trip; one bar segment grows per trip", colour: blue}
+      - {at: 266, dur: 14, what: "line fades back to dashed; slot 'closed'"}
+      - {at: 280, dur: 24, what: "'open + close: 5 trips' written above the bar"}
+      - {at: 306, dur: 14, what: "'(+ db login)' written after it (inline fact-check note)"}
+      - {at: 322, dur: 12, what: "blue 'query' under the two filled segments", colour: blue}
+    ledger: [L-0109, L-0111]
+  - id: B2
+    step: 2
+    from: 364
+    to: 650
+    caption: "Every write pays it again, and so does the database."
+    events:
+      - {at: 374, dur: 244, what: "writes 2–5, 8 f per trip, same seven trips; slot 'write k'; counter climbs 2→5 at each handshake; the bar grows to x 1052, mostly hollow"}
+      - {at: 618, dur: 12, what: "slot 'closed'"}
+    ledger: [L-0109, L-0116]
+  - id: B3
+    step: 3
+    from: 650
+    to: 914
+    caption: "With a pool, a write takes an open line, queries, and gives it back."
+    events:
+      - {at: 650, dur: 12, what: "lane 1 ghosts to 38%"}
+      - {at: 660, dur: 32, what: "'pre-established' / 'at startup' written right of the db"}
+      - {at: 702, dur: 163, what: "writes 1–5 on lines 1,2,3,1,2: the line re-inks blue (busy), blue UPDATE packet →, green OK packet ←, blue fades (released); two filled segments per write; counter stays 0", colour: blue}
+      - {at: 866, dur: 16, what: "'just the query' above the short bar"}
+    ledger: [L-0112, L-0113, L-0114]
+  - id: B4
+    step: 4
+    from: 914
+    to: 1026
+    caption: "Same five queries: faster calls and less load on the database."
+    events:
+      - {at: 914, dur: 12, what: "lane 1 returns to full ink"}
+      - {at: 924, dur: 28, what: "green ✓ and 'all 5 done' at the end of the pool lane's bar (x 352)", colour: green}
+      - {at: 958, dur: 28, what: "green ✓ and 'all 5 done' at the end of the no-pool bar (x 1052)", colour: green}
+    ledger: [L-0115, L-0116]
+  - id: B5
+    from: 1026
+    to: 1180
+    caption: "Now do it six million times a minute."
+    events:
+      - {at: 1036, dur: 30, what: "lane 1 counter 'new connections: 5' replaced in place by '6M new connections/min'"}
+      - {at: 1072, dur: 30, what: "lane 2 counter 'new connections: 0' replaced in place by 'same 3, reused'"}
+    on_screen: [end state = poster, hold 2.6 s]
+    ledger: [L-0103, L-0115]

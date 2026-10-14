@@ -65,13 +65,32 @@ def lecture_state(id_, file_):
     s["board"] = "done" if ex(f"learn/{id_}/board/board_log.md", f"lectures/{id_}/board/board_log.md") else "todo"
     s["ledger"] = "done" if ex(f"learn/{id_}/ledger/ledger.jsonl", f"lectures/{id_}/ledger/ledger.jsonl") else (
         "doing" if ex(f"learn/{id_}/ledger/part1.jsonl", f"lectures/{id_}/ledger/part1.jsonl") else "todo")
-    s["fact"] = "done" if ex(f"learn/{id_}/factcheck/additions_verified.jsonl", f"lectures/{id_}/factcheck/additions_verified.jsonl") else (
-        "doing" if ex(f"learn/{id_}/factcheck", f"lectures/{id_}/factcheck") else "todo")
-    s["lesson"] = "done" if ex(f"lectures/{id_}/lesson/factcheck_applied.md") else ("doing" if ex(f"lectures/{id_}/lesson/outline.md") else "todo")
-    s["anim"] = "done" if ex(f"lectures/{id_}/animations/DONE") else ("doing" if ex(f"lectures/{id_}/animations") else "todo")
-    s["page"] = "done" if ex(f"lectures/{id_}/qa/PAGE_DONE") else ("doing" if ex(f"site/src/content/lectures/{id_}.mdx") else "todo")
-    s["qa"] = "done" if ex(f"lectures/{id_}/qa/PASS") else "todo"
-    note = ""
+    s["fact"] = "done" if ex(f"learn/{id_}/factcheck/additions_verified.jsonl", f"lectures/{id_}/factcheck/final.jsonl") else (
+        "doing" if (ex(f"lectures/{id_}/factcheck/groups.json") or ex(f"learn/{id_}/factcheck/caching_scaling.jsonl")) else "todo")
+    D = f"lectures/{id_}/.done"
+    done = set(os.listdir(D)) if os.path.isdir(D) else set()
+    running = f"pipeline/run.sh {id_}" in PS
+    lec01_hand = id_ == "lec01" and ex("lectures/lec01/qa/PASS")
+    def clips_total():
+        try:
+            c = json.load(open(f"lectures/{id_}/lesson/clips.json")); return len(c if isinstance(c, list) else c.get("clips", []))
+        except Exception: return 0
+    s["lesson"] = "done" if ("lesson" in done or ex(f"lectures/{id_}/lesson/DONE") or lec01_hand) else ("doing" if running else "todo")
+    order = ["anim", "page", "qa"]; key = {"anim": "animate", "page": "page", "qa": "qa"}
+    current = None
+    for st in order:
+        if lec01_hand or key[st] in done: s[st] = "done"
+        else:
+            s[st] = "todo"
+            if current is None: current = st
+    if running and current and s["lesson"] == "done": s[current] = "doing"
+    a_done = len([x for x in done if x.startswith("animate.")]); a_tot = clips_total()
+    w_done = len([x for x in done if x.startswith("page.writer")])
+    extra = []
+    if not lec01_hand and a_tot: extra.append(f"clips {a_done}/{a_tot}")
+    if w_done: extra.append(f"sections writers done {w_done}")
+    if not running and not lec01_hand and s["qa"] != "done" and s["lesson"] == "done": extra.append("queued")
+    note = " · ".join(extra)
     if s["asr"] == "doing":
         t = started_at(id_, "transcribe")
         if t:

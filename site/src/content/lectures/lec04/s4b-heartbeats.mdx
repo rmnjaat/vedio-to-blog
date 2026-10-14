@@ -1,0 +1,174 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { PoolBudget, FourResources, HeartbeatsReused } from '../../../figures/lec04/s4b-heartbeats';
+
+{/* §4 Six million heartbeats a minute, part b: 4.6–4.9. Part a (4.1–4.5) is s4a-heartbeats.mdx. Writer w2. */}
+
+<Section id="s4-6" no="4.6" title="The database's ceiling" crumb="4.6 The ceiling"
+  dek="Autoscaling adds api servers; the database has a fixed number of connections to give them."
+  meta="About 8 min · Q&A 01:19–01:27, 01:31–01:34 and 02:52–03:00">
+
+A special event: traffic jumps, autoscaling adds api servers, and every new server wants connections the database doesn't have. What then?
+
+Then you scale the database up. Its size depends on the concurrent queries you fire at it, because the concurrency you want decides how many connections it must handle. [[L-0136]] In the lecture's experience, the most common bottleneck of a database in most cases is the maximum number of connections it can handle, so you need to know that number. [[L-0137]] To support more concurrency than that limit, there are two common ways: scale the database vertically, or shard it. [[L-0138]]
+
+<ForwardChip block when="Lecture 2" k="L-0138">scaling the database: a bigger machine, read replicas, sharding</ForwardChip>
+
+In a system like this, the number of connections, not the data, decides how to scale the database, because the updates are tiny and the access is key-value. [[L-0143]] You go to one place and update one row; the reads are just as simple ("given a user, give me the row"). With micro reads and writes both fast, the bottleneck becomes the network, specifically establishing TCP connections, which is why this chapter stresses connections (the board's note in Fig 4·a). [[L-0144]]
+
+Massive aggregations joining 10 or 15 tables flip that: a query takes longer than opening a connection, so don't stress over connections; focus on the database's CPU and memory instead. [[L-0145]]
+
+### How many connections can it hold? [[rail: The limit]]
+
+A database is a process running on a server, and the maximum number of TCP connections a server can handle depends on the RAM it has and on the network card of the instance. [[L-0146]] For managed databases, memory is the input you can see: Amazon RDS computes the default `max_connections` from instance memory, about one connection per 12 MB for MySQL (roughly 630 on an 8 GiB instance) and, for PostgreSQL, memory in bytes ÷ 9,531,392, capped at 5,000 (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html">RDS limits</Cite>).
+
+On a managed service such as AWS RDS, you don't have to guess: the provider gives a formula, shows the limit in its UI, and documents the concurrent connections each database size handles. [[L-0147]] If you run the database yourself, pick a machine with high network capacity and benchmark how many concurrent connections it holds; the answer also depends on the load you put on it (a very high sustained load may not be met). [[L-0148]]
+
+In most cases you would need an instance with a dedicated network card, maybe several; every cloud provider has a special class of high-network-bandwidth instances for supporting large numbers of TCP connections. [[L-0149]] Those instance classes raise bandwidth rather than the connection count as such (a c5n.large gets up to 25 Gbps against a c5.large's 10) (<Cite href="https://docs.aws.amazon.com/ec2/latest/instancetypes/co.html">EC2 instance types</Cite>). The connection count is bounded by the database's memory and by EC2's per-instance connection-tracking allowance, which grows with instance size; past it, packets are dropped (<Cite href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-connection-tracking.html">connection tracking</Cite>).
+
+<MarginNote title="Go explore: 30,000 connections" why="a homework question from class" k="L-0326">
+
+A database server has a fixed number of cores, so how does one server hold more than 30,000 connections? Search it yourself; you will stumble on something interesting: Hussein Nasser has a video on it, there are Stack Overflow answers, and there is a hardware specification behind it. If it is still unclear by week three, when it becomes more relevant, it gets answered then. [[L-0326]]
+
+One data point to start from: Redis's benchmark documentation reports runs with more than 60,000 client connections while still sustaining 50,000 queries a second, and as a rule of thumb, 30,000 connections give about half the throughput of 100 (<Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/">redis.io</Cite>).
+
+</MarginNote>
+
+### Spikes [[rail: Spikes]]
+
+Take a festival where the number of online users doubles, and updates arrive faster than the database can apply them. Scale the systems up vertically: always. [[L-0162]] It can feel wasteful for one festival, but you scale up and then bring it back down. There is no way out: the database must support the concurrent requests you are aiming for. For 2×, first make sure the database supports it, then tune the pool, mainly its maximum (perhaps not its minimum), since vertically scaled servers can take more requests too. [[L-0163]]
+
+A much better answer to spikes comes later in the course, with flash sales. [[L-0164]] <ForwardChip when="week 7" k="L-0164">flash sales, the better answer to spikes</ForwardChip>
+
+For now: know your tech unit economics and have the monitoring to make these decisions. [[L-0165]]
+
+If the database is scaled from one to two, do the connection pools multiply too? It depends on how you scale it. Find out hands-on: today, write a hello world with connection pooling against a local database and run it, and you'll see the configuration it offers and its limits. Horizontal scaling of databases comes next. [[L-0318]]
+
+<ForwardChip block when="Lectures 2 and 3" k="L-0318">scaling a database horizontally, and what happens to the pools</ForwardChip>
+
+</Section>
+
+<Section id="s4-7" no="4.7" title="When pooling hurts" crumb="4.7 When it hurts"
+  dek="Servers × pool size has to fit inside the database. Get it wrong and autoscaling fails exactly when you need it."
+  meta="About 5 min · Q&A 02:54–02:59">
+
+After all that praise: can connection pooling do harm?
+
+<PauseAndThink k="L-0158 L-0319 L-0320 L-0321"
+  q="Your database accepts at most 1,000 connections. Each api server's pool keeps a minimum of 100 open. You run 10 servers. A spike hits and autoscaling adds 20 more. What happens?"
+  choices={[{ label: 'Thirty servers share the load' }, { label: 'The new servers can’t get connections', correct: true }]}
+  right="Right. Ten servers × 100 already use all 1,000."
+  wrong="The servers start, but the database has nothing left to give them.">
+
+Minimum × servers can't exceed the database's limit, so new servers fail exactly when you need them. The fix is §4.5's budget: 1,000 ÷ 100 = 10 per server, a small minimum, and metrics to watch.
+
+</PauseAndThink>
+
+The database supports at most 1,000 connections, and each server's pool keeps a minimum of 100. One server, three, ten: still fine. Then a massive spike makes you add 20 more at once, and the database's maximum connections are exhausted. [[L-0319]]
+
+<Figure id="fig-4f" no="Fig 4·f" k="L-0124 L-0158 L-0319 L-0320"
+  caption="The same database, two pool settings. Left: a maximum of 10 per server fits 100 servers into 1,000 connections. Right: a minimum of 100 per server fills the database with 10 servers, and the 20 added in a spike get nothing.">
+  <Desk><PoolBudget /></Desk>
+  <Phone><PoolBudget layout="phone" /></Phone>
+</Figure>
+
+A misconfigured pool limits the number of api servers you can have: the most you can run is a function of the pool's minimum per server and the database's maximum connections. This is why blindly using connection pooling is not a good idea. [[L-0320]] A structural fix: put a central pooler such as PgBouncer or Amazon RDS Proxy between the app servers and the database. It multiplexes many servers onto a few database connections, and RDS Proxy queues or throttles client connections it can't serve immediately, protecting the database during surges (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html">RDS Proxy</Cite>, <Cite href="https://www.pgbouncer.org/">pgbouncer.org</Cite>). That pooler *is* a separate service, which is where §4.4's "not a service" stops applying.
+
+It goes wrong the other way too. A pool that may grow without limit puts so much pressure on the database that you can't have many servers. And with a very long expiry, say 10 minutes, connections don't break when you need them to: the load balancer sends users to a new server while another server hogs the database connections, and the new server's users have an outage. [[L-0321]]
+
+The grass is not always green. Know how to tune a pool, where, and where it can break; go step by step through what could go wrong, document it, find a near-optimal solution and move on. [[L-0322]] Start conservative: a minimum of three to five connections, a set limit perhaps below 50 or 100, and an idle TTL neither too short nor too long. [[L-0322 L-0323]] Too long, and many unused connections stay open; too short fails long-running queries, which need connections open longer. The sweet spot depends on the use case. [[L-0323]]
+
+The one metric to track is the average time your database takes to complete a SQL query, in this course's view the most important factor for tuning a pool. [[L-0324]] Long-running queries hold their connections longer, which limits how far you can shorten the TTL. [[L-0324 L-0323]]
+
+Alongside it: the connections you need are roughly throughput × average query time, so track how long requests wait for a connection, and how saturated the pool is, alongside it. HikariCP's sizing guide also ties the best pool size to the database's cores and disks (<Cite href="https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing">HikariCP wiki</Cite>).
+
+One suggestion raised, with no verdict: if the average time of one frequent query on a table goes up, expand that database's pool. The note below says what to check first. [[L-0325]]
+
+<SourceNote href="https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing" site="HikariCP wiki" k="L-0325">
+
+If a query's time rises, find out why first. A bigger pool helps only when the database has spare capacity and requests are queuing for connections; past the optimum, more connections lower throughput and response times climb. HikariCP's sizing guide starts from connections = cores × 2 + effective spindles.
+
+</SourceNote>
+
+</Section>
+
+<Section id="s4-8" no="4.8" title="Only four things" crumb="4.8 Four things"
+  dek="Memory, CPU, disk and network. Every scaling decision is about one of them."
+  meta="About 2 min · Q&A 01:24 and 01:27–01:28">
+
+Concurrent connections and data size are a reasonable summary of what decides vertical versus horizontal scaling, but the full picture is broader. [[L-0150]] There are only four things in computer science: **memory, CPU, disk and network**. There is no fifth; a GPU counts under CPU. These four determine scaling. [[L-0151]]
+
+- **CPU-bound:** massive aggregations on your data. [[L-0152]]
+- **Memory-bound:** pulling in a lot of data to process, such as massive joins. [[L-0153]]
+- **Disk-bound:** storing so much data on disk that disk becomes the bottleneck. Data warehouses fall in this category. [[L-0154]]
+- **Network-bound:** the number of queries you can fire at a server, here the database, is limited by that machine's network capacity. [[L-0155]] The heartbeat store is this case (§4.6).
+
+<Figure id="fig-4g" no="Fig 4·g" k="L-0145 L-0151 L-0152 L-0153 L-0154 L-0155"
+  caption="Only four things decide scaling. The heartbeat store is network-bound; a big report is CPU- and memory-bound; a data warehouse is disk-bound.">
+  <Desk><FourResources /></Desk>
+  <Phone><FourResources layout="phone" /></Phone>
+</Figure>
+
+Horizontal and vertical scaling are both defined on these four. Vertical scaling has a limit, so a good distributed system is horizontally scalable, which is where sharding comes up. [[L-0156]]
+
+</Section>
+
+<Section id="s4-9" no="4.9" title="The same pattern: failure detection" crumb="4.9 Failure detection"
+  dek="Copy the green dot, paste it into a cluster: heartbeats tell you which machines are dead."
+  meta="About 2 min · class 01:17–01:19">
+
+The board's heading for this part: *Similar systems: failure detection in a distributed system.*
+
+The online/offline indicator copies almost as-is into failure detection. In a distributed system every node sends heartbeats to a central server that tracks which nodes are alive; a node whose heartbeats stop is down. Building your own AWS out of EC2 machines, the missing heartbeat tells you a machine is down. Protocols differ here and there; the design is the same. [[L-0132]]
+
+Building your own load balancer, the same system tells you which backend is down so you stop forwarding requests to it. [[L-0133]] Real load balancers usually run this check in the other direction: an AWS Application Load Balancer health-checks each target every 30 seconds by default and takes it out of service after 2 consecutive failures (5 successes bring it back) (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html">AWS ALB</Cite>). The load balancer asks rather than waits to be told, because it can open connections to its backends.
+
+<Figure id="fig-4h" no="Fig 4·h" k="L-0132 L-0133"
+  caption="The indicator's pattern, reused. Left: nodes send heartbeats to a tracker, and a node that goes quiet is marked down. Right: backends send the same heartbeats to your own load balancer, which stops routing to one that goes quiet; real load balancers often ask instead, with health checks (the note above).">
+  <Desk><HeartbeatsReused /></Desk>
+  <Phone><HeartbeatsReused layout="phone" /></Phone>
+</Figure>
+
+That is the reason to learn designs this way: observe the pattern and core properties a system needs, not a memorised question and answer, and build your intuition from those. [[L-0134]]
+
+<ForwardChip block when="Lecture 5" k="L-0133">heartbeats as a load balancer's health checks</ForwardChip>
+<ForwardChip block when="Lecture 8" k="L-0132">heartbeats in an unread-badge service</ForwardChip>
+
+Build 1 ends here: heartbeats, a store that expires silence, and a pool sized to fit the database. Next, the same habits on a blog.
+
+<h3 id="s4-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0109 L-0111 L-0116" q="Each heartbeat updates one row by primary key. Without a pool, where does most of its time go?">
+
+Into the connection. Each write opens a fresh TCP connection (a three-way handshake), and the database reads those packets, logs the caller in and sets up a process or buffers for it; afterwards the connection is torn down again. That is five network trips, around one tiny update of one row by primary key. A pool keeps the connections open, so each write is just one request and one response.
+
+  </RecallItem>
+  <RecallItem k="L-0158 L-0159" q="The database allows 1,000 connections and you run at most 100 servers. What maximum per server, and why might 15 be risky?">
+
+1,000 ÷ 100 = 10 per server. Setting it a little higher (15, or the "1.2×" practice) lets a busy server take more than its share, but if every server may go above 10, all of them together can ask for more than 1,000. Then the database refuses the extra connections with an error, rather than the server simply waiting.
+
+  </RecallItem>
+  <RecallItem k="L-0144 L-0145 L-0155" q="Name the resource that limits the heartbeat store and the one that limits a 12-table report.">
+
+The heartbeat store is network-bound: micro reads and writes are fast, so opening connections and the network's capacity are the bottleneck. A report joining 10 to 15 tables is CPU- and memory-bound: the query itself takes longer than any connection setup, so focus on the database's CPU and memory instead.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '5 · Blog rows: database decisions', href: '#s5' }}
+  concepts={[{ label: 'compute, not storage', href: '#s4-1' }, { label: 'five network trips', href: '#s4-2' }, { label: 'connection pool', href: '#s4-3' }, { label: 'blocking queue', href: '#s4-4' }, { label: 'pool min / max / idle TTL', href: '#s4-5' }, { label: 'max connections', href: '#s4-6' }, { label: 'pool budget', href: '#s4-7' }, { label: 'four resources', href: '#s4-8' }, { label: 'failure detection', href: '#s4-9' }]} />
+
+</Section>

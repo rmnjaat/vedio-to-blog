@@ -1,0 +1,122 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Cite from '../../../components/Cite.astro';
+import { HalfBudget, ConfigCopy, OrchestratorAsks } from '../../../figures/lec08/s4a-control-plane';
+
+{/* §4 The control plane, part a: 4.1–4.3. Part b (4.4–4.6) is s4b-control-plane.mdx. Writer w2. */}
+
+<Section id="s4" no="4" title="The control plane: keeping every LB server right" crumb="4 Control plane"
+  dek="One LB server runs out of connections, so you run many. Now each needs the same configuration, fresh, all the time: configuration, health checks, pushing changes, and watching the LB servers themselves."
+  meta="About 32 min · class 01:08–01:40, Q&A 03:01–03:34">
+
+The load balancer of [§3](#s3) runs on one machine and keeps everything it knows in memory: the backends, the algorithm, the connection map. That is fine for one machine. The trouble starts when one machine isn’t enough, because then every LB server needs the same, current picture of the backends, and somebody has to keep it that way.
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="One LB server is not enough" crumb="4.1 Not enough"
+  dek="Two connections per client: half of an LB server’s connection budget goes to backends."
+  meta="About 2 min · class 01:08–01:10">
+
+§3’s question already gave the number: 5,000 clients per LB server. An LB server manages two TCP connections for every client request it is proxying, 2X connections for X clients, so it becomes the bottleneck. That is why one LB server is not enough: you need several, scaled horizontally, which is a problem of its own. [[L-0122]]
+
+<Figure id="fig-4a" no="Fig 4·a" wide={false} k="L-0122 L-0145"
+  caption="Every client costs the LB server two connections, so a budget of 10,000 serves 5,000 clients. The 10,000 is an illustrative number; the paragraph below gives a real Linux limit.">
+  <HalfBudget />
+</Figure>
+
+The 10,000 is illustrative. One real limit is worth knowing: on Linux the ephemeral port range defaults to 32768–60999, which bounds how many simultaneous connections one LB IP can open to a single backend `ip:port` to about 28k (<Cite href="https://docs.kernel.org/networking/ip-sysctl.html">kernel.org</Cite>).
+
+Because one LB machine is a bottleneck, the LB servers themselves need to scale horizontally. Working that out also shows how load balancers are scaled internally. [[L-0145]]
+
+The design is brainstormed along four factors: LB configuration, monitoring, availability and extensibility. [[L-0146]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Where the configuration lives" crumb="4.2 Configuration"
+  dek="The bare minimum is an algorithm and a list of backends. Store it in a database, and never read it per request."
+  meta="About 4 min · class 01:10–01:14">
+
+Three new LB servers boot. How does each of them learn which backends exist?
+
+The configuration has to store the IP address and port of every backend server behind the load balancer. [[L-0147]] The bare minimum is two things: which load-balancing algorithm is in use, and which backend servers are connected. You can make it infinitely fancier later, with all kinds of extra settings, but the design starts from the bare minimum. On the board the block also gained a health endpoint a few minutes later (4.3). [[L-0148]]
+
+Where to keep it? Starting simple: in a database. [[L-0149]]
+
+Not to be read on every request, though. A load balancer should add as little latency as possible; it already adds a network hop. If the LB server called the database for the configuration on every request, every request would take longer. [[L-0150]] A network call to the database costs about three to five milliseconds, which is too expensive to pay on every request passing through the load balancer. [[L-0151]]
+
+So each LB server, when it starts, pulls its load balancer’s configuration from the database and keeps an in-memory copy. Incoming requests are then routed without any network call. [[L-0152]] In the demo code of [§3.4](#s3-4) the configuration is exactly that: a simple in-memory list of backends, from which the load balancer picks one at random or by its strategy. [[L-0153]]
+
+<Figure id="fig-4b" no="Fig 4·b" k="L-0147 L-0148 L-0149 L-0150 L-0151 L-0152 L-0154"
+  caption="Pulled once at startup, then every request is routed from memory. The dashed arrows are the LB servers pulling: each starts at the LB server, which asks, and points at the database. The card is the board’s config block (b.servs, balancy, health_endpoint) with its names spelled out. Redrawn from the class board at 01:13.">
+  <Desk><ConfigCopy /></Desk>
+  <Phone><ConfigCopy layout="phone" /></Phone>
+</Figure>
+
+The catch is the copy. An in-memory copy goes out of date the moment the configuration changes, for example when a backend server goes down. Something has to keep updating the LB servers. [[L-0154]]
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="The orchestrator and health checks" crumb="4.3 Health checks"
+  dek="Someone has to notice a dead backend first. The orchestrator asks every backend’s health endpoint, and checks the service, not the server."
+  meta="About 8 min · class 01:13–01:20, Q&A 03:15 and 03:28–03:32">
+
+Backend 2’s process has just crashed. Who notices?
+
+Before anything can be updated, something has to detect that a backend went down. A health check service is the direction taken here. [[L-0155]] The component that performs health checks on the backend servers is called the **orchestrator**, the mastermind of the load balancer system. [[L-0156]]
+
+When is a backend “up”? When its dedicated health-check endpoint returns HTTP 200. That means the one endpoint, not all user requests; how the endpoint is implemented is up to you. [[L-0157]]
+
+A tempting shortcut: you don’t need a specialized health-check endpoint, just a very lightweight endpoint that answers a ping, or TCP pings to the IP and port to see whether anything comes back. [[L-0158]] The design keeps an explicit health endpoint, configured on the load balancer, for the reasons that follow.
+
+A backend server is a virtual machine that may run hundreds of processes: SSH, nginx, other HTTP servers. For this load balancer only one process matters, the core web server it balances against, say the profile service on port `8081`. [[L-0159]] Every HTTP server you build should define a health-check endpoint, such as `/status` or `/health`. [[L-0160]]
+
+That endpoint is part of the load balancer’s configuration. Apart from the algorithm, you give the health-check endpoint when you spin up a load balancer, and it is stored with the rest of the configuration in the database. [[L-0161]]
+
+Checking that the VM is up is not enough. The VM can be up while the service process has crashed, on a divide-by-zero or a null pointer exception, and then it can’t serve requests. The orchestrator could check the VM through its infrastructure access and still miss that. The health check must verify the service, not the server. [[L-0162]]
+
+So the orchestrator uses the health-check configuration to fire continuous health checks at the backend servers. Typically it makes HTTP calls to each one and needs a 200 back; HTTP keeps the picture simple, and other protocols are accepted too. [[L-0163]] It needs access to the configuration database to know the servers and their health endpoint. When a check fails, it immediately updates the database and removes the dead backend’s entry. [[L-0164]] Managed load balancers add one twist: AWS’s Application Load Balancer fails open, so if every target in a group fails its health checks, it routes to all of them regardless of health (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html">aws.amazon.com</Cite>).
+
+<Figure id="fig-4c" no="Fig 4·c" k="L-0156 L-0157 L-0159 L-0162 L-0163 L-0164 L-0371"
+  caption="The orchestrator asks; backends only answer. b srv2’s VM is up but its process crashed, so its /health gives no 200 and the orchestrator removes it from the config database. Redrawn from the class board at 01:15–01:20.">
+  <Desk><OrchestratorAsks /></Desk>
+  <Phone><OrchestratorAsks layout="phone" /></Phone>
+</Figure>
+
+This is the same idea as the online/offline indicator; how exactly you implement it is up to you. [[L-0165]] Heartbeats between the orchestrator and the backend servers are the same building block as that design: the orchestrator keeps making HTTP calls to check whether servers are alive, and keeps track. [[L-0350]]
+
+<ForwardChip block label="from" when="Lecture 1" k="L-0165 L-0350">the online/offline indicator, built on heartbeats</ForwardChip>
+
+### Who sends the heartbeat? [[rail: Who sends the heartbeat]]
+
+Backend servers don’t send heartbeats; the orchestrator asks for them. The backend, a Spring Boot, Flask or Django server running business logic, exposes a `/health` endpoint, and that endpoint only receives requests. It never sends anything. [[L-0371]] The status that counts as success is configurable: 200, 300 as okay too, and in some cases even 400. [[L-0372]]
+
+What the health check verifies is the service owner’s responsibility, not the load balancer’s or the orchestrator’s. Most people implement it as just returning okay, which means the web server is running, without checking the database. The handler can also ping the database and report up only if both are up. [[L-0373]] Be careful with that deeper version: a check that includes a shared dependency such as the database can fail on every server at once, load balancers then fail open, and automation that removes “unhealthy” servers can make the outage worse (<Cite href="https://builder.aws.com/content/3Ev53O39izHCtWLzp4XU6t8PC1O/implementing-health-checks">AWS Builders’ Library</Cite>).
+
+<PauseAndThink k="L-0371 L-0374 L-0375 L-0376 L-0350"
+  q="To detect dead backends, should each backend send a heartbeat to the orchestrator, or should the orchestrator call each backend’s <code>/health</code>?"
+  choices={[{ label: 'Backends push heartbeats' }, { label: 'The orchestrator calls /health', correct: true }]}
+  right="Yes. The orchestrator knows every backend; the backends don’t know it."
+  wrong="It sounds natural, but a backend doesn’t know where the orchestrator is.">
+
+The deployed app doesn’t know the orchestrator’s IP, while the orchestrator has every backend’s address in the config. A health endpoint is also far simpler for the people writing services than a thread that keeps sending heartbeats, and a self-report can claim “up” while the service can’t actually serve. The same reasoning as the online/offline indicator in Lecture 1.
+
+</PauseAndThink>
+
+The first reason is addressing. The deployed application, busy with its business logic, doesn’t know the orchestrator’s IP address, so it can’t send it anything; it is the same as in the online/offline indicator. The orchestrator knows all the backend IPs and pings them. [[L-0374]]
+
+The second, stated only briefly, is trust: pinging is better because a self-reported heartbeat can say “my server is up” while the process is actually down. [[L-0375]]
+
+The third is the developers. Even if the backend knew the orchestrator’s IP, pushing heartbeats needs a thread sending them continuously, a much more complex implementation than exposing a health endpoint. Think from the side of the developers who use your load balancer, your customers, and keep their life simple. [[L-0376]]
+
+<MarginNote title="Further reading: φ-accrual failure detection" why="skip unless you build failure detectors" k="L-0223">
+
+The board’s reading suggestion for this part of the design: the φ-accrual failure detection algorithm. [[L-0223]]
+
+</MarginNote>
+
+</Section>

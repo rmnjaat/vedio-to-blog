@@ -1,0 +1,290 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Cite from '../../../components/Cite.astro';
+import Nb from '../../../components/Nb.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import { OneEntryPoint, PanelRR, PanelWRR, PanelLC, LeastConnSteps, Rule2Pick } from '../../../figures/lec08/s2-algorithms';
+
+{/* §2 Choosing a backend: load balancing algorithms (2.1–2.6). Chapter page 2-algorithms.
+    Fact-check: SN-02 after L-0091 (2.4). Inline: L-0064 (2.3), L-0073 (2.4), L-0084 L-0085 L-0093 (2.6).
+    Separate sourced sentences: A-DSC-07 (2.3), A-LBL-13 (2.3 note), A-LBL-01 A-LBL-02 A-LBL-15 (2.4), A-LBL-19 (2.5),
+    A-DSC-01..06 (2.6). L-0045, L-0046, L-0048, L-0065, L-0068 are attributed. */}
+
+<Section id="s2" no="2" title="Choosing a backend: load balancing algorithms" crumb="2 Algorithms"
+  dek="The box every diagram has and nobody opens. What it promises, and three ways it picks a server, each tied to a kind of infrastructure and a kind of load."
+  meta="About 22 min · class 00:17–00:40, Q&A 00:33–00:40 and 03:10">
+
+Three API servers sit behind one load balancer. A request arrives. Which server gets it, and does it matter?
+
+This chapter opens the box from the outside: what a load balancer promises, then three algorithms, each with the infrastructure and the load it suits. Chapter 3 opens it from the inside.
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="The box we take for granted" crumb="2.1 The box"
+  dek="One rectangle in every diagram, assumed to work by magic. It is code, and it can be understood."
+  meta="About 3 min · class 00:01 and 00:17–00:21">
+
+Draw almost any system and there it is: one rectangle labelled “Load Balancer”, assumed to work.
+
+That box is typically the core component that makes distributed systems possible, because it is what hides the details of having many servers in the backend. [[L-0005]]
+
+The board called it “one of the most important components in any system”, and added: “we kind of take it for granted.” We assume it magically works. Yet, as the instructor put it, it is a piece of code someone wrote: hundreds of engineers wrote AWS’s load balancers, and hundreds more install them. If a team of engineers built it, there is no reason to treat it as a black box. [[L-0046]]
+
+So this lecture approaches it from first principles rather than from the core technology needed to build one, to build a raw intuition for the system. [[L-0047]] The algorithms come first, and practically: the instructor has changed load balancing algorithms in practice to get performance. [[L-0045]]
+
+<Figure id="fig-2a" no="Fig 2·a" k="L-0049 L-0050 L-0051"
+  caption="One name or IP that never changes. Clients only ever talk to the load balancer, and it forwards each request to one of the servers behind it. Redrawn from the class board at 00:19; the name is a placeholder.">
+  <Desk><OneEntryPoint /></Desk>
+  <Phone><OneEntryPoint layout="phone" /></Phone>
+</Figure>
+
+The load balancer is a **single point of entry**: one domain name or one IP address that does not change. Anyone who wants to talk to your backend servers talks via the load balancer, so a client never has to remember where to talk; it only needs this one address. [[L-0050]]
+
+It is the load balancer’s responsibility to forward each request to one of the backend servers to get it handled. [[L-0051]] On what basis does it decide which one? That is the **load balancing algorithm**. Three are covered here: what each is, how to use it, and where. [[L-0052]]
+
+The board listed two advantages of putting one in front: **fault tolerance**, and **no over-clocked server**, meaning no server overloaded while others sit idle. [[L-0049]]
+
+<MarginNote title="From practice: when you must build your own" why="skip unless you run on-premise" k="L-0048">
+
+Will you ever build your own load balancer? Flipkart, the example given, had to: it runs private infrastructure in its own data centre, it can’t be on Amazon, and migrating to GCP was a pain, so it had to write its own load balancers. You too may be put in a situation where you have to write your own and scale it.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="Round robin" crumb="2.2 Round robin"
+  dek="Hand requests out in turn. The default, and right when servers and requests are alike."
+  meta="About 3 min · class 00:20–00:23 and Q&A 03:10">
+
+Three identical servers, <Nb>4 GB</Nb> each, and requests 1, 2, 3, 4, 5, 6 arriving one after another.
+
+**Round robin** is the most common algorithm, and the default in almost all load balancers. As the name suggests, requests go across the backend servers in turn: 1, 2, 3, 1, 2, 3. [[L-0053]]
+
+The load balancer keeps track of where it forwarded the last request. It sent the last one to backend 1, so the next goes to backend 2, then 3, then 1 again. [[L-0054]] That needs no session service or anything else: the load balancer keeps one integer, the index in its array of backends where it last sent a request, and moves to the next. [[L-0345]] In the tiny Go load balancer that chapter 3 reads, that is the whole round-robin strategy: [[L-0133]]
+
+```go
+// round robin: next = (last + 1) mod n
+s.Index = (s.Index + 1) % len(s.Backends)
+```
+
+Use it when you have **uniform infrastructure**, say every API server with <Nb>4 GB</Nb> of RAM, and a **uniform load pattern**. [[L-0055]] A uniform load pattern means that whatever API you hit, the result comes back within a fixed range of time, say under one second. The variance in response time is low, so it doesn’t really matter which server a request goes to. The example assumes homogeneous load. [[L-0056]]
+
+<Figure id="fig-2b-a" no="Fig 2·b" k="L-0053 L-0057"
+  caption="Round robin over three equal servers: 1 and 4, 2 and 5, 3 and 6. Redrawn from the class board at 00:22.">
+  <PanelRR />
+</Figure>
+
+With identical machines and low variance, a request won’t take very long on one server and very little time on another. So sending requests one after another spreads the load almost equally across the three servers. It is the easiest scheme there is. [[L-0057]] And uniform infrastructure, where every machine behind the load balancer has the same configuration, is true in most cases. [[L-0058]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Weighted round robin" crumb="2.3 Weighted RR"
+  dek="When one server is bigger, give it a bigger share. It is always about money."
+  meta="About 3 min · class 00:23–00:26">
+
+Now one of the three servers has <Nb>8 GB</Nb> instead of <Nb>4 GB</Nb>.
+
+**Weighted round robin** is round robin where you configure a weight for each machine and forward requests in proportion to the weights. [[L-0059]] It is common enough to be a default: nginx distributes requests by weighted round robin unless told otherwise, with every server’s `weight` set to 1, so a server with `weight=5` next to two weight-1 servers gets 5 of every 7 requests (<Cite href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">nginx.org</Cite>).
+
+Non-uniform infrastructure happens. Say three machines behind a load balancer have <Nb>4 GB</Nb>, <Nb>8 GB</Nb> and <Nb>4 GB</Nb> of RAM, because you purchased reserved instances that lose you money if they sit unused. [[L-0060]]
+
+Under plain round robin the <Nb>8 GB</Nb> machine, with twice as many cores, still gets exactly the same share of requests. If the <Nb>4 GB</Nb> machines run at 80% of capacity, it runs at about 40%. You are not utilizing your infrastructure. [[L-0061]]
+
+So with non-uniform infrastructure you use weighted round robin, and forward requests in the ratio 1 : 2 : 1. Of every four requests, the big machine gets two, and the infrastructure is used well. [[L-0062]]
+
+<Figure id="fig-2b-b" no="Fig 2·c" k="L-0059 L-0061 L-0062"
+  caption="Weights 1 : 2 : 1 over 4, 8 and 4 GB. The big server takes two of every four requests, and runs near 80% like the others. The gauges underneath show each server’s utilisation: under plain round robin the big one idles at 40% (red); with weights all three sit near 80%. The request numbers follow the 1 : 2 : 1 rule.">
+  <PanelWRR />
+</Figure>
+
+Where do you configure it? Every load balancer has a set of algorithms to pick from, each with its own configuration; go through the official documentation of the one you use. [[L-0063]] If your cloud doesn’t show the option, perhaps because it is behind a feature flag, the advice is to raise a support ticket with the provider and ask to configure your algorithm. Managed load balancers do expose a fixed set: an AWS Application Load Balancer offers round robin, least outstanding requests and weighted random, while a Network Load Balancer’s routing is not configurable (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html">ALB</Cite>, <Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html">ELB</Cite>). [[L-0064]]
+
+<MarginNote title="Weighted round robin, from practice" why="skip unless you buy reserved capacity" k="L-0065">
+
+One real reason to configure weighted round robin, from the instructor’s own work, was a blunder: the team bought AWS reserved instances of different sizes, and AWS wasn’t ready to change them. Instead of keeping them spare, they put them into existing workloads and applied weighted round robin. For reference, Standard Reserved Instances for Linux/UNIX can now be modified to other sizes in the same instance family and generation, as long as the total footprint stays the same (<Cite href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ri-modifying.html">docs.aws.amazon.com</Cite>).
+
+</MarginNote>
+
+The pattern here is always money. Is your infrastructure being utilized well? That is exactly what an engineer has to think about; if you don’t care about money, the algorithm doesn’t matter. Put a <Nb>60 GB</Nb> machine behind plain round robin and you are not using your resources efficiently. [[L-0066 L-0067]]
+
+Career advice follows from it: save money for your organization. That is how you make a quantified impact, and it makes pitching for a promotion easy. [[L-0068]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Least connections" crumb="2.4 Least connections"
+  dek="When some requests take a second and others an hour, send each to the server with the fewest open connections."
+  meta="About 9 min · class 00:26–00:31 and Q&A 00:33–00:38">
+
+An analytics service: one query answers in a second, the next takes two hours.
+
+Only three algorithms are covered here, but the intuition for where to pick one carries over to others. The third is one a lot of people take for granted: **least connections**. [[L-0069]]
+
+When a request arrives, the load balancer checks which backend server has the fewest connections from the load balancer, and forwards the request to it. [[L-0070]] Think of it like connection pooling for databases: the load balancer can open several connections to a server, and it keeps track of how many it has to each. One caveat: it is not actually a connection pool, only an example. [[L-0071]] <ForwardChip label="from" when="Lecture 1" k="L-0071">connection pooling</ForwardChip>
+
+The load balancer keeps a count of the active connections it has to each backend. When a request completes, its connection is freed, so a new request can go back to that server. Each new request goes to whichever server has the fewest active connections. [[L-0072]]
+
+Why do connections say anything about load? If you are not pooling, an open connection means the server is busy: the HTTP connection from load balancer to backend is terminated when the server responds, so while it is open the server is working, and more connections mean a busier server. [[L-0073]] More exactly, it is an *in-flight request* that means busy. With keep-alive a connection can stay open and idle between requests (<Cite href="https://www.rfc-editor.org/rfc/rfc9112#section-9.3">RFC 9112</Cite>), so load balancers count active connections or outstanding requests. AWS’s Application Load Balancer even multiplexes requests from many client connections onto a single backend connection, so the number of open backend connections doesn’t equal how busy a target is (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html">docs.aws.amazon.com</Cite>).
+
+So least connections forwards each request to the machine that is least burdened at that moment, which raises the probability of a quick response. [[L-0074]]
+
+Where does it earn its keep? In a workload with **very high variance**: some APIs take one second, some one minute, some one hour. Analytics is the classic case, where some queries answer in a second and others take one or two hours. [[L-0075]]
+
+<PauseAndThink k="L-0055 L-0075 L-0077 L-0078 L-0080 L-0081"
+  q="An analytics API behind three identical servers answers some queries in a second and others in two hours. Round robin, or least connections?"
+  choices={[{ label: 'Round robin: the servers are identical' }, { label: 'Least connections', correct: true }]}
+  right="Yes. Identical servers aren’t enough; the load isn’t uniform."
+  wrong="Not here. Round robin assumes the load is uniform too, and this load isn’t.">
+
+Round robin deals requests in turn without looking, so two long queries can land on the same busy server while others sit idle. Least connections sends each request to the server with the fewest open connections, a cheap stand-in for “least busy”. Why not route on CPU instead? The load balancer would have to fetch every server’s CPU before each decision, which costs milliseconds; routing has to take microseconds.
+
+</PauseAndThink>
+
+<p class="lead-in">Here is the board’s walkthrough, one request at a time. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-2c" no="Fig 2·d" label="Least connections figure" k="L-0070 L-0072 L-0076 L-0077 L-0079 L-0089"
+  caption="Time runs down. Lanes are the load balancer and three servers; a bar is a request still running, and the numbers under the lb are its connection counts for servers 1, 2 and 3."
+  stepK={['L-0070 L-0072', 'L-0072 L-0076', 'L-0070 L-0076', 'L-0076 L-0089', 'L-0077 L-0079']}
+  steps={[
+    'Requests 1, 2 and 3 arrive. Each server has zero connections, so one goes to each: <span class="term">1 1 1</span>.',
+    'Request 2 was a one-second call. It <span class="term green">finishes</span>, its connection closes, and server 2 is free: <span class="term">1 0 1</span>.',
+    'Request 4 arrives. Server 2 has the fewest connections, so request 4 goes there.',
+    'Request 4 turns out to be long-running. Request 5 arrives with servers 1 and 3 tied at one connection; the answer in class was to pick one of them at random, here server 1.',
+    'Under <span class="term red">round robin</span> the same five would go 1, 2, 3, 1, 2: request 4 lands on server 1, which is already busy with long request 1. And the load balancer never saw a CPU number at all.',
+  ]}>
+  <Desk><LeastConnSteps /></Desk>
+  <Phone><LeastConnSteps layout="phone" /></Phone>
+</StepThrough>
+
+In words: requests 1, 2 and 3 go to servers 1, 2 and 3. Request 2 was a one-second request and finished, so when request 4 arrives, server 2 has the fewest connections and gets it. If request 4 turns out to be long-running, request 5 then picks the first server. [[L-0076]]
+
+Now run the same stream through blunt round robin. It deals requests in turn, whatever is running, so long-running requests can all get scheduled onto one server. The server already busy with long work is bombarded with more of it. [[L-0077]]
+
+<AnimationClip clip="l08-rr-vs-leastconn" no="Clip 2·1" k="L-0070 L-0072 L-0074 L-0075 L-0077 L-0078"
+  lead="Before you play it: some requests take a second and some take an hour. Which algorithm keeps one server from drowning?"
+  caption="Round robin keeps dealing long requests onto a server that is already busy; least connections sends them to a free one. Under high variance, use least connections." />
+
+So when there is a very large variance in the response or processing times of your requests, use least connections: each request is forwarded to a machine that is relatively free. [[L-0078]] Managed load balancers offer the same idea. AWS’s Application Load Balancer calls it *least outstanding requests*: each request goes to the target with the fewest in-progress requests, and AWS says it is commonly used when requests vary in complexity or targets vary in processing capability (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html">docs.aws.amazon.com</Cite>).
+
+<Figure id="fig-2b" no="Fig 2·e" wide={false} k="L-0053 L-0057 L-0059 L-0061 L-0062 L-0070 L-0078"
+  caption="Least connections over three equal servers, the third fan on the class board at 00:22 and 00:40. The numbers come out uneven, 1, 5, 7 · 2, 4, 8, 9 · 3, 6, 10, because each request goes wherever the fewest are running; compare the even turns of round robin (Fig 2·b) and the 1 : 2 : 1 shares of weighted round robin (Fig 2·c).">
+  <PanelLC />
+</Figure>
+
+### Three questions people ask [[rail: Questions]]
+
+*Does the load balancer have to keep persistent connections to every server?* No. It can be completely stateless. Or, since it is your code, it can keep a connection pool, and then “least connections” means least *active* connections: with a pool of 100 connections to a server of which 2 are in use, 2 are active and 98 are not. Either way is fine. [[L-0083]]
+
+*What if request 5 lands on a server still busy with an hour-long query, while another server is about to finish?* The load balancer can’t know that. But the worry assumes a server can handle only one query at a time; if that is really true, you need more servers. [[L-0088]] And when two servers tie for the fewest connections, the answer in class was to pick one of them at random. [[L-0089]] Implementations differ in that detail: nginx’s `least_conn` takes server weights into account and tries tied servers in weighted round-robin order (<Cite href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">nginx.org</Cite>).
+
+*Isn’t that only a local optimization?* Yes, and local optimization still works; there is no need to go for a global one. With workloads that large you would have far more than three servers, and you simply try to maximize execution across all the requests you handle. [[L-0090]]
+
+This is exactly what data warehouses do: according to the instructor, BigQuery’s and Redshift’s documentation describe least-connection-based balancing across clusters, because a data warehouse classically mixes short-running and long-running queries. [[L-0091]]
+
+<SourceNote href="https://docs.aws.amazon.com/redshift/latest/dg/cm-c-implementing-workload-management.html" site="docs.aws.amazon.com" k="L-0091">
+
+Data warehouses face the same mixed short and long query problem, but neither the Redshift nor the BigQuery documentation describes least-connections balancing. They use **workload management**: separate queues for short and long queries, and slots with fair scheduling (<Cite href="https://docs.cloud.google.com/bigquery/docs/slots">BigQuery slots</Cite>).
+
+</SourceNote>
+
+<RuleBox rule="Pick the algorithm by ==your infrastructure and your load pattern==." k="L-0055 L-0062 L-0078">
+
+The board’s three lines. Uniform infrastructure: distribute the load iteratively (round robin). Non-uniform infrastructure: distribute it iteratively but as per weights (weighted round robin). A big variance in response times, as in analytics: pick the server having the least connections from the load balancer.
+
+<Desk><Rule2Pick /></Desk>
+<Phone><Rule2Pick layout="phone" /></Phone>
+
+</RuleBox>
+
+<TradeoffTable caption="Three ways to pick a backend" k="L-0053 L-0055 L-0059 L-0062 L-0070 L-0077 L-0078 L-0345"
+  columns={[{ label: 'Round robin' }, { label: 'Weighted round robin' }, { label: 'Least connections' }]}
+  rows={[
+    { label: 'What the LB remembers', cells: ['The index of the last backend it used', 'The last index, and each backend’s weight', 'Active connections per backend'], k: 'L-0054 L-0345 L-0059 L-0072' },
+    { label: 'Infrastructure it suits', cells: ['Uniform: every server alike', 'Non-uniform: e.g. 4, 8, 4 GB', 'Not discussed in class'], k: 'L-0055 L-0062' },
+    { label: 'Load it suits', cells: ['Uniform: every API answers in a narrow time range', 'Not discussed in class (the example assumed uniform load)', 'Big variance in response times'], k: 'L-0055 L-0078' },
+    { label: 'State it needs', cells: ['One integer', 'One integer plus weights', 'A counter per backend, updated as connections open and close'], k: 'L-0345 L-0072' },
+    { label: 'What goes wrong if misused', cells: [{ text: 'Long requests pile onto one server', bad: true }, 'The big server idles at 40% if you forget the weights', 'Still blind to CPU: only connections'], k: 'L-0077 L-0061 L-0079' },
+    { label: 'Example', cells: ['Identical 4 GB API servers, sub-second APIs', 'Reserved instances of mixed sizes', 'Analytics queries: a second to two hours'], k: 'L-0053 L-0060 L-0075' },
+  ]} />
+
+</Section>
+
+<Section id="s2-5" no="2.5" title="Why not route on CPU?" crumb="2.5 Why not CPU?"
+  dek="The clever suggestion that would make every request slower."
+  meta="About 2 min · class 00:31–00:33">
+
+A common clever suggestion: just send each request to the server with the lowest CPU.
+
+The load balancer has no idea of a backend’s CPU or memory. All it knows is its own network connections. It needs to be extremely stateless, so it picks the server with the fewest connections, a rough estimate of how busy that backend is. [[L-0079]] (Some load balancers do use backend-reported load, collected asynchronously rather than per request: gRPC’s client-side weighted round robin computes each backend’s weight from the utilization and request rate the backends report (<Cite href="https://github.com/grpc/proposal/blob/master/A58-client-side-weighted-round-robin-lb-policy.md">gRPC A58</Cite>).)
+
+It is tempting to let the load balancer capture CPU and use it. Imagine the system that takes: the load balancer would have to talk to one more component, fire a query, look at historical usage, and only then decide where to forward. That adds a network hop and slows everything down, and a load balancer needs to be lightning fast. Don’t make things too complicated there. [[L-0080]]
+
+That is why load balancing algorithms are **heuristics**. The decision has to be made right there, in microseconds, not even milliseconds, while collecting the CPU usage of every server and finding the least busy would add multiple milliseconds to each request. The connection count is the simplest signal that a server is overburdened. [[L-0081]] The [last step of Fig 2·d](#fig-2c/step-5) puts it in the load balancer’s own words.
+
+The lesson reaches beyond load balancers: whenever you suggest a design idea, ask whether it is practical. [[L-0082]]
+
+</Section>
+
+<Section id="s2-6" no="2.6" title="Long requests and users who leave" crumb="2.6 Long requests"
+  dek="How a request can last an hour, and what happens when its user gives up."
+  meta="About 4 min · class 00:34–00:35 and 00:38–00:40">
+
+How can one HTTP request take an hour?
+
+Don’t think only of HTTP; think of raw TCP. A TCP connection never breaks by itself: someone has to break it, through a network interruption or the client or the server terminating it. If none of that happens, it stays open. [[L-0084]] TCP itself never times out an idle connection, but load balancers, NATs and firewalls on the path do, so a long-lived connection needs keep-alives or some data now and then; the note below has the numbers.
+
+<MarginNote title="How can a request last an hour?" why="skip unless your requests run long" k="L-0084 L-0085 L-0086">
+
+**Idle timeouts on the path.** TCP has no idle timeout of its own, but the boxes in between have one. An AWS Application Load Balancer closes a connection that has been idle for 60 seconds by default (configurable from 1 to 4,000), and AWS advises sending at least one byte before each idle period ends and setting the application’s own idle timeout above the load balancer’s (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html">docs.aws.amazon.com</Cite>). TCP keep-alives won’t do it for you by default: they are optional, must default to off, and their interval must default to no less than two hours (<Cite href="https://www.rfc-editor.org/rfc/rfc9293#section-3.8.4">RFC 9293</Cite>). [[L-0084]]
+
+**Keep-alive.** As taught, HTTP tells client and server to terminate the connection once the response arrives, but with keep-alive it can stay open. That was HTTP/1.0’s rule; HTTP/1.1 keeps connections open by default until someone sends `Connection: close` (<Cite href="https://www.rfc-editor.org/rfc/rfc9112#section-9.3">RFC 9112</Cite>). Extremely long-running HTTP requests do happen in practice (the instructor has had them), but server to server, not from end users. [[L-0085]]
+
+**gRPC.** gRPC is the classic non-terminating connection: it runs on HTTP/2, and the connection never closes unless someone explicitly closes it. [[L-0086]] So that proxies and load balancers don’t treat a quiet connection as idle, gRPC sends HTTP/2 PING frames as keepalives; servers can still close connections on purpose with `MAX_CONNECTION_IDLE` and `MAX_CONNECTION_AGE`, both infinite by default (<Cite href="https://grpc.io/docs/guides/keepalive/">grpc.io</Cite>). An AWS ALB doesn’t count those PINGs as activity for its idle timeout.
+
+</MarginNote>
+
+### When the user gives up
+
+A user waits, gets frustrated, closes the browser and submits again. The new request may land on another VM while the old job is still running. Will they get two results? That is your business logic. If the work is stateful, you have to make sure the retry reaches the same machine and can be identified. But a TCP connection, once broken, is broken: the old response has nowhere to go. For this kind of work, process asynchronously. [[L-0092]]
+
+Can you at least stop the abandoned job? Once a job is submitted, it is submitted: normal HTTP web servers don’t give you the tooling to stop it when the client goes away. You can implement it, though, especially when you control the execution engine, because when the TCP connection breaks you are notified on the socket. [[L-0093]] Two details, in practice. Some servers do give you the hook: Go’s standard `net/http` cancels a request’s context when the client’s connection closes, so a handler that passes that context on stops its work (<Cite href="https://pkg.go.dev/net/http#Request.Context">pkg.go.dev</Cite>). And the socket only learns of a disconnect when a FIN or RST arrives; a client that simply vanished (power loss, a cut cable) goes unnoticed until you write to it or keep-alive probes fail (<Cite href="https://www.rfc-editor.org/rfc/rfc9293#section-3.8.4">RFC 9293</Cite>).
+
+Data warehouses build exactly this: Redshift and BigQuery let you cancel a very long-running query, which stops its execution. [[L-0094]] Cancellation is best effort, though: a BigQuery job may already have finished or be at a stage that can’t be cancelled, and you can still be charged depending on when it stopped (<Cite href="https://docs.cloud.google.com/bigquery/docs/managing-jobs">BigQuery docs</Cite>).
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Four servers of 4, 4, 8 and 16 GB, with identical CPU per GB: which algorithm, and which weights?" k="L-0059 L-0062">
+
+Weighted round robin, since the infrastructure isn’t uniform. Weights in proportion to capacity: 1 : 1 : 2 : 4. Plain round robin would leave the 8 GB and 16 GB machines under-utilized while the small ones ran hot.
+
+  </RecallItem>
+  <RecallItem q="Why does least connections beat round robin for an analytics API, and what does it still not know?" k="L-0075 L-0077 L-0078 L-0079">
+
+Analytics has a huge variance in response times. Round robin deals requests in turn, so long queries can pile onto a server that is already busy; least connections sends each request to the server with the fewest open connections, a relatively free one. It still doesn’t know CPU or memory, or how long a running request has left: connection count is only a rough estimate of busyness.
+
+  </RecallItem>
+  <RecallItem q="Why doesn’t the load balancer just ask each server for its CPU before routing?" k="L-0080 L-0081 L-0082">
+
+The decision has to take microseconds. Asking every server, or another monitoring system, for CPU before each request adds a network call and several milliseconds to every request, and a load balancer must be lightning fast. That is why algorithms use cheap heuristics like the connection count.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '3 · A load balancer on one laptop', href: '#s3' }}
+  concepts={[{ label: 'single point of entry', href: '#s2-1' }, { label: 'round robin', href: '#s2-2' }, { label: 'weighted round robin', href: '#s2-3' }, { label: 'least connections', href: '#s2-4' }, { label: 'heuristic', href: '#s2-5' }, { label: 'long-lived connections', href: '#s2-6' }]} />
+
+</Section>

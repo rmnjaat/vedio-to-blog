@@ -1,0 +1,440 @@
+import Section from '../../../components/Section.astro';
+import NotationKey from '../../../components/NotationKey.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { LockMarks } from '../../../figures/lec05/s1-locks-key';
+import { AcquireRelease } from '../../../figures/lec05/s1-locks-fig-1a';
+import { SharedLocks, ExclusiveLocks } from '../../../figures/lec05/s1-locks-fig-1bc';
+import { SkipOrFail } from '../../../figures/lec05/s1-locks-fig-1d';
+import { Deadlock } from '../../../figures/lec05/s1-locks-fig-1e';
+import { SanityRule } from '../../../figures/lec05/s1-locks-rule';
+
+{/* §1 Locks, in theory (1.1–1.7). Chapter page /lectures/lec05/1-locks/.
+    Reader-first order (outline): deadlocks come after the lock types; the isolation-level question (asked mid-demo)
+    and the post-demo Q&A on how locks work are folded into 1.6 and 1.7 so chapter 2 runs as one demo.
+    Wide figures pass Figure's `max` so they show at about 1:1; below 640px the <Phone> layout takes over. */}
+
+<Section id="s1" no="1" title="Locks, in theory" crumb="1 Locks"
+  dek="Before coding the check-in, the tools: why relational databases are so strict, the two kinds of row lock, the two ways not to wait, deadlocks, isolation levels, and where a lock lives."
+  meta="About 22 min · class 00:02–00:27, Q&A 00:53–00:56, 01:11–01:24, 02:47, 03:04">
+
+<NotationKey />
+
+<Figure id="fig-l5-key" max={700} caption="This lecture’s own marks, on top of the course notation above. A transaction that waits is drawn in graphite with an hourglass, never in red: waiting is not failure.">
+  <Desk><LockMarks /></Desk>
+  <Phone><LockMarks layout="phone" /></Phone>
+</Figure>
+
+An airline flight has 120 seats, and at boarding time 120 passengers stand at 120 check-in kiosks and pick a seat at the same moment. Chapter 2 builds that check-in for real. Before writing a line of it, you need to know what a database can promise when two transactions reach for the same row, and what it can’t.
+
+This chapter is the toolbox: why a relational database is so strict in the first place, the two kinds of row lock, two ways to avoid waiting for one, the deadlock that every lock invites, and what the isolation level does about all of it.
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Why relational databases are strict" crumb="1.1 Why so strict"
+  dek="The seat table looks like any spreadsheet. Its guarantees come from the job relational databases were built for: keeping the books."
+  meta="About 4 min · class 00:00–00:06">
+
+The airline’s seat table looks like any spreadsheet: rows of seats, a column for who sits in each. Why does the database guard it so fiercely?
+
+Because of what relational databases are. No matter how many NoSQL databases come out, MongoDB, Cassandra, DynamoDB, relational databases hold a really special place. They are the heart and soul of business, and they form the raw foundation of how data should be structured and of what guarantees a database can give. The lecture calls them the world’s strictest databases. [[L-0002]]
+
+They made much of today’s software possible. They were so good and so reliable that everyone used them and built all kinds of applications on them, and today they are the backbone of the entire internet. [[L-0007]]
+
+A relational database stores and represents data in rows and columns, and its key highlight is relations, which is where the name comes from. As the board put it: you pick relational databases for relations. Formally, a relation is a set of tuples, a table, and tables are linked to each other by keys <Cite href="https://en.wikipedia.org/wiki/Relation_(database)">en.wikipedia.org</Cite>. [[L-0006]]
+
+The lecture offers a pattern for where that strictness comes from. Whenever a new, revolutionary, foundational technology comes up, its first applications are in finance: money and accounting. There is nothing magical about it; society runs on money. [[L-0008]] Blockchain is the lecture’s example: introduced around 2012, by its account, its first applications were around money. [[L-0010]]
+
+<SourceNote href="https://www.metzdowd.com/pipermail/cryptography/2008-October/014810.html" site="metzdowd.com (the 2008 announcement)" k="L-0010">
+
+Blockchain arrived earlier than 2012, with Bitcoin: Satoshi Nakamoto announced the Bitcoin paper on 31 October 2008. Its first application was indeed money, electronic cash, so the point stands; only the year moves.
+
+</SourceNote>
+
+Relational databases fit the same pattern. They were meant to do the same thing, accounting, which is why their structure is rows and columns. More exactly, they were designed as a general model for any data, and finance was one of their biggest early users <Cite href="https://www.ibm.com/history/relational-database">ibm.com</Cite>. [[L-0011]]
+
+<MarginNote title="Money first" why="skip unless you like history" k="L-0009">
+
+When computers first came up, among the first applications ported to them were spreadsheets, back then simply called ledgers. A memory from class: a father at a machine with a black-and-white screen, using a typewriter tool and a ledger tool to punch in numbers and do the accounting.
+
+</MarginNote>
+
+Because they were built to make financial applications possible and dealt with money, relational databases had to give very strong guarantees. That is why ACID became a core part of them; the class’s pre-reads cover A, C, I and D one by one. [[L-0013]] Money sets the bar: you cannot lose a transaction, whatever you write has to be correct and never corrupted, and many people must be able to update the same data. So the transaction became the core component of a relational database. [[L-0014]]
+
+One more property from the same board, because it comes back in chapter 3: indexes make reads faster and writes slower. Every index is one more structure each write has to update. [[L-0012]] (Chapter 3’s cleanup job is where an index on the expiry column pays for itself, in [§3.3](#s3-3).)
+
+In the lecture’s view, pessimistic locking is one of the most neglected topics in databases. People are scared of it, yet it is one of the best features a database has, and it explains a lot about how everything else works. [[L-0003]]
+
+Anyone can create tables and columns. The crux is how you lock, and why. [[L-0016]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="Why lock at all" crumb="1.2 Why lock"
+  dek="Two passengers tap the same seat. Without a lock, both can win."
+  meta="About 3 min · class 00:05–00:09">
+
+Two passengers tap seat 1A on two kiosks at the same instant. Both kiosks read the seat as free, and both write their passenger into it.
+
+Every relational database, MySQL, Postgres, Oracle, gives you constructs that keep your data from being corrupted. One of them is database locking, and it is the pessimistic way: the board’s heading was *Database Locking: [Pessimistic Locking]*, and its core idea is that you acquire the lock before you proceed. [[L-0017]]
+
+When one transaction updates a critical row, no other transaction should do anything with that row at the same time, because an operation like `count++` is not atomic: it is a read, an add and a write, and another transaction can slip in between. [[L-0018]] The database can make a single statement safe on its own: one `UPDATE … SET count = count + 1` on the row does not lose updates, because the UPDATE locks the row and a concurrent updater waits <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>. Lost updates come from reading the value into the application and writing it back.
+
+The classic flow wraps the critical section in a lock. Every transaction waits to acquire the lock, does the critical action, then releases it. Only after the release may another transaction do the same. [[L-0019]]
+
+<Figure id="fig-1a" no="Fig 1·a" max={740} k="L-0019 L-0021"
+  caption="The board’s typical flow: ACQ_LOCK(), then READ and UPDATE, then REL_LOCK(). While T1 is inside, T2 waits; after the release, T2 gets the lock. One at a time: correct, and slower. Redrawn from the class board at 00:06.">
+  <Desk><AcquireRelease /></Desk>
+  <Phone><AcquireRelease layout="phone" /></Phone>
+</Figure>
+
+There are two pessimistic locking strategies: the shared lock and the exclusive lock (next section). [[L-0020]] Engines have finer grades too. PostgreSQL, for example, has four row-lock strengths, `FOR UPDATE`, `FOR NO KEY UPDATE`, `FOR SHARE` and `FOR KEY SHARE`, and the weaker ones conflict less <Cite href="https://www.postgresql.org/docs/current/explicit-locking.html">postgresql.org</Cite>.
+
+Doesn’t letting one transaction at a time do something slow down throughput? Yes, it does. [[L-0021]]
+
+So why pay for it? Take two people clapping on a Medium story at the same moment, the race from Lecture 2’s lost update (its §4.2). Both transactions read the same old count and both write it back plus one, so the final value is count + 1, not the count + 2 you expected. [[L-0022]]
+
+<RuleBox rule="Take a lock where ==the correctness of the data matters more than throughput==. Where it doesn’t, skip it." k="L-0023">
+
+The board put the reason in one line: *why do we need locks? To protect the **sanity** of the data*, its consistency and integrity, against concurrent updates. Wherever correctness matters more than throughput, lock before you update; where correctness isn’t important, it is fine to skip the lock.
+
+<Desk><SanityRule /></Desk>
+<Phone><SanityRule layout="phone" /></Phone>
+
+</RuleBox>
+
+Taken where they are needed, locks let the database move from one consistent, correct state to the next correct state, however many transactions arrive at once. [[L-0024]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Shared and exclusive locks" crumb="1.3 Shared, exclusive"
+  dek="Six rows, two transactions, one row they both want. What each kind of lock lets the other one do."
+  meta="About 5 min · class 00:14–00:22">
+
+Take a table of six rows and two transactions that both want row 6.
+
+Most databases offer two lock types. **Shared locks** are also called read locks; **exclusive locks** are also called write locks. [[L-0037]]
+
+To take a shared lock in SQL, write a normal SELECT and end it with `FOR SHARE`. The transaction gets a shared lock on every row the query matched. [[L-0038]]
+
+```sql
+-- T1: a shared (read) lock
+-- on every row the query matches
+SELECT * FROM t
+WHERE user_id IN (1,2,6) FOR SHARE;
+
+-- MySQL 8.0+: FOR SHARE replaces
+-- LOCK IN SHARE MODE (which still works).
+-- FOR SHARE and FOR UPDATE both accept
+-- NOWAIT and SKIP LOCKED.
+```
+
+The old spelling and the new one are both in MySQL’s manual on locking reads <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html">dev.mysql.com</Cite>. [[L-0038]]
+
+Once T1’s query runs, T1 holds shared locks on rows 1, 2 and 6. [[L-0039]] Now T2 fires a SELECT for `user_id IN (3,4,6)`, ending with `FOR SHARE`. It also gets its locks, on rows 3, 4 and 6, even though row 6 is already share-locked by T1. [[L-0040]]
+
+That is what “shared” means. A shared lock lets the holder read the row and lets other transactions read it too, but no other transaction may modify it. The board called the rows *reserved for read by the current transaction*. [[L-0041]]
+
+The board listed the rules of a shared lock in four lines, in this order:
+
+1. The rows are reserved for read by the current transaction.
+2. Other transactions can read the locked rows.
+3. Other transactions cannot modify the locked rows.
+4. If the current transaction wants to modify them, its locks are upgraded to an exclusive lock (more on the upgrade below the figure).
+
+[[L-0041 L-0044]]
+
+So if T1 holds the shared lock on rows 1, 2 and 6 and T2 tries to update row 6, T2 has to wait until T1 commits or aborts. As the board put it, T1 may read and modify the row; T2 may only read and wait. [[L-0042]]
+
+<Figure id="fig-1b" no="Fig 1·b" max={760} k="L-0038 L-0039 L-0040 L-0041 L-0042"
+  caption="Two shared locks on overlapping rows. T1 holds rows 1, 2 and 6, T2 holds 3, 4 and 6; row 6 carries both locks and both may read it. When T2 tries to update row 6, it waits for T1. More precisely, see the note below: T1 can’t update row 6 either while T2 shares it. Redrawn from the class board at 00:16.">
+  <Desk><SharedLocks /></Desk>
+  <Phone><SharedLocks layout="phone" /></Phone>
+</Figure>
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking.html" site="dev.mysql.com" k="L-0042">
+
+While T1 and T2 both hold shared locks on row 6, neither can update it until the other commits or aborts. If both try, each waits for the other’s shared lock, and the database detects a deadlock and rolls one of them back. MySQL’s own deadlock example <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-deadlock-example.html">dev.mysql.com</Cite> is a close variant: two rows, each share-locked by one client, then each updated by the other.
+
+</SourceNote>
+
+Shared locks give very high read throughput for read-only use cases: other transactions can still read the locked rows, and modification is prevented. [[L-0043]]
+
+If a transaction that holds a shared lock modifies those rows itself, its read lock is raised to an exclusive lock implicitly, without you doing anything, and only then does the modification happen. [[L-0044]] The upgrade is a classic source of deadlock: if two transactions both hold a shared lock on the same row and both then try to update it, each waits for the other’s shared lock, and InnoDB rolls one back <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-deadlock-example.html">dev.mysql.com</Cite>.
+
+Whenever a transaction wants to update a row, it has to take an exclusive lock on it. [[L-0045]]
+
+An exclusive lock is really strict. On the board, other transactions are not even allowed to *read* the locked rows, let alone modify them: the rows are *reserved for write by the current transaction*. [[L-0046]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html" site="dev.mysql.com" k="L-0046">
+
+An exclusive lock stops other transactions from modifying the rows or taking locks on them (`FOR SHARE` / `FOR UPDATE`). Ordinary SELECTs still read the last committed version without waiting: under MVCC a writer never blocks a plain reader, in MySQL, PostgreSQL <Cite href="https://www.postgresql.org/docs/current/explicit-locking.html">postgresql.org</Cite> and Oracle <Cite href="https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/data-concurrency-and-consistency.html">docs.oracle.com</Cite>. The exception is InnoDB at SERIALIZABLE with autocommit off, where plain SELECTs become `SELECT … FOR SHARE` and do wait <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html">dev.mysql.com</Cite>.
+
+</SourceNote>
+
+To take an exclusive lock, end the SELECT with `FOR UPDATE`. The rows the query selects are locked exclusively by the transaction. [[L-0047]]
+
+```sql
+-- T1: exclusive (write) locks
+-- on rows 1, 2 and 6
+SELECT * FROM t
+WHERE user_id IN (1,2,6) FOR UPDATE;
+
+-- T2: wants 3, 4 and 6; row 6 is T1's,
+-- so this statement waits
+SELECT * FROM t
+WHERE user_id IN (3,4,6) FOR UPDATE;
+```
+
+Now T1 holds exclusive locks on rows 1, 2 and 6, and T2 asks for rows 3, 4 and 6 `FOR UPDATE`. T2’s query does not complete. It waits until T1 commits or aborts, because it wants row 6, which T1 has locked. Without row 6 in its set, T2’s statement would have completed with rows 3 and 4. [[L-0048]]
+
+<Figure id="fig-1c" no="Fig 1·c" max={760} k="L-0045 L-0046 L-0047 L-0048 L-0049"
+  caption="Two exclusive locks on overlapping rows. T1 reads and modifies rows 1, 2 and 6; T2 asks for 3, 4 and 6 and waits, because of row 6 alone. On the board, nobody else may even read an exclusively locked row. More precisely, plain reads still see the last committed version (see the note above). Redrawn from the class board at 00:21–00:22.">
+  <Desk><ExclusiveLocks /></Desk>
+  <Phone><ExclusiveLocks layout="phone" /></Phone>
+</Figure>
+
+Exclusive locks severely hurt throughput. But where you need exclusivity, you have to use them. [[L-0049]]
+
+Both kinds come out of the box: SQL databases give you shared and exclusive locks to keep your system correct under concurrent transactions. [[L-0050]]
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="Don’t wait: SKIP LOCKED and NOWAIT" crumb="1.4 SKIP LOCKED, NOWAIT"
+  dek="T2 doesn’t need row 6 in particular. Must it still wait? Two clauses say no, in opposite ways."
+  meta="About 4 min · class 00:21–00:26, Q&A 03:04–03:06">
+
+In Fig 1·c, T2 waited for row 6. But what if T2 doesn’t need row 6 in particular, the way a passenger who just wants *a* seat doesn’t need seat 1A?
+
+Add `SKIP LOCKED`: `SELECT … FOR UPDATE SKIP LOCKED`. If any of the rows the query wants are locked by another transaction, skip them, and go ahead on a best-effort basis with the rows that aren’t locked instead of waiting. The board put it in one line: it *removes the locked rows from the result set*. [[L-0051]] Both MySQL <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html">dev.mysql.com</Cite> and PostgreSQL <Cite href="https://www.postgresql.org/docs/current/sql-select.html">postgresql.org</Cite> say what that costs: the result is “an inconsistent view of the data”, so it is not for general transactional work. It is meant for queue-like tables where any free row will do, like job queues or a pool of seats.
+
+Use it when your use case is fine with whatever rows aren’t locked. When you need all the rows, you have to wait; there is no other option. Chapter 2 shows both cases. [[L-0052]]
+
+With T1 holding rows 1, 2 and 6, T2’s query for rows 3, 4 and 6 with `SKIP LOCKED` moves on at once and gets rows 3 and 4 only. [[L-0053]]
+
+`NOWAIT` is the other extreme. If any of the rows the query wants is locked by another transaction, the transaction kills itself instead of waiting. The board: a `NOWAIT` locking read *does not wait for the lock to be acquired; it fails immediately*. [[L-0055]] What “kills itself” means depends on the engine: in MySQL only the failing statement errors, while in PostgreSQL any error, a `NOWAIT` failure included, puts the whole transaction into an aborted state that only a ROLLBACK (or a rollback to an earlier savepoint) recovers <Cite href="https://www.postgresql.org/docs/current/tutorial-transactions.html">postgresql.org</Cite> <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-error-handling.html">dev.mysql.com</Cite>.
+
+Picture the `NOWAIT` transaction going into an existential crisis: someone else has picked that row and will process it, so it has no reason to exist, and it kills itself. [[L-0056]]
+
+In MySQL, a `NOWAIT` read on a locked row fails with error 3572, as on the board: [[L-0054]]
+
+```sql
+SELECT * FROM t WHERE id = 2
+FOR UPDATE NOWAIT;
+-- ERROR 3572: Do not wait for lock
+```
+
+<Figure id="fig-1d" no="Fig 1·d" max={740} k="L-0051 L-0053 L-0054 L-0055"
+  caption="Skip or fail, on the same six rows with T1 holding 1, 2 and 6. a: SKIP LOCKED leaves row 6 out and moves on at once with rows 3 and 4. b: NOWAIT meets the locked row 6 and fails immediately with ERROR 3572. Drawn from the class board at 00:22 and 00:24.">
+  <Desk><SkipOrFail /></Desk>
+  <Phone><SkipOrFail layout="phone" /></Phone>
+</Figure>
+
+After the failure, the transaction may retry, or not. That depends on your business. [[L-0057]]
+
+Why have `NOWAIT` at all? So you don’t wait for nothing. Without it, T2 waits for the lock up to the SQL query timeout, say 10 seconds in the class’s example, tying up that thread’s share of the database and making the client wait, in a use case that doesn’t care whether the row is locked. [[L-0058]] The real defaults are longer than the example: InnoDB waits `innodb_lock_wait_timeout` = 50 seconds for a row lock <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html">dev.mysql.com</Cite>, and PostgreSQL’s `lock_timeout` defaults to 0, which means wait forever unless you set it <Cite href="https://www.postgresql.org/docs/current/runtime-config-client.html">postgresql.org</Cite>.
+
+Here are the four ways to ask for a row side by side, with where each one shows up in the check-in:
+
+<TradeoffTable caption="Four ways to ask for a row: what each locking read gets, what others can do, and what happens when a row is taken"
+  k="L-0041 L-0046 L-0049 L-0052 L-0055 L-0058"
+  columns={[{ label: 'FOR SHARE' }, { label: 'FOR UPDATE' }, { label: 'FOR UPDATE SKIP LOCKED' }, { label: 'FOR UPDATE NOWAIT' }]}
+  rows={[
+    { label: 'What you get', cells: ['A shared lock on every matched row', 'An exclusive lock on every matched row', 'Exclusive locks on the matched rows that are free', 'Exclusive locks on all matched rows, or nothing'] },
+    { label: 'Others can read?', cells: ['Yes', 'Not even read, on the board; plain SELECTs still see the committed version (the note in 1.3)', 'Not the rows it locked (as FOR UPDATE)', 'Not the rows it locked (as FOR UPDATE)'], k: 'L-0041 L-0046' },
+    { label: 'Others can modify?', cells: ['No', 'No', 'No', 'No'], k: 'L-0041 L-0046' },
+    { label: 'If a row is taken', cells: ['Shares it if the other lock is shared; waits if it is exclusive', { text: 'Waits, up to the lock timeout', bad: true }, 'Skips it and moves on at once', 'Fails at once: ERROR 3572'], k: 'L-0052 L-0055 L-0058' },
+    { label: 'Good for', cells: ['Read-heavy work where nobody may modify', 'Where you need exclusivity, at a cost in throughput', 'Any free rows will do: queues, seat pools', 'When waiting is pointless: fail fast, retry if the business wants'], k: 'L-0049 L-0052 L-0058' },
+    { label: 'Check-in use', cells: ['Not used in the demo', 'Approach 4: all 120 seats, correct, slower (§2.4)', 'Approach 5: all 120, about ten times faster (§2.5)', 'Not used in the check-in; chapter 3 tries it for puts'] },
+  ]} />
+
+<MarginNote title="From practice: “Lock wait timeout exceeded”" why="skip unless you’ve seen the error" k="L-0332 L-0333">
+
+One team’s system hits this error often. It means a transaction waited too long for the transaction holding the lock to commit or abort, and that didn’t happen within the set time. It is about the timeout, not about any one cause. [[L-0332]] After the timeout, MySQL rolls back only the waiting statement, not the whole transaction (unless the server’s rollback-on-timeout option is on). The transaction stays open and still holds its earlier locks, so your code should roll back or retry explicitly <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-error-handling.html">dev.mysql.com</Cite>.
+
+There are two usual reasons. Either the lock holder genuinely does a long processing job, and then you raise the timeout; or the processing finished and the code forgot to commit or abort. [[L-0333]]
+
+</MarginNote>
+
+</Section>
+
+<Section id="s1-5" no="1.5" title="Deadlocks" crumb="1.5 Deadlocks"
+  dek="Two check-in transactions each hold one seat and want the other’s. Nobody moves, unless the database steps in."
+  meta="About 5 min · class 00:07–00:15">
+
+Two check-in transactions each hold one seat and now want the other’s.
+
+Deadlock is a side effect of pessimistic locking that comes out of the box, unannounced. The board wrote it in capitals: *Risk: Transactional Deadlock!!* [[L-0025]]
+
+Here it is on two rows. T1 holds row 2 and wants a lock on row 1, which T2 holds. T2 wants a lock on row 2, which T1 holds. Nobody moves forward. It is the same deadlock you met in operating systems. [[L-0026]]
+
+<Figure id="fig-1e" no="Fig 1·e" wide={false} max={340} k="L-0026 L-0032 L-0033"
+  caption="Each transaction holds one row (ink) and wants the other’s (red). The waits close a cycle. Redrawn from the class board at 00:07–00:14, where the second transaction was hidden behind the video tiles; per the audio it is T2.">
+  <Deadlock />
+</Figure>
+
+Whenever you add pessimistic locking, you are risking a deadlock. Always. You never know how threads will be scheduled or who will be waiting on what. [[L-0027]]
+
+So whenever you write code or a SQL query that takes locks, in any language, check whether it can deadlock. Arrange your statements, and the order in which you acquire and release locks, and if a deadlock is possible, protect against it. [[L-0028]] The standard defence is a single order: make every code path lock several rows in the same order, for example by ascending primary key. Two transactions that lock rows in the same order cannot form a cycle <Cite href="https://www.postgresql.org/docs/current/explicit-locking.html">postgresql.org</Cite>.
+
+Transactional deadlocks are killers. They stall your database. [[L-0029]]
+
+Note what a deadlock is not. Waiting is not deadlock: a transaction that waits for a row someone else holds will get it when they commit. A deadlock needs a cycle, where you wait for a row held by someone who is waiting for a row you hold. [[L-0096]]
+
+Most popular databases, MySQL, Postgres and Oracle, don’t let a deadlock persist: they detect it and roll one transaction back <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-deadlock-detection.html">dev.mysql.com</Cite>. [[L-0030]]
+
+Whenever a lock would make a transaction wait, the database runs a deadlock detection algorithm: would granting it put the database in a deadlock? [[L-0031]] Engines differ on when: InnoDB checks at once, while PostgreSQL first lets the waiter sleep for `deadlock_timeout`, 1 second by default, and only then runs the relatively expensive check <Cite href="https://www.postgresql.org/docs/current/runtime-config-locks.html">postgresql.org</Cite>.
+
+The detection itself is simple. Draw who waits for whom; a cycle in that graph is a deadlock. [[L-0032]]
+
+If granting a lock would create one, as with T1 asking for row 1 in the picture above, the database engine kills the transaction that fired that query. That way the edge that would close the cycle is never allowed to form. The board said it as *the transaction that detects the deadlock kills itself!* [[L-0033]]
+
+<AnimationClip clip="l05-deadlock" no="Clip 1·1" k="L-0025 L-0026 L-0028 L-0031 L-0032 L-0033 L-0096"
+  lead="T1 holds row 2, T2 holds row 1, and each now asks for the other’s. What does the database do?"
+  caption="One wait is harmless; the second wait in the opposite order closes the cycle. The engine rolls one transaction back (InnoDB picks the smaller one) and your code retries it. Lock rows in the same order and the loop can’t form." />
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-deadlock-detection.html" site="dev.mysql.com" k="L-0033">
+
+The engine breaks a detected deadlock by rolling back a victim, and engines choose differently. InnoDB “tries to pick small transactions to roll back”, measured by rows inserted, updated or deleted; the victim gets ERROR 1213 and its whole transaction is rolled back <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-error-handling.html">dev.mysql.com</Cite>. PostgreSQL’s choice of victim is unpredictable <Cite href="https://www.postgresql.org/docs/current/explicit-locking.html">postgresql.org</Cite>. Oracle rolls back only one statement of the transaction that detects it <Cite href="https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/data-concurrency-and-consistency.html">docs.oracle.com</Cite>. Either way, every transaction must be ready to retry.
+
+</SourceNote>
+
+Why are databases so strict about this? If a database did enter a deadlock, everything would stall and nothing would move forward. The only way out would be to reboot the database, which means downtime, so databases never let it happen. [[L-0035]] (Short of a reboot, a lock-wait timeout, `innodb_lock_wait_timeout`, 50 s by default, or killing one of the sessions also breaks it <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html">dev.mysql.com</Cite>.)
+
+<MarginNote title="See it yourself" why="skip if you’ve seen ERROR 1213" k="L-0034">
+
+You can reproduce this locally in a minute. Start two transactions on two rows and take the locks crosswise: T1 locks row 2, T2 locks row 1, then T1 asks for row 1 and T2 asks for row 2. When that final lock-acquiring query fires, the transaction that fired it is killed. [§1.7](#s1-7) shows the two-terminal setup.
+
+</MarginNote>
+
+<MarginNote title="From your OS course" why="skip unless you run a very hot database" k="L-0036">
+
+Deadlock detection and prevention is core computer science, and it is not going anywhere, however many React-like frameworks come out. It applies not just to databases but to operating-system threads and to distributed transactions. [[L-0036]]
+
+Detection has a price of its own. On very busy InnoDB systems, where many threads wait on the same lock, the detection itself can slow things down; MySQL lets you turn it off (the `innodb_deadlock_detect` setting) and rely on the lock-wait timeout instead <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-deadlock-detection.html">dev.mysql.com</Cite>.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s1-6" no="1.6" title="Isolation levels: why not one at a time?" crumb="1.6 Isolation levels"
+  dek="If the database is ACID by default, why lock anything yourself? Because the I in ACID comes in levels."
+  meta="About 3 min · class Q&A 00:53–00:56">
+
+In the middle of the check-in demo the question came up: if MySQL is ACID by default, why do we lock at all? (It was asked during the approach 4 predictions in [§2.4](#s2-4).)
+
+<PauseAndThink k="L-0100"
+  q="MySQL is an ACID database, and every booking runs in a transaction. Isn’t that enough to stop two passengers getting the same seat?"
+  choices={[{ label: 'Yes: ACID transactions can’t interfere with each other' }, { label: 'No: it depends on the isolation level', correct: true }]}
+  right="Right: the isolation level decides, and the default lets two bookers read the same free seat."
+  wrong="Not quite: ACID holds for each transaction, but how concurrent ones see each other is set by the isolation level, and the default isn’t the strictest.">
+
+Isolation is the “I” in ACID, and it comes in levels: read uncommitted, read committed, repeatable read, serializable. Only serializable makes the result match some one-at-a-time order, and it costs throughput, so neither MySQL nor PostgreSQL defaults to it (MySQL uses repeatable read, PostgreSQL read committed). Under those defaults “read the free seat, then book it” can race unless you take a lock while reading (`FOR UPDATE`) or write with a conditional UPDATE.
+
+</PauseAndThink>
+
+ACID properties hold at the level of a transaction. What the check-in has is concurrent transactions locking rows inside their own transactions, and how concurrent transactions are scheduled depends on the database’s isolation level. [[L-0100]]
+
+Durability: when you commit, the data is flushed. [[L-0101]] In MySQL what gets flushed at commit is the redo log: with `innodb_flush_log_at_trx_commit` at its default of 1, “logs are written and flushed to disk at each transaction commit”; settings 0 and 2 flush about once a second, and unflushed transactions can be lost in a crash <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-parameters.html">dev.mysql.com</Cite>.
+
+Isolation means two running transactions are independent of each other. Its levels are read uncommitted, read committed, repeatable read and serializable, and transactions are scheduled according to the level the database runs at. [[L-0102]]
+
+If your isolation level were serializable, then while one transaction executes the database would not even run another. Transactions would run literally one after another. That is pathetically slow, but you would not face the seat problem at all. [[L-0103]]
+
+<SourceNote href="https://www.postgresql.org/docs/current/transaction-iso.html" site="postgresql.org" k="L-0103">
+
+SERIALIZABLE guarantees that the outcome equals *some* one-at-a-time order; it does not literally queue transactions. PostgreSQL runs them concurrently and aborts one with a serialization failure (SQLSTATE 40001), so applications “must be prepared to retry transactions due to serialization failures”. InnoDB’s SERIALIZABLE is repeatable read plus one change: plain SELECTs become `SELECT … FOR SHARE` when autocommit is off <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html">dev.mysql.com</Cite>, so two bookers that both read a seat and then update it can deadlock. Either way it costs throughput.
+
+</SourceNote>
+
+The default isolation level is not serializable, and you don’t set it to serializable, for practical reasons: you need high throughput and parallel writes. If one user is updating row 100 and another row 1, why should the one on row 100 wait? [[L-0104]] Neither popular database defaults to it: MySQL’s InnoDB uses REPEATABLE READ <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html">dev.mysql.com</Cite> and PostgreSQL uses READ COMMITTED <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>.
+
+So the isolation behaviour is configurable, and in typical use it is not set to serializable, for throughput. As the class summed it up, with serializable you wouldn’t need all this locking; the note above says what you would need instead, a retry. [[L-0105]]
+
+</Section>
+
+<Section id="s1-7" no="1.7" title="Where locks live, and how they end" crumb="1.7 Where locks live"
+  dek="Rows sit at offsets on a disk. The lock isn’t there; and there is no unlock call either."
+  meta="About 4 min · class Q&A 01:11–01:24, 02:47–02:48">
+
+A seat row sits at some offset in a file on disk. Is it the disk, or the operating system, that locks it?
+
+No. Locking does not happen at the disk level at all. It happens in the database engine, on the CPU side: a mutex simply doesn’t let the waiting transaction move forward. [[L-0133]] Engines differ in where they keep the record of who holds what: InnoDB keeps its lock table in memory, but PostgreSQL marks a row lock in the row itself, so a `SELECT FOR UPDATE` can cause disk writes, and there is no limit on how many rows can be locked at once <Cite href="https://www.postgresql.org/docs/current/explicit-locking.html">postgresql.org</Cite>.
+
+Mutexes and semaphores, and in some cases monitors, are the constructs locks are built with; apart from those, you go for atomic instructions. All of them rest on hardware atomic instructions such as test-and-set and compare-and-swap <Cite href="https://en.wikipedia.org/wiki/Lock_(computer_science)">en.wikipedia.org</Cite>. [[L-0134]]
+
+In chapter 2’s approach 4, transactions wait in line for a seat. Why do they wait? Only because they want to acquire a lock. [[L-0157]]
+
+What if you drop the `SELECT … FOR UPDATE` and fire a plain UPDATE instead? Then the isolation level kicks in: whatever the isolation level says, the transaction does. Under serializable they run one after another; repeatable read and read committed each have their own behaviour. [[L-0156]] And you cannot write `FOR UPDATE` on an UPDATE: an UPDATE is a one-line command fired directly at the database, and, as the lecture put it, you have never acquired a lock on any row. [[L-0158]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locks-set.html" site="dev.mysql.com" k="L-0156 L-0158">
+
+You can’t write `FOR UPDATE` on an UPDATE, and you don’t need to: an UPDATE always takes an exclusive lock on every row its search touches, the same lock `SELECT … FOR UPDATE` takes. MySQL defines `FOR UPDATE` as locking rows “the same as if you issued an UPDATE statement for those rows” <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html">dev.mysql.com</Cite>. So concurrent UPDATEs of one row queue. The isolation level then decides what the waiter does: under READ COMMITTED it re-checks its WHERE against the new row version and proceeds <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html">dev.mysql.com</Cite>; under PostgreSQL’s REPEATABLE READ or SERIALIZABLE it is aborted with “could not serialize access due to concurrent update” and must retry <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>.
+
+</SourceNote>
+
+To take a lock explicitly, then, run `SELECT … FOR UPDATE` first, then the UPDATE. That was the class’s own summary, and the discussion moved on without correcting it. It is the shape the check-in uses: read the row under the lock, decide, then write, so the row can’t change in between. [[L-0159]]
+
+There is no explicit unlock. Committing the transaction releases all the locks it holds, and so does aborting it. [[L-0160]]
+
+```sql
+BEGIN;
+-- the lock is taken here
+SELECT * FROM seats
+WHERE id = 67 FOR UPDATE;
+UPDATE seats SET user_id = 42
+WHERE id = 67;
+-- every lock is released here
+COMMIT;
+```
+
+What about autocommit? Autocommit = true means a standalone SQL statement is committed on its own, as soon as it runs. Inside an explicit `BEGIN … COMMIT` transaction, the commit comes at the end. So `FOR UPDATE` locks behave as shown here whether autocommit is on or off. [[L-0305]]
+
+<MarginNote title="Try it in two terminals" why="skip if you’ve done it" k="L-0143 L-0144 L-0142">
+
+Locks are easy to watch, and you need no code. Start a MySQL server, open two terminals connected to it, and in each run `SET autocommit = 0` and begin a transaction. Take shared and exclusive locks on the same rows from both sessions and watch how the database reacts: one session halts while the other moves. [[L-0143]]
+
+This is also where you discover deadlocks. Your queries fail, and a lot of funny things happen. [[L-0144]]
+
+One question from class to try this way: a transaction holds a `FOR SHARE` lock on a row and then updates it; what happens to a second transaction reading the same row? Answering it properly needed a half-hour lock-timeline chart, so the class was asked to code it out instead. [[L-0142]] (The note in [§1.3](#s1-3) gives the textbook answer for the case where both hold the shared lock.)
+
+</MarginNote>
+
+That is the toolkit: two lock types, two ways not to wait, the cycle that makes a deadlock, the isolation level that schedules it all, and commit or abort to let go. [Chapter 2](#s2) puts it to work on the 120 kiosks.
+
+<h3 id="s1-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0048 L-0053 L-0055" q="T1 holds <code>FOR UPDATE</code> locks on rows 1, 2 and 6. T2 asks for rows 3, 4 and 6 three ways: plain <code>FOR UPDATE</code>, with <code>SKIP LOCKED</code>, and with <code>NOWAIT</code>. What does each get?">
+
+Plain `FOR UPDATE` waits: the statement doesn’t complete until T1 commits or aborts, because of row 6 alone. `SKIP LOCKED` moves on at once with rows 3 and 4 and leaves row 6 out. `NOWAIT` fails immediately; in MySQL with ERROR 3572 (the statement fails), while in PostgreSQL the whole transaction is aborted.
+
+  </RecallItem>
+  <RecallItem k="L-0028 L-0032 L-0096" q="Two transactions lock the same two rows in the same order. Can they deadlock?">
+
+No. The second one waits for the first row, which the first transaction holds, and it holds nothing the first one needs. Waiting is not deadlock. A deadlock needs a cycle, and a cycle needs the two transactions to lock the rows in opposite orders. That is why locking in one fixed order, such as ascending primary key, is the standard defence.
+
+  </RecallItem>
+  <RecallItem k="L-0103 L-0104 L-0105" q="Why doesn’t the database simply run every transaction serializably, and what does your code need if you choose serializable anyway?">
+
+Throughput. As taught, serializable runs transactions one after another, and a user updating row 100 shouldn’t wait for one updating row 1; so the defaults are weaker (REPEATABLE READ in MySQL, READ COMMITTED in PostgreSQL). If you choose serializable anyway, your code must retry: PostgreSQL aborts one transaction with a serialization failure, and in InnoDB two bookers that read a seat and then update it can deadlock.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '2 · Building the airline check-in', href: '#s2' }}
+  concepts={[{ label: 'ACID', href: '#s1-1' }, { label: 'pessimistic locking', href: '#s1-2' }, { label: 'shared lock', href: '#s1-3' }, { label: 'exclusive lock', href: '#s1-3' }, { label: 'SKIP LOCKED', href: '#s1-4' }, { label: 'NOWAIT', href: '#s1-4' }, { label: 'deadlock', href: '#s1-5' }, { label: 'isolation level', href: '#s1-6' }, { label: 'autocommit', href: '#s1-7' }]} />
+
+</Section>

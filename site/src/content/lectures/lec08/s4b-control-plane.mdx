@@ -1,0 +1,217 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { PollVsPush, ChangeReaches, VitalsFlow, ReactiveSketch } from '../../../figures/lec08/s4b-control-plane';
+
+{/* §4 The control plane, part b: 4.4–4.6. Part a (4.1–4.3) is s4a-control-plane.mdx. Writer w2. */}
+
+<Section id="s4-4" no="4.4" title="Getting the change to every LB server" crumb="4.4 Push the change"
+  dek="The database is right and the LB servers are wrong. Polling leaves a window of failed requests; pushing the change closes it."
+  meta="About 8 min · class 01:20–01:28">
+
+The orchestrator has updated the database. Every LB server is still routing from its old in-memory copy.
+
+That is the key problem of the design: how does a change the orchestrator made in the database reach the in-memory hash map of configuration that every LB server holds? [[L-0166]]
+
+The most naive way is for each LB server to keep polling the database. It works, but it is not an optimal way. [[L-0167]] It is tempting to think the cost is latency: that checking which backends are alive slows down the user requests arriving at the LB server. It doesn’t, because the orchestrator runs the health checks, not the LB server, so user requests there are not affected by them. Polling the database does keep the LB server busy, but the main cost is staleness: [[L-0167]]
+
+<PauseAndThink k="L-0152 L-0164 L-0169 L-0170 L-0171 L-0176"
+  q="Your LB servers re-read the config database every 10 seconds. A backend crashes one second after the last read. What happens to user requests until the next read?"
+  choices={[{ label: 'Nothing: the orchestrator already removed it from the database' }, { label: 'Some keep going to the dead backend', correct: true }]}
+  right="Yes: for up to nine seconds the LB servers route from a stale copy."
+  wrong="The database is right, but the LB servers aren’t reading it. They route from their in-memory copy.">
+
+The LB servers never ask the database per request (that would add 3–5 ms to every request), so the orchestrator’s update sits unseen until the next poll. For about nine seconds the dead backend still gets its share, and users see an error-rate spike. Polling faster only shrinks the window. Removing it means pushing the change: call each LB server’s meta port, or publish one message every LB server hears.
+
+</PauseAndThink>
+
+<AnimationClip clip="l08-stale-config" no="Clip 4·1" k="L-0154 L-0164 L-0167 L-0169 L-0170 L-0171 L-0176"
+  lead="A backend dies one second after the last poll. With a 10-second poll, for how long do users see errors?"
+  caption="With polling, LB servers route to a dead backend from stale config until the next poll. Pushing the change at once closes the window." />
+
+Polling has a frequency, say every 10 seconds. If a backend crashes in the first second of an interval, then for the remaining nine seconds (N − 1, for an interval of N) requests keep going to that backend, even though it is dead. [[L-0169]] Some load balancers also shrink the window from the request side. Besides active health checks, nginx runs passive ones: after `max_fails` failed attempts within `fail_timeout` (10 s by default), it marks a server unavailable for `fail_timeout`, so real request failures take a dead backend out between checks (<Cite href="https://nginx.org/en/docs/http/ngx_http_upstream_module.html">nginx.org</Cite>).
+
+The LB server routes from its in-memory configuration and doesn’t check the database per request. So a stale configuration means user requests fail for that whole window, a spike in the error rate for your end users. That is the main reason polling can’t be used. [[L-0170]]
+
+The way out is to make it event based: instead of polling, have the change itself trigger the update, whenever it happens. [[L-0168]]
+
+One push design came from the class. Reserve a separate port on the LB server for updating the configuration: the main process serves traffic on `9090`, and one more process listens on `9091`, a “meta” port. Whoever detects or makes a change, the orchestrator for one, makes a normal call to that port, and its handler reads the database and updates the in-memory configuration. [[L-0171]]
+
+Another proposal was a separate “load balancer handler” service that would watch for configuration changes. It was turned down: why have one more service for that, when the orchestrator, or the LB server itself, can do it? What stands is the simpler version: the orchestrator updates the database and calls the load balancer to pull. [[L-0172]]
+
+Changes don’t come only from health checks. Developers change configuration too, through the LB console APIs: in the AWS console you explicitly add backend servers, change the load-balancing algorithm, change the health check. Every such change goes to the database and must reach every LB server’s in-memory copy. [[L-0173]] With the push approach, whoever changes the configuration calls the LB server’s other port and asks it to pull from the database, and that is near immediate. [[L-0174]]
+
+<Figure id="fig-4d" no="Fig 4·d" k="L-0169 L-0170 L-0171 L-0174 L-0176"
+  caption="The static twin of Clip 4·1. Each tick is a request, dealt to the three backends in turn; the red ticks are the ones sent to b srv2 after it died. Top: nothing changes until the 10 s poll. Bottom: the orchestrator calls the meta port, the LB server pulls at once, and at most one request falls in the window. Redrawn from the class board at 01:22–01:27.">
+  <Desk><PollVsPush /></Desk>
+  <Phone><PollVsPush layout="phone" /></Phone>
+</Figure>
+
+There is no one right answer in design, because everything is a trade-off: the meta-port call works in some situations, and the broadcast in the next section works in others. [[L-0175]] The goal doesn’t change, though. Polling fails because the LB server keeps operating on stale data. The aim is zero staleness, almost zero, so every change must be pushed out immediately. [[L-0176]]
+
+</Section>
+
+<Section id="s4-5" no="4.5" title="Make it reactive: Pub/Sub and CDC" crumb="4.5 Pub/Sub"
+  dek="Fifty LB servers can’t each wait for a call. Publish the change once, and let every LB server hear it."
+  meta="About 6 min · class 01:27–01:30 and 01:51–01:53, Q&A 03:01–03:03 and 03:13–03:15">
+
+Fifty LB servers. Does the orchestrator call fifty meta ports?
+
+The same problem came up in Lecture 4, in the design of Slack’s real-time communication: polling couldn’t be relied on, and changes had to be pushed immediately. The same idea, listening for changes as Slack’s servers listened for membership changes, applies to the load balancer’s configuration. [[L-0177]]
+
+<ForwardChip block label="from" when="Lecture 4" k="L-0177">Slack in real time, where membership changes were pushed over Pub/Sub</ForwardChip>
+
+One implementation, not the only one, is a real-time Pub/Sub such as Redis. Whenever the configuration in the database changes, a message is pushed to the broker, for example through CDC (change data capture), and the LB servers listen to it. [[L-0178]] CDC is only a sneak peek here. [[L-0179]]
+
+<ForwardChip block when="Lecture 9" k="L-0179">change data capture (CDC), in depth</ForwardChip>
+
+The message to the broker can come from three places: the orchestrator, the LB console pushing directly, or the database itself through CDC. [[L-0180]]
+
+<Figure id="fig-4e" no="Fig 4·e" k="L-0171 L-0173 L-0178 L-0180 L-0182 L-0227"
+  caption="The config path, Ⓐ to Ⓓ: any change goes to the database, reaches the broker (through CDC, or published directly), and is pushed to every LB server, which refreshes its copy. It is dashed because no request waits on it. Option 1, on the left, is the meta-port call of 4.4. Redrawn from the class boards at 01:26–01:28 and 01:50.">
+  <Desk><ChangeReaches /></Desk>
+  <Phone><ChangeReaches layout="phone" /></Phone>
+</Figure>
+
+Two reactive approaches were discussed, then: an explicit API call that asks the LB server to pull the configuration, or a reactive Pub/Sub mechanism that pushes it. Either way the LB server updates its in-memory copy (through shared memory between its processes), and which one works depends on the case. [[L-0182]]
+
+<RuleBox rule="Make systems ==reactive rather than polling-based==." k="L-0181">
+
+The aim is to keep staleness to a minimum. On a change event, the LB server either uses the configuration that was pushed to it or pulls the latest from the database; that part is an implementation choice. Redis is one way to do the pushing, chosen because its guarantees need no extra worry; the idea is the reactive communication itself.
+
+<Desk><ReactiveSketch /></Desk>
+<Phone><ReactiveSketch layout="phone" /></Phone>
+
+</RuleBox>
+
+In the class’s words, using the real-time Pub/Sub broker guarantees message delivery of configuration changes to all LB servers. [[L-0227]]
+
+<SourceNote href="https://redis.io/docs/latest/develop/pubsub/" site="redis.io" k="L-0227">
+
+Redis Pub/Sub broadcasts changes in real time, but its delivery is at-most-once: a subscriber that is disconnected or hits an error loses the message for good. Pair it with a full config re-pull whenever an LB server (re)connects, or use Redis Streams, which persist messages and support at-least-once delivery.
+
+</SourceNote>
+
+Because each LB server works from an in-memory copy of the configuration, updated by push, load balancing loses no performance. [[L-0228]]
+
+### Why Redis, and what else would do [[rail: Why Redis]]
+
+Why Redis Pub/Sub for this? Because it sends to everyone in real time, out of the box. Without it, one process would have to make calls to every server. What the design needs is just a real-time broadcast, and whatever gives one will do: server-sent events (from Lecture 2), ZooKeeper, or explicit HTTP calls. [[L-0349]]
+
+ZooKeeper, for instance, can replace Redis Pub/Sub here. It has a distributed configuration store that notifies everyone when something is updated, and internally it keeps a persistent connection on which the updates are broadcast. [[L-0331]] Standard ZooKeeper watches are one-time triggers: a client sees the watch event before it sees the new data, and has to set a new watch after each event. Since ZooKeeper 3.6 a client can set persistent watches that stay registered instead (<Cite href="https://zookeeper.apache.org/doc/current/zookeeperProgrammers.html">zookeeper.apache.org</Cite>).
+
+ZooKeeper’s notification framework is just real-time Pub/Sub: it maintains a pool of TCP connections and, when something changes, notifies everyone subscribed. That is exactly what Redis Pub/Sub did in this design, so the system would work fine with either. [[L-0332]]
+
+<TradeoffTable caption="Getting a config change to every LB server: poll, meta-port call, Redis Pub/Sub, ZooKeeper watch"
+  k="L-0167 L-0170 L-0171 L-0178 L-0227 L-0331"
+  columns={[{ label: 'Poll the DB' }, { label: 'Call the meta port' }, { label: 'Pub/Sub (Redis)' }, { label: 'ZooKeeper watch' }]}
+  rows={[
+    { label: 'Who starts it', k: 'L-0167 L-0171 L-0180', cells: ['Each LB server, on a timer', 'Whoever changed the config: the orchestrator or the console', 'The publisher (orchestrator, console, or the database via CDC); the broker fans out', 'ZooKeeper notifies every client watching'] },
+    { label: 'Staleness', k: 'L-0169 L-0170 L-0174', cells: [{ text: 'Up to one interval of requests to a dead backend', bad: true }, 'Near zero', 'Near zero', 'Near zero'] },
+    { label: 'Extra moving parts', cells: ['None', 'A second port and handler on every LB server; the caller must reach every one', 'A broker, and CDC if the database publishes', 'A ZooKeeper ensemble'] },
+    { label: 'An LB server offline at that moment', k: 'L-0227', cells: ['Catches up at its next poll', 'Misses the call unless the caller retries', 'Misses it; re-pull the config on reconnect', 'Must re-read and set a new watch: standard watches are one-time'] },
+    { label: 'From class', k: 'L-0172 L-0331 L-0332', cells: ['The naive way (4.4)', 'Proposed in class: port 9091', 'The class’s design', 'Named as a drop-in replacement'] },
+  ]} />
+
+</Section>
+
+<Section id="s4-6" no="4.6" title="Watching the LB servers: metrics and Prometheus" crumb="4.6 Metrics"
+  dek="Scaling the LB fleet needs history, not a snapshot. Every machine’s vitals go to one central time-series store, and the orchestrator reads from it."
+  meta="About 12 min · class 01:30–01:40, Q&A 03:12–03:13 and 03:23–03:34">
+
+An LB server is running at 95% CPU. Who adds another one?
+
+Besides the backend servers, someone has to keep an eye on the LB servers too. The orchestrator does it, and “keeping an eye” means more than health: it means seeing whether a server is overwhelmed, its CPU, its memory and so on. [[L-0183]] If the orchestrator sees very high CPU on the LB servers, it adds one more LB server to the system, and removes one when the load drops. One LB server is definitely not enough; LB servers have to scale horizontally. [[L-0184]]
+
+To make those decisions the orchestrator needs the key vitals of each LB server: CPU, memory, network, disk. (The board added the number of TCP connections: scaling will happen on CPU, memory and # TCP connections.) [[L-0185]]
+
+The tempting answer is for the orchestrator to call each LB server every so often, like the health checks, and ask for its current CPU, memory and disk. That is unrealistic, because a point-in-time reading is not enough. [[L-0186]] Scaling decisions need historical data, not just the current value, so that a rising trend can be acted on. [[L-0187]] And don’t limit monitoring to the orchestrator and the load balancer: you will want to see overall infrastructure utilization and historical trends, so the data has to be stored somewhere. [[L-0188]]
+
+Not in the database that holds the configuration. The configuration store holds key-value data, while CPU, memory, disk and network utilization is time series data. [[L-0189]] Asking a server only at the moment is also too late: a server at 100% utilization may not even respond, which leaves no time to react. You want to react at 60, 70, 80%, and for that you need trends such as average utilization. [[L-0190]]
+
+Another idea from class: the orchestrator keeps its own database, fed by heartbeat messages in which the LB servers report their CPU. That was turned down too: why re-implement what other systems already implement? [[L-0191]] Always reuse existing tools. [[L-0192]] (“Connection pooling”, offered as the tool for collecting metrics, was dismissed as well.) [[L-0193]]
+
+The vitals are metrics: log them, and do the scaling up and down on the basis of those metrics. [[L-0194]]
+
+<MarginNote title="From practice: CloudWatch, scaled by hand" why="skip unless you run on AWS" k="L-0194">
+
+From practice: one team already logs exactly these metrics in CloudWatch, but scales up and down manually. CloudWatch is the right kind of tool for it. [[L-0194]]
+
+</MarginNote>
+
+A **telemetry agent** is a process running on each host that emits that host’s metrics. [[L-0195]] Where should they go? One suggestion was some log storage with alarms on top; alarms are left out here, because the point is a generic, central metrics store. [[L-0196]]
+
+Prometheus is a brilliant tool that scales amazingly; see <Cite href="https://prometheus.io/">prometheus.io</Cite>. [[L-0197]]
+
+Don’t limit the design to the system in front of you (“emit metrics to the orchestrator, store them in its database”). Think realistically about the whole organization, and you arrive at a cost-efficient solution on your own: plug into the generic system that is there anyway. [[L-0198]] The vitals of every VM, backend servers and LB servers alike, go to one central location, so the orchestrator can decide whether to scale backend or LB servers. One place of ingestion and query solves the problem. [[L-0199]]
+
+Telemetry agents on every VM, LB servers and backends, send their data to Prometheus. The orchestrator periodically checks the average utilization there and decides whether to scale the LB servers up or down or to add backend servers. [[L-0200]] The class described the agents as pushing. Prometheus actually pulls: it scrapes each target over HTTP, and pushing goes through an intermediary Pushgateway meant for short-lived jobs (<Cite href="https://prometheus.io/docs/introduction/overview/">prometheus.io</Cite>). So each VM runs an exporter, Prometheus scrapes it, and the orchestrator queries Prometheus.
+
+<Figure id="fig-4f" no="Fig 4·f" k="L-0185 L-0187 L-0189 L-0199 L-0200 L-0202 L-0368"
+  caption="One place for every machine’s vitals, drawn as Prometheus works: it scrapes the agents (the class drew the agents pushing). The orchestrator reads the history and scales the LB fleet itself. Redrawn from the class boards at 01:35–01:39 and 01:50.">
+  <Desk><VitalsFlow /></Desk>
+  <Phone><VitalsFlow layout="phone" /></Phone>
+</Figure>
+
+That is what autoscaling groups and autoscaling policies do in AWS (Lecture 2 used them on API servers). You configure a rule like “if average CPU utilization is this, do that”; internally they query a metrics store, their proprietary equivalent of Prometheus, and act when the condition is met. [[L-0201]] With target tracking, for example, you pick a metric such as average CPU utilization and a target such as 50%, and Auto Scaling creates and manages the CloudWatch alarms that trigger scale-out and scale-in (<Cite href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/as-scaling-target-tracking.html">aws.amazon.com</Cite>).
+
+The LB servers are opaque to your users, who don’t know there are several, so the orchestrator itself has to scale the LB servers up and down using the metrics. [[L-0202]]
+
+### Vitals, health checks, and Prometheus at scale [[rail: Prometheus at scale]]
+
+If Prometheus has every vital, why does the orchestrator still run its own health checks? Because vitals ingestion, in most cases, does not do health checks. Prometheus can, but the design must not depend on that in case it is ever replaced; heartbeats and vitals go to different services. [[L-0348]] For reference, Prometheus records `up` = 1 for every target it scraped and 0 when the scrape failed (<Cite href="https://prometheus.io/docs/concepts/jobs_instances/">prometheus.io</Cite>).
+
+The read load on Prometheus in this design is small. The query pattern is recent reads (what happened in the last 30 minutes) by one orchestrator. One Prometheus server can be shared by 50 or 100 load balancers, but you need to know its capacity and the load patterns it must support. [[L-0368]]
+
+As taught, Prometheus can be scaled horizontally with ease: run multiple query-engine servers and replicate the database, because it is just raw storage being scaled. [[L-0369]] Per the instructor, Prometheus mostly uses InfluxDB in the backend, though storage is configurable and TimescaleDB can be used as well. [[L-0370]]
+
+<SourceNote href="https://prometheus.io/docs/prometheus/latest/storage/" site="prometheus.io" k="L-0369 L-0370">
+
+Prometheus keeps its data in its own local time-series database: two-hour blocks plus a write-ahead log (Prometheus 3.15 docs). Local storage is single-node, not clustered or replicated. Prometheus scales by running more independent servers (sharding, federation) and by remote-writing to a clustered long-term store; InfluxDB or TimescaleDB attach only through those remote write and read APIs.
+
+</SourceNote>
+
+To learn Prometheus, follow its official documentation; there are no better resources. It is very well written, very easy to set up, written in Go and very easy to extend. [[L-0365]]
+
+Autoscaling, finally, is a separate service in this design, just as AWS has a separate autoscaling service, because customers configure their scaling policies through their own admin UI. The orchestrator watches and scales the LB servers; scaling the backend servers can be done by the orchestrator, following those policies, or by a separate component. [[L-0377]] Whether it gets its own component depends on how bulky the orchestrator becomes. If it gets very bulky, separate it; otherwise let the orchestrator read the autoscaling policies from a database and scale the backends. Either way, a component is needed to accept the developers’ policy configuration through an endpoint. [[L-0378]]
+
+Where the build stands: low-level details first, then where to store the configuration, updates made reactive, health checks, an orchestrator that scales backend and LB servers, and telemetry from every machine into Prometheus that the orchestrator checks periodically. [[L-0203]] The client still knows only one address, though. Chapter 5 is how it reaches all these LB servers.
+
+<h3 id="s4-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0169 L-0170 L-0171 L-0178" q="Your LB servers poll the config database every 30 s. A backend dies. For how long can users get errors, and what two designs shrink that to near zero?">
+
+Up to one full interval, almost 30 seconds: every LB server keeps routing to the dead backend from its stale in-memory copy until its next poll, and those requests fail. Push the change instead: either whoever changes the config calls each LB server’s meta port so it pulls at once, or the change is published once to a real-time Pub/Sub (Redis, or a ZooKeeper watch) that every LB server listens to. With Redis Pub/Sub, also re-pull the config whenever an LB server reconnects, because delivery is at-most-once.
+
+  </RecallItem>
+  <RecallItem k="L-0187 L-0189 L-0199" q="Why store metrics in Prometheus rather than the config database?">
+
+Metrics are time series and the configuration is key-value data. Scaling decisions need history (a trend, an average over the last 30 minutes), not a snapshot, and the whole organization wants every machine’s vitals in one central place to ingest and query. Prometheus already does that, so reuse it instead of re-implementing it.
+
+  </RecallItem>
+  <RecallItem k="L-0374 L-0375 L-0376" q="Give two reasons the orchestrator calls <code>/health</code> instead of waiting for backends to report in.">
+
+Any two of three. A backend doesn’t know the orchestrator’s IP, while the orchestrator has every backend’s address in the config. Sending heartbeats needs a thread that runs all the time, far more work for the developers than exposing an endpoint. And a self-report can say “up” while the process can’t actually serve.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '5 · One name, many LB servers', href: '#s5' }}
+  concepts={[{ label: 'config copy', href: '#s4-2' }, { label: 'orchestrator', href: '#s4-3' }, { label: 'health check', href: '#s4-3' }, { label: 'stale config', href: '#s4-4' }, { label: 'meta port', href: '#s4-4' }, { label: 'Pub/Sub and CDC', href: '#s4-5' }, { label: 'telemetry agent', href: '#s4-6' }, { label: 'Prometheus', href: '#s4-6' }]} />
+
+</Section>

@@ -1,8 +1,8 @@
 // Lecture pages: chapters, the course navigation, and where each id lives (for links across chapter pages).
 import fs from 'node:fs';
 import path from 'node:path';
-import { getCollection, type CollectionEntry } from 'astro:content';
-import { LECTURES, pad } from '../data/course';
+import { getCollection, getEntry, render, type CollectionEntry } from 'astro:content';
+import { LECTURES, pad, numberOf } from '../data/course';
 import { url } from './url';
 
 export type Lecture = CollectionEntry<'lectures'>;
@@ -13,20 +13,20 @@ export interface Chapter {
   sections: { no: string; title: string; href?: string }[]; // from `contents`
 }
 
-// the MDX parts of every lecture: src/content/lectures/<id>/<part>.mdx
-const PARTS = import.meta.glob<{ default: any }>('../content/lectures/*/*.mdx');
+// the MDX parts of every lecture: src/content/lectures/<id>/<part>.mdx (the `parts` collection, id "<id>/<part>")
 export async function loadPart(lectureId: string, part: string) {
-  const key = `../content/lectures/${lectureId}/${part}.mdx`;
-  const load = PARTS[key];
-  if (!load) throw new Error(`lecture ${lectureId}: chapter part not found: src/content/lectures/${lectureId}/${part}.mdx`);
-  return (await load()).default;
+  const entry = await getEntry('parts', `${lectureId}/${part}`);
+  if (!entry) throw new Error(`lecture ${lectureId}: chapter part not found: src/content/lectures/${lectureId}/${part}.mdx`);
+  return (await render(entry)).Content;
 }
+// isolated build with VTB_PARTS: only chapters whose parts are all loaded get a page
+const ONLY_PARTS = (process.env.VTB_PARTS ?? '').split(',').map((x) => x.trim()).filter(Boolean);
 
 export const lectureHref = (id: string) => url(`lectures/${id}/`);
 
 export function chaptersOf(entry: Lecture): Chapter[] {
   const d = entry.data;
-  return (d.chapters ?? []).map((c) => {
+  return (d.chapters ?? []).filter((c) => !ONLY_PARTS.length || c.parts.every((p) => ONLY_PARTS.includes(p))).map((c) => {
     const item = d.contents.find((x) => x.no === c.no);
     if (!item) throw new Error(`lecture ${entry.id}: chapter ${c.no} has no item in contents`);
     return {
@@ -69,14 +69,17 @@ export function resolver(entry: Lecture) {
 
 export interface NavLecture { number: number; id: string; label: string; title?: string; href?: string; chapters?: Chapter[] }
 
-/** The ten lectures for the course navigation; a lecture without an MDX file is "coming soon". */
+/** The course's lectures in course order (lectures/course.json) for the navigation; a lecture without an MDX file
+    is "coming soon". The number shown is the course position. */
 export async function courseNav(): Promise<NavLecture[]> {
   const written = new Map((await getCollection('lectures')).map((e) => [e.id, e]));
-  return LECTURES.map((l) => {
+  const ids = new Set(LECTURES.map((l) => l.id));
+  const extra = [...written.keys()].filter((id) => !ids.has(id)).sort().map((id) => ({ id, number: numberOf(id, written.get(id)?.data.number), title: undefined as string | undefined }));
+  return [...LECTURES, ...extra].map((l) => {
     const e = written.get(l.id);
     return {
       number: l.number, id: l.id, label: `Lecture ${pad(l.number)}`,
-      title: e?.data.title, href: e ? lectureHref(l.id) : undefined, chapters: e ? chaptersOf(e) : undefined,
+      title: e?.data.title ?? l.title, href: e ? lectureHref(l.id) : undefined, chapters: e ? chaptersOf(e) : undefined,
     };
   });
 }
@@ -87,7 +90,7 @@ export interface Stop { href?: string; kind: 'lecture' | 'chapter'; lecture: str
 export function readingOrder(nav: NavLecture[]): Stop[] {
   const out: Stop[] = [];
   for (const l of nav) {
-    out.push({ href: l.href, kind: 'lecture', lecture: l.id, title: l.href ? `${l.label} · ${l.title}` : `${l.label} · coming soon` });
+    out.push({ href: l.href, kind: 'lecture', lecture: l.id, title: l.href ? `${l.label} · ${l.title}` : `${l.label}${l.title ? ` · ${l.title}` : ''} · coming soon` });
     for (const c of l.chapters ?? []) out.push({ href: c.href, kind: 'chapter', lecture: l.id, title: `${c.no} · ${c.title}` });
   }
   return out;

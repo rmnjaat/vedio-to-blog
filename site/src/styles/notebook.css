@@ -244,7 +244,7 @@ details.aside .body p:last-child{margin-bottom:0}
 /* trade-off table */
 .trade{width:100%;border-collapse:collapse;font-size:1rem;line-height:1.45}
 .trade th,.trade td{text-align:left;vertical-align:top;padding:12px 14px 12px 0;border-bottom:1px solid var(--rule)}
-.trade thead th{border-bottom:1.6px solid var(--ink);font-weight:640;font-size:1.05rem;padding-bottom:10px}
+.trade thead th{border-bottom:1.6px solid var(--ink);font-weight:640;font-size:1.05rem;padding-bottom:10px;vertical-align:bottom}
 .trade thead th .th-svg{display:block;width:64px;height:34px;margin-bottom:4px}
 .trade thead th .th-svg path{fill:var(--fig-bg);stroke:var(--ink);stroke-width:1.5}
 .trade thead th .th-svg path.fillpaper{stroke:none}
@@ -473,6 +473,8 @@ dialog.navsheet::backdrop{background:rgba(20,20,18,.34)}
 .docs-page{--otp-h:46px}
 html.docs-page{scroll-padding-top:calc(var(--bar-h) + var(--otp-h) + 16px)}
 .docs-page h3{scroll-margin-top:calc(var(--bar-h) + var(--otp-h) + 16px)}
+/* figures reached by deep link (#fig-2e/step-3) or keyboard land below the top bar and the "On this page" bar */
+.docs-page figure[id]{scroll-margin-top:calc(var(--bar-h) + var(--otp-h) + 16px)}
 .bar-in.bar-docs{max-width:1480px}
 .menu-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;flex:none;color:var(--ink-2)}
 .menu-btn:hover{color:var(--ink)}
@@ -578,3 +580,9 @@ dialog.docs-drawer::backdrop{background:rgba(20,20,18,.34)}
 .pg.soon{color:var(--ink-2);font-weight:500}
 @media (max-width:560px){ .pager{grid-template-columns:1fr} .pg-next{grid-column:1;text-align:left;align-items:flex-start} }
 @media print{ .docs-nav,.docs-otp,.otp-bar,.docs-drawer,.menu-btn,.pager{display:none!important} .docs{display:block} }
+/* Block rhythm. Sections are grids, so margins add up instead of collapsing. Back-to-back asides share one
+   rule and read as a short list, not a stack of empty boxes; a table and a block "coming later" chip get
+   the same breathing room as a figure. */
+.col>details.aside+details.aside{margin-top:calc(-1 * var(--s5) - 1px)}
+.col>.trade{margin:var(--s6) 0}
+.col>.fwd-line{margin:var(--s5) 0}

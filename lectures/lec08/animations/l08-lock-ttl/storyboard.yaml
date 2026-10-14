@@ -1,0 +1,119 @@
+# Storyboard — clip l08-lock-ttl   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l08-lock-ttl
+title: A lock outlives its holder's time
+lecture: 5            # course position 05 (folder lec08)
+section: "6.6 Release: never delete a lock that isn't yours"
+status: reviewed
+why_motion: >
+  A window in time plus interleaving. Two windows overlap on one time axis: consumer 1's work and the key's 5-minute
+  TTL. The bug lives in their misalignment: the TTL drains while consumer 1 is unaware, consumer 2's retries are
+  refused until the instant the key expires, and consumer 1's delete arrives late, after the key has changed hands.
+  The StepThrough (Fig 6·d) shows the states; only motion shows the TTL running out under a holder that is still
+  working and the late delete landing on someone else's lock.
+static_twin: "StepThrough Fig 6·d 'Who deletes whose lock?' (lanes consumer 1 · redis key queue7 · consumer 2); board D-09 / S63-S64 (b_023554.jpg, b_022445.jpg)"
+ledger:
+  taught: [L-0257, L-0263, L-0264, L-0267, L-0268, L-0269, L-0270, L-0273]
+  context_only: [L-0265, L-0271, L-0310]
+fidelity_notes:
+  - "'5 minutes / 300 s' is the class's number (L-0263, L-0264). Consumer 1 finishing at 6 minutes is the page's predict line (an illustrative overrun; the lecture only says it 'takes too long', L-0269). The axis runs 0-7.5 min and is labelled 'time (sped up)'; the playhead moves at one constant speed (24 f per minute) whenever it moves, and pauses while a command is drawn."
+  - "Consumer 2 takes the lock at 5.2 min (its next retry after the expiry). Retries land once per minute: illustrative spacing, not a claimed retry interval. The fact-check notes a tight while-true loop hammers Redis (L-0267 simplified/low, left as taught); the clip shows a few spaced retries and claims nothing about the interval."
+  - "The command is drawn in the one-command form SET queue7 c1 NX EX 300 (A-LDA-01, which the page weaves in next to L-0264). The lock value is shown as c1 / c2 for legibility; the page's prose carries A-LDA-02 (a random token unique per lock request)."
+  - "Replies are the documented SET replies: OK when the key was set, nil when it was not (Redis SET docs; the fact-check note on L-0265). The class said SETNX 'returns 1 / 0'; that wording is left as taught on the page (L-0265 simplified/low) and the clip does not repeat it."
+  - "EVAL label 'EVAL: if get==c1: del' paraphrases the board's release_lock (v = redis.get(q); if v == consumer_id: redis.delete(q), 'EVAL executed atomically using LUA script', L-0273). It returns 0 when the key is not c1's (the documented release script's reply)."
+  - "The replay (B5) re-runs only consumer 1's release; everything else on the axis is unchanged. The get-then-delete race in client code (L-0271) and fencing tokens (A-LDA-04) are NOT shown: they stay in the StepThrough and prose. The clip does not claim the owner check stops consumer 1 from still working."
+  - "Lease extension (A-LDA-10, L-0310 context) is not shown."
+additions:
+  - {fact: "SET key value NX EX seconds sets the key and its expiry in one command; it replies OK if set and nil if not", source_url: "https://redis.io/docs/latest/commands/set/", checked: 2026-10-13}
+  - {fact: "The documented safe release is a Lua script run with EVAL that deletes only if the value matches, else returns 0", source_url: "https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/", checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 940}
+duration_frames: 1050
+start_frame_equals: >
+  Fig 6·d's three lanes on an empty time axis: 'consumer 1', 'redis key queue7' (value 'empty'), 'consumer 2';
+  axis with ticks per minute, '0' and '5 min' marked, 'time (sped up)'. No bars, no arrows.
+poster_frame: 1049
+reduced_motion_stills: [95, 292, 442, 612, 752, 937, 1049]
+glyphs:
+  lane_titles: {shape: hand labels, labels: ["consumer 1", "redis key", "queue7 (mono)", "consumer 2"], pos: "wide: left column x 24; phone: above each lane (consumer 2 below its lane)"}
+  axis: {shape: thin arrow, pos: "wide y 500, X(t)=300+112t; phone y 650, X(t)=60+84t", ticks: "every minute; 0 and 5 min longer and labelled"}
+  playhead: {shape: vertical ink tick on the axis, note: "linear; speed = time"}
+  c1_bar: {shape: server-box bar, label: "working", lane: consumer 1, span: "0 → 6 min, revealed up to the playhead"}
+  c2_retry_bar: {shape: dashed server-box bar, label: "retries (ink2)", lane: consumer 2, span: "0 → 5.2 min"}
+  c2_work_bar: {shape: server-box bar, label: "working", lane: consumer 2, span: "5.2 → 7.5 min"}
+  ttl_box: {shape: dashed slot, label: "TTL 5 min (ink2)", lane: redis key, span: "0 → 5 min"}
+  key_c1: {shape: solid slot filling the TTL box up to the playhead, label: "c1 (mono)", end_label: "expired (red)"}
+  key_c2: {shape: solid slot, label: "c2 (mono)", span: "5.2 → 7.5 min", end_label: "kept (green, B5)"}
+  arrows:
+    - {route: "consumer 1 → redis key at 0 min", style: solid, head: redis key, label: "SET queue7 c1 NX EX 300 (blue mono)", reply: "green packet back, 'OK'"}
+    - {route: "consumer 2 → redis key at 1, 2, 3, 4 min", style: solid thin graphite, head: redis key, reply: "'nil' (ink2 mono) beside each"}
+    - {route: "consumer 2 → redis key at 5.2 min", style: solid, head: redis key, reply: "green packet back, 'OK'"}
+    - {route: "consumer 1 → redis key at 6 min", style: solid, head: redis key, label: "DEL queue7 (blue mono); B5: struck, then 'EVAL: if get==c1: del' above", reply: "B5: green packet back, '0'"}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Two consumers, one lock in Redis with a five-minute expiry."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0257, L-0263]
+  - id: B1
+    step: 1
+    from: 105
+    to: 300
+    caption: "Consumer 1 takes the lock. Consumer 2 keeps trying."
+    events:
+      - {at: 115, dur: 30, what: "pen draws consumer 1 → key arrow, re-inked blue; 'SET queue7 c1 NX EX 300' written alongside", colour: blue}
+      - {at: 150, dur: 22, what: "green packet key → consumer 1; 'OK' written", colour: green}
+      - {at: 182, dur: 10, what: "'empty' removed; dashed TTL box 0-5 min drawn; 'c1' and 'TTL 5 min' written"}
+      - {at: 212, dur: 48, what: "playhead 0 → 2 min (linear); c1 bar and key fill grow behind it; 'working' and 'retries' written; SET arrow fades to graphite"}
+      - {at: 236, dur: 22, what: "consumer 2 retries at 1 and 2 min: thin graphite arrows, 'nil' written beside each"}
+    ledger: [L-0263, L-0264, L-0267]
+  - id: B2
+    step: 2
+    from: 300
+    to: 450
+    caption: "Consumer 1 is slow. The lock expires underneath it."
+    events:
+      - {at: 310, dur: 72, what: "playhead 2 → 5 min; key fill reaches the end of the TTL box while consumer 1's bar keeps going; retries at 3 and 4 min ('nil')"}
+      - {at: 384, dur: 24, what: "'TTL 5 min' replaced by red 'expired'; the c1 key ghosts to 38%", colour: red}
+    ledger: [L-0257, L-0269]
+  - id: B3
+    step: 3
+    from: 450
+    to: 620
+    caption: "Consumer 2 gets the lock. Two consumers are now working."
+    events:
+      - {at: 460, dur: 5, what: "playhead 5 → 5.2 min"}
+      - {at: 470, dur: 24, what: "pen draws consumer 2 → key arrow, blue", colour: blue}
+      - {at: 498, dur: 20, what: "green packet back; 'OK'; key shows 'c2'", colour: green}
+      - {at: 545, dur: 23, what: "playhead 5.2 → 5.8 min; consumer 2's work bar grows, 'working' written; both bars run side by side"}
+    ledger: [L-0269]
+  - id: B4
+    step: 4
+    from: 620
+    to: 760
+    caption: "Consumer 1 releases, and deletes consumer 2’s lock."
+    events:
+      - {at: 630, dur: 5, what: "playhead 5.8 → 6 min: consumer 1's bar ends"}
+      - {at: 640, dur: 28, what: "pen draws consumer 1 → key arrow, blue; 'DEL queue7' written", colour: blue}
+      - {at: 672, dur: 20, what: "c2 key ghosts inside a red dashed outline; red 'empty' written beside it", colour: red}
+    ledger: [L-0268, L-0269]
+  - id: B5
+    step: 5
+    from: 760
+    to: 945
+    caption: "Replay with EVAL: check the owner and delete in one atomic step."
+    events:
+      - {at: 770, dur: 10, what: "red outline and 'empty' removed; c2 restored in place (the replay of B4)"}
+      - {at: 778, dur: 14, what: "'DEL queue7' struck through, then ghosted"}
+      - {at: 796, dur: 30, what: "'EVAL: if get==c1: del' written; the release arrow re-inked blue", colour: blue}
+      - {at: 830, dur: 32, what: "green packet back; '0' written", colour: green}
+      - {at: 868, dur: 36, what: "playhead 6 → 7.5 min; c2 key and consumer 2's bar keep going; 'kept' written in green", colour: green}
+    ledger: [L-0270, L-0273]
+  - id: B6
+    from: 945
+    to: 1050
+    caption: "Release only if it’s still yours, in one atomic step."
+    on_screen: [end state = poster]
+    motion: "story labels un-ghost (12 f): the SET arrow, 'SET queue7 c1 NX EX 300', both 'OK's and the struck 'DEL queue7' return to full ink (critic C-16); only the expired c1 key stays at 38%"
+    ledger: [L-0270, L-0273]

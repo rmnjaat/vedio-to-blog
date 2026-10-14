@@ -1,0 +1,292 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { WaitSignal, SeatSixtySeven, HoldNotLock, FixedInventory } from '../../../figures/lec05/s2b-check-in';
+
+<Section id="s2-4" no="2.4" title="Approach 4: FOR UPDATE" crumb="2.4 FOR UPDATE"
+  dek="The same code with two words added. Every run fills all 120 seats, and the interesting part is how the waiting transactions move on."
+  meta="About 12 min · class 00:49–01:05, Q&A 01:19–01:26, 02:48">
+
+Approach 4 is approach 3, line for line, with two words added at the end of the `SELECT`: `FOR UPDATE`. That turns the read into a pessimistic exclusive lock on the row it returns ([§1.3](#s1-3)). [[L-0094]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL
+ORDER BY id
+LIMIT 1
+FOR UPDATE;   -- approach 4: the two new words
+```
+
+<MarginNote title="Why the index matters" why="skip unless you’ll run the demo" k="L-0094">
+
+In InnoDB a locking read (and any `UPDATE`) locks every index record it scans, whatever the WHERE clause says. Without a suitable index, for example one on `(trip_id, user_id)`, the approach 4 query may end up locking every row of the table <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locks-set.html">dev.mysql.com</Cite>.
+
+</MarginNote>
+
+PostgreSQL's documentation adds two details for that engine's locking clause: it sorts first and may then block while locking, so at READ COMMITTED the rows can come back out of order, and with `LIMIT` it stops locking once it has enough rows <Cite href="https://www.postgresql.org/docs/current/sql-select.html">postgresql.org</Cite>.
+
+<MarginNote title="A debugging hunch" why="skip" k="L-0111">
+
+If adding two words to a query makes no difference at all, something might be wrong. That was the check before running approach 4. [[L-0111]]
+
+</MarginNote>
+
+<PauseAndThink k="L-0094 L-0095 L-0096 L-0106 L-0108 L-0112 L-0113 L-0114"
+  q="The same query, with <code>FOR UPDATE</code> added at the end. Still 120 passengers at once. What happens?"
+  choices={[{ label: 'It deadlocks, or only one seat fills: everyone is stuck on seat 1A' }, { label: 'All 120 fill, one after another', correct: true }]}
+  right="Right. Every run filled all 120 seats, in seat order, in about 1.2 to 1.8 seconds."
+  wrong="No. Everyone does wait on 1A at first, but waiting isn’t a deadlock: there is no cycle, because nobody holds a lock that the holder of 1A needs. And the waiters don’t stay stuck on 1A.">
+
+The first transaction locks 1A; the others get no row yet, because the database hands out a row only with its lock. When the holder commits, the engine wakes the waiters, they re-check their WHERE clause, 1A no longer matches, and one of them locks 1B. Repeat. It's correct, and it's slow: in the worst case every waiter re-checks after every commit.
+
+</PauseAndThink>
+
+The class made many predictions before the run. Each one is worth keeping, along with what became of it.
+
+- "It will deadlock: the second user waits for the first, and its transaction may get cancelled." [[L-0095]] No. Waiting is not deadlock. A deadlock happens when you wait on a row locked by someone who is in turn waiting on a row you hold: it needs a cycle ([§1.5](#s1-5)). Here transactions merely wait. [[L-0096]]
+- "Starvation: all 120 seats fill, because `FOR UPDATE` is a pessimistic lock, but not concurrently, and later transactions wait longer: the tenth waits longer than the first." [[L-0097]] The run bears out that all 120 fill.
+- "The second transaction sees the first row is being updated by the first thread, so it goes and takes the second row instead." [[L-0098]] Why would it wait on the first row at all? That question was set aside for later, and the same reasoning was soon reversed: it will wait.
+- "A waiter reads the locked first row and waits; once the lock is released it must check that `user_id` is still NULL before writing, or rows get rewritten." [[L-0099]] "Not entirely true," was the verdict. The real mechanism is below, and this prediction is close to it.
+- "Only one seat fills, because `SKIP LOCKED` isn't on, so nobody moves to the second row." [[L-0106]] "Somewhere between 1 and 120, depending on how the goroutines are scheduled, but not 120." [[L-0107]] "Like approach 3: unless something has committed, everybody waits on 1A, sees it filled and cancels." [[L-0110]]
+- "All 120: `FOR UPDATE` takes an exclusive lock, so T2 and the rest wait until row R1 is free; when T1 completes they see R1 is no longer NULL and move to R2." This one was called almost 90% correct, with one question left open: how would the database move to the next row by itself? [[L-0108]]
+
+The open question is the heart of the chapter, so take it as a puzzle.
+
+<PauseAndThink k="L-0109 L-0115 L-0116 L-0139 L-0148" label="You are the database engineer"
+  q="You’re writing the engine. A transaction is blocked on seat 1A’s lock. When the lock is released, 1A is no longer free. The same mechanism must also work for a query like <code>WHERE id = 67</code>, which has no “next row”. What should the engine do with the waiter?"
+  choices={[{ label: 'Hand it the next row in the table' }, { label: 'Re-run its WHERE clause against the current data', correct: true }]}
+  right="Right. Re-evaluating the same statement works for both: the range query moves on to 1B, and the pointed query finds seat 67 taken and matches nothing."
+  wrong="No. For id = 67 there is no acceptable next row, and for other queries “next in the table” may not match the WHERE at all. A rule that only works for one query shape isn’t a rule.">
+
+That's the step most people skip. The waiter doesn't re-send anything; the engine re-evaluates the statement it is already running and tries to lock what now matches. In MySQL, as in the demo, this happens at the default REPEATABLE READ too, because a locking read always reads the latest data; PostgreSQL does it at READ COMMITTED, and at its REPEATABLE READ the waiter would instead get a serialization error and must retry.
+
+</PauseAndThink>
+
+Think like the database engineer. The engine has to treat a range query (`user_id IS NULL` `ORDER BY id LIMIT 1`) and a pointed lookup (seat `id = 67`) in one uniform way. A lock on one pointed row would never move on to the next row, so "move to the next row" can't be the rule. [[L-0109]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html" k="L-0098 L-0106 L-0107 L-0110">
+
+The predictions above were made before the run, and the run (all 120 seats, every time) settled them. A plain `FOR UPDATE` waiter waits for row 1's lock <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking.html">dev.mysql.com</Cite>. It does not move straight to row 2 (that is `SKIP LOCKED` behaviour), does not stay stuck on row 1, and does not cancel. When the holder commits, the waiter re-checks the row against its WHERE clause, finds it taken and continues to the next free row <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>; with `LIMIT`, locking stops once enough rows are returned <Cite href="https://www.postgresql.org/docs/current/sql-select.html">postgresql.org</Cite>. The result doesn't depend on scheduling; only which user gets which seat does.
+
+</SourceNote>
+
+Now the run. All 120 seats fill. Run it again: all 120. And again: all 120, every time, in 1.25 s, 1.73 s and 1.79 s on screen. [[L-0112]] The seats fill in order, 1C, 1D, 1E, 1F, 2A, 2B and on. Each transaction takes an exclusive lock, and while it holds it, the others wait. [[L-0113]]
+
+What happens behind the scenes is the most critical part, and the part people skip. It is tempting to picture all 120 transactions firing the query at once and all of them "getting" the first row. They don't. The database doesn't return a row to a transaction until that transaction holds its lock. The engine sees that the row the query is iterating over is locked by someone else, and makes the transaction wait. [[L-0114]]
+
+<StepThrough id="fig-2e" no="Fig 2·e" label="Approach 4 figure" k="L-0113 L-0114 L-0115 L-0116 L-0148 L-0155 L-0163"
+  caption="Time runs down. Lanes are three transactions standing in for 120, the database engine and the seats. A lock mark is a row lock; an hourglass is a transaction waiting, which is not a failure."
+  stepK={['L-0113 L-0114', 'L-0115', 'L-0115 L-0116 L-0148', 'L-0113 L-0163', 'L-0155']}
+  steps={[
+    'T1, T2 and T3 run the same <code>… FOR UPDATE</code>. T1 gets the lock on 1A. T2 and T3 get nothing back yet: the engine hands out a row only with its lock.',
+    'T1 updates 1A and <span class="term green">commits</span>. Its lock is released, and the engine wakes the waiters.',
+    'Each waiter re-checks its WHERE against the new row. 1A is taken, so the scan moves on: <span class="term green">T2 locks 1B</span>; T3 waits again. (In MySQL, as in the demo, this happens at the default REPEATABLE READ too; PostgreSQL at REPEATABLE READ would instead raise an error to retry.)',
+    'Again: commit, signal, re-check, and T3 locks 1C. Seats fill in order, and nobody busy-loops: waiters sleep until signalled.',
+    'In the worst case every waiter re-checks after every commit: 3 + 2 + 1 = 6 evaluations for three transactions, <code>N(N+1)/2</code>. For 120 passengers that is <span class="term red">7,260</span>.',
+  ]}>
+  <Desk><WaitSignal /></Desk>
+  <Phone><WaitSignal layout="phone" /></Phone>
+</StepThrough>
+
+Here is the mechanism in words. The first transaction acquires the lock and the rest wait. When it commits or aborts, the database engine signals the waiting transactions to re-evaluate the query. One of the 119 acquires the lock on the second row. When that one commits, the rest are signalled again, for the third seat, then the fourth, and so on. [[L-0115]] PostgreSQL documents the same thing for READ COMMITTED: the waiter re-evaluates its WHERE clause against the updated version of the row and skips the row if it no longer matches. At REPEATABLE READ it instead fails with "could not serialize access due to concurrent update" and must retry <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>. That error is PostgreSQL's behaviour. In MySQL, where the demo ran at its default REPEATABLE READ, a locking read always reads the latest available data <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html">dev.mysql.com</Cite>, so the waiter re-checks and moves on exactly as in the run.
+
+Re-evaluation does not mean the client fires the query again. The signalled transaction re-evaluates the same statement inside the engine and tries to acquire the lock; since the first transaction has committed, it now sees the second row. [[L-0116]] It is also tempting to think the query is evaluated once, at the start, for every waiter. It isn't: the evaluation is re-triggered every time a blocked transaction gets a signal. [[L-0148]] And the waiters don't sit in a loop checking the lock again and again. That is what thread signalling is for: waiting threads sit in a wait queue and are signalled when the lock is released. [[L-0163]]
+
+Who gets which seat? Not user 1 seat 1, user 2 seat 2. In the run, seat 1A went to a different user than user 1. Whichever transaction gets scheduled first gets the next seat. [[L-0117]]
+
+Count the work. Without `SKIP LOCKED`, in the worst case all the waiting transactions re-evaluate, one succeeds, all the rest re-evaluate again, one succeeds, and so on: N + (N − 1) + (N − 2) + … = N(N+1)/2. These are evaluations done inside the database, not queries fired by the application. For N = 120 that is 7,260. [[L-0155]] It is painful for the database to do that much work. But the system is correct. [[L-0118]]
+
+<MarginNote title="From your OS course" why="skip if you know condition variables" k="L-0164">
+
+Wait queues and thread signalling are operating-system constructs you probably learned in college and may never have seen used. They are all there, along with disk IO and the rest; we just never paid attention to where they are used. That is the case for formal CS education. [[L-0164]]
+
+</MarginNote>
+
+</Section>
+
+<Section id="s2-5" no="2.5" title="Approach 5: SKIP LOCKED" crumb="2.5 SKIP LOCKED"
+  dek="A passenger doesn’t care which free seat they get. Two more words, and nobody waits."
+  meta="About 8 min · class 01:05–01:08, Q&A 01:17–01:21, 02:49–02:52">
+
+A passenger doesn't care which free seat they get, so why wait behind someone else's? When a transaction finds a row locked, it is fine to move on, and the database shouldn't wait for nothing. Approach 5 is the approach 4 query with `SKIP LOCKED` added at the end. [[L-0119]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL
+ORDER BY id
+LIMIT 1
+FOR UPDATE SKIP LOCKED;   -- approach 5: two more words
+```
+
+<PauseAndThink k="L-0119 L-0120 L-0121 L-0122 L-0138 L-0145 L-0154"
+  q="Approach 4’s query plus <code>SKIP LOCKED</code>. Does every passenger still get a seat, and what changes?"
+  choices={[{ label: 'Fewer seats fill, because locked seats get skipped and never revisited' }, { label: 'All 120 fill, much faster', correct: true }]}
+  right="Right. All 120 filled in 147 ms, against about 1.7 s for approach 4: roughly ten times faster in this demo."
+  wrong="No. A seat is skipped only while someone holds it. If that transaction books it, it’s gone anyway; if it fails, the next query to run matches the seat again.">
+
+With `SKIP LOCKED` a transaction still takes an exclusive lock, but when the engine meets a locked seat it moves to the next matching one instead of waiting. No queue forms, so about 120 evaluations replace up to 7,260. The catch: you only use it when any free row will do. A passenger who picked seat 14C must wait for 14C, not be handed 14D.
+
+</PauseAndThink>
+
+The prediction in class: all the seats will fill, the "busy waiting" of approach 4 goes away, and the total execution time drops. The time part was right. [[L-0120]] (The waiting in approach 4 wasn't busy, as [§2.4](#s2-4) showed: the waiters sleep in a queue until signalled. What goes away is the waiting itself.)
+
+The run. Approach 4 took about 1.7 seconds. Approach 5 completed in 147 milliseconds, about one tenth of the time, and still filled all 120 seats. [[L-0121]]
+
+<AnimationClip clip="l05-wait-vs-skip" no="Clip 2·1" k="L-0112 L-0113 L-0115 L-0119 L-0121 L-0122 L-0154 L-0155"
+  lead="Same 120 passengers, same seats. One line waits its turn at every seat; the other walks past locked seats. Watch the clocks."
+  caption="FOR UPDATE queues everyone at the same seat and re-checks after every commit; SKIP LOCKED walks past locked seats. Both fill 120/120 correctly: about 1.7 s vs 147 ms in this demo. Time not to scale." />
+
+Each transaction still takes an exclusive lock. The difference is what happens at a locked row. The first transaction comes in and locks the first free seat. The second fires the same query, and the engine sees that this row is locked; because the query says `SKIP LOCKED`, it moves straight on to the next row that matches the WHERE clause and locks that one for the second transaction, then the next for the third, and so on. None of the transactions waits for the first to finish, and the rows are locked back to back by different transactions. [[L-0122]]
+
+Two words made the system ten times faster. That is why you need to know how your database actually does things, locking included. [[L-0123]] Remember the condition from [§1.4](#s1-4): `SKIP LOCKED` gives an inconsistent view of the data on purpose, so it fits only tables where any free row will do, like seats and job queues.
+
+In the lecture's view, relational databases scale beautifully well. They can't handle big data, but at scaling and handling high QPS they are champions. You only need to know performance tuning, and here that wasn't even nitty-gritty tuning: just normal SQL query constructs. [[L-0124]]
+
+Look back at the six versions. The system evolved by adding two or three words to a query. First make sure the system fails (approaches 0 to 3). Then make it correct with an exclusive lock (`FOR UPDATE`). Then add `SKIP LOCKED` for performance. [[L-0125]]
+
+<TradeoffTable caption="Six approaches to the same check-in, and what each one does"
+  k="L-0075 L-0078 L-0082 L-0088 L-0112 L-0121"
+  columns={[{ label: '0 · you pick' }, { label: '1 · random' }, { label: '2 · random ×120' }, { label: '3 · first free' }, { label: '4 · FOR UPDATE' }, { label: '5 · SKIP LOCKED' }]}
+  rows={[
+    { label: 'What changed', cells: ['Plain UPDATE of the seat you ask for', 'The system picks a random seat', '120 goroutines at once', 'WHERE user_id IS NULL ORDER BY id LIMIT 1', '+ FOR UPDATE', '+ SKIP LOCKED'] },
+    { label: 'Who picks the seat', cells: ['The passenger', 'rand, from all seats', 'rand, from all seats', 'The query: first free seat', 'The query, under a lock', 'The query, skipping locked seats'], k: 'L-0075 L-0078' },
+    { label: 'Seats filled', cells: ['The one you asked for (1C)', 'One per run; repeats possible', 'Far fewer than 120', { text: '2–4 of 120', bad: true }, 'All 120, every run', 'All 120'], k: 'L-0082 L-0088 L-0112 L-0121' },
+    { label: 'Correct?', cells: ['No: anyone can book a taken seat', 'No: rand repeats', 'No: 7-E and 12-E booked twice', 'No: one seat handed to many', 'Yes', 'Yes'], k: 'L-0075 L-0078 L-0082' },
+    { label: 'Time', cells: ['Not timed', 'Not timed', 'Not timed', 'Not timed', '1.2–1.8 s', '147 ms'], k: 'L-0112 L-0121' },
+    { label: 'Note', cells: ['Sanity check only', '“Overriding possible”', 'Simulates the 120 kiosks', 'The condition moves a later reader on', 'Waiters re-check after each commit', 'Only when any free seat will do'] },
+  ]} />
+
+Two questions about failures belong here. What if the transaction that took seat 2 fails? Seat 2 is not lost. The next transaction that reads the query, `trip_id = 1 AND user_id IS NULL` `ORDER BY id`, matches that row again. A row is never skipped altogether. [[L-0145]] Rows aren't assigned by transaction order, the first transaction to the first row and the second to the second. Whichever transaction executes gets the matching row, and that includes a row released by a failed transaction. [[L-0146]] Because the query orders by id, the released row is the first one the next statement picks up; even without `ORDER BY` it would still match some free row. [[L-0147]]
+
+And the count. With `SKIP LOCKED` the booking query is evaluated about 120 times in total, once per passenger, against up to 7,260 evaluations for approach 4. [[L-0154]]
+
+<MarginNote title="What the engine actually reads" why="skip unless you tune queries" k="L-0122 L-0306 L-0307">
+
+During the demo the engine was described as "quickly re-evaluating" and moving on to the next row, as above. More exactly (this came at the end of class): with `SKIP LOCKED` the database doesn't re-evaluate the query at all. When it reads, it doesn't read one row: it reads one disk page, one B+ tree node that may hold hundreds of rows. If the first row is locked, it moves to the next one at once. [[L-0306]]
+
+And `LIMIT` (and `OFFSET`) is applied at the last step, when the results are accumulated and filtered, not before the disk read. [[L-0307]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/limit-optimization.html" k="L-0307">
+
+`LIMIT` lets the database stop early when rows come out in the right order, for example along an index: MySQL then reads only the first rows. But if a filesort is needed, "all rows that match the query without the LIMIT clause are selected, and most or all of them are sorted" before the first rows are returned. Rows skipped by `OFFSET` are still read too: "The rows skipped by an OFFSET clause still have to be computed inside the server" <Cite href="https://www.postgresql.org/docs/current/queries-limit.html">postgresql.org</Cite>. That is why deep `OFFSET` pages get slow and keyset pagination is preferred.
+
+</SourceNote>
+
+</MarginNote>
+
+</Section>
+
+<Section id="s2-6" no="2.6" title="When the passenger picks the seat" crumb="2.6 A chosen seat"
+  dek="If the passenger taps seat 14C, any other free seat is the wrong answer. Back to plain FOR UPDATE."
+  meta="About 2 min · class 01:13–01:15">
+
+BookMyShow, and airlines that let you choose, work differently: you tap seat 14C. "Any free seat" is no longer good enough. You can't hand that passenger another seat, so you wouldn't use `SKIP LOCKED`. You'd use the plain `SELECT … FOR UPDATE` on that seat, as in the live edit to the demo's query: [[L-0138]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL AND id = 67   -- the seat the passenger tapped
+FOR UPDATE;
+```
+
+A transaction waiting on that lock re-evaluates for the same seat once the lock is released. [[L-0139]] It is tempting to think the waiter will then try another seat. It can't: the query is pinned to seat 67 and doesn't allow it to match any other row. [[L-0140]]
+
+<Figure id="fig-2f" no="Fig 2·f" wide={false} max={340} k="L-0138 L-0139 L-0140 L-0141"
+  caption="Two taps on seat 67. One kiosk gets the lock and books it; the other waits, re-checks the same seat and matches no rows.">
+  <SeatSixtySeven />
+</Figure>
+
+So, to book a seat the passenger picked: inside a transaction, select that seat `FOR UPDATE`, then update it. Two transactions can't take the same seat. One succeeds; the other sees no rows found, or waits and then finds that no rows match, and the front end shows "seat's gone". Everything else stays the same. [[L-0141]]
+
+</Section>
+
+<Section id="s2-7" no="2.7" title="Fixed inventory plus contention" crumb="2.7 Fixed inventory"
+  dek="120 seats, 120 people. The same shape shows up in vaccination slots, train seats, cinema seats and flash sales, and it always means locking."
+  meta="About 6 min · class 01:08–01:13, Q&A 01:23–01:26, 02:42">
+
+Here the fixed inventory is 120 seats. The contention is 120 people trying to book those 120 seats. And to keep the system correct, you have to take locks. [[L-0127]]
+
+<RuleBox rule="==Fixed inventory + contention== = locking." k="L-0126">
+
+Remember this phrase for the rest of your life. In any system in the world where there is a fixed inventory and people contend for it, you apply locking to keep it correct, always. Whenever you see fixed inventory and contention, the first thing that should come to mind is locking. [[L-0126]]
+
+<Desk><FixedInventory /></Desk>
+<Phone><FixedInventory layout="phone" /></Phone>
+
+</RuleBox>
+
+The examples are everywhere. During COVID-19, India's government launched a portal where people booked appointments at hospitals (the portal was <Cite href="https://en.wikipedia.org/wiki/CoWIN">CoWIN</Cite>, used from 2021 for vaccination slots). Every hospital had limited slots, say 100, and the moment slots opened everyone jumped onto the platform at once. Fixed inventory, contention. [[L-0128]] It would have been built with locking, though not necessarily pessimistic locking: it may be optimistic locking or atomic instructions. Built on a relational database, it would look exactly like this demo. [[L-0129]]
+
+<ForwardChip block when="Lecture 9" k="L-0129">optimistic locking</ForwardChip>
+
+IRCTC, the Indian government's train booking system, is the next one: a lot of people try to book seats on the same train at the same time. `SKIP LOCKED` is how you get high throughput there, so IRCTC's code base is probably full of skip locks (and exclusive locks): an inference from the pattern, not from seeing their code. [[L-0130]] BookMyShow, the movie ticketing system: a screen has limited seats and everyone is trying to book the same ones. With an exclusive lock, whoever gets the lock moves forward, and the others wait for that transaction to complete before the next one jumps in. [[L-0131]] Flash sales are very similar, and when flash sale is designed later in the course you will see this pattern in action and how beautifully the design is built around it. [[L-0132]]
+
+<ForwardChip block when="later in the course" k="L-0132">designing a flash sale, built around fixed inventory and contention</ForwardChip>
+
+### Hold, not lock [[rail: Hold, not lock]]
+
+A natural follow-up: a cinema or an airline holds your seat for, say, ten minutes while you pay. Is that a ten-minute lock? You would never want to do that. Holding a seat during payment is not SQL locking, and a database transaction is not used for it. It is a different system, to be discussed with flash sale. [[L-0135]]
+
+The word matters. The seat isn't locked; it is **on hold**. "Hold" is the better word to model it, because when you hear "lock" you picture MySQL blocking the row, and that is not what happens. [[L-0137]] You never span a database transaction across the payment, ten minutes on a BookMyShow seat included: the SQL server's throughput would go down drastically. [[L-0161]] Instead the booking is split into phases. You take the lock only for a moment and mark the seat as on hold, and that short transaction commits. The payment then happens outside any transaction; there is no transaction left open, waiting for it to finish. [[L-0162]]
+
+<Figure id="fig-2g" no="Fig 2·g" k="L-0135 L-0137 L-0161 L-0162"
+  caption="Lock for a moment, hold for ten minutes. A short transaction puts the seat on hold; the hold is a status in the row, not a lock, and the payment happens outside any transaction. The later phases come with flash sale. One long transaction is what you never do.">
+  <Desk><HoldNotLock /></Desk>
+  <Phone><HoldNotLock layout="phone" /></Phone>
+</Figure>
+
+<ForwardChip block when="later in the course" k="L-0136">flash sale and seat holds, after three prerequisite topics that come first</ForwardChip>
+
+The seat-hold design belongs with flash sale, later in the course, because that is where it becomes clear, and three different concepts needed to build it are covered before it. [[L-0136]]
+
+<MarginNote title="Asked in class" why="skip" k="L-0299">
+
+One question was about an app a person from IIT Delhi built some years ago, which made bookings faster. How it did that was not known in class. [[L-0299]]
+
+</MarginNote>
+
+That closes the locking half of the lecture with a myth worth dropping. Relational databases do scale. Never believe a generic statement like "relational databases don't scale": you can do partitioning, sharding, everything on relational databases. You just need to know how. [[L-0165]] For one well-known example, <Cite href="https://vitess.io/docs/overview/whatisvitess/">Vitess</Cite>, "an open-source database clustering system for horizontal scaling of MySQL", "served all YouTube database traffic for over five years".
+
+The check-in was won by two words at a time. [Chapter 3](#s3) takes the same habit, asking what every clause of a query costs, to a second build: a key-value store on one MySQL table.
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0088 L-0091" q="Approach 3 filled 2 to 4 seats, not 1 and not 120. What decides the number?">
+
+How many commits land before other transactions read. Everyone who reads before any commit sees seat 1A free and books it, so the last write wins. A transaction that reads after someone's commit is moved on by `WHERE user_id IS NULL` to the next free seat. The timing changes from run to run, so the count does too.
+
+  </RecallItem>
+  <RecallItem k="L-0115 L-0116 L-0163" q="In approach 4, what wakes a waiting transaction, and what does it do next?">
+
+The lock holder's commit (or abort). The engine signals the transactions in the wait queue; they were sleeping, not looping. Each re-evaluates the same statement inside the engine, not a new query from the client: 1A no longer matches `user_id IS NULL`, so one of them locks the next free seat and the rest wait again.
+
+  </RecallItem>
+  <RecallItem k="L-0138 L-0129" q="A cinema lets users pick exact seats; a vaccination portal hands out any free slot. Which query shape does each need, and why?">
+
+The cinema needs a pointed `SELECT … WHERE id = ?` `FOR UPDATE`: the passenger wants that seat, so a second booker must wait and then find no rows ("seat's gone"), not be handed another seat. The portal can use `FOR UPDATE SKIP LOCKED` on "first free slot": any free slot will do, so skipping locked ones gives the throughput without waiting.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '3 · A key-value store on MySQL', href: '#s3' }}
+  concepts={[{ label: 'lost booking', href: '#s2-3' }, { label: 'FOR UPDATE', href: '#s2-4' }, { label: 're-evaluation', href: '#s2-4' }, { label: 'SKIP LOCKED', href: '#s2-5' }, { label: 'pointed lock', href: '#s2-6' }, { label: 'fixed inventory + contention', href: '#s2-7' }, { label: 'hold, not lock', href: '#hold-not-lock' }]} />
+
+</Section>

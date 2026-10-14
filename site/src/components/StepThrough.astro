@@ -2,10 +2,12 @@
 // Step-through figure. Default slot: the drawing, whose groups are <Step n={…}> (kit) — or <Desk>/<Phone>
 // layouts that both contain the same steps. `steps` are the numbered texts (inline HTML allowed).
 // Keys on the focused figure: ← → ↑ ↓ Home End. Deep link: #<id>/step-3. Without JS every step shows.
-interface Props { id: string; no?: string; caption?: string; steps: string[]; label?: string; k?: string; stepK?: string[] }
-const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [] } = Astro.props;
+// `grow`: on phones (≤860px) the drawing is cropped to the steps so far and grows downward as you step, so tall
+// swim lanes don't push the step text a screen away from the arrow it explains. Opt-in; desktop is unchanged.
+interface Props { id: string; no?: string; caption?: string; steps: string[]; label?: string; k?: string; stepK?: string[]; grow?: boolean }
+const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], grow = false } = Astro.props;
 ---
-<figure class="wide stepper-fig" id={id} aria-labelledby={id + '-cap'} data-k={k} data-total={steps.length}>
+<figure class="wide stepper-fig" id={id} aria-labelledby={id + '-cap'} data-k={k} data-total={steps.length} data-grow={grow ? '' : undefined}>
   <div class="stepper sheet">
     <div class="lag-wrap lag" tabindex="0" aria-label={`${label}. Use left and right arrow keys to step.`} aria-describedby={id + '-live'}>
       <slot />
@@ -50,6 +52,7 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [] } =
         if (s === cur) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
       });
       prev.disabled = cur === 1; next.disabled = cur === TOTAL;
+      crop();
       counter.textContent = cur + ' / ' + TOTAL;
       if (announce) live.textContent = 'Step ' + cur + ' of ' + TOTAL + '. ' + (items[cur - 1].lastElementChild?.textContent ?? '').trim();
       if (announce && narrow.matches) keepInView();
@@ -57,18 +60,51 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [] } =
     // Phones: the step bar sticks to the bottom of the screen; scroll just enough that the part of the drawing
     // that changed sits between the top bar and the step bar, so the arrow and its sentence are on one screen.
     const narrow = matchMedia('(max-width: 860px)');
+    // grow: crop each shown drawing's viewBox to the bottom of the steps so far (+ a margin), phones only.
+    function crop() {
+      if (!('grow' in fig.dataset)) return;
+      fig.querySelectorAll<SVGSVGElement>('.lag svg.fig-svg').forEach((svg) => {
+        const full = (svg.dataset.vb ??= svg.getAttribute('viewBox') ?? '').split(' ').map(Number);
+        if (full.length !== 4) return;
+        let h = full[3];
+        if (narrow.matches && svg.getBoundingClientRect().width > 0) {
+          const shown = Array.from(svg.querySelectorAll<SVGGElement>('.step.now, .step.past'));
+          const bottom = Math.max(0, ...shown.map((g) => { const b = g.getBBox(); return b.y + b.height; }));
+          if (bottom > 0) h = Math.min(full[3], Math.ceil(bottom + 30));
+        }
+        svg.setAttribute('viewBox', `${full[0]} ${full[1]} ${full[2]} ${h}`);
+        // .fig-svg is overflow:visible; a cropped drawing must not spill its lifelines over the caption
+        svg.style.overflow = h < full[3] ? 'hidden' : '';
+      });
+    }
+    narrow.addEventListener('change', crop);
     const panel = fig.querySelector<HTMLElement>('.steps-panel')!;
+    // a smooth scroll still running from the previous step: measure against where it will end, not where it is now
+    // (a new smooth scroll cancels the old one, so measuring mid-flight lost the rest of it and left rows under the bar)
+    let pendingY: number | null = null, pendingAt = 0;
     function keepInView() {
       const rects = Array.from(fig.querySelectorAll<SVGGElement>('.lag .step.now'))
         .map((g) => g.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
       if (!rects.length) return;
-      const top = Math.min(...rects.map((r) => r.top)), bottom = Math.max(...rects.map((r) => r.bottom));
-      const barH = (document.querySelector('.bar') as HTMLElement | null)?.getBoundingClientRect().bottom ?? 0;
-      const limit = Math.min(panel.getBoundingClientRect().top, innerHeight - panel.offsetHeight) - 12;
+      const base = pendingY !== null && performance.now() - pendingAt < 900 ? pendingY : scrollY;
+      const ahead = base - scrollY; // how much further the running scroll will move the page
+      const top = Math.min(...rects.map((r) => r.top)) - ahead, bottom = Math.max(...rects.map((r) => r.bottom)) - ahead;
+      // the top bar, and on docs pages the sticky "On this page" bar under it
+      const barH = Math.max(0, ...Array.from(document.querySelectorAll<HTMLElement>('.bar, .otp-bar'))
+        .map((b) => b.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => r.bottom));
+      // the sticky step bar (Prev/Next + step text): where it sits once stuck to the bottom of the screen. When it is
+      // not stuck it is in flow under the drawing, so the drawing can't be under it; measure its full box height
+      // (the step text can be taller than at the last step, and the drawing has just grown).
+      const stepBarTop = innerHeight - panel.getBoundingClientRect().height;
+      const limit = stepBarTop - 12;
       let dy = 0;
       if (bottom > limit) dy = bottom - limit;
       if (top - dy < barH + 12) dy = top - barH - 12;
-      if (Math.abs(dy) > 4) scrollBy({ top: dy, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      if (Math.abs(dy) > 4 || ahead !== 0) {
+        const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        pendingY = Math.max(0, Math.min(base + dy, document.documentElement.scrollHeight - innerHeight)); pendingAt = performance.now();
+        scrollTo({ top: pendingY, behavior: reduce ? 'auto' : 'smooth' });
+      }
     }
     prev.addEventListener('click', () => show(cur - 1, true));
     next.addEventListener('click', () => show(cur + 1, true));
@@ -83,7 +119,7 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [] } =
     const re = new RegExp('^#' + fig.id.replace(/[-]/g, '\\-') + '/step-(\\d+)$');
     function fromHash() {
       const m = re.exec(decodeURIComponent(location.hash));
-      if (m) { show(Number(m[1]), false); fig.scrollIntoView(); }
+      if (m) { show(Number(m[1]), false); fig.scrollIntoView(); if (narrow.matches) keepInView(); }
     }
     window.addEventListener('hashchange', fromHash);
     show(1, false); fromHash();

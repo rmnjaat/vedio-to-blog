@@ -23,7 +23,7 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
 
 | URL | source |
 |---|---|
-| `/` | `src/pages/index.astro`: the course home, with the 10 lectures from `src/data/course.ts` (no MDX yet means "in preparation") |
+| `/` | `src/pages/index.astro`: the course home, the lectures in course order from `../lectures/course.json` via `src/data/course.ts` (no MDX yet means "in preparation") |
 | `/lectures/<id>/` | `src/pages/lectures/[id]/index.astro`: the lecture overview (title, dek, meta, the chapter list with one-line summaries, then the body of `src/content/lectures/<id>.mdx`) |
 | `/lectures/<id>/<chapter>/` | `src/pages/lectures/[id]/[chapter].astro`: one chapter, built from the MDX parts listed under `chapters` in the lecture's frontmatter; previous / next at the bottom (the last chapter points to the next lecture) |
 | `/demo/` | the sample's §2.4 rebuilt from the components (`src/content/samples/scaling-the-database.mdx`), for comparison with the sample |
@@ -35,9 +35,8 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
 
    ```yaml
    ---
-   number: 2
    title: <the H1>
-   kicker: "Lecture 02 · week 1, day 3 · running case: Medium"
+   kicker: "Lecture 04 · week 2, day 2 · running case: Slack"   # "Lecture NN" is reset from course.json
    dek: <one sentence under the title>
    description: <meta description>
    reviewed: 12 Oct 2026
@@ -69,7 +68,20 @@ npm run coverage -- lec01 --ledger learn/lec01/ledger/ledger.jsonl --ignore-type
    - **Components:** pass `k="L-0012 L-0013"`. For per-step coverage, `StepThrough` also takes `stepK={[…]}`.
    - **Check:** run `npm run build`, then `node scripts/coverage.mjs lecNN [--ledger path] [--ignore-type admin_reference] [--strict] [--json]`. It reads every page of the lecture together (the overview and each chapter page), lists the missing ids, grouped by importance, and any ids on the pages that are not in the ledger. It exits 1 if a core item is missing, or any item with `--strict`.
 5. **Figures.** Build them from the kit in `src/figures/lecNN/*.tsx`, following the rules in `FIGURES.md`. A large figure needs a phone layout. Run `scripts/check-figures.mjs`.
-6. **Clips.** Register the clip in `src/animations/registry.ts`, then embed it with `<AnimationClip clip="…">`. See `src/animations/README.md`.
+6. **Clips.** Put the clip folder in `src/animations/clips/<id>/` (timeline.ts + one capitalised `<Name>.tsx`); it is
+   discovered automatically (no registry edit). Embed it with `<AnimationClip clip="…">`. See `src/animations/README.md`.
+
+## Course order, numbers and parallel builds
+
+- **Order and numbers** come from `../lectures/course.json` (`[{id, position, title, promise, week, day, …}]`), read at
+  build time by `src/data/course.ts`. The number shown everywhere ("Lecture 02", nav, crumbs, titles, kicker) is the
+  course position, not the folder id (lec01 is the course's 2nd lecture). Unwritten lectures show their course.json
+  title as "coming soon". Without course.json the order falls back to the lecture ids. Frontmatter `number` is optional.
+- **Chapter parts** are the `parts` content collection (`src/content/lectures/<id>/<part>.mdx`, id `<id>/<part>`).
+- **Isolated builds** (the pipeline builds lectures in parallel): `VTB_ONLY=lec02` loads only that lecture, `VTB_PARTS=a,b`
+  only those parts of it (chapters with missing parts get no page), `VTB_OUT=.builds/lec02` writes to its own folder.
+  Use `pipeline/bin/site.sh build lec02 [--parts …]` (it also takes the machine lock). A plain `npm run build` builds
+  everything into `dist/` as before.
 
 ## Components (`src/components/`)
 

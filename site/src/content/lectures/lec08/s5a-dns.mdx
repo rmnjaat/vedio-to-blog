@@ -1,0 +1,155 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import { OneNameMany, ResolveConnect, DnsReturnsAddress } from '../../../figures/lec08/s5a-dns';
+
+{/* §5 One name, many LB servers, part a: opener, 5.1–5.3. Part b (5.4–5.7) is s5b-design.mdx. Writer w3. */}
+
+<Section id="s5" no="5" title="One name, many LB servers" crumb="5 One name"
+  dek="Clients know one address, but there are now many LB servers. DNS, private DNS, the finished design with its two paths, and who keeps the keeper alive."
+  meta="About 30 min · class 01:40–01:59, Q&A 03:06–03:36">
+
+By the end of [§4](#s4) the orchestrator adds LB servers when the fleet gets busy and removes them when it is quiet. Every one of them has a fresh copy of the configuration. One thing is still missing: a client connects to one address, and nothing so far tells it that the other LB servers exist.
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Two LB servers, one address" crumb="5.1 One address"
+  dek="An IP address belongs to one machine. A name can stand for many: give every load balancer a domain name, served by a private DNS."
+  meta="About 7 min · class 01:40–01:47">
+
+You now run two LB servers, `10.0.0.1` and `10.0.0.2`. The TCP connection is made to an LB server, and the client has the address of only one of them, `10.0.0.1`. How does any request ever reach the second one? [[L-0204]]
+
+The right answer is DNS: the load balancers are mapped in DNS, and DNS hands out one of the LB servers. [[L-0205]] What the DNS entry holds is the IP addresses of the machines, `10.0.0.1` and `10.0.0.2`, not ports. [[L-0206]]
+
+It is tempting to think that load balancers are always public and only the servers behind them are private, so putting an LB in DNS is the same as exposing it. Not all load balancers are public. A load balancer in front of a very critical internal microservice should not be, and a private load balancer has the same problem as a public one: it can’t be a single LB server, because what if that one goes down? [[L-0207]]
+
+So why not just hand clients the IP address of the LB virtual machine? Because that doesn’t scale. An IP address is fixed to a machine, two machines can’t share it, and the LB servers could not grow beyond one. [[L-0208]] That holds for a plain machine address. An IP address can be made to move: with VRRP a virtual IP fails over from one machine to another (<Cite href="https://www.rfc-editor.org/rfc/rfc5798">rfc-editor.org</Cite>). And Google’s Maglev runs many load-balancer machines for the same services: routers spread packets evenly across them with ECMP, and consistent hashing plus connection tracking keep each connection on the same backend (<Cite href="https://research.google/pubs/maglev-a-fast-and-reliable-software-network-load-balancer/">research.google</Cite>). DNS with many IPs is one valid approach, and it is the one this design takes.
+
+What abstracts many IP addresses? A domain name. When you create a load balancer, you also create a domain name for it, say `payments.lb.google.com`, and behind that name sit the IPs of its LB servers. Every load balancer you create gets its own. [[L-0209]]
+
+And this is a private domain. When someone says DNS, most people think of public DNS, `google.com` or `facebook.com`, but DNS can be private too, and the load balancer’s domain is a private one. [[L-0210]] The standing advice here is to work on an SRE team for at least a year and a half: it teaches things like private DNS that many engineers don’t know. [[L-0211]]
+
+You can launch your own DNS server. It is a very lightweight, simple process. A good open-source one is CoreDNS, one of the most common simple implementations of a DNS server, used across the Kubernetes world. [[L-0212]] A private CoreDNS instance runs inside your infrastructure, and every machine is configured to use it as its DNS address, so any domain name a machine looks up is resolved by CoreDNS. [[L-0213]] Cloud providers such as AWS or GCP run a bunch of DNS servers, each configured this way. [[L-0214]]
+
+<Figure id="fig-5a" no="Fig 5·a" k="L-0206 L-0209 L-0212 L-0213 L-0221"
+  caption="One private name stands for every LB server of one load balancer. The entry holds machine IPs, never ports, and the orchestrator keeps it current: the green row is the LB server it just added. Redrawn from the class board at 01:44–01:50, where the name was written paym.lb.googl.com.">
+  <Desk><OneNameMany /></Desk>
+  <Phone><OneNameMany layout="phone" /></Phone>
+</Figure>
+
+<PauseAndThink k="L-0216 L-0217 L-0218 L-0219 L-0220 L-0221"
+  q="You put both LB servers’ IPs under one DNS name. When a client sends a request, does it pass through DNS on its way to an LB server?"
+  choices={[{ label: 'Yes: DNS picks an LB server and forwards it' }, { label: 'No: DNS only answers with an IP', correct: true }]}
+  right="Right. DNS resolves a name; the client connects by itself."
+  wrong="If DNS forwarded requests, it would be the load balancer, and the new bottleneck.">
+
+DNS is a name-resolution service, not a proxy. The client asks for `payments.lb.google.com`, gets one IP (say `10.0.0.1`), caches it for a while, and opens its own connection to that LB server. DNS never sees the request, so it isn’t on the request path and isn’t a bottleneck for it. To add an LB server, the orchestrator just adds its IP to the DNS entry.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="DNS answers; it doesn’t forward" crumb="5.2 Answers only"
+  dek="DNS turns a name into one IP and steps aside. The client caches it, connects by itself, and asks again when that address stops answering."
+  meta="About 8 min · class 01:46–01:50 and 01:54–01:55, Q&A 03:06–03:12">
+
+If every request goes through DNS, isn’t DNS the new bottleneck?
+
+First, how DNS picks. When a name has several IP addresses, the DNS server picks one with the same kinds of strategy a load balancer uses: round robin, weighted round robin and so on. [[L-0215]] In CoreDNS, for example, the `loadbalance` plugin acts as a round-robin DNS load balancer by randomizing the order of the A, AAAA and MX records in each answer (<Cite href="https://coredns.io/plugins/loadbalance/">coredns.io</Cite>).
+
+Then the answer goes back. The lookup for the load balancer’s name resolves to one LB server’s IP, which is sent to the user; the user connects to that IP, and the normal load-balancing flow takes over. This is exactly what happens behind the scenes whenever you make an HTTP request. [[L-0216]]
+
+The worry is still worth stating. If all requests were routed through DNS, DNS would be a bottleneck, and it would itself be acting as a load balancer. “Run multiple DNS servers” is the first answer people reach for, and it only moves the problem: now you load balance between DNS servers. [[L-0217]] The way out is to look at what DNS actually does with a request.
+
+A tempting picture is that DNS picks an LB server’s IP by its strategy and sends the request on to that load balancer. If it did, DNS would *be* the load balancer. It doesn’t. DNS sends the IP address back to the client, and the client makes the request itself. [[L-0218]] DNS is not a proxy. It is only a name-resolution service: given a human-readable name, it returns an IP address, nothing more, nothing less. [[L-0219]]
+
+<RuleBox rule="DNS is ==not a proxy==: given a name, it returns an IP address, nothing more, nothing less." k="L-0219 L-0218 L-0339">
+
+DNS hands the address back, and the client connects to that IP itself. Or, as it was put bluntly later on: “DNS is a stupid service. It just stores a hash map.”
+
+<Desk><DnsReturnsAddress /></Desk>
+<Phone><DnsReturnsAddress layout="phone" /></Phone>
+
+</RuleBox>
+
+The client always caches the resolved IP address for some time. [[L-0220]] So a client goes to DNS once, gets the address, and connects to that LB server; from there the TCP connection is on the LB server, which picks a backend, sends the request, gets the response and sends it back.
+
+<StepThrough id="fig-5b" no="Fig 5·b" label="Resolve, then connect"
+  k="L-0215 L-0216 L-0218 L-0219 L-0220 L-0231"
+  stepK={['L-0216', 'L-0215 L-0219', 'L-0218', 'L-0216 L-0220', 'L-0231']}
+  caption="Time runs down. Dashed arrows are the lookup and its answer; blue is the request, green the response. DNS takes part in steps 1, 2 and 5 only, never in the request itself."
+  steps={[
+    'The client asks DNS for the load balancer’s name, <code>payments.lb.google.com</code>.',
+    'DNS answers with one LB server’s IP, <code>10.0.0.1</code>, picked by round robin or a shuffle. That is all it does.',
+    'DNS does not forward the request. If it did, it would be the load balancer.',
+    'The client caches <code>10.0.0.1</code> and connects to that IP itself. The LB server proxies to a backend, and the response comes back the same way.',
+    'If that LB server is dead, a client built this way doesn’t wait out the TTL. Its connect fails, it asks DNS again, and it connects to <code>10.0.0.2</code>.',
+  ]}>
+  <Desk><ResolveConnect /></Desk>
+  <Phone><ResolveConnect layout="phone" /></Phone>
+</StepThrough>
+
+The client here is not only an end user. It can be another microservice, a server, anything that needs a human-readable name resolved. [[L-0224]]
+
+This is also how the load balancer scales. When the orchestrator sees the need for another LB server, it spins one up and adds its IP, say `10.0.0.3`, to the load balancer’s DNS entry. Nobody does this by hand: the orchestrator knows the IP addresses of all the LB servers, and knows when one goes down or comes back, so it is the one that updates DNS. [[L-0221]] AWS’s Elastic Load Balancing works the same way: DNS returns the IP addresses of the load balancer nodes, and as traffic changes ELB scales and updates the DNS entry, which carries a 60-second TTL so that addresses can be remapped quickly (<Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html">aws.amazon.com</Cite>).
+
+What if a client’s cached entry points at an LB server that has since gone down? It might seem the site is unavailable to that client until the TTL expires. It need not be. The class’s answer was to build the client so it doesn’t wait for the TTL: when it can’t connect, it invalidates its cached entry at once and asks CoreDNS again, which gives it another IP address. That is a reactive approach. [[L-0231]] In practice, many client stacks first try the other addresses from the same DNS answer, one after another (<Cite href="https://www.rfc-editor.org/rfc/rfc8305">RFC 8305</Cite>), and a fresh query can still be answered from an intermediate resolver’s cache until the TTL runs out, since the TTL is how long a record may be kept in a cache (<Cite href="https://www.rfc-editor.org/rfc/rfc1034">RFC 1034 §3.6</Cite>). It is like a toothache. You have a periodic visit to the dentist, but if the tooth is hurting, you don’t wait for that date; you go now. [[L-0232]]
+
+### What DNS knows, and what it doesn’t [[rail: What DNS knows]]
+
+Does DNS send clients to a second load balancer when the first one is loaded? No. DNS just has the mapping of a domain to several IP addresses and round-robins between them. It has no information about load. [[L-0337]]
+
+For load balancers run as active and passive, DNS holds only the active one’s IP address. Or use weighted round robin: weight 1 for the active load balancer, 0 for the passive one. [[L-0338]] Route 53’s weighted routing behaves this way: a weight-0 record gets no traffic, but if all the records with a weight above 0 fail their health checks, Route 53 answers with the zero-weight ones, which gives active-passive failover (<Cite href="https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-weighted.html">aws.amazon.com</Cite>). Who switches the entry when the active one dies? The orchestrator, which knows when an LB server goes down and when it comes back. DNS is a stupid service: it just stores a hash map. [[L-0339]]
+
+Concretely, CoreDNS holds the array of IP addresses of all the LB servers against the domain name. [[L-0346]]
+
+A natural worry: if CoreDNS picks LB servers by round robin, haven’t we recreated the bottleneck that load balancers solved? Should CoreDNS pick by least connections instead? No. CoreDNS has no idea about load. It just picks one IP and sends it back (“at random” in this answer, “round robins” in the earlier one; both as said). It has no brain; the code that does this is literally about 50 lines. [[L-0347]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Who keeps DNS up?" crumb="5.3 DNS up"
+  dek="Several CoreDNS servers, found through DNS in turn, until the load is small enough for one server with a standby."
+  meta="About 2 min · class 01:55–01:57, Q&A 03:17–03:18">
+
+CoreDNS is now on the path of every new connection. Is it the new single point of failure?
+
+No: you run multiple CoreDNS servers. [[L-0233]]
+
+Then how does a machine know which CoreDNS server to reach? You have a DNS for CoreDNS. Recursively, at some step the load (the word said was “latency”, most likely meaning load) becomes so small that one server can handle it. So there is still one single point of failure in the system, and it has a standby node. That is the base condition of the recursion. [[L-0234]] In practice DNS does not bottom out in one server with a standby. A resolver lists several nameservers and tries them in turn (<Cite href="https://man7.org/linux/man-pages/man5/resolv.conf.5.html">man7.org</Cite>), and the top of the public hierarchy, the root zone, is served by 13 identities running about 2,047 anycast instances (<Cite href="https://root-servers.org/">root-servers.org</Cite>).
+
+A traceroute to `google.com` can show around 21 levels. Every one of them is horizontally scalable except one: a single point of failure with a standby node. It is so tiny that it rarely goes down, and if it does, the standby takes its place within seconds. [[L-0235]]
+
+To really understand private DNS, explore CoreDNS hands-on: set one up, configure a domain with a few backend servers behind it, see how it scales, read the official documentation on running it highly available, use it in a private infrastructure, and only then think about exposing it publicly. [[L-0355]] As of October 2026 the CoreDNS manual has no dedicated production or high-availability guide; it covers installation, plugins, configuration and example setups (<Cite href="https://coredns.io/manual/toc/">coredns.io</Cite>).
+
+<MarginNote title="See it yourself: a private DNS on one laptop" why="skip if you’ve run CoreDNS" k="L-0355">
+
+Download the CoreDNS binary and put this `Corefile` next to it. The `hosts` plugin serves inline entries, and `loadbalance` shuffles the order of the records in each answer (<Cite href="https://coredns.io/plugins/hosts/">coredns.io</Cite>):
+
+```
+lb.internal {
+    hosts {
+        10.0.0.1 payments.lb.internal
+        10.0.0.2 payments.lb.internal
+    }
+    loadbalance
+}
+```
+
+Start it on a high port, then ask it a few times and watch the order of the two addresses change:
+
+```
+./coredns -dns.port=1053
+dig @127.0.0.1 -p 1053 payments.lb.internal
+```
+
+Add a third line for `10.0.0.3`, as the orchestrator would, and restart. [[L-0355]]
+
+</MarginNote>
+
+</Section>

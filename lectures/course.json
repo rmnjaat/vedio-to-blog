@@ -1,0 +1,230 @@
+[
+  {
+    "id": "lec04", "position": 1, "week": 1, "day": 1, "confidence": "high",
+    "title": "Green dots and blog rows",
+    "promise": "Design an online/offline indicator from heartbeats and TTLs, then make the everyday database and caching calls for a Medium-like blog.",
+    "case_study": "Online/offline indicator, then a Medium-like multi-user blogging app",
+    "topics": [
+      "How to approach any system (spiral vs incremental)",
+      "Online/offline indicator: push heartbeats, absence = offline",
+      "Expiry with TTL: Redis vs DynamoDB, vendor lock-in",
+      "Write load and connection pooling",
+      "Heartbeats as failure detection",
+      "Database basics: soft vs hard delete, column types, storing date-time",
+      "What a cache is (anything that saves expensive computation or I/O)"
+    ],
+    "prereqs": [],
+    "crosslinks": [
+      {"topic": "Caching at every level", "to": "lec01"},
+      {"topic": "Six core properties (scaling, delegation, concurrency, communication)", "to": "lec01"},
+      {"topic": "Online indicator done with WebSockets / Slack real-time", "to": "lec02"},
+      {"topic": "Redis TTL expiry internals (lazy deletion, sampling)", "to": "lec05"},
+      {"topic": "Soft delete and B+ tree rebalancing", "to": "lec05"},
+      {"topic": "Heartbeats become load-balancer health checks", "to": "lec08"},
+      {"topic": "Distributed cache, eviction, TTL", "to": "lec07"},
+      {"topic": "Senior engineer's three hats", "to": "lec06"}
+    ]
+  },
+  {
+    "id": "lec01", "position": 2, "week": 1, "day": 2, "confidence": "high",
+    "title": "Medium under load",
+    "promise": "Caching at every level, then scaling, delegation, concurrency and communication, each worked through on Medium.",
+    "case_study": "Medium (blogging platform)",
+    "topics": [
+      "Caching at every level (API memory and disk, browser, CDN, load balancer, materialized views)",
+      "Scaling: vertical, horizontal, read replicas, sharding",
+      "Delegation: message queues, message streams, Kafka essentials",
+      "Concurrency: the count++ race on claps",
+      "Communication: short polling, long polling, SSE, WebSockets"
+    ],
+    "prereqs": ["lec04"],
+    "crosslinks": [
+      {"topic": "Concurrency and transactions in depth (locking)", "to": "lec05"},
+      {"topic": "Sharding: range sharding of a KV store", "to": "lec05"},
+      {"topic": "Scaling WebSockets (Slack real-time)", "to": "lec02"},
+      {"topic": "Pub/Sub cache invalidation across servers", "to": "lec02"},
+      {"topic": "Designing a load balancer", "to": "lec08"},
+      {"topic": "CDN in practice", "to": "lec09"},
+      {"topic": "Kafka partitions and re-partitioning", "to": "lec09"},
+      {"topic": "Kafka + SQS fan-out", "to": "lec06"},
+      {"topic": "Consistent hashing", "to": "lec07"},
+      {"topic": "Instagram sharding by ID", "to": "lec03"}
+    ]
+  },
+  {
+    "id": "lec05", "position": 3, "week": 2, "day": 1, "confidence": "high",
+    "title": "Locking the airline seats",
+    "promise": "See pessimistic locking work live on an airline check-in, then build a key-value store on top of MySQL.",
+    "case_study": "Airline check-in system (live Go demo), then a key-value store on MySQL",
+    "topics": [
+      "Why relational databases matter",
+      "Pessimistic locking, deadlocks, FOR SHARE vs FOR UPDATE",
+      "SKIP LOCKED and NOWAIT",
+      "Airline check-in demo: approaches 0-5",
+      "Fixed inventory plus contention means locking",
+      "KV store on a relational DB: schema, TTL as expired_at, delete, upsert",
+      "Expiry in Redis: lazy deletion and sampling",
+      "Making the KV store distributed: replicas and range sharding"
+    ],
+    "prereqs": ["lec04", "lec01"],
+    "crosslinks": [
+      {"topic": "Non-relational key-value stores", "to": "lec02"},
+      {"topic": "Locks across machines (remote and distributed locks)", "to": "lec08"},
+      {"topic": "Central ID service with SELECT ... FOR UPDATE / REPLACE INTO", "to": "lec03"},
+      {"topic": "TTL handling and locking inside your own cache", "to": "lec07"},
+      {"topic": "Consistent hashing and hot partitions", "to": "lec07"},
+      {"topic": "Append-only key-value store (BitCask)", "to": "lec10"},
+      {"topic": "Transactions in the Gravatar active-photo update", "to": "lec06"}
+    ]
+  },
+  {
+    "id": "lec02", "position": 4, "week": 2, "day": 2, "confidence": "high",
+    "title": "Slack in real time",
+    "promise": "Tour the non-relational database families, then design how Slack delivers a message to everyone in a channel in real time.",
+    "case_study": "Slack real-time text messaging",
+    "topics": [
+      "Non-relational databases: document, key-value, column-oriented, graph",
+      "Two meanings of consistency (ACID vs CAP); never trust a generic claim",
+      "When SQL vs NoSQL",
+      "Slack schema and channel membership",
+      "Message sending guarantees: three persistence types (Slack, WhatsApp, Zoom)",
+      "Scaling WebSocket servers: the cross-server problem",
+      "Real-time Pub/Sub (Redis) and the connection-balancing service"
+    ],
+    "prereqs": ["lec05", "lec01", "lec04"],
+    "crosslinks": [
+      {"topic": "Reactive config updates via real-time Pub/Sub", "to": "lec08"},
+      {"topic": "Slack membership table reused", "to": "lec06"},
+      {"topic": "Reactive reload instead of polling", "to": "lec10"},
+      {"topic": "Column-oriented storage and file formats", "to": "lec10"}
+    ]
+  },
+  {
+    "id": "lec08", "position": 5, "week": 3, "day": 1, "confidence": "high",
+    "title": "Building a load balancer",
+    "promise": "Learn how to approach distributed systems by building a load balancer from one TCP proxy to a full control plane, then lock things across machines.",
+    "case_study": "Build-it-yourself load balancer, then a 'stupid' remote queue that motivates locks",
+    "topics": [
+      "How to approach distributed systems; day-zero architecture",
+      "Load balancing algorithms (round robin, least connections)",
+      "Designing a load balancer: low level and code walkthrough",
+      "Orchestrator, health checks, metrics (Prometheus)",
+      "Reactive config via Pub/Sub and a first look at CDC",
+      "DNS and CoreDNS in front of many LB servers",
+      "Remote locks with TTL and distributed locks (Redlock)"
+    ],
+    "prereqs": ["lec05", "lec02", "lec04", "lec01"],
+    "crosslinks": [
+      {"topic": "Distributed ID generators", "to": "lec03"},
+      {"topic": "CDN in depth", "to": "lec09"},
+      {"topic": "CDC in depth", "to": "lec07"},
+      {"topic": "Routing and DNS for a distributed cache", "to": "lec07"},
+      {"topic": "Consistent hashing", "to": "lec07"}
+    ]
+  },
+  {
+    "id": "lec03", "position": 6, "week": 3, "day": 2, "confidence": "high",
+    "title": "Minting unique IDs",
+    "promise": "Rewrite one getid() function under ever harder constraints, then see how Amazon, Flickr, Twitter and Instagram answer the same question.",
+    "case_study": "One getid() function, then Amazon, Flickr, Twitter Snowflake, Discord, Instagram",
+    "topics": [
+      "First getid(): epoch ms, machine ID, thread ID",
+      "Static counter that survives reboots",
+      "Monotonic IDs and clock skew; time on the left",
+      "Central ID service and why custom IDs at all",
+      "Amazon batched ranges; UUIDs and MongoDB IDs",
+      "Flickr ticket servers",
+      "Twitter Snowflake and Discord's custom epoch",
+      "Pagination: limit-offset vs ID-based",
+      "Instagram: Snowflake inside the database"
+    ],
+    "prereqs": ["lec05", "lec08", "lec01"],
+    "crosslinks": [
+      {"topic": "Instagram as a running social-network case", "to": "lec09"},
+      {"topic": "Moving logical partitions / sharding in depth", "to": "lec07"},
+      {"topic": "CDC in depth", "to": "lec07"}
+    ]
+  },
+  {
+    "id": "lec09", "position": 7, "week": 4, "day": 1, "confidence": "high",
+    "title": "Instagram photos and hashtags",
+    "promise": "Upload and serve photos the way Instagram and GitHub do with pre-signed URLs and a CDN, then build a hashtag page with counting on Kafka.",
+    "case_study": "Instagram (year-one architecture, photo upload, hashtag page)",
+    "topics": [
+      "Instagram's year-one stack and tech-stack waves",
+      "Using a CDN as a black box: origin, edge, caching",
+      "Photo upload with pre-signed URLs (GitHub demo)",
+      "Separating posts from images; whatever is derivable, don't store it",
+      "Private images and signed URLs",
+      "Image optimization the CDN gives you",
+      "Hashtag service: schema and top-100 photos",
+      "Counting hashtags: re-partition Kafka by hashtag, batching counting servers",
+      "Scaling consumers to an SLA; MapReduce/Spark as distributed counting"
+    ],
+    "prereqs": ["lec01", "lec08", "lec03"],
+    "crosslinks": [
+      {"topic": "Building your own image optimization service", "to": "lec06"},
+      {"topic": "Pre-signed upload service reused for Gravatar", "to": "lec06"},
+      {"topic": "'Don't store what's derivable' deliberately broken", "to": "lec06"},
+      {"topic": "S3 as storage for a file-based engine", "to": "lec10"}
+    ]
+  },
+  {
+    "id": "lec06", "position": 8, "week": 4, "day": 2, "confidence": "high",
+    "title": "Gravatar to unread badges",
+    "promise": "Four small social-network systems, each teaching one habit: images as route handlers, the query decides the design, the product hat, and pre-compute versus source of truth.",
+    "case_study": "Gravatar, tagging people in photos, newly unread message indicator",
+    "topics": [
+      "How images are served; on-demand generated images",
+      "Designing Gravatar: data model, queries, active photo",
+      "Gravatar architecture and on-demand image optimization",
+      "Tagging people in photos: requirements with the product-manager hat",
+      "Newly unread message indicator: pre-compute vs source of truth",
+      "Auxiliary database pattern"
+    ],
+    "prereqs": ["lec09", "lec04", "lec01", "lec05", "lec02"],
+    "crosslinks": [
+      {"topic": "Storage engines and database internals", "to": "lec07"}
+    ]
+  },
+  {
+    "id": "lec07", "position": 9, "week": 5, "day": 1, "confidence": "high",
+    "title": "Build your own Redis",
+    "promise": "Meet ETL and CDC, then build a cache like Redis on one node and make it distributed with consistent hashing.",
+    "case_study": "Build-your-own Redis (distributed cache), with a blogging app for ETL/CDC",
+    "topics": [
+      "ETL and change data capture",
+      "Single-node cache: storage, typed values, memory cap",
+      "Eviction: LRU, LFU, random",
+      "Communication protocol over TCP",
+      "Handling TTLs with lazy deletion",
+      "Concurrency on a single node: pessimistic vs optimistic locking",
+      "Making the cache distributed: four ways of routing",
+      "Consistent hashing and DHTs",
+      "Availability and replication"
+    ],
+    "prereqs": ["lec05", "lec01", "lec08", "lec04", "lec06"],
+    "crosslinks": [
+      {"topic": "Routing a key to a file/partition", "to": "lec10"},
+      {"topic": "Storage engines built from files", "to": "lec10"}
+    ]
+  },
+  {
+    "id": "lec10", "position": 10, "week": 5, "day": 2, "confidence": "high",
+    "title": "Files as a database",
+    "promise": "Build a scalable, portable word dictionary with no database, then design BitCask, an append-only key-value store.",
+    "case_study": "Word dictionary without a traditional database (S3/Athena-style), then BitCask",
+    "topics": [
+      "Problem: a read-mostly dictionary with no database, portable and scalable",
+      "Partitioned files and a file format: header, index, data",
+      "Sizing the index; reading byte ranges from S3",
+      "Weekly change log: sorted merge into a new file",
+      "Rolling out a new version: meta.json, same vs new path, reactive reload",
+      "BitCask: append-only file, put/delete with tombstones",
+      "In-memory hash index; rebuild on restart",
+      "Merge and compaction of immutable files"
+    ],
+    "prereqs": ["lec07", "lec05", "lec02", "lec09"],
+    "crosslinks": []
+  }
+]

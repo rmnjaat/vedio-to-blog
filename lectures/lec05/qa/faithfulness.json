@@ -1,0 +1,229 @@
+{
+ "lecture": "lec05",
+ "coverage": {
+  "s0-header": "8/8",
+  "s1-locks": "129/129",
+  "s2a-check-in": "38/38",
+  "s2b-check-in": "85/85",
+  "s3a-kv-store": "58/58",
+  "s3b-kv-store": "66/66",
+  "s4-redis-expiry": "48/48",
+  "s5-distributed": "44/44",
+  "s6-keep": "42/42",
+  "sourcenotes": "15/15",
+  "inline_clarifications": "22/22",
+  "figures": "29/29",
+  "clips": "4/4"
+ },
+ "issues": [
+  {
+   "id": "F-001",
+   "severity": "medium",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec05/s2b-check-in.mdx",
+   "line": 87,
+   "quote": "(This is PostgreSQL’s READ COMMITTED; at REPEATABLE READ the waiter would get an error and retry.)",
+   "problem": "Three added clarifications (PauseAndThink body line 71, Fig 2·e step 3 line 87, prose line 95) explain the approach 4 mechanism only through PostgreSQL and say that at REPEATABLE READ the waiter errors and must retry. The class demo ran on MySQL at its default isolation level, REPEATABLE READ, and filled all 120 seats on every run with no errors. A reader is led to think the demo's result depended on READ COMMITTED, or would fail at the default level, which contradicts what the class saw. The PostgreSQL behaviour is correct, but MySQL's behaviour is missing.",
+   "evidence": "L-0065 (MySQL), L-0112 (all 120, every run), L-0115; factcheck_applied.md §3 L-0115 (A-C-11) and L-0092 (MySQL default REPEATABLE READ)",
+   "fix": "Add one clause each time, e.g. at line 95: \"In MySQL, where the demo ran at its default REPEATABLE READ, a locking read always reads the latest committed version of the row, so the waiter re-checks and moves on exactly as in the run <Cite href=\"https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html\">dev.mysql.com</Cite>; the error at REPEATABLE READ is PostgreSQL's behaviour.\" In step 3 write \"(In MySQL, as in the demo, this happens at the default REPEATABLE READ too; PostgreSQL at REPEATABLE READ would instead raise an error to retry.)\" Same change in the PauseAndThink body at line 71."
+  },
+  {
+   "id": "F-002",
+   "severity": "medium",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec05/s6-keep.mdx",
+   "line": 119,
+   "quote": "Each of these was deferred in class on purpose:",
+   "problem": "Two of the four items under this heading (lines 123–124: locks across machines in Lecture 5, and a central ID service on SELECT … FOR UPDATE / REPLACE INTO in Lecture 6) were never mentioned in class. They come from the course's crosslink map (course.json). They carry no k= tag and no ledger item. The heading presents them as the instructor's deliberate deferrals.",
+   "evidence": "No ledger item covers either; lectures/course.json lec05 crosslinks (lec08 'Locks across machines', lec03 'Central ID service'). Class deferrals are only L-0358 and L-0349.",
+   "fix": "Split the list: \"Deferred in class:\" with the L-0358 and L-0349 items, then \"Elsewhere in this course (not mentioned in class):\" with the Lecture 5 and Lecture 6 chips."
+  },
+  {
+   "id": "F-003",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec05/s1-locks.mdx",
+   "line": 333,
+   "quote": "so no mainstream database defaults to it (MySQL uses repeatable read, PostgreSQL read committed)",
+   "problem": "This overgeneralises the fact-check addition, which covers only InnoDB and PostgreSQL. Some widely used databases do default to SERIALIZABLE, for example CockroachDB. The class made no claim about other databases.",
+   "evidence": "factcheck_applied.md §3 L-0100 / L-0104 (InnoDB REPEATABLE READ, PostgreSQL READ COMMITTED only)",
+   "fix": "\"so neither MySQL nor PostgreSQL defaults to it (MySQL uses repeatable read, PostgreSQL read committed).\""
+  },
+  {
+   "id": "F-004",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec05/s2b-check-in.mdx",
+   "line": 32,
+   "quote": "-- with LIMIT, locking stops once enough rows have been returned;\n-- at READ COMMITTED, ORDER BY plus a locking clause can return rows out of order",
+   "problem": "The comments inside the approach 4 code block come from PostgreSQL's docs, but the code block shows the class's MySQL demo query. Readers will take the comments as part of the demo or of what was taught. The out-of-order caveat applies to PostgreSQL only and was not taught.",
+   "evidence": "L-0094 (two words added, MySQL demo); line 36 itself attributes them to PostgreSQL docs",
+   "fix": "Remove the two comment lines from the code block. Keep line 36 as prose and start it with \"PostgreSQL's documentation adds two details for that engine:\"."
+  },
+  {
+   "id": "F-005",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec05/s2b-check-in.tsx",
+   "line": 168,
+   "quote": "txn: status = BOOKED → commit",
+   "problem": "Fig 2·g (and its caption at s2b-check-in.mdx:248, 'Two short transactions bracket the payment') adds a second transaction after the payment that marks the seat BOOKED. The class said only to take the lock for a moment, mark the seat on hold and never keep a transaction open across the payment, and that the work is 'split into multiple phases'. It deferred the details to flash sale. The BOOKED step and the 'two transactions' framing were not taught.",
+   "evidence": "transcript 01:24:33 'You just acquire the lock for that moment and say that this seat is put on hold… So you split this into multiple phases.' / L-0162, L-0135 (deferred to flash sale)",
+   "fix": "Label the second mark 'later phase (after payment): covered with flash sale' instead of 'status = BOOKED', and change the caption to: \"A short transaction puts the seat on hold; the payment happens outside any transaction; the later phases come with flash sale. One long transaction is what you never do.\""
+  },
+  {
+   "id": "F-006",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec05/s2a-check-in.mdx",
+   "line": 131,
+   "quote": "The best case for the bug is simple to state. If all 120 transactions start while the first seat is still free, all 120 book that one seat.",
+   "problem": "When all 120 passengers get one seat, that is the worst outcome of the bug, not the best case. It is the extreme the class described.",
+   "evidence": "L-0090 / transcript 00:47:03",
+   "fix": "\"The extreme case is simple to state. If all 120 transactions start while the first seat is still free, all 120 book that one seat. [[L-0090]]\""
+  },
+  {
+   "id": "F-007",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec05/s2a-check-in.mdx",
+   "line": 86,
+   "quote": "More exactly, goroutines start with small stacks that grow as needed, and the Go runtime multiplexes them onto OS threads, so one blocked goroutine doesn't stall the others. That is why 120 simultaneous passengers cost almost nothing to simulate.",
+   "problem": "The verified addition for L-0080 (A-KSD-20) says goroutines share one address space and are multiplexed onto a few OS threads. That nuance is what qualifies the class's 'running in its own space', and the page leaves it out. The page uses its own wording instead, and its last sentence ('cost almost nothing') is unsourced.",
+   "evidence": "factcheck_applied.md §3 L-0080 (A-KSD-20)",
+   "fix": "\"More exactly, a goroutine is a lightweight function managed by the Go runtime: many goroutines share one address space and are multiplexed onto a small number of OS threads <Cite href=\"https://go.dev/doc/effective_go\">go.dev</Cite>.\" Drop the 'cost almost nothing' sentence."
+  },
+  {
+   "id": "F-008",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec05/s2b-check-in.mdx",
+   "line": 52,
+   "quote": "The question of why it wouldn't wait on the first row was set aside for later",
+   "problem": "This reverses the question. The instructor asked 'Why would it wait on the first row?' (probing the student's reasoning), then said 'let me not dive into that', and later put the question to the class as 'would it wait on the first row? Would it not just move to the second row?'.",
+   "evidence": "transcript 00:52:04, 00:52:31, 00:52:50 / L-0098",
+   "fix": "\"The instructor asked why it would wait on the first row at all, then set the question aside for later; the same reasoning was then reversed in class: it will wait. [[L-0098]]\""
+  },
+  {
+   "id": "F-009",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec05/s4-redis-expiry.mdx",
+   "line": 35,
+   "quote": "and because finding the key expired is no expensive matter, it deletes it right there.",
+   "problem": "The reason given in class is that the delete is cheap: in memory there is no structure to rebalance. The page says instead that 'finding the key expired' is cheap.",
+   "evidence": "transcript 02:10:10 'it goes out and deletes the key right there and then, because it doesn't have to restructure. It's not an expensive operation for it' / L-0237",
+   "fix": "\"…and, since deleting it doesn't require restructuring anything and so isn't expensive, it deletes it right there. [[L-0237]]\""
+  },
+  {
+   "id": "F-010",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec05/s6-keep.mdx",
+   "line": 66,
+   "quote": "The words this page used for locking, \"signal\" and \"re-evaluate\", are not invented for teaching. They are the words in MySQL's source code",
+   "problem": "The instructor said MySQL's code uses 'these exact terms… signals and all'. The page adds 're-evaluate' to that claim, and the class never said that word appears in the source.",
+   "evidence": "transcript 01:19:22 / L-0149",
+   "fix": "\"The word this page used for waking a waiter, \"signal\", isn't invented for teaching: in the instructor's words, you will find those exact terms, signals and all, in MySQL's source code, which is why he uses them. [[L-0149]]\""
+  },
+  {
+   "id": "F-011",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec05/s3a-kv-store.mdx",
+   "line": 42,
+   "quote": "this chapter follows them in order: storage (3.2), optimizing the storage (3.3 and 3.4), insert and update (3.5 and 3.6), and TTL, which is per key (3.7).",
+   "problem": "This maps the board's five brainstorm parts onto sections that don't match them. 3.3 is TTL (expired_at), not storage optimisation, and 3.6 is GET, not insert or update. The class itself took TTL (01:41) before delete (01:46) and insert (01:51), so 'follows them in order' is not accurate.",
+   "evidence": "L-0174 (board: Storage, optimize storage, Insert, Update, TTL); L-0188–L-0195 at 01:41–01:46, L-0204 at 01:51",
+   "fix": "\"The board lists five parts: storage, optimizing the storage, insert, update and TTL, which is per key. The class took them as they came up: storage (3.2), expiry (3.3), delete (3.4), put (3.5), get (3.6) and the cleanup job (3.7). [[L-0174]]\""
+  },
+  {
+   "id": "F-012",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec05/s3b-kv-store.mdx",
+   "line": 106,
+   "quote": "the class placed them in weeks 5 and 6, and in this course’s order they are Lectures 9 and 10. … <ForwardChip when=\"Lecture 10\" k=\"L-0269\">an append-only store</ForwardChip>",
+   "problem": "The class said only 'two of such performance optimizations' in the fifth and sixth week, without naming them. The page maps week 6 onto Lecture 10, which is week 5 day 2, and names them 'an in-memory store' and 'an append-only store'. That comes from the course map, not the class.",
+   "evidence": "L-0269; course.json (lec07 = week 5 day 1, lec10 = week 5 day 2)",
+   "fix": "\"Two optimizations of this kind were promised for weeks 5 and 6 of the class. In this course, Lecture 9 builds an in-memory store and Lecture 10 an append-only one (the class didn't name them). [[L-0269]]\""
+  },
+  {
+   "id": "F-013",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec05/s1-locks.mdx",
+   "line": 210,
+   "quote": "It is meant for queue-like tables where any free row will do, like job queues or pools of seats and coupons.",
+   "problem": "The cited docs speak of queue-like tables. 'Coupons' appears in neither the docs nor the class; it is a small untagged example.",
+   "evidence": "L-0051, L-0052; postgresql.org sql-select (queue-like tables)",
+   "fix": "\"It is meant for queue-like tables where any free row will do, like job queues or a pool of seats.\""
+  },
+  {
+   "id": "F-014",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec05/s2b-check-in.mdx",
+   "line": 59,
+   "quote": "with `LIMIT`, locking stops once enough rows are returned <Cite href=\"https://www.postgresql.org/docs/current/transaction-iso.html\">postgresql.org</Cite>",
+   "problem": "SN-07's LIMIT statement cites transaction-iso.html. Per verdict_review.md the LIMIT quote comes from sql-select.html, which this note never links. The listed source innodb-locking.html is missing too.",
+   "evidence": "factcheck_applied.md SN-07 sources (innodb-locking.html, innodb-locking-reads.html, transaction-iso.html, sql-select.html)",
+   "fix": "Cite transaction-iso.html after the re-check sentence. Cite <Cite href=\"https://www.postgresql.org/docs/current/sql-select.html\">postgresql.org</Cite> after the LIMIT clause. Add <Cite href=\"https://dev.mysql.com/doc/refman/8.4/en/innodb-locking.html\">dev.mysql.com</Cite> after 'waits for row 1's lock'."
+  },
+  {
+   "id": "F-015",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec05/s1-locks.mdx",
+   "line": 172,
+   "quote": "Ordinary SELECTs still read the last committed version without waiting: under MVCC a writer never blocks a plain reader, in MySQL and in PostgreSQL",
+   "problem": "SN-02 lists the Oracle concurrency doc as a source, but the page doesn't link it. SN-06 (line 373) also doesn't link innodb-transaction-isolation-levels.html, a listed source. The claims stand, but the sourcing is incomplete.",
+   "evidence": "factcheck_applied.md SN-02 and SN-06 source lists",
+   "fix": "SN-02: \"…in MySQL, PostgreSQL and Oracle <Cite href=\"https://docs.oracle.com/en/database/oracle/oracle-database/19/cncpt/data-concurrency-and-consistency.html\">docs.oracle.com</Cite>.\" SN-06: add <Cite href=\"https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html\">dev.mysql.com</Cite> after 'under READ COMMITTED it re-checks its WHERE'."
+  },
+  {
+   "id": "F-016",
+   "severity": "low",
+   "kind": "clip",
+   "file": "site/src/content/lectures/lec05/s3b-kv-store.mdx",
+   "line": 212,
+   "quote": "lead=\"A key expires at 12:00. The cron runs at 12:07. What does a GET at 12:03 return, and is the row still on disk?\"",
+   "problem": "The clip's lead question doesn't match the clip. In the clip, k1 expires at 12:02, the GET runs at 12:04 and the cron runs at 12:10.",
+   "evidence": "site/src/animations/clips/l05-expiry-window/timeline.ts CAPTIONS and alt",
+   "fix": "lead=\"Two keys expire at 12:02. The cron runs at 12:10. What does a GET at 12:04 return, and is the row still on disk?\""
+  },
+  {
+   "id": "F-017",
+   "severity": "low",
+   "kind": "clip",
+   "file": "site/src/content/lectures/lec05/s4-redis-expiry.mdx",
+   "line": 113,
+   "quote": "lead=\"A Redis with a million keys, 30% of them expired.\"",
+   "problem": "The lead says a million keys, but the clip's alt text and drawing show an example population of 200 keys.",
+   "evidence": "site/src/animations/clips/l05-redis-sampling/timeline.ts alt ('An example population of 200 keys…')",
+   "fix": "lead=\"Keys with a TTL, about 30% of them expired. How many rounds before the job stops, and what's left?\""
+  },
+  {
+   "id": "F-018",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec05/s5-distributed.tsx",
+   "line": 101,
+   "quote": "<Arrow dashed pts={[[600, 198], [600, 118], [618, 118]]} … 'pulls changes'",
+   "problem": "In Fig 5·b, 5·c (line 123) and 6·a (s6-keep.tsx:33), the replication arrow points from the replica to the master, so the arrowhead lands on the master. The label says 'pulls', but at a glance the arrow reads as data flowing into the master. Data flows from the master to the replica (L-0275), and the board drew plain lines.",
+   "evidence": "L-0275 'data replicates asynchronously to replicas'; diagrams.md D-09, D-10 (plain lines)",
+   "fix": "Point the dashed arrow from master to replica and label it 'replicates (async)', or keep the pull direction and label it 'pulls changes from master'."
+  },
+  {
+   "id": "F-019",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec05/s2a-check-in.tsx",
+   "line": 13,
+   "quote": "['6', '1F', '1', 'NULL']",
+   "problem": "Fig 2·a is captioned 'Redrawn from the class board' but adds a sixth seat row (1F, NULL) that the board doesn't have. The board's seats table had five rows, 1A–1E, all booked.",
+   "evidence": "diagrams.md D-04 (seats rows 1A–1E)",
+   "fix": "Change the caption to \"Redrawn from the class board at 00:28 (passenger names replaced; the free seat 1F added to show a NULL user_id).\""
+  }
+ ]
+}

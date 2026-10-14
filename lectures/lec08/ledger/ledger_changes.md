@@ -1,0 +1,321 @@
+# Lecture 08 ledger - changes log
+
+Inputs: part1-3.jsonl (K1-001..K1-141, K2-001..K2-148, K3-001..K3-106), gaps.jsonl (G-001..G-006), board_items.jsonl (B-001..B-056), gap_report.md, flag_resolutions.md, transcript.md. Output: ledger.jsonl (final IDs L-0001..L-0381 in teaching order = first audio timestamp, board time for board-only items). Old->new IDs in id_map.json (457 original ids: 395 K, 6 G, 56 B). Built by build_ledger.py; every decision below is the editor's, and every hunter fix was re-checked against transcript.md before it was applied.
+
+## Distortion fixes (29 from gap_report.md, each re-checked against transcript.md) - 29 lines
+
+- K1-108: dropped the clause 'forwarding is not just packet-level forwarding' (read into a garbled sentence; contradicts the blunt-forwarding items); the garbled sentence is quoted in detail (transcript 00:48:36) [final L-0110]
+- K1-079: cause/effect restored: the LB needs to be extremely stateless, so it uses connection counts as a rough estimate (transcript 00:31:23 'So it needs to be extremely stateless. So it can just pick a server which is having least number of connections') [final L-0079]
+- K1-139: added the condition '(a non-distributed one; nobody is asking you to distribute it)' (transcript 01:06:50 'Who are, who is asking you to distribute it?') [final L-0142]
+- K1-095: 'but only because' -> 'but it was no breakthrough: Nginx and HAProxy do much more...' (transcript 00:41:26 'I said, hey, I just had a breakthrough. But no, basically Nginx and HAProxy does much more') [final L-0097]
+- K1-076: 'request 5 then picks another server' -> 'the first server' (transcript 00:29:40 'Then the next request, it picked the first server.') [final L-0076]
+- K1-129: 'as many goroutines as needed' -> 'as many goroutines as it can' (transcript 01:00:58 'Which I have just spun up as many goroutines as I can'); the hunter's '(two per connection)' not added - not said here [final L-0131]
+- K1-093: detail adds that he read a few papers first, then built it for practical experience (transcript 00:40:20 'I read few papers to understand it, but I wanted to get the practical experience') [final L-0095]
+- K1-091: detail adds the student's reason for asking (transcript 00:39:12 'if the browser goes off, that means the user was not really interested') [final L-0093]
+- K2-012: statement now says the student framed it as the server sending its details (transcript 01:13:39 'Server should send some', 01:13:47 'I should keep on sending the details of the server') and the teacher accepted the direction; detail notes the orchestrator pulls and backend push is rejected in Q&A; added flag `check: student framed the health check as server-pushed` [final L-0155]
+- K2-023: status proposed_then_corrected -> endorsed: the teacher's 'No, no, no' was a misunderstanding he withdrew (01:21:28 'This one, this one you're talking about. Okay. This would be keeping on polling') and at 01:21:48 he built on the load argument; detail rewritten [final L-0167]
+- K2-052: speaker student (question) -> student (proposal) (Student 3's answer, restated by the teacher), status endorsed; removed the invented parenthetical '(e.g. to CloudWatch or a metrics store)' (transcript 01:35:49 'I think it will mostly like emit metrics from the host'; 01:36:00 'emitting metrics to where?') [final L-0195]
+- K2-077: 'which the teacher noted just moves the problem' -> the teacher's words 'load balance between DNS... a transcending problem [as heard]' (transcript 01:47:25); confidence high -> medium (rests on the flagged phrase); detail notes the premise is dissolved next [final L-0217]
+- K2-094: 'the load becomes so small' -> 'that latency [as heard; probably load] becomes so small' (transcript 01:56:01); added flag `check: "latency" as heard - probably load`; confidence high -> medium [final L-0234]
+- K2-098: 'resolution happens across several layers' -> 'there are seven different layers (not covered, to keep it simple) in which resolution happens' (transcript 01:58:05) [final L-0238]
+- K2-100: 'would not compromise on depth' -> 'quality' (transcript 01:59:53 'I would not compromise on quality at all'); learning point is G-004 [final L-0009]
+- K2-126: added source 02:26:18-02:27:25 where the generalisation 'every command of Redis is atomic in nature' is said (02:20:32 only says 'this command'); that quote kept in merged_verbatims [final L-0266]
+- K2-029: 'health check' -> 'health check status' (transcript 01:25:45 'changing health check status') [final L-0173]
+- K3-004: removed 'which releases the lock naturally'; now the student's own words: the queue knows the connection is down, 'That's proper' (transcript 02:37:36); status open kept [final L-0293]
+- K3-014: added flag `check: speaker of "No, no, no." (Teacher?) at 02:40:14`; confidence stays high (substance rests on the 02:40:17 Teacher (answer) turn) [final L-0300]
+- K3-020: detail notes the shard slip (one/three/five, then 'shard one ... shard two ... shard five', transcript 02:43:16); statement kept [final L-0305]
+- K3-030: 'when nodes come back' -> 'when two new Redis nodes are spun up' (transcript 02:50:12 'we span across two Redis new nodes again') [final L-0314]
+- K3-031: 'the known Redlock edge case' -> 'the edge case the teacher mentioned earlier' (transcript 02:51:06 'That's what I said. That's what the edge case is.') [final L-0315]
+- K3-039: dropped the guessed parenthetical '(keep trying the remaining instances / release on failure)'; detail points to the 02:51:06 'Look carefully. This line.'; added flag `check: which line "makes all the difference"` [final L-0322]
+- K3-055: 'read up to 10 messages' -> 'read 10 messages' (transcript 03:05:55 'SQS gives you ability to read 10 messages at a time in one call') [final L-0336]
+- K3-077: detail adds 'there are seven more' layers (transcript 03:17:59); audio 03:17:59-03:18:33 added to source [final L-0356]
+- K3-085: 'errors such as 403' -> 'such as 404 or 403' (transcript 03:22:02 'You send 404, you send 403 to user') [final L-0364]
+- K3-089: 'Google's Maglev paper' -> 'the Maglev paper' (the teacher never attributes it; transcript 03:25:23); then merged into K2-089 [final L-0229]
+- K3-104: removed 'Nothing autoscales the orchestrator' (not said; at 03:35:30 the global monitor 'just adds more worker nodes if it wants to'); statement now the leader-election answer (transcript 03:34:29); linked to the global-monitor items [final L-0379]
+- K3-105: 'a standby keeps its own failure probability low' -> 'the probability of that going down is minimized by having a standby (referent unclear)' (transcript 03:34:51); added flag `check: referent of "that going down"`; confidence high -> medium [final L-0380]
+
+## Duplicate merges (25 pairs; absorbed item -> kept item)
+
+- K1-019 -> K1-017: both: take notes with pen and paper to keep focus; absorbed nuance moved to detail ("Also at 00:07:32-00:08:44: do it physically, not by typing, because a browser opens the door to Twitter, Instagram, WhatsApp and other distractions."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0017]
+- K1-044 -> K1-042: both: unit economics = knowing how much load each server handles; absorbed nuance moved to detail ("At 00:16:04-00:17:03: knowing how much load (API load, processing load, etc.) each machine can handle means you are not leaking money when scaling; un..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0041]
+- K3-001 -> K1-001: cross-part repeat: next class is distributed ID generators; absorbed nuance moved to detail ("Restated at 02:35:16-02:35:49: the next class covers the intuition, why distributed ID generators are needed, how real-world systems scaled them, and ..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0001]
+- K2-100 -> K1-009: agenda repeat: remote and distributed locks after the break; absorbed nuance moved to detail ("Restated at 01:59:39-02:00:26 just before the break: remote locks and distributed locks come after the break; even if the session stretched the teache..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0009]
+- K2-101 -> K1-011: both: remote/distributed locks ensure the correctness and consistency of data; absorbed nuance moved to detail ("Restated at 02:05:12-02:05:42 when the locking section starts: remote and distributed locks are among the most important things in distributed systems..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0011]
+- K2-001 -> K1-120: cross-part repeat: one LB server holds two TCP connections per client, so it cannot scale alone; absorbed nuance moved to detail ("At 01:08:17-01:09:27, opening the design brainstorm, the teacher puts numbers on it: half of the connection budget is consumed by LB-to-backend connec..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0122]
+- K2-032 -> K2-027: same push mechanism: a separate port on the LB server, called on a change, after which it reads the DB; absorbed nuance moved to detail ("Concretely (01:26:39-01:27:17): the LB server runs its main process on port 9090 plus one more process on port 9091 (a 'meta' port); anyone changing t..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0171]
+- K2-067 -> K2-066: both: a critical internal service's LB must not be public, and a private LB cannot be a single LB server; absorbed nuance moved to detail ("The teacher's turn (01:42:17-01:43:01): imagine a very critical service whose load balancer you created - it should not be public; putting it in (publ..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0207]
+- K2-108 -> K2-107: same ladder: what machines share is the network; absorbed nuance moved to detail ("At 02:09:03-02:09:49 put as a question: what is shared between multiple machines? Disk? No. Network - so machines synchronize using remote locks over ..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0246]
+- K3-025 -> K2-107: cross-part repeat in Q&A: only the network is shared between machines; absorbed nuance moved to detail ("Restated in Q&A at 02:47:26-02:47:41: when multiple machines are involved, synchronization is always over the network - the network is the only thing ..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0246]
+- K2-054 -> K2-057: both: one central place where all vitals are ingested; absorbed nuance moved to detail ("At 01:36:19-01:37:40: an organization building load balancers will anyway have a generic central place where key vitals and metrics of all machines ar..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0199]
+- K2-061 -> K2-056: same 'don't build something LB-specific, reuse a generic system' heuristic; absorbed nuance moved to detail ("At 01:39:09-01:39:44: instead of building something specific just for the load balancer, plug it into a generic system (e.g. Prometheus for metrics)."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0198]
+- K2-081 -> K2-076: both describe resolve -> connect -> LB -> backend; absorbed nuance moved to detail ("At 01:49:01-01:50:52: the client resolves the name via DNS, connects to the returned LB server, the LB server forwards to a backend server and returns..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0216]
+- K3-089 -> K2-089: cross-part repeat: read the Maglev paper; absorbed nuance moved to detail ("At 03:25:23-03:25:45 the teacher adds that a lot of the load balancer design is taken from Maglev, so read that paper in any case."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0229]
+- K3-009 -> K2-119: cross-part repeat: without TTL a crashed holder leaves a perpetual lock; absorbed nuance moved to detail ("Q&A at 02:39:10-02:39:39 (MySQL as lock store): a student stated that TTL is a requirement because if the server holding the lock crashes, something m..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0257]
+- K3-012 -> K2-133: cross-part repeat: atomic release via Redis EVAL with a Lua script; absorbed nuance moved to detail ("Q&A at 02:39:39-02:40:04, asked why a Lua script was mentioned for releasing the lock: Redis supports writing scripts in Lua and executing them within..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0273]
+- K3-032 -> K2-140: cross-part repeat: a client that fails to get the majority releases what it acquired; absorbed nuance moved to detail ("Restated in Q&A at 02:51:20-02:51:50 ('Look carefully. This line.'): if I was not able to acquire the lock on a majority of instances, I would release..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0280]
+- K3-098 -> K2-020: cross-part repeat: the orchestrator makes HTTP calls to the health endpoint and checks the response; absorbed nuance moved to detail ("Q&A at 03:30:40-03:31:13: the orchestrator only asks for a health check endpoint, makes HTTP requests to it and checks for a 200 or 300 in the respons..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0163]
+- K3-095 -> K2-018: cross-part repeat: the health check endpoint is part of the LB configuration; absorbed nuance moved to detail ("Q&A at 03:29:26-03:29:43: the health check endpoint for all target servers behind a load balancer is specified in the load balancer configuration stor..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0161]
+- K3-058 -> K2-082: cross-part repeat: the orchestrator adds LB IPs to DNS; absorbed nuance moved to detail ("Q&A at 03:07:53-03:08:40: the orchestrator knows the IP addresses of all LB servers and when one goes down or comes back, so it is the orchestrator th..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0221]
+- K3-070 -> K2-038: cross-part repeat: reactive rather than poll-based config updates; absorbed nuance moved to detail ("Q&A at 03:14:10-03:15:09: the key idea of the config push is reactive rather than poll-based communication, reusing what was studied last week; Redis ..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0181]
+- K3-017 -> K2-110: cross-part repeat: the hypothetical queue gives zero protection; absorbed nuance moved to detail ("Q&A at 02:41:20-02:42:07: the queue is deliberately hypothetical and gives zero protection - any consumer that asks just gets the message; it was chos..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0248]
+- K3-041 -> K3-040: same 'load balancer is intimidating until implemented' point; absorbed nuance moved to detail ("At 02:57:17-02:57:34: 'Classic example, load balancer. I'm sure you would be intimidated by it, but now you think of it, it's so easy'; a student obse..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0323]
+- K3-052 -> K3-011: both: focus on the core properties you need, not the specific database; absorbed nuance moved to detail ("At 03:03:45-03:04:05 (ZooKeeper vs Redis Q&A): if ZooKeeper gives you the properties, use it; if Redis (or DynamoDB, MySQL) does, use it; then adopt t..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0298]
+- K3-093 -> K3-083: both: load balancers are reverse proxies; absorbed nuance moved to detail ("Q&A at 03:27:46-03:28:43: there is not much difference between a reverse proxy (e.g. Nginx reverse proxy) and a load balancer; if you have used a load..."), absorbed verbatim kept in merged_verbatims, sources/flags unioned [final L-0362]
+
+## Cross-links instead of merges (partial overlaps; depends_on added on the first item of each pair) - 78 lines
+
+- K1-078 depends_on K1-074: least connections: quicker responses vs large-variance condition [final L-0078 -> L-0074]
+- K1-081 depends_on K1-080: CPU-aware routing too slow; microsecond budget [final L-0081 -> L-0080]
+- K1-102 depends_on K1-031: day zero (applied to the single LB server) [final L-0104 -> L-0030]
+- K1-138 depends_on K1-128: copy is blocking / returns on EOF [final L-0141 -> L-0130]
+- K1-138 depends_on K1-137: EOF (student statement vs teacher's) [final L-0141 -> L-0140]
+- K1-136 depends_on K1-116: LB forwards any protocol [final L-0139 -> L-0118]
+- K1-123 depends_on K1-111: connection mapping [final L-0125 -> L-0113]
+- K1-118 depends_on K1-008: load balancer is tiny: different figures kept apart [final L-0120 -> L-0008]
+- K1-130 depends_on K1-008: load balancer is tiny: different figures kept apart [final L-0132 -> L-0008]
+- K1-133 depends_on K1-096: implement everything / be curious [final L-0135 -> L-0098]
+- K1-141 depends_on K1-096: implement everything / build vs scale [final L-0144 -> L-0098]
+- K1-131 depends_on K1-055: round robin index: concept vs code [final L-0133 -> L-0054]
+- K1-135 depends_on K1-091: notified when a TCP connection terminates [final L-0138 -> L-0093]
+- K1-051 depends_on K1-005: LB hides multiple backends [final L-0050 -> L-0005]
+- K1-030 depends_on K1-027: Murphy's law fact vs assume-failure rule [final L-0029 -> L-0026]
+- K2-004 depends_on K1-105: LB stores backend IP:port list (student proposal vs teacher's) [final L-0147 -> L-0107]
+- K2-005 depends_on K1-122: LB keeps a balancing-algorithm config [final L-0148 -> L-0124]
+- K2-018 depends_on K2-005: health endpoint joins the config [final L-0161 -> L-0148]
+- K2-084 depends_on K1-106: client of an LB can be another server [final L-0224 -> L-0108]
+- K2-143 depends_on K1-040: every piece must be horizontally scalable [final L-0283 -> L-0039]
+- K2-103 depends_on K1-014: airline check-in example from last week [final L-0242 -> L-0014]
+- K2-090 depends_on K1-097: low-level first, then high-level [final L-0230 -> L-0099]
+- K2-134 depends_on K1-030: assume everything goes wrong, line by line [final L-0274 -> L-0029]
+- K2-007 depends_on K1-081: LB must add minimal latency [final L-0150 -> L-0081]
+- K2-047 depends_on K2-044: historical data: requirement vs reason [final L-0190 -> L-0187]
+- K2-056 depends_on K2-049: reuse, don't re-implement [final L-0198 -> L-0192]
+- K2-086 depends_on K2-037: who publishes config changes (lists differ, both kept) [final L-0226 -> L-0180]
+- K2-038 depends_on K2-033: reactive, near-zero staleness [final L-0181 -> L-0176]
+- K2-020 depends_on K2-014: health endpoint returns 200 [final L-0163 -> L-0157]
+- K2-123 depends_on K2-119: TTL: reason vs 5-minute expiry [final L-0263 -> L-0257]
+- K2-147 depends_on K2-141: distributed locks cost throughput [final L-0287 -> L-0281]
+- K2-083 depends_on K2-062: mid-way recap vs final design [final L-0222 -> L-0203]
+- K2-085 depends_on K2-076: request path restated on the final diagram [final L-0225 -> L-0216]
+- K3-008 depends_on K2-120: lock store properties; MySQL with TTL [final L-0296 -> L-0258]
+- K3-011 depends_on K1-013: core properties of a lock manager [final L-0298 -> L-0013]
+- K3-013 depends_on K2-133: Lua is not magic: Redis runs it [final L-0299 -> L-0273]
+- K3-014 depends_on K2-133: client code stays Python; EVAL [final L-0300 -> L-0273]
+- K3-018 depends_on K2-111: real queues give the guarantee [final L-0303 -> L-0249]
+- K3-019 depends_on K2-122: consumer code acquires, reads, releases [final L-0304 -> L-0261]
+- K3-023 depends_on K2-107: nearest shared storage (student's summary, endorsed) [final L-0308 -> L-0246]
+- K3-026 depends_on K2-119: TTL bounds hold time (trade-off) [final L-0310 -> L-0257]
+- K3-029 depends_on K2-104: local synchronization primitives [final L-0313 -> L-0243]
+- K3-030 depends_on K2-142: Redlock edge case elaborated [final L-0314 -> L-0282]
+- K3-031 depends_on K2-142: Redlock edge case elaborated [final L-0315 -> L-0282]
+- K3-033 depends_on K2-140: eventual winner / convergence [final L-0316 -> L-0280]
+- K3-037 depends_on K2-134: simulate failures line by line / inject delays [final L-0320 -> L-0274]
+- K3-038 depends_on K1-121: simulate distributed setups on one machine [final L-0321 -> L-0123]
+- K3-039 depends_on K3-031: minimized, not eliminated [final L-0322 -> L-0315]
+- K3-049 depends_on K2-035: Redis Pub/Sub replaceable by ZooKeeper [final L-0331 -> L-0178]
+- K3-056 depends_on K2-075: DNS round robin, no load information (corrected student vs teacher) [final L-0337 -> L-0215]
+- K3-057 depends_on K1-059: weighted round robin reused for active-passive DNS [final L-0338 -> L-0059]
+- K3-059 depends_on K2-079: DNS only resolves names / stupid hash map [final L-0339 -> L-0219]
+- K3-061 depends_on K1-132: consistent hashing in the LB, in memory [final L-0341 -> L-0134]
+- K3-063 depends_on K2-008: network call costs 3-5 (to 10) ms [final L-0343 -> L-0151]
+- K3-065 depends_on K1-131: round robin keeps an integer index [final L-0345 -> L-0133]
+- K3-067 depends_on K2-075: DNS picks among IPs ('at random' vs 'round robin' kept visible) [final L-0347 -> L-0215]
+- K3-068 depends_on K2-058: Prometheus vitals vs separate heartbeats [final L-0348 -> L-0200]
+- K3-069 depends_on K2-086: Redis Pub/Sub broadcast, alternatives [final L-0349 -> L-0226]
+- K3-071 depends_on K2-020: heartbeats = online/offline building block [final L-0350 -> L-0163]
+- K3-071 depends_on G-003: health checks follow the online/offline indicator idea [final L-0350 -> L-0165]
+- K3-073 depends_on K3-072: proposal (K3-072) and refinement (K3-073) kept apart [final L-0351 -> L-0352]
+- K3-074 depends_on K2-093: HA for every component incl. CoreDNS [final L-0353 -> L-0233]
+- K3-077 depends_on K2-098: intermediate proxy layers [final L-0356 -> L-0238]
+- K3-079 depends_on K2-073: private CoreDNS resolves LB names [final L-0358 -> L-0213]
+- K3-082 depends_on K2-097: public LB via public DNS [final L-0361 -> L-0237]
+- K3-083 depends_on K2-099: LB balances homogeneous servers [final L-0362 -> L-0239]
+- K3-083 depends_on K1-008: NGINX used as a reverse proxy [final L-0362 -> L-0008]
+- K3-087 depends_on K2-021: orchestrator state lives in the config DB [final L-0366 -> L-0164]
+- K3-091 depends_on K2-055: Prometheus scales [final L-0369 -> L-0197]
+- K3-094 depends_on K2-012: backend-pushed heartbeats rejected; orchestrator pulls [final L-0371 -> L-0155]
+- K3-096 depends_on K2-020: success code configurable (200/300/400) [final L-0372 -> L-0163]
+- K3-097 depends_on K2-019: health check verifies the service; owner decides what [final L-0373 -> L-0162]
+- K3-099 depends_on K3-094: why backends don't push [final L-0374 -> L-0371]
+- K3-102 depends_on K2-059: autoscaling policies [final L-0377 -> L-0201]
+- K3-104 depends_on K3-073: leader-follower keeps the orchestrator up [final L-0379 -> L-0351]
+- K3-105 depends_on K3-104: who watches the orchestrator [final L-0380 -> L-0379]
+- K3-106 depends_on K2-094: base condition of the recursion (same device, different system) [final L-0381 -> L-0234]
+- G-005 depends_on K1-013: how the lock store's core properties were derived [final L-0260 -> L-0013]
+- K3-073: detail no longer repeats the student's proposal (that is K3-072); K3-073 now depends_on K3-072 [final L-0351 -> L-0352]
+
+## Board decisions (56 B-items: 51 merged into audio items, 5 new board-only items) - one line per B id
+
+- B-001 -> merged into K1-004 (duplicates audio); board nuance added to detail: "Agenda: - Approaching distributed systems - Designing Load Balancer - Remote and Distributed locks - Synchr..." [final L-0004]
+- B-002 -> merged into K1-023 (duplicates audio); board nuance added to detail: "Multiple Components Multiple Machines } Single coherent system ↓ Solves a bigger problem" [final L-0022]
+- B-003 -> merged into K1-027 (duplicates audio); board nuance added to detail: "The best and the worst thing about distributed systems is Anything that could go wrong would go wrong" [final L-0026]
+- B-004 -> merged into K1-032 (duplicates audio): "Start with a Day0 architecture and scale each component ↓ see how it performs under load rectify the system..." [final L-0031]
+- B-005 -> merged into K1-037 (duplicates audio); board nuance added to detail: "Why distributed systems ? - Scale - Horizontal Scalability - Fault Tolerance" [final L-0036]
+- B-006 -> merged into K1-048 (duplicates audio); board nuance added to detail: "One of the most important component in any system - load Ba[cut off] * We kind of take it for granted" [final L-0046]
+- B-007 -> new item (board-only: the listed advantages 'fault tolerance' and 'no over-clocked server' are not spoken): "Advantages of using a load Balancer - Fault tolerance - No over-clocked server" [final L-0049]
+- B-008 -> merged into K1-053 (duplicates audio): "Load Balancing Algorithms * which backend server to choose *" [final L-0052]
+- B-009 -> merged into K1-056 (duplicates audio); board nuance added to detail: "Round Robin Uniform infrastructure Distribute the load iteratively" [final L-0055]
+- B-010 -> merged into K1-062 (duplicates audio); board nuance added to detail: "Weighted Round Robin Non- Uniform infrastructure Distribute the load iteratively but as per weights" [final L-0062]
+- B-011 -> merged into K1-078 (duplicates audio); board nuance added to detail: "least Connections Pick the server having the least connections from the load balancer When response times h..." [final L-0078]
+- B-012 -> new item (board-only: the requirements list (balance the load, tunable algorithm, scaling beyond one machine) is not spoken): "Requirements : - balance the load - tunable algorithm - scaling beyond one machine" [final L-0087]
+- B-013 -> merged into K1-098 (duplicates audio); board nuance added to detail: "Terminology : LB Server , Backend Server" [final L-0100]
+- B-014 -> merged into K2-003 (duplicates audio): "Brainstorm : LB configurations , Monitoring , Availability, Extensibility" [final L-0146]
+- B-015 -> merged into K1-104 (duplicates audio); board nuance added to detail: "B.Servs: [ 10.0.0.7 : 8081 10.0.0.8 : 8081 10.0.0.9 : 8081 ]" [final L-0106]
+- B-016 -> merged into K1-111 (duplicates audio); board nuance added to detail: "{ tcp1 → tcp2 tcp3 → tcp4 }" [final L-0113]
+- B-017 -> merged into K1-124 (duplicates audio); board nuance added to detail: "ARLB - Experimental Reverse Proxy and Load Balancer Super simple, experimental reverse proxy (load balancer..." [final L-0126]
+- B-018 -> merged into K1-124 (duplicates audio); board nuance added to detail: "type Backend struct { Host string Port int IsHealthy bool NumRequests int }" [final L-0126]
+- B-019 -> merged into K1-125 (duplicates audio); board nuance added to detail: "net.Listen("tcp", ":9090") ... go lb.proxy(IncomingReq{ srcConn: connection, reqId: uuid.NewString(), })" [final L-0127]
+- B-020 -> merged into K1-126 (duplicates audio); board nuance added to detail: "backend := lb.strategy.GetNextBackend(req) ... go io.Copy(backendConn, req.srcConn) go io.Copy(req.srcConn,..." [final L-0128]
+- B-021 -> merged into K1-131 (duplicates audio); board nuance added to detail: "s.Index = (s.Index + 1) % len(s.Backends) return s.Backends[s.Index]" [final L-0133]
+- B-022 -> merged into K1-132 (duplicates audio); board nuance added to detail: "slot := hash(req.reqId) index := sort.Search(...) return s.Backends[index%len(s.Backends)]" [final L-0134]
+- B-023 -> new item (board-only: the run loop's events channel (exit, backend add, strategy change) is shown on screen but not explained in the audio): "case CMD_Exit: ... case CMD_BackendAdd: ... case CMD_StrategyChange:" [final L-0136]
+- B-024 -> merged into K2-005 (duplicates audio); board nuance added to detail: "{ b.servs: [ ip: pr. ], balancy: algo: health_endpoint: " " }" [final L-0148]
+- B-025 -> merged into K2-009 (duplicates audio); board nuance added to detail: "DB ... syn-" [final L-0152]
+- B-026 -> merged into K2-020 (duplicates audio); board nuance added to detail: "Orchestrator hb /status /health 8081" [final L-0163]
+- B-027 -> merged into K2-025 (duplicates audio): "10sec 1 poll" [final L-0169]
+- B-028 -> merged into K2-029 (duplicates audio); board nuance added to detail: "LB Console API Dev" [final L-0173]
+- B-029 -> merged into K2-027 (duplicates audio); board nuance added to detail: "9091 Meta 9090" [final L-0171]
+- B-030 -> merged into K2-035 (duplicates audio); board nuance added to detail: "CDC" [final L-0178]
+- B-031 -> merged into K2-040 (duplicates audio): "Orchestrator ... LB" [final L-0183]
+- B-032 -> merged into K2-058 (duplicates audio); board nuance added to detail: "Metric Vitals Prometheus monitrng" [final L-0200]
+- B-033 -> merged into K2-065 (duplicates audio): "DNS 10.0.0.1 10.0.0.2" [final L-0206]
+- B-034 -> merged into K2-073 (duplicates audio); board nuance added to detail: "CoreDNS paym.lb. googl.com → 10.0.0.1 10.0.0.2" [final L-0213]
+- B-035 -> new item (board-only: the phi-accrual failure detection reading is written, never spoken): "Read about φ-accrual failure detection algorithm" [final L-0223]
+- B-036 -> merged into K2-083 (duplicates audio); board nuance added to detail: "keeps an eye on the health of the backend servers ... orchestrator updates the DB ... Monitors health of LB..." [final L-0222]
+- B-037 -> merged into K2-042 (duplicates audio); board nuance added to detail: "Scaling will happen on CPU, Mem, # TCP connections where do we have this data ? Monitoring Component ↳ Prom..." [final L-0185]
+- B-038 -> merged into K2-083 (duplicates audio); board nuance added to detail: "Core DNS private infra lb.payments.google.com LB Servers Redis as PubSub CDC Orchestrator leaderElec promet..." [final L-0222]
+- B-039 -> merged into K2-089 (duplicates audio): "Read this paper : Maglev : A fast and reliable software load balancer" [final L-0229]
+- B-040 -> merged into K2-102 (duplicates audio); board nuance added to detail: "Remote locks: Locks managed by a central machine ↓ Lock Manager ... The 3 machines co-ordinate through a ce..." [final L-0241]
+- B-041 -> merged into K2-107 (duplicates audio); board nuance added to detail: "Multiple threads synchronize through Mutex & Semaphore Multiple processes synchronize through Disk Multiple..." [final L-0246]
+- B-042 -> merged into K2-106 (duplicates audio): "Interesting example: "apt-get upgrade" cannot be run twice concurrently" [final L-0245]
+- B-043 -> merged into K2-111 (duplicates audio); board nuance added to detail: "lets synchronize multiple consumers over an unprotected remote queue ... We want one consumer to make call ..." [final L-0249]
+- B-044 -> merged into K2-120 (duplicates audio); board nuance added to detail: "queue7 → C1 TTL k,v Atomic TTL Redlock" [final L-0258]
+- B-045 -> merged into K2-122 (duplicates audio); board nuance added to detail: "ACQ_LOCK() READ_MSG() REL_LOCK() All consumers wait on ACQ_LOCK() while one of them READ_MSG()" [final L-0261]
+- B-046 -> merged into K2-120 (duplicates audio); board nuance added to detail: "- Atomic Operations → so that two machines do not ACQ_LOCK() - Automatic Expiration → avoid perpetual locking" [final L-0258]
+- B-047 -> new item (board-only: 'Redis, DynamoDB - popular choice because in-mem (fast)' is not spoken at this point): "So, which DB ? Redis , DynamoDB ↑ Popular choice because in-mem (fast)" [final L-0262]
+- B-048 -> merged into K2-123 (duplicates audio); board nuance added to detail: "eg: queue7 : consumer 2 [ex : 300] lock held by consumer 2 expiration : 5 min" [final L-0263]
+- B-049 -> merged into K2-124 (duplicates audio); board nuance added to detail: "While True: v = redis.setnx (q , consumer_id , ex = 300) if v == 1 : return else : continue" [final L-0264]
+- B-050 -> merged into K2-133 (duplicates audio); board nuance added to detail: "v = redis.get (q) if v == consumer_id : redis.delete (q) "EVAL" Executed atomically using LUA script" [final L-0273]
+- B-051 -> merged into K2-122 (duplicates audio); board nuance added to detail: "Redis lock Manager" [final L-0261]
+- B-052 -> merged into K3-020 (duplicates audio); board nuance added to detail: "MongoDB transaction uses remote locks on involved rows" [final L-0305]
+- B-053 -> merged into K2-138 (duplicates audio); board nuance added to detail: "Distributed locks [Redlock] ← Distributed locks with Redis Idea: What we did in remote lock, just distribut..." [final L-0278]
+- B-054 -> merged into K2-139 (duplicates audio); board nuance added to detail: "client goes through 5 nodes , trying to ACQ_LOCK - if lock acquired on > 50% then ACQUIRED - else ... retur..." [final L-0279]
+- B-055 -> merged into K2-137 (duplicates audio); board nuance added to detail: "But why are we doing this? With distributed locking we now do not have a SPoF" [final L-0277]
+- B-056 -> merged into K2-144 (duplicates audio); board nuance added to detail: "Chubby : lock service for loosely coupled distributed systems ... REDLOCK . Martin Kleppmann and implementa..." [final L-0284]
+
+## Flag resolutions from the board (flag_resolutions.md) - 41 lines
+
+- K1-075: F017 resolved_by board 00:35:15 (least-connections line 'When response times has a big variance'); flag removed; confidence high -> high [final L-0075]
+- K1-124: F042 resolved_by board 00:58:15 (code on screen: net.Listen("tcp", ":9090"), 'LB listening on port 9090'); flag removed; confidence medium -> medium (other open flags remain: 1) [final L-0126]
+- K2-017: F055 resolved_by board 01:17:30 ('/health' written beside the heartbeat lines); flag removed; confidence high -> high [final L-0160]
+- K2-018: F056 resolved_by board 01:17:39 (config block 'balancy: algo:'); flag removed; confidence high -> high [final L-0161]
+- K2-025: F063 resolved_by board 01:22:15 ('B Srv2' hatched in pink (dead backend)); flag removed; confidence high -> high (other open flags remain: 1) [final L-0169]
+- K2-026: F064 resolved_by board 01:22:45 (same hatched 'B Srv2'; 'poll' window drawn); flag removed; confidence high -> high [final L-0170]
+- K2-082: F088 resolved_by board 01:50:30 ('Orchestrator' box with a line to 'DNS'); flag removed; confidence high -> high [final L-0221]
+- K2-093: F094 resolved_by board 01:55:45 ('private infra' above 'Core DNS'); flag removed; confidence high -> high [final L-0233]
+- K2-097: F099 resolved_by board 01:59:00 ('private infra' label); flag removed; confidence high -> high (other open flags remain: 1) [final L-0237]
+- K2-123: F112 resolved_by board 02:18:57 ('eg: queue7 : consumer 2 [ex : 300]'); flag removed; confidence high -> high (other open flags remain: 1) [final L-0263]
+- K2-123: F114 resolved_by board 02:18:57 ('Set the key in Redis that says which consumer holds the LOCK'); flag removed; confidence high -> high [final L-0263]
+- K2-127: F115 resolved_by board 02:21:45 ('While True:' loop in acquire_lock); flag removed; confidence high -> high (other open flags remain: 1) [final L-0267]
+- K2-127: F116 resolved_by board 02:21:45 (same 'While True:' block); flag removed; confidence high -> high [final L-0267]
+- K2-138: F120 resolved_by board 02:29:30 ('5 master nodes of Redis , No replication , All independent'); flag removed; confidence high -> high [final L-0278]
+- K2-146: F126 resolved_by board 02:33:15 ('Read these blogs:' / arpitbhayani.me/blogs); flag removed; confidence high -> high [final L-0286]
+- K3-029: F151 resolved_by board 02:49:30 (acquire_lock / release_lock code with redis.setnx, redis.get, redis.delete); flag removed; confidence medium -> medium (other open flags remain: 1) [final L-0313]
+- K3-051: F168 resolved_by board 03:03:45 (Redlock page 'Distributed locks with Redis'); flag removed; confidence medium -> medium (other open flags remain: 2) [final L-0333]
+- K3-074: F202 resolved_by board 03:21:00 (final design page with 'Core DNS' box); flag removed; confidence medium -> medium (other open flags remain: 1) [final L-0353]
+- K3-077: F205 resolved_by board 03:21:00 (same 'Core DNS' box); flag removed; confidence medium -> medium (other open flags remain: 1) [final L-0356]
+- K3-098: F231 resolved_by board 03:28:45 ('Orchestrator' box with 'hb' lines); flag removed; confidence medium -> high [final L-0163]
+- K3-099: F232 resolved_by board 03:32:45 (same 'Orchestrator' box); flag removed; confidence medium -> medium (other open flags remain: 1) [final L-0374]
+- K1-039: F007 supported_by board 02:32:09 ('Fault Tolerance' (00:12:45); 'With distributed locking we now do not have a SPoF' (02:32)); flag kept and annotated; confidence unchanged (medium) [final L-0038]
+- K1-058: F012 supported_by board 00:22:45 (round robin drawn as three backend boxes); flag kept and annotated; confidence unchanged (medium) [final L-0057]
+- K1-090: F025 supported_by board 00:38:00 ('Load Balancer' box and heading; algorithms page on screen); flag kept and annotated; confidence unchanged (medium) [final L-0092]
+- K2-015: F054 supported_by board 01:16:30 ('LB' box in the brainstorm diagram); flag kept and annotated; confidence unchanged (high) [final L-0158]
+- K2-020: F058 supported_by board 01:13:30 ('DB' cylinder under the LB with the 'syn-' curve); flag kept and annotated; confidence unchanged (high) [final L-0163]
+- K2-025: F062 supported_by board 01:22:15 (polling time line '10sec' with a '1' mark); flag kept and annotated; confidence unchanged (high) [final L-0169]
+- K2-040: F069 supported_by board 01:50:54 ('if any backend server is unhealthy, orchestrator updates the DB'); flag kept and annotated; confidence unchanged (medium) [final L-0183]
+- K2-043: F072 supported_by board 01:32:00 (second 'LB' box connected to the orchestrator); flag kept and annotated; confidence unchanged (medium) [final L-0186]
+- K2-131: F117 supported_by board 02:19:30 ('eg: queue7 : consumer 2 [ex : 300]' / 'lock held by consumer 2'); flag kept and annotated; confidence unchanged (high) [final L-0271]
+- K2-134: F118 supported_by board 02:27:30 (lock pages (acquire_lock, release_lock, Redis lock Manager)); flag kept and annotated; confidence unchanged (high) [final L-0274]
+- K2-140: F122 supported_by board 02:29:30 (Redlock page 'Acquire lock: ... trying to ACQ_LOCK'); flag kept and annotated; confidence unchanged (high) [final L-0280]
+- K3-007: F131 supported_by board 02:33:15 ('REDLOCK . Martin Kleppmann and implementation on GitHub'); flag kept and annotated; confidence unchanged (medium) [final L-0295]
+- K3-016: F139 supported_by board 02:40:30 (lock code page (release_lock) on screen); flag kept and annotated; confidence unchanged (medium) [final L-0302]
+- K3-019: F142 supported_by board 02:44:15 (lock manager diagram 'Redis lock Manager'); flag kept and annotated; confidence unchanged (medium) [final L-0304]
+- K3-026: F146 supported_by board 02:19:30 ('TTL' in the lock brainstorm (02:16:45) and 'ex : 300' / 'expiration : 5 min'); flag kept and annotated; confidence unchanged (medium) [final L-0310]
+- K3-049: F164 supported_by board 01:51:05 (load balancer pages (D-04, D-06)); flag kept and annotated; confidence unchanged (medium) [final L-0331]
+- K3-074: F201 supported_by board 03:21:00 ('LB Servers' box on the final design page); flag kept and annotated; confidence unchanged (medium) [final L-0353]
+- K3-077: F206 supported_by board 03:21:00 (same 'LB Servers' box); flag kept and annotated; confidence unchanged (medium) [final L-0356]
+- K3-078: F207 supported_by board 03:21:00 ('Core DNS' box on screen); flag kept and annotated; confidence unchanged (medium) [final L-0357]
+- K3-082: F209 supported_by board 03:21:00 (same 'Core DNS' box); flag kept and annotated; confidence unchanged (medium) [final L-0361]
+
+Not applied (no ledger item carries the marker - the analysts wrote those terms without a flag): F041 (resolved), F026, F067, F073, F078, F161 (supported).
+Board items that touch audio flags outside flag_resolutions.md: B-018 shows backend ports 8081-8084 on screen; added to K1-124's detail, its flag `check: backend port numbers garbled` kept (not a listed resolution).
+
+## Topic normalisation
+
+- One tree: hyphenated lower-case segments (part 3's 'load balancer > ...', 'locking > ...', 'design approach', 'learning approach' joined part 1/2's 'load-balancer', 'locks', 'design-approach', 'learning-approach'); 'distributed-locks > ...' (part 1) and 'locking > ...' (part 3) -> 'locks > ...'; Redlock under 'locks > distributed-locks > redlock'.
+- 'learning approach' -> 'learning-approach' (K1-007, K1-082, K1-096, K1-133, K2-109, G-004)
+- 'distributed-locks > why' -> 'locks > why' (K1-010, K1-011)
+- 'distributed-locks > lock-manager' -> 'locks > lock-manager' (K1-013)
+- 'learning approach > focus' -> 'learning-approach > focus' (K1-017, K1-020)
+- 'learning approach > build-vs-scale' -> 'learning-approach > build-vs-scale' (K1-139, K1-141)
+- 'locking > remote-lock > network-connection-lock' -> 'locks > remote-locks > network-connection-lock' (K3-002, K3-003, K3-004, K3-005, K3-006, K3-007, G-006)
+- 'locking > remote-lock > lock-store' -> 'locks > remote-locks > lock-store' (K3-008, K3-010)
+- 'design approach > core properties' -> 'design-approach > core-properties' (K3-011)
+- 'locking > remote-lock > atomic-release' -> 'locks > redis-lock > atomic-release' (K3-013, K3-014)
+- 'admin > q&a' -> 'admin > q-and-a' (K3-015)
+- 'locking > remote-lock > hypothetical-queue' -> 'locks > remote-locks > hypothetical-queue' (K3-016, K3-018, K3-019, K3-053)
+- 'locking > remote-lock > distributed-transactions' -> 'locks > remote-locks > distributed-transactions' (K3-020, K3-021, K3-022)
+- 'locking > synchronization > nearest-shared-storage' -> 'locks > remote-locks > nearest-shared-storage' (K3-023, K3-024)
+- 'locking > remote-lock > lock-expiry' -> 'locks > remote-locks > lock-expiry' (K3-026)
+- 'locking > mutex-vs-network-lock' -> 'locks > mutex-vs-network-lock' (K3-027, K3-028, K3-029)
+- 'locking > redlock > edge-case' -> 'locks > distributed-locks > redlock > edge-case' (K3-030, K3-031, K3-034, K3-035, K3-036, K3-039)
+- 'locking > redlock > acquire' -> 'locks > distributed-locks > redlock > acquire' (K3-033)
+- 'learning approach > simulate-distributed-systems' -> 'learning-approach > simulate-distributed-systems' (K3-037, K3-038)
+- 'learning approach > read-and-implement' -> 'learning-approach > read-and-implement' (K3-040, K3-044)
+- 'learning approach > motivation' -> 'learning-approach > motivation' (K3-045)
+- 'locking > zookeeper-vs-redis' -> 'locks > zookeeper-vs-redis' (K3-046, K3-047, K3-048, K3-051)
+- 'load balancer > config push > zookeeper' -> 'load-balancer > config-sync > zookeeper' (K3-049, K3-050)
+- 'admin > forward reference' -> 'admin > forward-reference' (K3-054)
+- 'load balancer > dns' -> 'load-balancer > dns' (K3-056, K3-059)
+- 'load balancer > dns > active-passive' -> 'load-balancer > dns > active-passive' (K3-057)
+- 'load balancer > session handling' -> 'load-balancer > session-handling' (K3-060)
+- 'load balancer > algorithms > consistent hashing' -> 'load-balancer > algorithms > consistent-hashing' (K3-061)
+- 'design approach > network hops' -> 'design-approach > network-hops' (K3-062, K3-063, K3-064)
+- 'load balancer > algorithms > round robin' -> 'load-balancer > algorithms > round-robin' (K3-065)
+- 'load balancer > dns > coredns' -> 'load-balancer > dns > coredns' (K3-066, K3-067, K3-076, K3-081)
+- 'load balancer > monitoring > heartbeats vs vitals' -> 'load-balancer > monitoring > heartbeats-vs-vitals' (K3-068)
+- 'load balancer > config push' -> 'load-balancer > config-sync' (K3-069)
+- 'load balancer > monitoring > heartbeats' -> 'load-balancer > health-checks' (K3-071)
+- 'load balancer > orchestrator > high availability' -> 'load-balancer > orchestrator > high-availability' (K3-072, K3-073, K3-088, K3-104)
+- 'load balancer > high availability' -> 'load-balancer > high-availability' (K3-074)
+- 'distributed systems > leader election' -> 'distributed-systems > leader-election' (K3-075)
+- 'load balancer > layers' -> 'load-balancer > layers' (K3-077, K3-080)
+- 'load balancer > layers > api gateway' -> 'load-balancer > layers > api-gateway' (K3-078, K3-079, K3-082, K3-084)
+- 'load balancer > reverse proxy' -> 'load-balancer > reverse-proxy' (K3-083)
+- 'load balancer > responsibilities > authentication' -> 'load-balancer > responsibilities > authentication' (K3-085)
+- 'load balancer > monitoring > prometheus' -> 'load-balancer > monitoring > prometheus' (K3-086, K3-090, K3-091, K3-092)
+- 'load balancer > orchestrator > stateless' -> 'load-balancer > orchestrator > stateless' (K3-087)
+- 'load balancer > monitoring > health check endpoint' -> 'load-balancer > health-checks > endpoint' (K3-094, K3-096, K3-097, K3-099, K3-100, K3-101)
+- 'load balancer > autoscaling' -> 'load-balancer > autoscaling' (K3-102, K3-103)
+- 'load balancer > orchestrator > global monitoring' -> 'load-balancer > orchestrator > global-monitoring' (K3-105, K3-106)
+- Board-only items placed in the audio tree: B-007 'load-balancer > role', B-012 'load-balancer > requirements', B-023 'load-balancer > implementation > code', B-035 'load-balancer > health-checks', B-047 'locks > redis-lock'.
+- Merged board items keep the audio item's topic (board topics such as 'load balancer design > ...', 'locks > remote queue example', 'course > agenda' are not used).
+
+## Rejected hunter suggestions (with reason)
+
+- K1-129: hunter's '(two per connection)' not added - the teacher did not say it at this point (only 'as many goroutines as I can') [final L-0131].
+- K1-108: hunter's alternative (keep the clause with a flag) not taken; the clause was dropped and the garbled sentence quoted in detail [final L-0110].
+- K1-105 / K2-004, K1-106 / K2-084, K1-116 / K1-136, K1-128 / K1-138, K1-074 / K1-078, K1-080 / K1-081, K1-008 / K1-118 / K1-130, K1-096 / K1-133 / K1-141: hunter offered merge or noted near-duplicates; kept separate and cross-linked - each has its own speaker/status, figure or Q&A context.
+- K2-008 / K3-063 (hunter: merge keeping both ranges): cross-linked instead - one is about a DB call per LB request, the other about every service hop in a design [final L-0151, L-0343].
+- K2-075 / K3-056 (hunter: merge): not merged - K3-056 is a corrected student misconception (status proposed_then_corrected); cross-linked [final L-0215, L-0337].
+- K2-082 / K3-058 merged, but K2-086 / K3-069, K2-037 / K2-086, K2-033 / K2-038, K2-014 / K2-020, K2-119 / K2-123, K2-141 / K2-147, K2-062 / K2-083, K2-044 / K2-047: hunter said 'cross-link' or 'merge or cross-link'; cross-linked (each keeps its own list, number or reason).
+- K2-107 / K3-023 (hunter: merge as endorsement): kept separate - K3-023 is the student's own summary (speaker student (proposal), endorsed 'Excellent'); cross-linked [final L-0308].
+- K2-122 / K3-019, K2-111 / K3-018, K2-133 / K3-013 / K3-014, K2-142 / K3-030 / K3-031 / K3-035, K3-031 / K3-035 / K3-039, K3-094 / K3-099, K3-096 / K3-098, K3-073 / K3-104: kept as Q&A elaborations linked to the main item, as the hunter allowed.
+- K3-009 / K3-026: the hunter's within-part note said keep both; K3-009 merged into K2-119 (cross-part suggestion), K3-026 kept as its own trade-off item linked to K2-119 [final L-0257, L-0310].
+- G-003 / K3-071 (hunter: merge or cross-link): cross-linked - G-003 is the design-time remark (01:19), K3-071 the Q&A restatement (03:15) [final L-0165, L-0350].
+- K2-126 optional merged verbatim: taken (the 02:26:18 quote is in merged_verbatims).
+- Speaker-label inconsistencies (Student 4 / Student 7 / Student 12 used for different people in part 2): ledger items already say 'a student'; Student-numbered details kept as transcribed (not re-attributed - the transcript labels are the only evidence).
+
+## Validation
+
+PASS final ledger lectures/lec08/ledger | errors 0 | warnings 0 (originals: 457 (parts 395, gaps 6, board 56) -> ledger 381 items)

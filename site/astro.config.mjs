@@ -10,6 +10,8 @@ export default defineConfig({
   site: 'https://rmnjaat.github.io',
   base: '/vedio-to-blog/',
   trailingSlash: 'ignore',
+  // the pipeline builds one lecture at a time into its own folder (VTB_OUT=.builds/<id>), so parallel lectures never share dist/
+  outDir: process.env.VTB_OUT || './dist',
   integrations: [mdx(), react()],
   // code uses the sample's three colours through CSS variables (see notebook.css, "code")
   markdown: {

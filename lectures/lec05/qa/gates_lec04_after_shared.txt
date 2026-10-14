@@ -1,0 +1,342 @@
+# page gates lec04 2026-10-14 02:33:20
+## build
+build lec04 -> site/.builds/lec04
+build ok: 11 pages
+## coverage
+coverage lec04: 0/327 placed ids on the pages; ledger overall 0/337
+  ids per page: 1-approach 0, 2-green-dots 0, 3-redis-or-dynamodb 0, 4-heartbeats 0, 5-blog-rows 0, 6-cache 0, 7-what-to-keep 0, overview 0
+  MISSING L-0001 [supporting/admin_reference] placed in about: This is the 16th cohort of the course: eight weeks of system design aimed at building raw intuition for system
+  MISSING L-0002 [supporting/rule_of_thumb] placed in about: Participate live in every session, no matter what: live sessions involve active brainstorming, which rewires t
+  MISSING L-0003 [supporting/claim] placed in about: The course does not talk about interviews (the teacher does not believe anyone should prepare for interviews);
+  MISSING L-0004 [supporting/rule_of_thumb] placed in about: Note down new terms heard in class (e.g. sharding, consistent hashing) and read about them later on your own; 
+  MISSING L-0005 [supporting/admin_reference] placed in about: Revise regularly: the course is chained week to week, so by week 7 (ad hoc systems such as flash sale and mess
+  MISSING L-0006 [supporting/admin_reference] placed in about: Read the pre-reads: they are heavily curated for each session's topics and give most of what is needed to foll
+  MISSING L-0008 [supporting/claim] placed in about: System design is not just drawing boxes and does not need massive infrastructure: literally every system discu
+  MISSING L-0009 [supporting/rule_of_thumb] placed in about: Implement the core of every system discussed (e.g. the flash-sale module itself, not the UI or every CRUD API)
+  MISSING L-0010 [supporting/claim] placed in about: Implementing a system reveals where it could falter and what implementation challenges arise ('the devil lies 
+  MISSING L-0016 [aside/admin_reference] placed in about: There is no system brainstorming in the first week, so that everyone reaches the same level on the foundations
+  MISSING L-0019 [supporting/admin_reference] placed in about: Today's agenda has two parts: first, designing an online/offline indicator (as on Facebook or Twitter); after 
+  MISSING L-0020 [supporting/admin_reference] placed in about: On day one the online/offline indicator is designed without worrying about scale (the design would change once
+  MISSING L-0021 [core/concept] placed in 2.1: The brief from the product team: show a list of users, each with a green dot (online) or a grey dot (offline),
+  MISSING L-0022 [core/concept] placed in 1.1: In 10-11 years the teacher has seen only two approaches to building any system - spiral and incremental; which
+  MISSING L-0023 [core/definition] placed in 1.1: Spiral approach: decide the core of the system - in most cases the database - which becomes its single point o
+  MISSING L-0024 [supporting/example] placed in 1.1: The core of a system can be a database schema or a communication layer; in a messaging app the WebSocket layer
+  MISSING L-0025 [core/definition] placed in 1.1: Incremental approach: used when unsure how to implement or scale; start with the simplest day-zero architectur
+  MISSING L-0026 [supporting/rule_of_thumb] placed in 1.1: Use the spiral approach when the system is a no-brainer - you have built similar systems before and know exact
+  MISSING L-0027 [supporting/rule_of_thumb] placed in 1.1: Use the incremental approach in ambiguous or uncertain situations; it resonates with startup environments: shi
+  MISSING L-0028 [supporting/claim] placed in 1.1: In a multi-year project at a big organization, where you know what you need to implement and it is complex, yo
+  MISSING L-0029 [core/rule_of_thumb] placed in 1.2: For every technical decision, first understand the core property and access pattern you need from the componen
+  MISSING L-0030 [supporting/example] placed in 1.2: Tech affinity fails in practice: a company not on AWS cannot use DynamoDB, and a company that does not use Red
+  MISSING L-0031 [supporting/claim] placed in 1.2: Throughout the course the teacher discards Cassandra in many places: for simple use cases a relational DB can 
+  MISSING L-0032 [supporting/claim] placed in 1.2: Build intuition for building systems: there is no single way to build a system - every system is infinitely bu
+  MISSING L-0033 [supporting/process] placed in 2.1: The online/offline indicator design starts by picking the database as the core of the system, the easiest plac
+  MISSING L-0034 [core/concept] placed in 2.1: First schema: for every user store the user ID (an integer) and an online boolean (true = online, false = offl
+  MISSING L-0035 [core/concept] placed in 2.1: The access pattern is key-value: get the status of a set of users, get the status of a single user, update the
+  MISSING L-0036 [supporting/concept] placed in 2.2: An API server queries the database; the first option is an endpoint that takes one user ID and returns that us
+  MISSING L-0037 [supporting/tradeoff] placed in 2.2: With only a single-user endpoint, rendering four users on the UI needs four API calls from the front end - a v
+  MISSING L-0038 [core/rule_of_thumb] placed in 2.2: First critical design decision: expose a batch endpoint that accepts a bunch of user IDs and returns the statu
+  MISSING L-0039 [supporting/example] placed in 2.2: The batch endpoint is /data/users, accepting a set of IDs and returning the online/offline status of each; thi
+  MISSING L-0040 [supporting/concept] placed in 2.3: Reading is solved; someone must also update each user's online/offline information, and there are two ways to 
+  MISSING L-0041 [core/claim] placed in 2.3: A pull-based model, where the API server asks each client 'are you alive?', is not possible: HTTP is stateless
+  MISSING L-0042 [core/concept] placed in 2.3: Push-based heartbeats: each client periodically makes a heartbeat API call telling the backend 'I am alive'.
+  MISSING L-0043 [supporting/analogy] placed in 2.3: A heartbeat mimics the human heart: as long as the heart is beating you are alive; when it stops, you are dead
+  MISSING L-0044 [supporting/concept] placed in 2.3: Expose a POST /heartbeat endpoint; each call marks the authenticated user as alive.
+  MISSING L-0045 [supporting/misconception] placed in 2.4: A common idea is that two calls suffice - one heartbeat when the user comes online / logs in and one 'offline'
+  MISSING L-0046 [core/claim] placed in 2.4: Heartbeats must be periodic because a client can announce coming online but cannot reliably announce going off
+  MISSING L-0047 [core/concept] placed in 2.4: If the backend does not receive a heartbeat from a user for long enough, it marks the user offline - the most 
+  MISSING L-0048 [supporting/rule_of_thumb] placed in 2.4: 'Long enough' is business logic configured per system - e.g. 10 minutes for one system, 10 seconds or one minu
+  MISSING L-0049 [core/concept] placed in 2.5: The schema changes: instead of a boolean, store the time the last heartbeat was received for each user (table 
+  MISSING L-0050 [aside/admin_reference] placed in about: Convention: a table drawn on the board only helps visualize the schema and does not mean a relational database
+  MISSING L-0051 [supporting/example] placed in 2.5: On each heartbeat run: UPDATE pulse SET last_heartbeat = now() WHERE user_id = <id>, continually updating that
+  MISSING L-0052 [core/rule_of_thumb] placed in 2.5: getStatus logic, rule 1: if there is no entry in the database for a user, return offline - the user never came
+  MISSING L-0053 [core/rule_of_thumb] placed in 2.5: getStatus logic, rule 2: if the entry exists but last_heartbeat < now - 30 seconds (no heartbeat for over 30 s
+  MISSING L-0054 [supporting/definition] placed in 2.5: The last heartbeat is stored as epoch seconds - the seconds elapsed since 1 January 1970, the standard Unix ep
+  MISSING L-0055 [supporting/number] placed in 2.6: Each row is two integers - user ID and last heartbeat timestamp - 4 bytes + 4 bytes = 8 bytes per user, with o
+  MISSING L-0056 [core/number] placed in 2.6: For 1 billion users (about 1/8 of the world population; Facebook has much more), one 8-byte entry per user giv
+  MISSING L-0057 [core/claim] placed in 2.6: 8 GB is not much - a phone has 128 GB and it fits in the RAM of a trivial, cheap machine - so storage is not t
+  MISSING L-0058 [aside/definition] placed in 2.6: Storage, as used in the estimate, is the amount of space required to store the data; for the online/offline in
+  MISSING L-0059 [supporting/rule_of_thumb] placed in 2.6: At every step of designing a system, ask critical questions - can I change this, is there an alternative? - be
+  MISSING L-0060 [supporting/rule_of_thumb] placed in 2.6: Stay open to every possibility without bias and be humble: document every possibility you know and why you too
+  MISSING L-0061 [core/concept] placed in 2.7: Storage optimization: since the end user only sees green or grey dots, treat absence of an entry as offline - 
+  MISSING L-0062 [core/process] placed in 2.7: With absence = offline, entries must expire after 30 seconds: each heartbeat resets the 30-second timer and on
+  MISSING L-0063 [supporting/concept] placed in 2.7: The simplest way to delete expired entries is a cron job that periodically finds rows whose last heartbeat is 
+  MISSING L-0064 [supporting/claim] placed in 2.7: The cron-job solution would work for a startup just launching, but it is not robust - edge cases need handling
+  MISSING L-0065 [supporting/number] placed in 2.7: With 1B total users and 100k active, total entries are 100k and total size is 800 KB.
+  MISSING L-0066 [core/tradeoff] placed in 2.7: A cron job adds another moving part: a separate process to host that must keep running (or the business logic 
+  MISSING L-0067 [core/rule_of_thumb] placed in 2.7: Never draw boxes for the sake of it: think from the implementation - would you really want to implement, monit
+  MISSING L-0068 [core/rule_of_thumb] placed in 2.8: Instead of a cron job, offload expiration to the database: when databases exist that do this natively, don't r
+  MISSING L-0069 [core/concept] placed in 2.8: The requirement is a database with key-value access plus expiration (time to live, TTL); two very common ones 
+  MISSING L-0070 [core/process] placed in 2.8: Final logic: on every heartbeat, update (set) the user's entry in Redis or DynamoDB (whichever DB you choose) 
+  MISSING L-0071 [supporting/comparison] placed in 3.1: Redis and DynamoDB both give key-value access and expiration, so choosing between them for this system needs o
+  MISSING L-0072 [supporting/qa_insight] placed in 3.2: A student proposed DynamoDB because data might need to be stored permanently (persistence); the teacher challe
+  MISSING L-0073 [core/qa_insight] placed in 3.3: A student proposed DynamoDB because it is managed by AWS (highly available, so the team does not have to worry
+  MISSING L-0074 [supporting/qa_insight] placed in 3.4: A student proposed that choosing a managed solution depends on team size, and that Redis can help prevent vend
+  MISSING L-0075 [supporting/qa_insight] placed in 3.4: A student listed reasons vendor lock-in can matter - cloud pricing becoming unmanageable, the rest of the infr
+  MISSING L-0076 [supporting/qa_insight] placed in 3.4: A student added non-cost reasons to switch cloud providers: security incidents (e.g. issues with Azure databas
+  MISSING L-0077 [core/definition] placed in 3.4: Vendor lock-in: being locked in with a particular cloud vendor because the tool you use exists only there - Dy
+  MISSING L-0078 [supporting/claim] placed in 3.4: Moving clouds (GCP to AWS, AWS to Azure, ...) means rewriting a lot of code, which is why organizations that r
+  MISSING L-0079 [core/concept] placed in 3.4: A key vendor lock-in reason is competition: if your cloud vendor enters your business, your cloud bill feeds y
+  MISSING L-0080 [supporting/example] placed in 3.4: Walmart is not on AWS but on GCP, because Walmart and Amazon are both e-commerce competitors - being on AWS wo
+  MISSING L-0081 [supporting/claim] placed in 3.4: For a big customer with, say, a $10 million/month cloud bill, a vendor entering your business means paying you
+  MISSING L-0082 [supporting/rule_of_thumb] placed in 3.4: A very early startup need not worry about this: with a bill of about $10,000 it does not matter to Amazon; big
+  MISSING L-0083 [supporting/example] placed in 3.4: Counter-example: Netflix existed before Amazon Prime Video became its competitor, yet it stays on AWS because 
+  MISSING L-0084 [supporting/claim] placed in 3.4: Vendor lock-in is a critical real-world design consideration, and is why many people go towards open-source te
+  MISSING L-0085 [supporting/qa_insight] placed in 3.2: A student pointed out that Redis also offers persistence; the teacher agreed it can be configured if needed, w
+  MISSING L-0086 [supporting/rule_of_thumb] placed in 3.2: Know how a feature is implemented, not just that it exists: e.g. for Redis persistence know AOF and RDB files,
+  MISSING L-0087 [supporting/qa_insight] placed in 3.3: A student noted that managed Redis is offered by the cloud providers (e.g. AWS ElastiCache), so you get a mana
+  MISSING L-0088 [supporting/qa_insight] placed in 3.5: A student claimed Redis only has string data types while DynamoDB also has numbers.
+  MISSING L-0089 [core/rule_of_thumb] placed in 3.5: Consider future extensibility: if the feature may later need advanced data structures - Bloom filters, HyperLo
+  MISSING L-0090 [supporting/qa_insight] placed in 3.5: A student said DynamoDB can achieve similar things with DynamoDB Streams and Lambda; the teacher agreed, notin
+  MISSING L-0091 [supporting/claim] placed in 3.5: Databases are converging fast - every database gives you everything: MongoDB supports ACID, SQL databases supp
+  MISSING L-0092 [supporting/rule_of_thumb] placed in 1.2: Before deciding, go in depth into every candidate technology, understand its pros and cons, and pick what suit
+  MISSING L-0093 [supporting/qa_insight] placed in 3.6: A student proposed Redis because online/offline is time-sensitive and Redis, being in-memory with better perfo
+  MISSING L-0094 [core/claim] placed in 3.6: Redis's advantage for time-sensitive use is persistent connections: with Redis you hold persistent connections
+  MISSING L-0095 [supporting/claim] placed in 3.5: Each database has its own feature set - Redis has Pub/Sub, DynamoDB has its own features, Aerospike (proprieta
+  MISSING L-0096 [core/claim] placed in 3.5: The database is the most critical, most brittle component of your infrastructure: know early what features it 
+  MISSING L-0097 [supporting/example] placed in 3.6: To show a user offline immediately when their key expires, Redis gives hooks telling you a key just expired, o
+  MISSING L-0098 [core/comparison] placed in 3.1: Redis and DynamoDB were chosen because Redis is open source and DynamoDB proprietary - a big difference; a big
+  MISSING L-0099 [core/rule_of_thumb] placed in 3.3: Lean teams (a 5-10 person startup) go for managed services to avoid the pressure of managing infrastructure, o
+  MISSING L-0100 [core/claim] placed in 3.1: Beyond the common answers, three factors are often missed when choosing a database: future extensions, vendor 
+  MISSING L-0101 [supporting/claim] placed in 2.8: In the real world online/offline indicators are not built this way: they are built using WebSockets with many 
+  MISSING L-0102 [aside/admin_reference] placed in 2.8: WebSockets are covered next week (not with online/offline), and the second week's second day, on Slack's real-
+  MISSING L-0103 [core/number] placed in 4.1: If clients send a heartbeat every 10 seconds, each sends 6 heartbeats per minute; with 1 million active users 
+  MISSING L-0104 [core/claim] placed in 4.1: Every heartbeat results in one database call (an update), so a single database has to absorb about 6 million u
+  MISSING L-0105 [core/concept] placed in 4.1: The online/offline store is a classic case where storage is not the problem but computation is: the whole data
+  MISSING L-0106 [aside/admin_reference] placed in 4.1: Sharding and partitioning, the other ways to handle this load, are discussed in coming weeks; this part focuse
+  MISSING L-0107 [supporting/claim] placed in 4.2: Connection pooling is an optimization that very few people talk about, and one everyone should know about for 
+  MISSING L-0108 [core/concept] placed in 4.2: Each heartbeat is an HTTP POST request over a TCP connection; when it arrives, the API server creates a second
+  MISSING L-0109 [core/number] placed in 4.2: Setting up a TCP connection requires the three-way handshake and terminating it a two-way teardown, so a fresh
+  MISSING L-0110 [supporting/rule_of_thumb] placed in 4.2: The single line drawn between the API server and the database on a design diagram, usually drawn without a tho
+  MISSING L-0111 [core/concept] placed in 4.2: Each heartbeat write is a micro update: a pointed update of one row indexed by primary key, so the database do
+  MISSING L-0112 [core/definition] placed in 4.3: Connection pooling: instead of shutting each TCP connection down, keep a bunch of connections open between the
+  MISSING L-0113 [core/example] placed in 4.3: Example: on startup the API server creates three TCP connections with the database and keeps them handy on the
+  MISSING L-0114 [core/process] placed in 4.3: When a request comes in, the server picks one available connection from the pool and marks it unavailable; sin
+  MISSING L-0115 [core/claim] placed in 4.3: Connection pooling has two benefits: it makes the API call very fast, and it reduces the load on the database 
+  MISSING L-0116 [core/concept] placed in 4.2: Establishing a TCP connection is expensive for the database itself: it must read the handshake packets (first 
+  MISSING L-0117 [core/claim] placed in 4.3: By pre-establishing connections and reusing them, the database saves mainly CPU and network work (the teacher 
+  MISSING L-0118 [core/concept] placed in 4.5: When you define a connection pool you define a minimum and a maximum number of connections (e.g. a minimum of 
+  MISSING L-0119 [supporting/claim] placed in 4.3: Databases such as MySQL, Postgres and Redis all support connection pooling, and there are libraries that manag
+  MISSING L-0120 [core/process] placed in 4.5: When all pooled connections are busy (e.g. a fourth concurrent request with three connections), the first opti
+  MISSING L-0121 [core/process] placed in 4.5: The second option, if the request does not want to wait, is to establish a new TCP connection, fire the query 
+  MISSING L-0122 [supporting/claim] placed in 4.5: Stretching without a limit is a problem: with millions of requests each creating its own connection and adding
+  MISSING L-0123 [core/rule_of_thumb] placed in 4.5: Configure a maximum on the pool, e.g. minimum 3 and maximum 100: each server then cannot create more than 100 
+  MISSING L-0124 [core/concept] placed in 4.5: Every database has a limit on the number of TCP connections it can hold, so a problem creeps in when hundreds 
+  MISSING L-0125 [core/concept] placed in 4.5: The connection pool is responsible for terminating unused connections: you configure a TTL per connection (e.g
+  MISSING L-0126 [core/concept] placed in 4.4: A connection pool is not a separate process or service: it is a simple library running inside the API server t
+  MISSING L-0127 [aside/misconception] placed in 4.4: A common misconception today is that everything has to be a service; a connection pool is not one, it is a lib
+  MISSING L-0128 [core/process] placed in 4.4: Implementation: when the server boots it creates multiple database connection objects and puts them in a block
+  MISSING L-0129 [core/concept] placed in 4.3: The pool gives a massive performance boost here because each update is a tiny one-row update by primary key (i
+  MISSING L-0130 [supporting/tradeoff] placed in 4.3: For a big SQL query, the time to run the query is long enough to outweigh the benefit of a connection pool; th
+  MISSING L-0131 [supporting/rule_of_thumb] placed in 4.3: Whenever you fire a bunch of micro updates on a database - and in general - having a connection pool is always
+  MISSING L-0132 [core/concept] placed in 4.9: The online/offline design can be copied almost as-is to build failure detection in a distributed system: all n
+  MISSING L-0133 [supporting/example] placed in 4.9: Example: when building your own load balancer, the same heartbeat system detects that a backend machine is dow
+  MISSING L-0134 [supporting/rule_of_thumb] placed in 4.9: Observe the pattern and the core properties a system needs rather than memorising the question and its answer,
+  MISSING L-0135 [supporting/qa_insight] placed in 4.5: If newly spun-up API servers need connections beyond the database's TCP connection limit (e.g. during a specia
+  MISSING L-0136 [core/qa_insight] placed in 4.6: The fix is to scale up the database to handle more TCP connections: the size of the database depends on the nu
+  MISSING L-0137 [core/claim] placed in 4.6: In most cases the most common bottleneck of a database is the maximum number of connections it can handle, so 
+  MISSING L-0138 [supporting/rule_of_thumb] placed in 4.6: To support more concurrency than the database's connection limit, scale it vertically; otherwise go for shardi
+  MISSING L-0139 [supporting/qa_insight] placed in 3.3: Asked whether managed DynamoDB gives better value than a self-managed Redis that must be autoscaled on the fly
+  MISSING L-0140 [supporting/rule_of_thumb] placed in 3.3: Self-hosting Redis requires a team with expertise to manage it; without that, use a managed Redis (Redis Labs,
+  MISSING L-0141 [supporting/qa_insight] placed in 4.5: If pooled connections expire through their TTL (e.g. 50 of 100 expired) and more requests arrive, the pool cre
+  MISSING L-0142 [supporting/qa_insight] placed in 4.5: The pool does not always hold 100 connections: 100 is the maximum, and the actual number depends on the number
+  MISSING L-0143 [core/qa_insight] placed in 4.6: Asked whether the number of connections, rather than the data, decides how to scale the database here (a 'bril
+  MISSING L-0144 [core/concept] placed in 4.6: With micro reads and micro writes (update one row; reads like 'given a user, give me the row'; no massive anal
+  MISSING L-0145 [supporting/tradeoff] placed in 4.6: If queries are massive aggregations joining 10 or 15 tables, where executing a query takes longer than establi
+  MISSING L-0146 [core/qa_insight] placed in 4.6: The maximum number of TCP connections a server can handle (a database is a process running on a server) depend
+  MISSING L-0147 [supporting/claim] placed in 4.6: On a managed service such as AWS RDS, the provider gives a formula you can run to see the connection limit and
+  MISSING L-0148 [supporting/rule_of_thumb] placed in 4.6: For a self-managed database, benchmark: pick a machine with high network capacity and measure how many concurr
+  MISSING L-0149 [supporting/claim] placed in 4.6: In most cases you need an instance with a dedicated attached network card (maybe several); every cloud provide
+  MISSING L-0150 [supporting/qa_insight] placed in 4.8: A student proposed that there are two parameters for deciding whether to scale a database vertically or horizo
+  MISSING L-0151 [core/concept] placed in 4.8: There are only four things in computer science - memory, CPU, disk and network (no fifth; GPU counted under CP
+  MISSING L-0152 [supporting/example] placed in 4.8: CPU-intensive use cases: doing massive aggregations on your data.
+  MISSING L-0153 [supporting/example] placed in 4.8: Memory-intensive use cases: pulling in a lot of data to process, such as massive joins.
+  MISSING L-0154 [supporting/example] placed in 4.8: Disk-bound use cases: storing large amounts of data on disk until disk becomes the bottleneck; data warehouses
+  MISSING L-0155 [supporting/example] placed in 4.8: Network-bound use cases: the number of queries you can fire on a server (here, the database) is limited by the
+  MISSING L-0156 [core/claim] placed in 4.8: Scaling, horizontal or vertical, is defined on these four parameters; vertical scaling has a limit, so a good 
+  MISSING L-0157 [core/rule_of_thumb] placed in 4.5: The pool minimum is typically 3 or 5, because when the pool is exhausted connections can be created on the fly
+  MISSING L-0158 [core/rule_of_thumb] placed in 4.5: Pool maximum per server = maximum connections the database supports / maximum number of servers you will have 
+  MISSING L-0159 [supporting/rule_of_thumb] placed in 4.5: Set the maximum somewhat above the average (e.g. 15 instead of 10) because one server may get more requests th
+  MISSING L-0160 [supporting/rule_of_thumb] placed in 4.5: Have the right telemetry on the connection pool - how it performs, the number of connections in the pool at an
+  MISSING L-0161 [supporting/rule_of_thumb] placed in 4.5: The best way to tune a connection pool is to start with a conservative mindset, observe the metrics and then r
+  MISSING L-0162 [supporting/qa_insight] placed in 4.6: For a festival where online users jump (e.g. 2x) and updates arrive faster than the database can apply them, a
+  MISSING L-0163 [supporting/qa_insight] placed in 4.6: Vertically scaling for a spike is fine because you scale up and bring it back down; there is no way out - the 
+  MISSING L-0164 [aside/admin_reference] placed in 4.6: A much better answer to traffic spikes comes later in the course, when flash sales are discussed.
+  MISSING L-0165 [supporting/rule_of_thumb] placed in 4.6: Knowing the tech unit economics is very important in the real world; have the right monitoring tools to make t
+  MISSING L-0167 [aside/admin_reference] placed in about: Earlier, the teacher used to start with the foundational topics and skip the online/offline indicator, but tha
+  MISSING L-0168 [core/concept] placed in 5.1: Six core components to think about when designing most (not all) systems: database, caching, scaling, delegati
+  MISSING L-0169 [aside/admin_reference] placed in 6.1: Caching gets only 5-7 minutes today, but many caching use cases and how to improve them come up over the cours
+  MISSING L-0170 [core/example] placed in 5.1: Databases are taught through designing a simple multi-user blogging application like Medium: one user can post
+  MISSING L-0171 [supporting/example] placed in 5.1: The users table has id (auto-increment), name (what is rendered) and bio (a small text, around 128 characters)
+  MISSING L-0172 [supporting/example] placed in 5.1: The blogs table has id, author_id (who wrote it), title, body, published_at (when it was published) and is_del
+  MISSING L-0173 [core/definition] placed in 5.2: Soft delete: an is_deleted column; when the user deletes a row you just mark is_deleted as true instead of rem
+  MISSING L-0174 [core/definition] placed in 5.2: Hard delete: firing a DELETE query on the database; the data cannot be recovered afterwards.
+  MISSING L-0175 [core/concept] placed in 5.2: Reason 1 for soft delete - recoverability: if you want to let a user recover something they deleted (e.g. a de
+  MISSING L-0176 [supporting/example] placed in 5.2: Google Drive is soft delete: a deleted file goes into the trash, stays there for 30 days, and can be recovered
+  MISSING L-0177 [core/concept] placed in 5.2: Reason 2 for soft delete - archival: content a user put effort into is rich data (e.g. to train machine-learni
+  MISSING L-0178 [supporting/process] placed in 5.2: For archival: when the user deletes, soft delete the row and run a job that pulls out soft-deleted rows and pu
+  MISSING L-0179 [core/concept] placed in 5.2: Reason 3 for soft delete - audit: deleted data may be needed as evidence later.
+  MISSING L-0180 [supporting/war_story] placed in 5.2: At a startup, one user harassed another online with a filthy comment; the victim filed a police complaint and 
+  MISSING L-0181 [supporting/claim] placed in 5.2: As a consumer platform you have to provide such information to the authorities; police and government do not w
+  MISSING L-0182 [aside/war_story] placed in 5.2: The teacher personally visited a police station, gave justifications and handed over printed copies of all the
+  MISSING L-0183 [core/rule_of_thumb] placed in 5.2: When designing a table, ask whether its entries need recoverability, archival or audit; if yes, use soft delet
+  MISSING L-0184 [supporting/rule_of_thumb] placed in 5.2: Always design systems from a holistic view rather than a narrow view of just building things.
+  MISSING L-0185 [core/concept] placed in 5.3: Another reason for soft deletes is that they are easy on the database: most storage engines store data as a B+
+  MISSING L-0186 [core/concept] placed in 5.3: With a soft delete the entry is only updated (the column changes) and still exists, so the B+ tree node does n
+  MISSING L-0187 [supporting/rule_of_thumb] placed in 5.3: Knowing database internals - how your database structures data - is really important to decide whether soft de
+  MISSING L-0188 [supporting/claim] placed in 5.2: In general, people soft delete in tables that store user-generated information.
+  MISSING L-0189 [core/example] placed in 5.6: In the blog schema, bio (a user bio of about 140 characters) uses a short text type while body (a gigantic blo
+  MISSING L-0190 [core/concept] placed in 5.6: In a row-based database all the data of a row is stored together in fixed-width rows, so the database knows ex
+  MISSING L-0191 [supporting/analogy] placed in 5.6: Fixed-width rows are exactly like C structs: you know the byte offset of each field.
+  MISSING L-0192 [core/concept] placed in 5.6: A varchar (short text) column is stored inline with the other columns of the row.
+  MISSING L-0193 [core/concept] placed in 5.6: A long text column is stored by the database in a separate location on disk (still disk, not network I/O), and
+  MISSING L-0194 [core/tradeoff] placed in 5.6: Reading a long text column costs two disk calls (one for the row, one for the text), making reads expensive; a
+  MISSING L-0195 [supporting/concept] placed in 5.6: Long text is stored elsewhere because row length has to be limited: gigantic text cannot sit in rows, and smal
+  MISSING L-0196 [supporting/example] placed in 5.6: Email, bio, first name and last name are short text (varchar is what is typically used); a blog body or a long
+  MISSING L-0197 [supporting/number] placed in 5.6: If you allow 5,000-character comments, that is 5,000 bytes; storing it inline would make every row huge - a wa
+  MISSING L-0198 [core/tradeoff] placed in 5.6: Why not always store inline: listing pages read the blog title, first few lines/excerpt and image, not the bod
+  MISSING L-0199 [core/rule_of_thumb] placed in 5.6: Always keep the row (or document) size to a bare minimum: store very large text as long text and everything el
+  MISSING L-0200 [core/concept] placed in 5.7: The published_at column stores when a blog was published; there are multiple ways to store a date time, each w
+  MISSING L-0201 [core/concept] placed in 5.7: Approach 1: use the database's native date time column type, the most basic way.
+  MISSING L-0202 [core/concept] placed in 5.7: A database storing a date time on disk serializes it in some format and flushes it; to read it, it reads that 
+  MISSING L-0203 [supporting/example] placed in 5.7: Hypothetical example: a date time like '2nd April 22090136Z' could naively be stored literally as a string on 
+  MISSING L-0204 [supporting/example] placed in 5.7: For a query like SELECT * FROM blogs WHERE published_at > now minus seven days, a database storing dates as st
+  MISSING L-0205 [core/claim] placed in 5.7: Reading a date string from disk, converting it to a date time object and comparing is expensive; how your data
+  MISSING L-0206 [supporting/claim] placed in 5.7: Not all databases store date time as a string: MySQL, Postgres and MongoDB each have their own format; some st
+  MISSING L-0207 [core/rule_of_thumb] placed in 5.7: Understand how your database stores date time on disk; if it is not performant enough for your use case, don't
+  MISSING L-0208 [core/tradeoff] placed in 5.7: Storing dates as the native date type is extremely convenient (the language gives you a native date object for
+  MISSING L-0209 [core/concept] placed in 5.7: Approach 2: store date time as an epoch integer - a published_at column of integer type (not date time) holdin
+  MISSING L-0210 [core/definition] placed in 5.7: An epoch integer (epoch timestamp) is the number of seconds or milliseconds elapsed since 1 January 1970, 'whe
+  MISSING L-0211 [core/number] placed in 5.7: If a database stored the date time as that string, it would take about 20 bytes; the same information as an ep
+  MISSING L-0212 [core/tradeoff] placed in 5.7: An epoch integer is efficient, optimal and lightweight but not readable: looking at the number you cannot tell
+  MISSING L-0213 [core/concept] placed in 5.7: Epoch integers are lightweight on the index: comparison is a plain integer comparison, the most efficient oper
+  MISSING L-0214 [core/war_story] placed in 5.8: In 2016 Redbus (a bus-booking company) had a table storing date time as date time, and it became the performan
+  MISSING L-0215 [supporting/concept] placed in 5.8: Redbus considered epoch integers but would lose readability: their engineers rendered the value as-is in their
+  MISSING L-0216 [core/concept] placed in 5.8: Approach 3 (custom format): relax a constraint you don't need - Redbus needed only date granularity, not time.
+  MISSING L-0217 [core/example] placed in 5.8: Redbus stored the date as an integer in YYYYMMDD format (not a string), e.g. 20220402 for 2 April 2022 - a cus
+  MISSING L-0218 [core/tradeoff] placed in 5.8: The YYYYMMDD integer gives readability (you can see it is 2 April) and performance (integer comparison, intege
+  MISSING L-0219 [core/rule_of_thumb] placed in 5.8: There is no hard rule to use the date time type or epoch integers: be creative and open to altering constraint
+  MISSING L-0220 [core/rule_of_thumb] placed in 5.8: Each date time approach (native date time, epoch integer, custom integer format) has its own advantages and di
+  MISSING L-0221 [supporting/qa_insight] placed in 5.8: A student objected that the YYYYMMDD custom format is inflexible if time is needed in the future; the answer: 
+  MISSING L-0222 [supporting/qa_insight] placed in 5.8: A student argued Redbus could have stored epoch and parsed it on the client with a simple function, since the 
+  MISSING L-0223 [aside/claim] placed in 5.8: The teacher has seen a bunch of places use custom date formats instead of native date time or epoch (details p
+  MISSING L-0224 [supporting/qa_insight] placed in 5.9: A student pointed out that the native date time format can capture time zone information, which is somewhat lo
+  MISSING L-0225 [supporting/qa_insight] placed in 5.9: If time is stored in Unix (epoch) format, for viewing purposes you can render it in the local device's time zo
+  MISSING L-0226 [supporting/qa_insight] placed in 5.9: The same epoch value represents different local times in different time zones, so you must be especially caref
+  MISSING L-0227 [supporting/qa_insight] placed in 5.8: The Redbus case was a production use case (not disclosed), more analytics than transactional, where date time 
+  MISSING L-0228 [supporting/qa_insight] placed in 5.3: A student argued that the rebalancing benefit of soft deletes holds only if rows stay soft-deleted forever; wh
+  MISSING L-0229 [core/concept] placed in 5.3: Accumulating soft deletes and hard deleting them in one shot clubs the tree rebalancing together: the database
+  MISSING L-0230 [supporting/number] placed in 5.3: Doing staggered, batched deletion - e.g. deleting 100 rows at a time and committing - gives one rebalance per 
+  MISSING L-0231 [supporting/qa_insight] placed in 5.9: A student worried that the epoch number keeps increasing and will soon max out a 4-byte int, forcing a move to
+  MISSING L-0232 [supporting/number] placed in 5.9: An epoch integer is 4 bytes today, and the integer range maxes out as soon as we hit 2032 (as stated); moving 
+  MISSING L-0233 [supporting/concept] placed in 5.9: Because epoch starts at 1 January 1970, representing a date before it (e.g. 31 December 1969) requires negativ
+  MISSING L-0234 [supporting/concept] placed in 5.9: An alternative is a compressed serialized date time that covers the entire date range without being limited by
+  MISSING L-0235 [supporting/claim] placed in 5.9: MySQL stores date time in a mind-blowingly efficient way, covering a massive range (from BCE up to, the teache
+  MISSING L-0236 [supporting/rule_of_thumb] placed in 5.9: Read MySQL's official datetime documentation, not a blog, video or random person: it explains why MySQL serial
+  MISSING L-0237 [aside/admin_reference] placed in 6.1: Caching is covered now as setup for a discussion the teacher will trigger the next morning; questions follow a
+  MISSING L-0238 [core/misconception] placed in 6.1: People misunderstand caching a lot: caching is not just in-memory caching.
+  MISSING L-0239 [core/definition] placed in 6.1: Caching is anything, literally anything, that helps you save a heavy computation or heavy operation so that yo
+  MISSING L-0240 [supporting/example] placed in 6.1: Memoization in dynamic programming is classic caching.
+  MISSING L-0241 [core/misconception] placed in 6.1: Many people equate caches with RAM, but caches are not only RAM-based: disk can be used as a cache, and so can
+  MISSING L-0242 [supporting/concept] placed in 6.1: Caching typically helps reduce disk IO or network IO; the usual habit of caching in RAM comes from RAM being f
+  MISSING L-0243 [core/example] placed in 6.1: If a network call is expensive, you can cache its result on the local disk and read from that disk instead of 
+  MISSING L-0244 [core/rule_of_thumb] placed in 6.1: A cache is anything that saves one of three things: an expensive disk IO, an expensive network IO or an expens
+  MISSING L-0245 [supporting/rule_of_thumb] placed in 6.1: Be very creative in finding usages of caches.
+  MISSING L-0246 [core/concept] placed in 6.1: Caches in general are just glorified key-value hash tables, nothing more.
+  MISSING L-0247 [supporting/example] placed in 6.1: Redis offers a bunch of advanced data structures such as HyperLogLog, Bloom filters and geospatial queries, bu
+  MISSING L-0248 [core/concept] placed in 6.2: In the blog example the cache is typically a remote cache that any API server can talk to; logically it sits b
+  MISSING L-0249 [core/process] placed in 6.2: Standard cache read flow: the request reaches an API server, which first checks the cache; if the data is ther
+  MISSING L-0250 [core/concept] placed in 6.2: A remote cache ensures that no matter which API server a request goes to, all of them read from the same cache
+  MISSING L-0251 [core/example] placed in 6.2: For a popular blog, repeatedly doing an expensive three-four table join on the database to get the blog data p
+  MISSING L-0252 [supporting/tradeoff] placed in 6.2: The remote cache still costs a network IO, but reading a pre-computed result from the cache is much faster tha
+  MISSING L-0253 [aside/admin_reference] placed in 6.5: Caching internals will be covered in depth later: a distributed/remote cache and key-value store will be built
+  MISSING L-0254 [supporting/admin_reference] placed in 6.5: Exercise for the next day's first 30 minutes: on this common architecture diagram, find all possible places yo
+  MISSING L-0255 [supporting/war_story] placed in 6.5: In the third or fourth cohort, about two years earlier, the same caching-places discussion led a participant w
+  MISSING L-0256 [supporting/example] placed in 6.5: One caching place already covered is the centralized (application-level) cache that every API server talks to,
+  MISSING L-0257 [aside/admin_reference] placed in 6.5: The point of the find-all-caching-places exercise is to spark ideas and help students understand the many inte
+  MISSING L-0258 [supporting/rule_of_thumb] placed in 7: The whole domain is filled with trade-offs; there is no one right answer to anything - even 2 plus 2 can be re
+  MISSING L-0259 [aside/admin_reference] placed in 5.1: After the caching discussion, the next session covers the other four foundational components with the same exa
+  MISSING L-0260 [supporting/qa_insight] placed in 6.3: A student who thought caches must be in RAM asked why expensive computation results cannot simply be pre-compu
+  MISSING L-0261 [supporting/rule_of_thumb] placed in 6.3: Always ask 'why not this, why just this?' instead of being obsessed with storing caches in RAM: what matters i
+  MISSING L-0262 [aside/qa_insight] placed in 6.5: A student asked whether client-side local storage also counts as caching; the teacher deferred it to the next 
+  MISSING L-0263 [core/qa_insight] placed in 5.4: Marking many records as soft-deleted grows the database size, so soft-deleted rows are periodically hard-delet
+  MISSING L-0264 [supporting/concept] placed in 5.4: Instead of hard deleting, soft-deleted items can be moved somewhere else; that is archival.
+  MISSING L-0265 [supporting/claim] placed in 5.4: When a soft-deleted item can be moved to hard deletion is very subjective.
+  MISSING L-0266 [supporting/example] placed in 5.5: Under GDPR's right to be forgotten, if a user files a ticket with Facebook asking to delete everything it has 
+  MISSING L-0267 [supporting/claim] placed in 5.5: Right-to-be-forgotten deletion does not have to be immediate; the one-to-two month window gives breathing spac
+  MISSING L-0268 [supporting/claim] placed in 5.5: PII is deleted immediately, but logs have everything, so there are hacks to recover data.
+  MISSING L-0269 [supporting/war_story] placed in 5.5: Atlassian had a mega outage where data was deleted and it took them 14 days to recover it; that they could rec
+  MISSING L-0270 [supporting/claim] placed in 5.5: If you take daily database snapshots, nobody goes back and updates all historical snapshots when a user exerci
+  MISSING L-0271 [aside/claim] placed in 5.5: These are compliance hacks; the legal team helps navigate the compliance part to maximize what you can.
+  MISSING L-0272 [aside/war_story] placed in 5.5: The teacher built GDPR compliance himself: it took him two months to make the entire org GDPR compliant, imple
+  MISSING L-0273 [supporting/definition] placed in 5.5: GDPR is the compliance regulation that lets a user exercise the right to be forgotten (e.g. ask Instagram to d
+  MISSING L-0274 [core/qa_insight] placed in 6.4: Whether to compress data in a cache depends on a trade-off: decompression costs time, so compress only if what
+  MISSING L-0275 [supporting/claim] placed in 6.4: The cache will not do compression for you since most caches are just key-value: the application must compress 
+  MISSING L-0276 [aside/claim] placed in 6.4: There are probably plugins for most caches that do compression, but the teacher is not sure of any and has nev
+  MISSING L-0277 [core/example] placed in 6.4: Compressing a small field such as an email ID gives no boost and actually loses performance on decompress, but
+  MISSING L-0278 [aside/qa_insight] placed in 6.4: A student noted services like Instagram cache videos, video parts or images around the world; the teacher said
+  MISSING L-0279 [core/rule_of_thumb] placed in 6.4: Caches should never offer compression out of the box; it should be the application's responsibility, because c
+  MISSING L-0280 [supporting/process] placed in 6.4: Application-side compression flow: compress on your end, send it, store it, receive it, decompress it and retu
+  MISSING L-0281 [aside/rule_of_thumb] placed in 6.4: Keep asking questions: they surface use cases the teacher would otherwise find hard to cover; his answers come
+  MISSING L-0282 [supporting/qa_insight] placed in 5.4: A student, cross-questioned in an interview, asked how to keep a highly available service when a cron job hard
+  MISSING L-0283 [core/qa_insight] placed in 5.4: If a cron job must hard delete many soft-deleted rows (e.g. 100,000) while traffic is high, you must not delet
+  MISSING L-0284 [supporting/qa_insight] placed in 5.4: The interviewer's concern about locking table entries while deleting is about strong consistency, not availabi
+  MISSING L-0285 [aside/admin_reference] placed in 5.4: Strong consistency will be covered next week (Saturday) in the databases session.
+  MISSING L-0286 [core/qa_insight] placed in 6.3: Comparing a Redis cache with a database table holding the same pre-computed results, from first principles: th
+  MISSING L-0287 [supporting/comparison] placed in 6.3: Redis reads the value from memory, whereas the database goes to disk to read it.
+  MISSING L-0288 [supporting/claim] placed in 6.3: For very small reads (say 10-15 bytes) memory is much faster than disk because disk is humongously slow for sm
+  MISSING L-0289 [core/concept] placed in 6.3: A disk-based database stores data in a B+ tree, so a read needs a disk traversal of about log n reads dependin
+  MISSING L-0290 [core/tradeoff] placed in 6.3: Storing in memory costs more and the amount you can store is limited by RAM; a database is limited by disk, so
+  MISSING L-0291 [supporting/rule_of_thumb] placed in 6.3: Choosing between a Redis cache and a DB table is subjective: weigh what and how much you read, how data is sto
+  MISSING L-0292 [aside/qa_insight] placed in 6.3: A student added that choosing between a Redis cache and a database table for pre-computed results holds 'given
+  MISSING L-0293 [supporting/qa_insight] placed in 6.3: With a managed Redis service, the cloud provider does all the management and charges its own pricing, so cost 
+  MISSING L-0294 [supporting/tradeoff] placed in 6.3: If pre-computed results are stored in the same database that serves your application, the database also spends
+  MISSING L-0295 [supporting/qa_insight] placed in 5.4: A follow-up noted that an hourly cron job also takes one or two connections from the connection pool, while no
+  MISSING L-0296 [supporting/qa_insight] placed in 5.4: Soft delete conflicts with a uniqueness index (e.g. on email): if a user deletes their account and wants to cr
+  MISSING L-0297 [supporting/qa_insight] placed in 5.4: Setting a retention policy in the database instead of running a cron job still means someone does the deletion
+  MISSING L-0298 [supporting/rule_of_thumb] placed in 5.4: For regular-interval deletes, the approach that always works for DB performance is to offload it to the databa
+  MISSING L-0299 [supporting/qa_insight] placed in 6.3: Comparing the database with the cache assumes the worst case, a disk read; in the best case the table is small
+  MISSING L-0300 [supporting/qa_insight] placed in 6.3: Indexing a field does not guarantee RAM reads: if there is not enough RAM to fit the index, the read goes to d
+  MISSING L-0301 [supporting/qa_insight] placed in 3.4: If you work for Google and are bound to GCP, you are the vendor yourself and will never move out, so vendor lo
+  MISSING L-0302 [supporting/tradeoff] placed in 3.4: Wearing a manager's hat, another factor is talent: it is easier to hire people who know a widely used open-sou
+  MISSING L-0303 [supporting/example] placed in 3.4: TigerGraph is a proprietary graph database while Neo4j is widely known: you would find hundreds of developers 
+  MISSING L-0304 [supporting/qa_insight] placed in 3.3: Availability was left out of the DynamoDB vs Redis comparison by assuming it equal: with Redis your engineers 
+  MISSING L-0305 [supporting/qa_insight] placed in 2.7: Showing 'last seen' was out of scope for the online/offline indicator (only green and gray); if you need it, y
+  MISSING L-0306 [aside/admin_reference] placed in 2.8: How Redis automatically expires keys (TTL implementation) will be discussed in week three when designing a cac
+  MISSING L-0307 [supporting/qa_insight] placed in 6.3: Database indexes are permanently stored on disk, always; the teacher's YouTube video on how indexes make datab
+  MISSING L-0308 [supporting/concept] placed in 5.4: Soft delete gives time to archive later (e.g. after a day): collect all soft-deleted rows, put them elsewhere,
+  MISSING L-0309 [supporting/qa_insight] placed in 3.2: A student asked why the online/offline solution started directly with Redis or DynamoDB as the main database r
+  MISSING L-0310 [supporting/rule_of_thumb] placed in 3.2: Whether to use a primary database with Redis on top or just Redis depends on the guarantees your system needs 
+  MISSING L-0311 [core/claim] placed in 3.2: Using Redis as the primary DB for the online/offline indicator is fine: configure AOF-based persistence to get
+  MISSING L-0312 [supporting/rule_of_thumb] placed in 1.2: Drop hard stereotypes like 'DynamoDB is only for this' or 'SQL is only for that'; what matters is knowing how 
+  MISSING L-0313 [supporting/qa_insight] placed in 3.3: Autoscaling under sudden surges is a property of engineering teams rather than the tool; the comparison assume
+  MISSING L-0314 [supporting/qa_insight] placed in 3.7: Avoiding DB-specific features: TTL was chosen because expiration was needed, so the database was picked for it
+  MISSING L-0315 [supporting/rule_of_thumb] placed in 3.7: Draw a line on how far you abstract: drop the unrealistic concerns, focus on realistic ones and then design th
+  MISSING L-0316 [supporting/example] placed in 3.7: If you leave DynamoDB you would not use DynamoDB Streams, but CDC tools give you the same: with MySQL, use Deb
+  MISSING L-0317 [supporting/rule_of_thumb] placed in 3.7: Document the limitations of your design and the steps you would take if you ever had to migrate; being aware o
+  MISSING L-0318 [supporting/qa_insight] placed in 4.6: Whether connection pools multiply when you scale the database from one to two depends on how you scale; write 
+  MISSING L-0319 [core/example] placed in 4.7: Downside of connection pooling: with a database supporting at most 1,000 connections and a per-server pool wit
+  MISSING L-0320 [core/claim] placed in 4.7: A misconfigured connection pool limits the number of API servers you can have: the maximum is a factor of the 
+  MISSING L-0321 [supporting/example] placed in 4.7: If the pool may grow to as many connections as it wants, you cannot have many servers; and with a very high co
+  MISSING L-0322 [supporting/rule_of_thumb] placed in 4.7: Grass is not always green: know how and where to tune and where it can break; think in multiple directions, do
+  MISSING L-0323 [core/tradeoff] placed in 4.7: The connection TTL (time after which a pooled connection is removed) must not be too small, nor too large, whi
+  MISSING L-0324 [core/rule_of_thumb] placed in 4.7: The most important metric for tuning a connection pool is the average SQL query completion time on your databa
+  MISSING L-0325 [supporting/qa_insight] placed in 4.7: If the average query time for a frequently used query goes up, the connection pool for that DB should be expan
+  MISSING L-0326 [aside/qa_insight] placed in 4.6: How a database server sustains more than 30,000 TCP connections was left for students to Google (Hussein Nasse
+  MISSING L-0327 [supporting/qa_insight] placed in 2.8: TTL in Redis was used because space was important; if space is not important you skip it and keep the entries,
+  MISSING L-0328 [aside/admin_reference] placed in 7: Trade-off intuition is built over the eight weeks: every system designed will discuss trade-offs for hours, an
+  MISSING L-0329 [aside/admin_reference] placed in 7: Where to stop overthinking is covered in week six, day two, by looking at the same system from manager, produc
+  MISSING L-0330 [core/concept] placed in 2.3: HTTP is designed to be stateless - one request, one response, deal done - but you can still keep a persistent 
+  MISSING L-0331 [supporting/claim] placed in 2.3: HTTP/2 keeps persistent connections; WebSocket is not HTTP but also keeps a persistent connection; no rule say
+  MISSING L-0332 [supporting/process] placed in 2.3: Normally the client sends a request, the server responds and terminates the connection; with the keep-alive he
+  MISSING L-0333 [supporting/rule_of_thumb] placed in 2.3: Think of HTTP as stateless - it simplifies design; when you need state, better options exist such as WebSocket
+  MISSING L-0334 [aside/admin_reference] placed in 2.3: A future system will use HTTP/2 to keep connections stateful; this is covered in week five, day two.
+  MISSING L-0335 [supporting/qa_insight] placed in 2.3: A student recalled a resource saying HTTP cannot run on top of TCP; the teacher said HTTP is on top of TCP, an
+  MISSING L-0336 [supporting/claim] placed in 2.3: HTTP is a protocol/specification while TCP is the layer 4 protocol, so there is no relation: you can send HTTP
+COVERAGE FAIL
+## links
+check-links: 11 pages, 232 internal links and assets checked under base /vedio-to-blog/
+ok: zero broken links
+## figures
+check-figures ok: every page at 360/390/768/1440, light + dark
+
+GATES FAIL

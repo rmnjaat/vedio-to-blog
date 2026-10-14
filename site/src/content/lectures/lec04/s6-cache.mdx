@@ -1,0 +1,265 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { WhatACacheSaves, OneCacheThreeServers, HashVsTree, CompressWhere, YourTurn, ThreeThingsSaved } from '../../../figures/lec04/s6-cache';
+
+{/* §6 What a cache is (6.1–6.5). Writer w4. One chapter page: /lectures/lec04/6-cache/.
+    Q&A folded in from 02:20–02:46 (outline §6). */}
+
+<Section id="s6" no="6" title="What a cache is" crumb="6 What a cache is"
+  dek="A cache is not “RAM” and not “Redis”. It is anything that saves an expensive disk read, network call or computation. One shared cache for the blog, a database table as a cache, and whether to compress."
+  meta="About 20 min · class 02:11–02:20, Q&A 02:20–02:46">
+
+The blog from chapter 5 is stored. Now one post gets popular, and every read of it runs the same three- or four-table join on the database, again and again, for a result that hasn’t changed.
+
+The obvious fix is “add a cache”. Before reaching for one, this chapter asks what a cache actually is, because the usual answer, “RAM” or “Redis”, is too small.
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Not just RAM" crumb="6.1 Not just RAM"
+  dek="Caching is not a place in memory. It is the act of keeping a result so you don’t pay for it twice."
+  meta="About 4 min · class 02:11–02:14">
+
+This chapter is short on purpose. Caching got five to seven minutes on day one, because the first day keeps things simple; its many use cases, and how to improve them, come up all through the course. [[L-0169]] What was covered here sets up a discussion for the very next session, which opens with it ([§6.5](#s6-5)). [[L-0237]]
+
+People misunderstand caching a lot. The first thing to drop: caching is not just in-memory caching. [[L-0238]]
+
+Caching is anything, literally anything, that helps you save a heavy computation or a heavy operation so that you don’t have to do it again. Whatever result you keep so you can refer to it, instead of redoing an expensive computation, operation or I/O, becomes a cache. The board put it as “Caching: reduces response times by saving any heavy computation”. [[L-0239]]
+
+You have met one already. Memoization in dynamic programming is classic caching. [[L-0240]]
+
+Many people hear “cache” and think RAM. Who said a cache has to be in RAM? Caches are not only RAM-based: you can use disk as a cache, and you can use the network as a cache. [[L-0241]]
+
+What caching usually saves is disk I/O or network I/O. The habit of caching in RAM comes from RAM being faster than disk: the core idea there is that you save an expensive disk read by keeping the computed result in RAM. [[L-0242]] Turn it around. If a network call is expensive, cache its result on the local disk and read that disk instead of making the call. That cache saves an expensive network I/O. [[L-0243]]
+
+<Figure id="fig-6a" max={880} no="Fig 6·a" k="L-0241 L-0243 L-0244"
+  caption="Three things a cache can save. Left: a disk read, by keeping the result in RAM. Middle: a network call, by keeping its result on the server’s own disk; the disk is a cache too. Right: a computation, by memoizing its answer.">
+  <Desk><WhatACacheSaves /></Desk>
+  <Phone><WhatACacheSaves layout="phone" /></Phone>
+</Figure>
+
+So a cache is anything that saves one of three things: an expensive disk I/O, an expensive network I/O or an expensive computation. These are the four resources from [§4.8](#s4-8) again: computer science has four things, disk, network, CPU and RAM, and any expensive disk I/O, network I/O or computation you save is a cache for you. [[L-0244 L-0151]]
+
+<RuleBox rule="A cache is anything that saves one of three things: ==an expensive disk I/O, network I/O or computation==." k="L-0244 L-0246">
+
+On the board, underneath: “Caches are just glorified hash tables… with some advanced data structures.” Where the copy lives, RAM, a local disk, another table, is a separate choice. Make it per case.
+
+<Desk><ThreeThingsSaved /></Desk>
+<Phone><ThreeThingsSaved layout="phone" /></Phone>
+
+</RuleBox>
+
+So be very creative in finding uses for caches. [[L-0245]]
+
+And don’t be intimidated by them. Caches in general are just glorified hash tables: a key, a value, and that’s it. [[L-0246]] Redis offers a set of advanced data structures, such as HyperLogLog, Bloom filters and geospatial queries, but the useful mental model is that underneath it is still hash tables and key-values, nothing more. [[L-0247]] As of October 2026 Redis documents Bloom filters, HyperLogLog and geospatial indexes as built-in data types <Cite href="https://redis.io/docs/latest/develop/data-types/">redis.io</Cite>; the keyspace is a key-to-value lookup, but each value is its own encoded structure.
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="One shared cache for the blog" crumb="6.2 One shared cache"
+  dek="Three API servers, one copy of the popular post. The join runs once."
+  meta="About 3 min · class 02:14–02:17">
+
+In the blog example, the cache typically goes in as a remote cache that any API server can talk to. Logically it sits between the API servers and the database; physically it is a separate box. [[L-0248]]
+
+<Figure id="fig-6b" max={600} no="Fig 6·b" k="L-0248 L-0250 L-0256"
+  caption="Logically between the API servers and the database; every server reads the same copy. The blue read lands on the middle server and is answered by the cache. Redrawn from the class board at 02:16.">
+  <Desk><OneCacheThreeServers /></Desk>
+  <Phone><OneCacheThreeServers layout="phone" /></Phone>
+</Figure>
+
+The read flow is the standard one. A request reaches an API server, which first checks the cache. If the data is there, it returns it. If not, it reads from the database, puts the data into the cache, and returns it to the user. [[L-0249]]
+
+```python
+def get_blog(blog_id):
+    blog = cache.get(f"blog:{blog_id}")
+    if blog is not None:
+        return blog                         # hit: no database call at all
+    blog = db.fetch_blog_with_join(blog_id) # miss: the 3–4 table join, once
+    cache.set(f"blog:{blog_id}", blog)      # expiry and invalidation: not covered here
+    return blog
+```
+
+Because the cache is remote, it doesn’t matter which API server a request lands on: all of them read from the same cache. There is just one copy of the data in the cache, and everyone reads it. [[L-0250]]
+
+That is what makes it pay off for a popular blog. Running the same expensive three- or four-table join on the database for every read puts unnecessary load on it. Cache the blog in the centralised remote cache instead: the request goes to the cache, which is much faster, and the load on the database drops by a massive margin, because its queries are now answered by the cache. [[L-0251]]
+
+<AnimationClip clip="l04-cache-aside" no="Clip 6·1" k="L-0248 L-0249 L-0250 L-0251 L-0252"
+  lead="Three API servers, 1,000 reads of one popular post. How many joins does the database run?"
+  caption="Without a cache, every read runs the same join. With one shared cache, the first read misses and runs it once; every later read, on any server, hits the same copy. Save the expensive computation once; read it many times." />
+
+The remote cache is not free: it still costs a network hop. But reading a precomputed result from the cache is much faster than going to the database, recomputing it and sending it back. [[L-0252]]
+
+<ForwardChip block when="Lecture 2">caches at every layer of the route: the browser, the CDN, the load balancer, the API server’s RAM and disk, materialized views</ForwardChip>
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="A table can be a cache" crumb="6.3 A table as a cache"
+  dek="If a cache is any saved result, a database table holding precomputed rows is one. So why use Redis?"
+  meta="About 6 min · class 02:20–02:21, Q&A 02:32–02:36 and 02:41–02:46">
+
+If caches had to live in RAM, this would be off the table: precompute the expensive result, store it in a database table, then read that table. It is a possible place too. [[L-0260]] Databases even have a built-in form of it: a PostgreSQL materialized view stores a query’s result in table form, and in the docs’ example a read falls from 188 ms to 0.117 ms, but the data is only as fresh as the last refresh <Cite href="https://www.postgresql.org/docs/current/rules-materializedviews.html">postgresql.org</Cite>.
+
+Always ask “why not this? why just this?” instead of being obsessed with keeping caches in RAM. What matters is that the business and the product work and perform, however you do it. [[L-0261]]
+
+From a throughput point of view, then, is reading precomputed results from Redis the same as reading them from a database table? Take it from first principles, one factor at a time.
+
+**Connections.** The application server holds persistent connections to both, Redis and the relational database, so the connection cost cancels out. [[L-0286]]
+
+**Memory or disk.** Redis reads the value from memory; the database goes to disk to read it. [[L-0287]] That is the worst case. Databases keep hot table and index pages in RAM, in InnoDB’s buffer pool <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-buffer-pool.html">dev.mysql.com</Cite> for example, so many database reads never touch the disk; more on this below.
+
+**How much you read.** For very small reads, say 10–15 bytes, memory is much faster, because disk is humongously slow for small reads. For larger reads, say 1 KB, the difference is minimal: Redis would still be a little faster, but not hugely. [[L-0288]]
+
+<SourceNote href="https://www.postgresql.org/docs/current/storage-page-layout.html" site="postgresql.org" k="L-0288">
+
+Databases read storage in pages (8 kB in PostgreSQL, 16 KB by default in InnoDB <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-physical-structure.html">dev.mysql.com</Cite>), so a 15-byte read and a 1 KB read cost the same page I/O; the memory-vs-disk gap narrows only for large sequential reads. The latency figures often quoted for this (100 ns memory, 10 ms seek) date from about 2009 <Cite href="https://brenocon.com/dean_perf.html">brenocon.com</Cite>.
+
+</SourceNote>
+
+**How it is stored.** A disk-based database stores its data in a B+ tree, so a read walks the tree down to the row: not one disk read but one, two, three, about log n reads depending on the number of rows. An in-memory hash gets the value in one shot. [[L-0289]]
+
+<Figure id="fig-6c" max={620} no="Fig 6·c" k="L-0287 L-0289 L-0299"
+  caption="Left: Redis hashes the key and reads the value from RAM in one step. Right: a database walks its B+ tree from root to leaf, one page per level, about log n reads; in the worst case each comes from disk, though the upper levels are often already in RAM.">
+  <Desk><HashVsTree /></Desk>
+  <Phone><HashVsTree layout="phone" /></Phone>
+</Figure>
+
+**Cost and size.** Keeping data in memory costs more, and how much you can store is limited by RAM; a database is limited by disk. So you get a larger cache on disk versus a smaller cache in memory. RAM is more expensive than disk, and that is the biggest factor in the choice. [[L-0290]]
+
+So the choice is subjective. Weigh what you read and how much, how the data is stored, how many I/Os happen, what you actually gain and how much data you keep. Overall, there is not much difference. [[L-0291]] One condition was added in class, only partly audible on the recording: that this holds "given that the computation you are saving is humongous". Treat it as a point raised, not a worked-out rule. [[L-0292]]
+
+Two more costs. A managed Redis service runs on the cloud provider’s pricing and billing, so its cost has to be counted. [[L-0293]] And if you keep the precomputed results in the same database that serves the application, that database also spends time processing those reads, and the existing requests feel it. [[L-0294]]
+
+<TradeoffTable caption="Where to keep a precomputed result"
+  k="L-0286 L-0287 L-0289 L-0290 L-0294"
+  columns={[{ label: 'Redis', glyph: 'redis' }, { label: 'Table in the app database', glyph: 'matview' }, { label: 'Table in a separate database' }]}
+  rows={[
+    { label: 'Read path', cells: ['Hash lookup in RAM, one step', 'B+ tree walk, about log n page reads', 'B+ tree walk, about log n page reads'], k: 'L-0287 L-0289' },
+    { label: 'Connection cost', cells: ['Persistent connection', 'Persistent connection', 'Persistent connection'], k: 'L-0286' },
+    { label: 'Cost per GB', cells: ['High: RAM', 'Low: disk', 'Low: disk'], k: 'L-0290' },
+    { label: 'Size limit', cells: ['The RAM you pay for', 'The disk', 'The disk'], k: 'L-0290' },
+    { label: 'Extra load on', cells: ['The cache only', { text: 'The database already serving users', bad: true }, 'That other database'], k: 'L-0294' },
+    { label: 'Freshness', cells: ['As fresh as your last write to it', 'As fresh as the last refresh', 'As fresh as the last refresh'] },
+  ]} />
+
+If the field is indexed, doesn’t the read come from RAM anyway? The comparison deliberately assumed the worst case, a read from disk. In the best case the table is so small that the database keeps it in RAM, and then there is no difference. [[L-0299]] Indexing a field does not guarantee RAM reads either: if there isn’t enough RAM to fit the index, the read goes to disk. Always design for the worst case, a disk read. [[L-0300]]
+
+Does an index ever live in RAM permanently? No. Indexes are stored permanently on disk, always. A course video on how indexes make database reads faster explains it, and it is in the next week’s pre-reads. [[L-0307]] <ForwardChip when="Lecture 3" k="L-0307">how indexes make reads faster</ForwardChip>
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="Should the cache compress?" crumb="6.4 Compression"
+  dek="Compression trades CPU for bytes. Where it happens decides which bytes you save."
+  meta="About 4 min · class 02:26–02:30">
+
+Should you compress what you cache, to cache less data? It depends, and the trade-off is decompression: it costs time. Compress only if what you cache is big, massive text blobs for example, and decompressing then reading is faster than reading the larger data and paying for the extra memory to hold it. Do the trade-off analysis, then decide. [[L-0274]]
+
+The cache won’t do it for you. Most caches are just key-value, so the application has to compress before it stores and decompress after it reads. [[L-0275]] Redis’s own compression is limited to its RDB snapshot files (on by default) and, optionally, the inner nodes of lists; compressing large values is left to the client <Cite href="https://raw.githubusercontent.com/redis/redis/unstable/redis.conf">redis.conf</Cite>.
+
+There are probably plugins for most caches that compress, though none is named here, and there is rarely a genuine reason to keep massive values in a cache in the first place. [[L-0276]] In practice it is usually the client library: pymemcache’s compressing serializer, for example, zlib-compresses values longer than 400 bytes and keeps the original if compression doesn’t make it smaller <Cite href="https://github.com/pinterest/pymemcache/blob/master/pymemcache/serde.py">github.com</Cite>.
+
+Size decides it. Compressing a small field such as an email ID gives no boost; decompressing it would actually cost performance. Compressing a whole blog body, say 10 KB stored as 1 KB, which is not unusual, would be a huge benefit. [[L-0277]]
+
+What about the images and video that services like Instagram cache around the world? CDNs distribute those, and nothing stops you from compressing them. [[L-0278]] Text is what compresses well, though: HTML, CSS, JavaScript and JSON. Images, audio and video are already compressed by their formats, and compressing them again can make files larger <Cite href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Compression">developer.mozilla.org</Cite>.
+
+<PauseAndThink k="L-0274 L-0277 L-0279 L-0280"
+  q="You cache 10 KB blog bodies that compress to 1 KB. Should the cache compress them for you, or should your app compress them before sending?"
+  choices={[{ label: 'The cache: it’s a storage concern' }, { label: 'The app: before it hits the network', correct: true }]}
+  right="Right. Compress once, and every hop carries 1 KB."
+  wrong="It saves the cache’s memory, but 10 KB still crosses the network every time.">
+
+If the app compresses, it sends 1 KB, the cache stores 1 KB and readers fetch 1 KB. If the cache compresses, 10 KB still travels each way, wasting bandwidth. So, in the lecture’s view, caches should never offer compression out of the box; it is the application’s job. That is a judgement rather than an industry rule: the bandwidth argument is why client libraries compress, while Redis itself still compresses where it is cheap and invisible, as in its snapshot files. Compress only big values: a small email ID gets slower, not smaller.
+
+</PauseAndThink>
+
+Why should a cache offer compression at all? If the cache compresses, you still ship 10 KB over the network to have it stored as 1 KB. Compress on your end and you transfer 1 KB. [[L-0279]]
+
+<Figure id="fig-6d" max={600} no="Fig 6·d" k="L-0277 L-0279 L-0280"
+  caption="Top: the cache compresses, so the full 10 KB still crosses the network. Bottom: the app compresses first, so 1 KB crosses the network and 1 KB is stored.">
+  <Desk><CompressWhere /></Desk>
+  <Phone><CompressWhere layout="phone" /></Phone>
+</Figure>
+
+The flow, then: compress on your end, send it, store it; on the way back, receive it, decompress it and return it. [[L-0280]]
+
+```python
+import zlib
+
+def put_body(blog_id, body: bytes):
+    cache.set(f"body:{blog_id}", zlib.compress(body))      # 10 KB in, about 1 KB over the wire
+
+def get_body(blog_id) -> bytes:
+    return zlib.decompress(cache.get(f"body:{blog_id}"))  # 1 KB over the wire, 10 KB out
+```
+
+Questions like this one surface use cases that are hard to cover otherwise, and the answers come from experience; keep asking them. [[L-0281]]
+
+</Section>
+
+<Section id="s6-5" no="6.5" title="Exercise: every place you could cache" crumb="6.5 Exercise"
+  dek="One place is covered. Find the others before the next session does."
+  meta="About 3 min · class 02:17–02:22">
+
+The board’s “fun exercise”: on this common architecture, find every possible place you could use as a cache, with an example: what you would cache there and what problem it solves. The next session’s first thirty minutes are this discussion, with each person who raises a hand pitching one place. [[L-0254]]
+
+<Figure id="fig-6e" max={700} no="Fig 6·e" k="L-0254 L-0256"
+  caption="Your turn. Tag 1 is done: the central cache that every API server talks to, which saves database calls. Tags 2 and 3 are hints: the CDN (added to the board’s drawing here) and the load balancer. Find the rest yourself. Redrawn from the class board at 02:17.">
+  <Desk><YourTurn /></Desk>
+  <Phone><YourTurn layout="phone" /></Phone>
+</Figure>
+
+One place is already covered: the centralised, application-level cache that every API server talks to, which saves expensive database calls and computation. Find the others. The CDN might be one; the load balancer might be another. Think along those lines. [[L-0256]]
+
+The point is to spark ideas, and to see the many interesting, quote-unquote, “hacks” people have applied to get the most performance out of their systems. [[L-0257]]
+
+Does the client’s local storage count as caching? It is deliberately left for the next session’s discussion of all the places you can cache: it is one of the answers to find. [[L-0262]]
+
+<MarginNote title="From an earlier cohort" why="skip unless you want proof the exercise pays" k="L-0255">
+
+In a cohort roughly two years earlier, the same discussion of caching places led a participant who worked at Goldman Sachs to take one idea back to work and propose it to their manager. The manager approved it, and they saw a massive performance boost from a place to cache that nobody there had thought of.
+
+</MarginNote>
+
+How caches work inside, eviction, LRU, LFU and the rest, comes later, when the course builds a distributed cache and a key-value store from scratch. [[L-0253]]
+
+<ForwardChip block when="Lecture 9" k="L-0253">building a distributed cache: eviction, LRU, LFU</ForwardChip>
+
+<h3 id="s6-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Name a cache that lives on disk and one that is a database table.">
+
+On disk: the result of an expensive network call kept on the API server’s local disk, so the next request reads the disk instead of calling out. A database table: precomputed results, such as the popular blog’s join, stored in a table (a materialized view is the database’s built-in form). Both save one of the three things: here a network I/O and a computation.
+
+  </RecallItem>
+  <RecallItem q="When does a Redis cache barely beat a table holding the same precomputed rows?">
+
+When the connection cost is equal (both are persistent), the reads are larger rather than tiny, and above all when the table is small enough that the database keeps it in RAM: then there is no difference. Redis wins clearly for tiny reads served from a database’s disk, since it needs one hash lookup instead of a B+ tree walk; design for that worst case. RAM’s higher cost per GB, and the extra load on a shared database, are the other weights.
+
+  </RecallItem>
+  <RecallItem q="Why compress a 10 KB blog body in the app rather than in the cache?">
+
+Because the network is where the bytes travel. If the app compresses, 1 KB goes over the wire, 1 KB is stored and 1 KB comes back. If the cache compresses, the full 10 KB still crosses the network every time. Compress only big values: a small field like an email ID only gets slower.
+
+  </RecallItem>
+</RecallQuestions>
+
+The exercise is the bridge to Lecture 2. Before it, chapter 7 collects the habits that ran through both builds.
+
+<SectionEnd next={{ title: '7 · What to keep', href: '#s7' }}
+  concepts={[{ label: 'cache (any saved I/O or computation)', href: '#s6-1' }, { label: 'memoization', href: '#s6-1' }, { label: 'remote cache', href: '#s6-2' }, { label: 'cache-aside read', href: '#s6-2' }, { label: 'table as a cache', href: '#s6-3' }, { label: 'compression', href: '#s6-4' }]} />
+
+</Section>

@@ -7,7 +7,7 @@ The site engineer owns this plumbing. Clips are authored in the lab (`learn/anim
 src/animations/
   lib/                     copy of learn/animations-lab/src/lib (tokens, hand, anim, primitives). Re-copy when the lab changes.
   clips/<id>/              copy of learn/animations-lab/src/clips/<id>/ (timeline.ts + <Name>.tsx [+ storyboard])
-  registry.ts              id -> lazy loaders (the only place the site learns about a clip)
+  registry.ts              discovers clips/*/ (import.meta.glob) -> lazy loaders; nothing to register by hand
   Root.tsx, index.ts       Remotion Studio root (optional, see below)
 ```
 
@@ -17,13 +17,14 @@ src/animations/
 - `clips/<id>/<Name>.tsx` has a **default export** `React.FC<{ theme: 'paper' | 'blackboard' }>` and uses
   `useCurrentFrame()` only (no state, timers or `Math.random`).
 
-## Registering a clip
-1. Copy `learn/animations-lab/src/clips/<id>/` to `src/animations/clips/<id>/` (and re-copy `lib/` if it changed).
-2. Add to `registry.ts`:
-   ```ts
-   '<id>': { meta: () => import('./clips/<id>/timeline'), component: () => import('./clips/<id>/<Name>') },
-   ```
-3. (Optional) add it to `Root.tsx` for Studio.
+## Adding a clip (no registration)
+Clips are **discovered automatically** (`registry.ts` uses `import.meta.glob`): a folder `src/animations/clips/<id>/` with
+`timeline.ts` (exports `META`) and exactly **one capitalised** component file `<Name>.tsx` (default export) is a clip.
+Helper files inside a clip folder must start lower-case. Lectures built in parallel therefore never edit a shared file.
+1. Build and check the clip in the lab (`pipeline/bin/lab.sh check <id>`), then copy it: `pipeline/bin/lab.sh copy <id>`
+   (copies `learn/animations-lab/src/clips/<id>/` here). Copy only a clip that passed its checks: every clip folder is
+   compiled by every site build.
+2. Never edit `lib/` from a lecture's clip work; clip-specific helpers live in the clip folder.
 
 ## Embedding it in a page (MDX)
 ```mdx

@@ -1,0 +1,153 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import { StoreEnd } from '../../../figures/lec05/s6-keep';
+
+<Section id="s6" no="6" title="Craft, opinions, and what to keep" crumb="6 Craft and keep"
+  dek="Views on ORMs, languages and learning, kept as the lecture’s opinions, then the heuristics that recur across both builds and where this lecture stops."
+  meta="About 9 min · class Q&A 01:19–01:20, 02:51–03:01, 03:09–03:12, 03:19">
+
+Both builds in this lecture came down to single clauses: two words that made the check-in correct, two more that made it ten times faster, one condition that kept a 10 MB value from crossing the network. The class's longest tangents were about the craft around those clauses: who writes the SQL, which language runs it, and how to learn what the engine does with it. Sections 6.1 and 6.2 are opinions from class, not settled practice; they are marked as such once, here.
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="ORMs or raw SQL" crumb="6.1 ORMs"
+  dek="Chapter 3 tuned every clause by hand. Could an ORM have written them?"
+  meta="About 3 min · class 02:51–02:56">
+
+Chapter 3 tuned every clause of the key-value store by hand. Could an ORM have written them? The lecture's verdict is blunt: ORMs suck, and for the full case there are tons of articles on why. [[L-0230]]
+
+ORMs don't always generate optimal queries, and they are bad at advanced SQL. [[L-0308]] The best-known trap is the N+1 query pattern, where touching a related object inside a loop fires one query per row. Django's `select_related` and `prefetch_related` exist, in Django's own words, "to stop the deluge of database queries that is caused by accessing related objects" <Cite href="https://docs.djangoproject.com/en/5.2/ref/models/querysets/">djangoproject.com</Cite>.
+
+An ORM makes life simple and gives you speed, but it takes control away: put an optimized query in a stored procedure, and ORMs don't have great support for invoking it. [[L-0309]] Django, for one, does have a way: `cursor.callproc()` calls a stored procedure and `Manager.raw()` maps raw SQL onto models. The support is plain rather than missing <Cite href="https://docs.djangoproject.com/en/5.2/topics/db/sql/">djangoproject.com</Cite>.
+
+ORMs are built for the general case: the same ORM talks to MySQL, Postgres and others. When you want a construct only one database offers, the ORM may not support it, and you fall back to a raw query or a prepared statement. [[L-0315]] Connection pooling is another weak spot, and in practice it has caused its fair share of problems. [[L-0316]] That is true of Django's defaults: `CONN_MAX_AGE` is 0, which closes the connection at the end of every request, and native pooling for PostgreSQL arrived only in Django 5.1 <Cite href="https://docs.djangoproject.com/en/5.2/ref/databases/">djangoproject.com</Cite>. It isn't true of every ORM: SQLAlchemy's engine comes with a connection pool built in <Cite href="https://docs.sqlalchemy.org/en/20/core/pooling.html">sqlalchemy.org</Cite>.
+
+An ORM selects all the columns by default; to get performance you add explicit projections and pick the columns you need, and that code becomes unreadable. [[L-0312]] Django's versions of those projections are `only()` and `defer()`, which load just some fields, and `values()`, which returns plain dictionaries instead of model instances <Cite href="https://docs.djangoproject.com/en/5.2/ref/models/querysets/">djangoproject.com</Cite>. Next to that, the SQL query is often the more readable one; Django's `prefetch_related` and its relatives, and Hibernate too, were called an "utter mess". [[L-0314]]
+
+<TradeoffTable caption="ORM or native SQL, in the lecture's view: what each is good at and where it hurts"
+  k="L-0308 L-0309 L-0310 L-0311 L-0312 L-0315 L-0318"
+  columns={[{ label: 'ORM' }, { label: 'Native SQL' }]}
+  rows={[
+    { label: 'Good for', cells: ['Startups and mid-scale: shipping velocity', 'High scale: micro-optimizations, control over every query'], k: 'L-0310 L-0311' },
+    { label: 'The query you get', cells: [{ text: 'Not always optimal; weak at advanced SQL; all columns by default', bad: true }, 'Exactly the query and the columns you need'], k: 'L-0308 L-0312' },
+    { label: 'Stored procedures, one-database constructs', cells: ['Plain support, or none', 'Anything your database offers'], k: 'L-0309 L-0315' },
+    { label: 'A join of 10–15 tables', cells: [{ text: 'Nobody can read it', bad: true }, 'Elegant and simple to understand'], k: 'L-0318' },
+  ]} />
+
+So the line falls at scale. ORMs are good for mid-scale; at high scale, when you want micro-optimizations and control over how every SQL query is built, they are the worst. [[L-0310]] That doesn't make them wrong for everyone. A startup should use an ORM: early on it gives the shipping velocity you need, and over-optimizing would only slow you down. Use ORMs day in and day out, then, but don't use one at scale. [[L-0311]] A startup also has to, because you can't rely on everyone's hand-written queries: people write stupid queries. [[L-0313]]
+
+<RuleBox rule="Ship with an ORM; ==write the big queries in native SQL==." k="L-0317 L-0318">
+
+The compromise suggested in class got a "100%": write native SQL inside the ORM for the bigger queries. ORMs don't give you raw performance or database-specific operations, and complex ORM queries hurt readability. [[L-0317]] The example is an ordinary transactional requirement, not even a data warehouse, that needs a join of 10 or 15 tables with a bunch of aggregations. Written with an ORM, nobody can read it. Written as plain SQL, it is elegant and simple to understand. [[L-0318]]
+
+</RuleBox>
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="Why the demo is in Go" crumb="6.2 Why Go"
+  dek="Readable code, cheap concurrency, and the circle of life of programming languages."
+  meta="About 2 min · class 02:56–03:01">
+
+A question about Kotlin coroutines and goroutines led to the demo's language, and to why it isn't one on the JVM. The reason is readability. Java has been abused with abstraction: things happen automatically, through bean injection, dynamic injection and singleton injection, which leaves zero readability and turns a Java code base into a labyrinth. Code that flows top to bottom, as C++, Go and Python allow, reads better. [[L-0320]] Go's concurrency is much better than Java's, and Go spends the bare minimum of time in garbage collection. [[L-0321]]
+
+<MarginNote title="From class: the JVM in practice" why="skip unless you work on the JVM" k="L-0319 L-0322 L-0325">
+
+The stack behind these views stays far from the JVM: the bare minimum of Java a job requires, and everything else in Python, Go or C++. [[L-0319]] In that experience Java has gone very poorly, and similar views posted on LinkedIn drew pushback. [[L-0325]]
+
+One team in class, running microservices, chose Vert.x over Spring Boot for one project. Vert.x gives fine-grained control; Spring Boot gives high velocity when you start, but later becomes boilerplate-heavy. Speed and concurrency were added in class as further reasons. [[L-0322]]
+
+</MarginNote>
+
+A JVM process takes about 200 MB of memory to start, by the lecture's figure, which is enough to run an entire startup. [[L-0323]] To see what abstraction abuse looks like, search GitHub for "FizzBuzz Enterprise Edition": a trivial program buried in unnecessary classes and abstractions, built on the assumption that everything (the database, the logic) will one day be extended or swapped. You never need it. [[L-0324]]
+
+That mess has a cause. Make something survive for more than two decades and this is what happens. The same will happen to Go and to Rust; this isn't a claim that Go is the best. [[L-0326]] Everyone starts with something fresh, it gets messy over time, and people move to something new, as they moved from JavaScript to TypeScript, which will get messy too. That's the circle of life of programming languages: a language either dies a hero or lives long enough to become an enterprise version of code. [[L-0327]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="How to learn this" crumb="6.3 How to learn"
+  dek="Build the core yourself, read the engine’s source, trust the official docs, and notice the college fundamentals at work."
+  meta="About 2 min · class 00:26, 01:19–01:20, 01:25, 03:20">
+
+Four habits, from across the class:
+
+1. **Build only the core yourself.** Implement what you study, and only the part you want to understand: the check-in demo built just the database part, with no frontend and no full backend. If you aren't a frontend expert, don't spend your time learning frontend to finish an exercise. [[L-0059]]
+2. **Read the engine's source, for one week.** The word this page used for waking a waiter, "signal", isn't invented for teaching: you will find those exact terms, signals and all, in MySQL's source code, which is why the lecture uses them. The code is easy-to-read C and C++, though it may feel overwhelming at first. [[L-0149]] Dedicate one week of your time to it. You will not regret it, because you come out with a very deep understanding of how database internals work. [[L-0151]]
+3. **Trust the official documentation.** Official documentation always rules. You will find a ton of content on mediocre topics and almost none, such as YouTube videos, on advanced ones, because hardly anyone wants to read about them. [[L-0153]]
+4. **Notice the fundamentals at work.** Deadlock detection and prevention is core computer science that isn't going anywhere, however many frameworks come out, and it applies to operating-system threads and distributed transactions as much as to databases. [[L-0036]] Thread signalling and disk IO were taught in college too; we just never paid attention to where they are used. That is the case for formal education. [[L-0164]]
+
+<MarginNote title="From class: where this depth comes from" why="skip" k="L-0061 L-0150 L-0152">
+
+The course's claim is that about 85% of what it teaches was built in production by its author, which is how it knows where those systems falter. Anyone can draw high-level boxes; knowing the implementation details is what makes a better architect. [[L-0061]] Reading MySQL's code is where that understanding came from: how transactions are implemented and why, how they behave, and why locking doesn't happen at the disk level. [[L-0150]] That reading, and performance tuning, are credited for the much more performant systems built and the SQL systems scaled massively since. [[L-0152]]
+
+</MarginNote>
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="What to keep" crumb="6.4 What to keep"
+  dek="The store as the lecture left it, ten heuristics from both builds, and where this lecture stops."
+  meta="About 3 min · class 03:09–03:12, 03:19">
+
+The key-value store began chapter 3 as an empty table called `store`. Here is where it ended. Each part carries the number of the section that covers it, and every number is a link back to that section.
+
+<Figure id="fig-6a" no="Fig 6·a"
+  caption="The store at the end of Lecture 3: API servers that route by key range, two masters each owning a range, a replica that pulls changes from each (the data flows master → replica), one batch cleanup per master, and inside each master the store table, whose rows are locked by writes (§1.3, §2.4).">
+  <Desk><StoreEnd /></Desk>
+  <Phone><StoreEnd layout="phone" /></Phone>
+</Figure>
+
+### Ten lines to keep [[rail: Heuristics]]
+
+The same few ideas came back in both builds:
+
+1. Take a lock where the correctness of the data matters more than throughput; where it doesn't, skip it ([§1.2](#s1-2)). [[L-0023]]
+2. In any code that locks, check the order in which locks are taken and released, and guard against a possible deadlock ([§1.5](#s1-5)). [[L-0028]]
+3. Fixed inventory + contention = locking ([§2.7](#s2-7)). [[L-0126]]
+4. When any free row will do, use `SKIP LOCKED`; when the user wants a specific row, wait for it with plain `FOR UPDATE` ([§2.5](#s2-5), [§2.6](#s2-6)). [[L-0052 L-0138]]
+5. Hold, don't lock, across a payment: never keep a transaction open while a user pays ([§2.7](#s2-7)). [[L-0137]]
+6. Pick a column's type by how it is accessed, not by what it holds, and fix the key size up front ([§3.2](#s3-2)). [[L-0183 L-0180]]
+7. Never compute in a WHERE clause you want an index to answer; store the answer instead ([§3.3](#s3-3)). [[L-0191]]
+8. Every clause has a cost: network IO, disk IO, a second job. Do disk IO only when it's needed ([§3.6](#s3-6)). [[L-0223 L-0262]]
+9. Build a single node first, then grow it one bottleneck at a time ([§3.1](#s3-1), [§5](#s5)). [[L-0170 L-0290]]
+10. When you design something foundational, know what you definitely don't want to build, and give raw constructs to build on ([§3.4](#s3-4)). [[L-0357]]
+
+<MarginNote title="Back to the green dot" why="skip unless you read Lecture 1" k="L-0341 L-0342 L-0343 L-0344">
+
+A question from the end of class went back to Lecture 1's online/offline indicator and its choice between push and pull. It is tempting to describe the push model as the API server connecting to the user every few seconds over HTTP. It's the other way round: in the push model, the user pushes to the API server. [[L-0342]] The server can't connect to the user at all. It doesn't know the user's IP address unless the user opens the connection, and a TCP connection needs the IP address of the machine; the user is the one who knows the server's address. [[L-0341]]
+
+Over a WebSocket, no explicit heartbeat is needed: if the connection exists, the user is online; when it terminates, the user is offline. That is why WhatsApp Web shows no heartbeat calls. [[L-0343]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc6455#section-5.5.2" k="L-0343">
+
+A WebSocket removes the need for heartbeat *calls*, but liveness still needs a heartbeat at the protocol level: WebSocket Ping and Pong frames ("a Ping frame may serve either as a keepalive or as a means to verify that the remote endpoint is still responsive") or TCP keepalive, with a timeout. A dropped connection may otherwise go unnoticed.
+
+</SourceNote>
+
+An experiment suggested in class, untried there and not certain to work: disable WebSockets for the browser tab (perhaps with a plugin, the way dev tools can throttle the network) and see whether WhatsApp Web falls back to explicit heartbeat calls. [[L-0344]]
+
+</MarginNote>
+
+### Where this lecture stops [[rail: Stops here]]
+
+Deferred in class:
+
+- <ForwardChip label="next" when="Lecture 4" k="L-0358" /> First non-relational (NoSQL) databases, then scaling WebSockets by building Slack's real-time communication. [[L-0358]]
+- <ForwardChip label="coming later" when="Lecture 10" k="L-0349" /> Storage engines for key-value stores. In class this was promised as two databases that implement key-value storage, one with an LSM tree and one with another implementation. Lecture 10 builds an append-only store; LSM trees come later in the course, after these ten sessions. [[L-0349]]
+
+Elsewhere in this course (not mentioned in class):
+
+- <ForwardChip label="coming later" when="Lecture 5" /> Locks that live outside one database, across machines.
+- <ForwardChip label="coming later" when="Lecture 6" /> A central ID service built on `SELECT … FOR UPDATE` and `REPLACE INTO`, the tools of chapters 1 and 3.
+
+<SectionEnd
+  concepts={[{ label: 'locks', href: '#s1-1' }, { label: 'airline check-in', href: '#s2-1' }, { label: 'key-value store', href: '#s3-1' }, { label: 'Redis expiry', href: '#s4-1' }, { label: 'distribution', href: '#s5-1' }, { label: 'ORMs', href: '#s6-1' }]} />
+
+</Section>

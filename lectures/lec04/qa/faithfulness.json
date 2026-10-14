@@ -1,0 +1,177 @@
+{
+ "lecture": "lec04",
+ "coverage": {
+  "s0-header": "13/13",
+  "s1-approach": "23/23",
+  "s2a-green-dots": "32/32",
+  "s2b-green-dots": "35/35",
+  "s3-redis-or-dynamodb": "63/63",
+  "s4a-heartbeats": "41/41",
+  "s4b-heartbeats": "42/42",
+  "s5a-blog-rows": "50/50",
+  "s5b-blog-rows": "52/52",
+  "s6-cache": "54/54",
+  "s7-keep": "23/23",
+  "sourcenotes": "16/16",
+  "inline_clarifications": "24/24",
+  "unverifiable_attributions": "12/12",
+  "figures": "42/42",
+  "clips": "4/4"
+ },
+ "issues": [
+  {
+   "id": "F-001",
+   "severity": "medium",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec04/s6-cache.mdx",
+   "line": 140,
+   "quote": "The class agreed with one condition on that conclusion: it holds given that the computation you are saving is large.",
+   "problem": "A participant's broken, half-audible sentence is presented as a condition the whole class agreed on. The ledger marks the exact claim as uncertain, and factcheck_applied.md §7 says L-0292 must be stated as a point raised, not as endorsed. 'Humongous' also became 'large'.",
+   "evidence": "L-0292 (detail: 'the student's sentence is broken ... so the exact claim being agreed to is uncertain') / transcript 02:35:33 'Given that a pre, that, given that your computation that you are saving is humongous.' / factcheck_applied.md §7",
+   "fix": "A participant added a condition, as far as the recording lets us hear it: “given that the computation you are saving is humongous”. The instructor answered “Right.” [[L-0292]]"
+  },
+  {
+   "id": "F-002",
+   "severity": "medium",
+   "kind": "clip",
+   "file": "site/src/animations/clips/l04-staggered-delete/timeline.ts",
+   "line": 90,
+   "quote": "All in one shot: one DELETE holds its locks for as long as it runs. / Requests queue behind it, and the ones that wait too long give up.",
+   "problem": "The clip shows the one-shot delete's locks making user requests time out (seven 'give up'), so it presents lock contention as an availability failure. The class said the opposite about locks: a hard-delete job causes no downtime, and the interviewer's locking worry is about strong consistency, not availability. The margin note right below the clip on the page (s5a:160) repeats that. What the class did say is that a one-shot delete of 100,000 rows hurts the main service's performance, so you stagger it to 'minimize the impact'. The lock and timeout model comes from the fact-check nuance for L-0284, which was left as taught and not shown on the page.",
+   "evidence": "L-0282, L-0284 / transcript 02:30:54 'There would not be any downtime in your service when you're ... doing hard deletes', 02:31:28 'That's not going down. That's just about being strongly consistent.'; L-0283 / 02:37:39 'Do staggered deletions to reduce the impact.' / factcheck_applied.md §3 L-0284 (left as taught)",
+   "fix": "Captions B1–B2: 'All in one shot: one huge DELETE puts its whole load on the database at once.' / 'Requests slow down behind it while it runs.' Show slowed requests instead of requests that give up, or add a caption label: 'Request rate and wait times are illustrative.' In the alt text, replace 'the ones that wait too long give up, seven of them' with 'requests slow down while it runs'. Keep 'Stagger it instead: 10,000 an hour, like garbage collection.'"
+  },
+  {
+   "id": "F-003",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec04/s4a-heartbeats.mdx",
+   "line": 216,
+   "quote": "The class said both halves of this, three hours apart. At 01:17: … At 02:56: …",
+   "problem": "The time gap is wrong. 01:17 to 02:56 is about 1 hour 40 minutes, not three hours.",
+   "evidence": "L-0131 (01:17:15) / L-0320 (02:56:00)",
+   "fix": "The class said both halves of this, about an hour and forty minutes apart."
+  },
+  {
+   "id": "F-004",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec04/s3-redis-or-dynamodb.mdx",
+   "line": 104,
+   "quote": "The question came back near the end of class from a different angle: does a managed DynamoDB give better value …",
+   "problem": "This question was asked at 01:20, in the pooling Q&A about two-thirds of the way through a 3-hour class. It was not near the end. Section 3.3's own meta line gives 'Q&A 01:20–01:21'.",
+   "evidence": "L-0139 (01:20:52–01:21:55)",
+   "fix": "The question came back in the Q&A after the pooling discussion, from a different angle: …"
+  },
+  {
+   "id": "F-005",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec04/s2b-green-dots.mdx",
+   "line": 173,
+   "quote": "Real online/offline indicators are not built this way. They keep a persistent connection open, with many tunings and optimisations on top. WebSocket is one option but not the only one: …",
+   "problem": "L-0101 is simplified/low, so policy says it stays as taught and the MQTT addition is woven in as a separate sentence. The teacher's actual claim ('they're built using WebSockets') is never stated. The page rewrites it as 'a persistent connection' and then corrects 'WebSocket' before saying what was taught.",
+   "evidence": "L-0101 / transcript 01:03:03 'They're built using WebSockets, which we'll discuss next week' / factcheck_applied.md §3 L-0101 (A-OOI-18 woven in, not a correction)",
+   "fix": "Real online/offline indicators are not built this way: as the class put it, they are built using WebSockets, with many tunings and optimisations on top. The common thread is a persistent connection. When Facebook built Messenger, for example, it kept that connection over MQTT, chosen because it uses bandwidth and battery sparingly <Cite …>. [[L-0101]]"
+  },
+  {
+   "id": "F-006",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec04/s4b-heartbeats.tsx",
+   "line": 181,
+   "quote": "health check … same idea, the lb asks (Fig 4·h panel b; caption: 'Right: a load balancer health-checks its backends')",
+   "problem": "Panel b shows only the fact-check's reversed (pull) direction. The taught point was that the same heartbeat system (backends sending heartbeats) tells your own load balancer when a backend is down. L-0133 is simplified/low and left as taught, so the ALB note belongs beside the taught version, not in place of it. The prose (s4b:136) does this correctly; the figure does not.",
+   "evidence": "L-0133 / transcript 01:18:18 'Let's say we are building our own load balancer' / factcheck_applied.md §3 L-0133",
+   "fix": "Panel b: backends send heartbeats to the load balancer (as taught), and the one that goes quiet is 'not routed'. Then add a small grey note: 'real LBs often ask instead (health checks)'. Caption: 'Right: your own load balancer uses the same heartbeats to stop routing to a dead backend; real load balancers usually ask instead (§4.9).'"
+  },
+  {
+   "id": "F-007",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec04/s7-keep.tsx",
+   "line": 22,
+   "quote": "redis · ttl 30s (Fig 7·a caption: '… to Redis with a 30-second TTL (§3)')",
+   "problem": "The summary figure presents Redis as the store the class chose. The class's final logic was 'Redis or DynamoDB, whichever DB you choose'. Chapter 3 laid out the trade-offs and did not pick one, apart from the late remark that Redis as the primary store is fine.",
+   "evidence": "L-0070 / transcript 00:44:40 'we update the entry in Redis and DynamoDB, whichever DB you choose'; L-0311",
+   "fix": "Label the store 'redis / dynamodb · ttl 30s'. Caption: '… to a key-value store with a 30-second TTL, Redis or DynamoDB (§3).'"
+  },
+  {
+   "id": "F-008",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec04/s5a-blog-rows.tsx",
+   "line": 213,
+   "quote": "DELETE … LIMIT 1000 · staggered, off-peak",
+   "problem": "'Off-peak' was not taught, and it contradicts the class's scenario: the job runs while traffic is high, and you spread the deletes across the whole day like garbage collection. The clip beside it also says 'at peak traffic'.",
+   "evidence": "L-0283 / transcript 02:37:39 'Split it across your entire day … 10,000 rows every hour'",
+   "fix": "Change the label (both layouts, and the desc at L184) to 'staggered across the day'."
+  },
+  {
+   "id": "F-009",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec04/s6-cache.tsx",
+   "line": 288,
+   "quote": "Six numbered tags … 2 the user’s browser, 3 the CDN, 4 the load balancer, 5 an API server, 6 the database (Fig 6·e caption: 'Tags 2–6 are for you: the browser, the CDN, the load balancer, an API server, the database')",
+   "problem": "The board (D-15) has no CDN and no tags. The class gave only two hints, the CDN and the load balancer, and deliberately left client-side local storage for the next session's discussion. The figure adds a CDN cloud and pre-answers the exercise with places the class did not name (the browser, an API server, the database).",
+   "evidence": "L-0256 'CDN might be one. Load balancer might be another.' / L-0262 (local storage deferred) / diagrams.md D-15",
+   "fix": "Keep tag 1 (central cache). Mark only the two hinted places, the CDN (drawn dashed as 'added') and the load balancer, as '?' tags, and leave the rest of the diagram untagged. Caption: 'Tag 1 is done … The class's hints: the CDN and the load balancer. Find the rest yourself.'"
+  },
+  {
+   "id": "F-010",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec04/s4a-heartbeats.mdx",
+   "line": 118,
+   "quote": "lead=\"A write takes 1 ms inside the database. How much of each heartbeat's time is the write?\"",
+   "problem": "The 1 ms figure was not taught and has no source. The recall question at s4b:156 adds another one, 'well under a millisecond inside the database'. The class only said the update is a micro, one-row, primary-key write and that most of the time goes into the connection.",
+   "evidence": "L-0111 / transcript 01:07:27 'Most of the time that is being spent here is in establishing this TCP connection'",
+   "fix": "lead=\"Each heartbeat updates one row by primary key. How much of its time is the write itself?\"; at s4b:156: q=\"A heartbeat write is a one-row update by primary key. Without a pool, where does most of its time go?\""
+  },
+  {
+   "id": "F-011",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec04/s2a-green-dots.tsx",
+   "line": 227,
+   "quote": "10 min of use, nothing sent … an hour later · still green (Fig 2·e steps 2 and 4, s2a-green-dots.mdx:139,141)",
+   "problem": "The illustrative durations (10 minutes, an hour) were not in the class. They are harmless, but they are numbers the class did not teach and nothing marks them as illustrative.",
+   "evidence": "L-0046 (no durations given)",
+   "fix": "Add 'Times are illustrative.' to the StepThrough caption, or use 'later' / 'much later' in both the figure and the step texts."
+  },
+  {
+   "id": "F-012",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec04/s4a-heartbeats.tsx",
+   "line": 64,
+   "quote": "(the board’s note, 01:23)",
+   "problem": "The board added 'micro reads / updates → Hence n/w bottleneck' at 01:24:45–01:26:00, not at 01:23.",
+   "evidence": "diagrams.md D-10 'added later in green (01:24:45-01:26:00)'; L-0144 (01:23:46–01:24:21)",
+   "fix": "(the board’s note, 01:25)"
+  },
+  {
+   "id": "F-013",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec04/s5a-blog-rows.mdx",
+   "line": 164,
+   "quote": "The hourly job isn’t free either. Asked in class: it takes one or two connections from the connection pool (§4.3), while not deleting lets the data grow. You gain some, you lose some; you never win it all.",
+   "problem": "The cost (the job takes pool connections; not deleting lets data grow) was a participant's follow-up point, not the answer. 'Asked in class:' followed by the point reads as if it were the instructor's answer. The instructor's answer was only the trade-off line.",
+   "evidence": "L-0295 / transcript 02:38:19 (participant) and 02:38:37 'you'll gain some, you lose some … You win something, you lose something.'",
+   "fix": "The hourly job isn’t free either. A follow-up pointed out that it takes one or two connections from the connection pool ([§4.3](#s4-3)), while not deleting lets the data grow. The answer: you gain some, you lose some; you never win it all. [[L-0295]]"
+  },
+  {
+   "id": "F-014",
+   "severity": "low",
+   "kind": "voice",
+   "file": "site/src/content/lectures/lec04/s2a-green-dots.mdx",
+   "line": 109,
+   "quote": "Asked in class: can HTTP run without TCP? (also s2b-green-dots.mdx:169 'Asked in class: it was there because space mattered.')",
+   "problem": "The 'Asked in class:' Q&A framing keeps the classroom dialogue form. There are no names, so this is minor.",
+   "evidence": "L-0335 (03:05:00), L-0327 (03:00:22)",
+   "fix": "s2a:109: 'Can HTTP run without TCP? HTTP runs on top of TCP. …'; s2b:169: 'Is the TTL worth its cost? It was there because space mattered. …'"
+  }
+ ]
+}

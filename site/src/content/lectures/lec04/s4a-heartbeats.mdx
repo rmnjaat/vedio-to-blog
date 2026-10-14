@@ -1,0 +1,229 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Cite from '../../../components/Cite.astro';
+import { WriteLoad, FiveTrips, ConnectionPool, PoolQueue, ThreeFour, StartConservative } from '../../../figures/lec04/s4a-heartbeats';
+
+{/* §4 Six million heartbeats a minute, part a: 4.1–4.5. Part b (4.6–4.9) is s4b-heartbeats.mdx. Writer w2. */}
+
+<Section id="s4" no="4" title="Six million heartbeats a minute" crumb="4 Heartbeats"
+  dek="Storage was never the problem. Writes are. Why each tiny write spends most of its time opening a connection, how a pool fixes it, how to size one, and when it breaks."
+  meta="About 30 min · class 01:04–01:19, Q&A 01:19–01:34 and 02:52–03:00 · concurrency, scaling">
+
+The green-dot store from [§2](#s2) is small, but every online user's app sends a heartbeat every 10 seconds into it. This chapter is about what that does to the database, and about the one line on every diagram that nobody thinks about.
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="The other number" crumb="4.1 The other number"
+  dek="Storage fits on a phone. The write rate is what should scare you."
+  meta="About 3 min · class 01:04–01:06">
+
+If storage is not the challenge with a billion users, what is?
+
+Count the writes. A client sends a heartbeat every 10 seconds, so one user sends 6 heartbeats a minute. With 1 million **active** users (active, not total), the system receives 6 million requests a minute. [[L-0103]]
+
+Every heartbeat is one database call, an update of that user's row, so a single database absorbs about 6 million updates a minute and starts to choke. [[L-0104]] How hard "choke" bites depends on the store: 6 million a minute is 100,000 writes a second. Redis's own benchmark page shows example runs of about 180,000 `SET`s a second on one instance without pipelining (<Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/">redis.io</Cite>), so one Redis node is within range; a disk-based relational database committing 100,000 durable single-row updates a second is a much harder ask.
+
+<Figure id="fig-4a" no="Fig 4·a" k="L-0103 L-0104 L-0144"
+  caption="The board's arithmetic: 6 beats a minute per user, 1 million active users, 6 million writes a minute, one write per beat. Redrawn from the class board at 01:04.">
+  <Desk><WriteLoad /></Desk>
+  <Phone><WriteLoad layout="phone" /></Phone>
+</Figure>
+
+This is a classic case where **storage is not the problem; computation is**. The data is peanuts for a database: about 8 GB for all 1 billion users at 8 bytes each, and about 8 MB for the 1 million active users' rows. The challenge is the 6 million queries a minute, each one an update. [[L-0105]] That also answers the second half of the question in [§2.6](#s2-6): of the two numbers, the writes are the one to fear.
+
+The usual answers to a write load like this, sharding and partitioning, come in later lectures. This chapter takes a less talked-about tool first. [[L-0106]]
+
+<ForwardChip block when="Lecture 2" k="L-0106">sharding by hash, when one database can't take the writes</ForwardChip>
+<ForwardChip block when="Lecture 3" k="L-0106">range-based sharding and partitioning</ForwardChip>
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="The line nobody thinks about" crumb="4.2 The line"
+  dek="Each heartbeat opens a TCP connection to the database. That line costs more trips than the write itself."
+  meta="About 6 min · class 01:05–01:12">
+
+Look at the line between the api server and the database on any design diagram. It gets drawn without a second thought, and the fix for what it costs, connection pooling, is an optimisation very few people talk about and everyone should know for a write-heavy load. [[L-0107]]
+
+Follow one heartbeat. It is an HTTP `POST`, and HTTP rides on a TCP connection from the user's app to the api server. When it arrives, the api server opens a *second* TCP connection, to the database, to write the update. [[L-0108]]
+
+Setting up a TCP connection takes the three-way handshake; closing it takes a two-way teardown. Counted that way, it is five network trips for every single call. [[L-0109]] The real bill is a little higher: on top of TCP's handshake (<Cite href="https://www.rfc-editor.org/rfc/rfc9293.html">RFC 9293</Cite>) comes the database's login exchange, plus TLS if the connection is encrypted. So the line on the diagram stands for an expensive process: a connection set up and torn down for each request. [[L-0110]]
+
+The write itself is a micro update: one row, by primary key. The database does the bare minimum, so most of the time goes into establishing the TCP connection, the biggest bottleneck in this design. [[L-0111]] And the setup is more than TCP: in PostgreSQL, every new connection makes the server spawn a whole new backend process before authentication runs (<Cite href="https://www.postgresql.org/docs/current/connect-estab.html">postgresql.org</Cite>).
+
+Connecting is expensive for the database too. To accept a connection it reads the handshake packets (one in, an acknowledgement out, the third in), spending CPU, network bandwidth and OS buffers. [[L-0116]] On top of the kernel's work, the database pays for a backend process or thread, its buffers and an authentication exchange (<Cite href="https://dev.mysql.com/doc/refman/8.4/en/memory-use.html">MySQL</Cite>, <Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-proxy.html">RDS Proxy</Cite>).
+
+<PauseAndThink k="L-0109 L-0111 L-0115 L-0116 L-0117"
+  q="Each heartbeat updates one row by primary key. Without a pool, the api server opens a fresh connection for every write. Where does most of each heartbeat's time go?"
+  choices={[{ label: 'Into the update itself' }, { label: 'Into opening and closing the connection', correct: true }]}
+  right="Right. Setup and teardown are several trips; the query is one."
+  wrong="The update is about the cheapest thing a database does: one row, by primary key.">
+
+A fresh connection costs a handshake, the database's login work and a teardown: five network trips by the count above, for a write that needs one. The database pays too. Keep connections open and reuse them, and both the API call and the database get faster, with the same number of queries.
+
+</PauseAndThink>
+
+<p class="lead-in">Here is one heartbeat's write, trip by trip. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-4b" grow no="Fig 4·b" label="Five trips figure" k="L-0108 L-0109 L-0110 L-0111 L-0116"
+  caption="Time runs down. Lanes are the api server and the database. The five trips count TCP setup and teardown; the database login (and TLS, if used) come on top."
+  stepK={['L-0109', 'L-0116', 'L-0111', 'L-0109', 'L-0110']}
+  steps={[
+    'Open a connection: the three-way handshake, <code>SYN</code>, <code>SYN-ACK</code>, <code>ACK</code>.',
+    'The database does work just to accept it: it reads the packets and spends CPU and buffers. In practice a login follows, and PostgreSQL starts a new process.',
+    'The actual write: one <code>UPDATE</code> of one row, by primary key, and an <span class="term green">OK</span>. The bare minimum.',
+    'Close the connection: <code>FIN</code> and <code>FIN/ACK</code>, two more trips.',
+    '<span class="term red">Five trips of setup and teardown for one tiny write.</span> Most of the time went into the line nobody draws.',
+  ]}>
+  <Desk><FiveTrips /></Desk>
+  <Phone><FiveTrips layout="phone" /></Phone>
+</StepThrough>
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Keep the connections open" crumb="4.3 Keep them open"
+  dek="Don't close the connection after each write. Open a few once, and reuse them."
+  meta="About 6 min · class 01:08–01:12 and 01:16–01:18">
+
+The board put the problem in one line: *what's hectic? Creating a new connection every time.*
+
+Nothing forces a TCP connection to shut down after one query. **Connection pooling** means keeping a set of connections open between the server and the database and reusing them. With micro updates, so much time is wasted on setup and teardown that this is the obvious fix. [[L-0112]]
+
+For example, the api server creates three TCP connections at startup and keeps them handy. For any query (`SELECT`, `UPDATE`, `INSERT`) it uses one of the three that nobody else is using right now. [[L-0113]]
+
+<Figure id="fig-4c" no="Fig 4·c" k="L-0112 L-0113"
+  caption="A server (one of a fleet) keeps three pre-established connections to the database. The blue one is in use, and goes back to the pool afterwards instead of being closed. Redrawn from the class board at 01:05.">
+  <Desk><ConnectionPool /></Desk>
+  <Phone><ConnectionPool layout="phone" /></Phone>
+</Figure>
+
+When a request comes in, the server picks an available connection and marks it unavailable. The connection is already established, so the query is one request and one response, and the five network trips are saved. [[L-0114]]
+
+That gives two benefits. The API call becomes much faster. And the load on the database drops, even though the number of queries stays exactly the same. [[L-0115]] The database is spared the connection work, mainly CPU and network ("not really memory" was the narrowed claim), and with one-row micro updates that dramatically reduces its load. [[L-0117]] Memory is part of the saving too, though: each MySQL connection gets its own thread stack and buffers, each PostgreSQL connection is a separate process, and Amazon RDS states that connections consume memory and derives its default connection limit from instance memory (<Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_Limits.html">RDS limits</Cite>, <Cite href="https://dev.mysql.com/doc/refman/8.4/en/memory-use.html">MySQL memory</Cite>).
+
+You rarely write this yourself. MySQL, Postgres and Redis all support connection pooling, and there are libraries that manage the pool for you. [[L-0119]]
+
+<AnimationClip clip="l04-connection-pool" no="Clip 4·1" k="L-0109 L-0113 L-0114 L-0115"
+  lead="Each heartbeat updates one row by primary key. How much of its time is the write itself?"
+  caption="Now do it six million times a minute." />
+
+Why is the gain so big *here*? Each update is one row, by its primary key, so the database goes straight to that leaf of its B+ tree. Spending an expensive connection setup on something that small is a waste. [[L-0129]] A big SQL query runs long enough to outweigh what the pool saves; the big win comes when updates are micro. [[L-0130]]
+
+Still, whenever you fire micro updates at a database, and in general, a connection pool is always a great option. If your codebase has none, check whether adding one gives a big gain. [[L-0131]] §4.7 gives the other half: pooling blindly is not a good idea.
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="Where the pool lives" crumb="4.4 Where it lives"
+  dek="Not a service. A queue of connection objects inside your server."
+  meta="About 2 min · class 01:15–01:16">
+
+Is the pool a separate service next to the api server? A common misconception today is that everything has to be a service. A connection pool is not one. [[L-0127]] It is a simple library running inside the api server, which creates the pool of connections to the database. It is not a separate process. [[L-0126]]
+
+<Figure id="fig-4d" no="Fig 4·d" k="L-0126 L-0127 L-0128"
+  caption="The pool is a blocking queue of connection objects inside the api server's own process. A handler takes a connection, uses it, and puts it back.">
+  <Desk><PoolQueue /></Desk>
+  <Phone><PoolQueue layout="phone" /></Phone>
+</Figure>
+
+At boot the server creates several connection objects and puts them in a **blocking queue**. A caller pops one if it is there, or waits (the "infinite loop" part) until someone puts one back. There are a ton of implementations on GitHub; the idea stays the same. [[L-0128]]
+
+```python
+# the idea behind every pool on GitHub
+import queue
+
+class Pool:
+    def __init__(self, connect, size):
+        # at boot: open `size` connections
+        self.idle = queue.Queue()  # blocking
+        for _ in range(size):
+            self.idle.put(connect())
+
+    def get(self):
+        # take one; waits while none is free
+        return self.idle.get()
+
+    def release(self, conn):
+        self.idle.put(conn)  # back in line
+```
+
+Poolers that run as their own service exist too, for a different problem; §4.7 comes back to them.
+
+</Section>
+
+<Section id="s4-5" no="4.5" title="How many connections?" crumb="4.5 How many"
+  dek="Three connections and a fourth request. Minimum, maximum, idle expiry, and how to size them."
+  meta="About 9 min · class 01:12–01:15, Q&A 01:19–01:23 and 01:28–01:31">
+
+The pool opened three connections at boot. Three requests arrive together, each takes one. Then a fourth arrives. Now what?
+
+When you define a connection pool, you define a **minimum** and a **maximum** number of connections. The minimum might be three to start with. [[L-0118]]
+
+With all connections busy, the fourth request can wait until one of the three running queries releases its connection. [[L-0120]] Or it can establish a new TCP connection, fire the query, and add that connection to the pool, which stretches from three to four on demand. [[L-0121]]
+
+Stretching without a limit is a problem: with millions of requests each adding a connection, the pool grows without bound. [[L-0122]]
+
+So you configure a maximum, for example **minimum 3, maximum 100**: no server creates more than 100 connections, and request 101 waits for one to be released. [[L-0123]] The wait has a limit in real pools: in HikariCP, a widely used Java pool, the caller waits up to `connectionTimeout`, 30 seconds by default, and then gets an error (<Cite href="https://github.com/brettwooldridge/HikariCP">HikariCP</Cite>).
+
+<p class="lead-in">The whole life of the pool, step by step:</p>
+
+<StepThrough id="fig-4e" grow no="Fig 4·e" label="Pool sizing figure" k="L-0118 L-0120 L-0121 L-0122 L-0123 L-0125 L-0142"
+  caption="Five snapshots of one api server's pool, top to bottom. Blue lines are connections in use; the dashed one is being opened."
+  stepK={['L-0118', 'L-0120', 'L-0121', 'L-0122 L-0123', 'L-0125 L-0142']}
+  steps={[
+    '<code>min 3</code>: three idle connections. Three requests arrive; each takes one. Three requests, three connections, all busy.',
+    'A fourth request arrives and finds none free. Option one: wait until a query finishes and frees a connection.',
+    'Option two: open one more and keep it. The pool stretches from three to four.',
+    'With a cap of <code>max 100</code>, request 101 <span class="term red">waits</span> for a release, up to a timeout. Without a cap, millions of requests would each add a connection.',
+    'A connection idle for <code>10 min</code> is closed by the pool. The pool holds what the traffic needs, never more than the maximum.',
+  ]}>
+  <Desk><ThreeFour /></Desk>
+  <Phone><ThreeFour layout="phone" /></Phone>
+</StepThrough>
+
+Why cap it at all? Every database has a limit on the number of TCP connections it can hold. The trouble creeps in when hundreds of servers each create 100 connections to it. [[L-0124]] The defaults are lower than people expect: PostgreSQL's `max_connections` is typically 100, and 3 of those are reserved for superusers, so application roles get fewer (<Cite href="https://www.postgresql.org/docs/current/runtime-config-connection.html">postgresql.org</Cite>).
+
+So the pool also closes connections nobody is using. You configure a TTL per connection: if one api server has four connections and one sits unused for, say, 10 minutes, the pool terminates it, and that server holds fewer connections on the database. [[L-0125]] HikariCP's `idleTimeout` defaults to the same 10 minutes, but only retires idle connections when the minimum is set below the maximum (<Cite href="https://github.com/brettwooldridge/HikariCP">HikariCP</Cite>).
+
+If 50 of the 100 connections have expired and more requests arrive, the pool opens new ones up to its maximum: a 51st concurrent request establishes a connection and adds it to the pool, with the same expiry. [[L-0141]] So a server does not always hold 100; that is the most it will hold, and the actual number follows the incoming requests. [[L-0142]]
+
+In a busy moment, say a special event, new api servers may find the database has no connections left to give. A new server waits, retrying, and succeeds only when an existing server terminates one of its connections. [[L-0135]] It does not retry forever: the database refuses connections beyond its limit with an error, and the pool makes the caller wait only up to its timeout (30 s by default in HikariCP) before failing the request. Requests on that new server fail rather than hang (<Cite href="https://github.com/brettwooldridge/HikariCP">HikariCP</Cite>). §4.6 takes up what to do about it.
+
+### Sizing the pool [[rail: Sizing]]
+
+The minimum is typically 3 or 5, because connections can be created on the fly when the pool runs out. [[L-0157]] One widely used pool recommends the opposite: HikariCP suggests leaving its minimum unset so the pool is fixed-size, minimum equal to maximum, since creating connections on the fly is exactly the latency a pool exists to avoid (<Cite href="https://github.com/brettwooldridge/HikariCP">HikariCP</Cite>).
+
+For the maximum, divide the database's maximum connections by the most servers you will ever run: 1,000 connections and 100 servers give each server a maximum of 10. [[L-0158]]
+
+Then set it somewhat above that average, say 15 instead of 10, because one server may get more requests than the others, and if the database can't open a connection, that server waits anyway. The maximum is "typically 1.2× the average": a rule of thumb from practice, not a standard. [[L-0159]] Two checks: 10 to 15 is 1.5×, not 1.2×. And going above the fair share has a side effect: if every one of 100 servers may open 12, that is 1,200 against the database's 1,000, so in a busy moment the database refuses the extra connections with an error; the server does not simply wait (<Cite href="https://www.postgresql.org/docs/current/runtime-config-connection.html">postgresql.org</Cite>).
+
+None of these numbers is final. Put telemetry on the pool (how it performs, how many connections it holds, how many servers run); one week of production gives you the numbers to tune it. [[L-0160]]
+
+<RuleBox rule="Start with a ==conservative mindset==, observe the metrics, then ==retune==." k="L-0161 L-0131 L-0320">
+
+Both halves hold: "having a connection pool is always a great option", and "blindly using connection pooling is not a good idea". Use a pool, start small, and let the metrics tell you how far to grow it.
+
+<Desk><StartConservative /></Desk>
+<Phone><StartConservative layout="phone" /></Phone>
+
+</RuleBox>
+
+The three settings side by side, with what goes wrong at either end:
+
+<TradeoffTable caption="Pool settings: what each controls, what goes wrong when it is too low or too high, and a starting point"
+  k="L-0118 L-0123 L-0125 L-0157 L-0158 L-0159 L-0323"
+  columns={[{ label: 'Minimum' }, { label: 'Maximum' }, { label: 'Idle TTL' }]}
+  rows={[
+    { label: 'What it controls', k: 'L-0118 L-0123 L-0125', cells: ['How many connections the pool opens to start with', 'The most connections one server may hold to the database', 'How long an unused connection stays open before the pool closes it'] },
+    { label: 'Too low', k: 'L-0123 L-0157 L-0323', cells: ['Connections get opened on demand, paying the setup the pool exists to avoid', 'Requests queue for a free connection, up to the pool’s timeout', 'Connections close and reopen too often; long-running queries need them open longer'] },
+    { label: 'Too high', k: 'L-0158 L-0323', cells: ['Every server holds many connections even when idle, and servers × minimum can use up the database (4.7)', { text: 'Servers × maximum > database limit: refused connections', bad: true }, 'Many unused connections stay open, and one server can hog the database’s slots (4.7)'] },
+    { label: 'Starting point', k: 'L-0157 L-0158 L-0159 L-0125', cells: ['3 or 5', 'Database maximum ÷ the most servers you’ll run, a little above: 1,000 ÷ 100 = 10, set to 15', '10 minutes in the example; find the sweet spot for your query times'] },
+  ]} />
+
+</Section>

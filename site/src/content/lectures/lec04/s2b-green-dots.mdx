@@ -1,0 +1,207 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Cite from '../../../components/Cite.astro';
+import { PulseTable, HowBig, WhoDeletes, NeverReinvent } from '../../../figures/lec04/s2b-green-dots';
+
+{/* Chapter 2 "Green dots" (2.5–2.8), after s2a-green-dots.mdx. Writer w1.
+    Wide figures pass Figure's `max` so they show at about 1:1; below 640px the <Phone> layout takes over. */}
+
+<Section id="s2-5" no="2.5" title="A timestamp instead of a boolean" crumb="2.5 Last heartbeat"
+  dek="A boolean can say “online”. It can’t say “silent for 30 seconds”. A time can."
+  meta="About 3 min · class 00:30–00:34">
+
+A boolean can’t tell you that a user has been silent for 30 seconds. To know that it has been long enough, you need to know when the last heartbeat arrived. So the schema changes: instead of a boolean, store the time at which the last heartbeat was received. The table is `pulse(user_id, last_heartbeat)`, and every `POST /heartbeat` updates that user’s row. [[L-0049]]
+
+<Figure id="fig-2g" max={560} no="Fig 2·g" k="L-0049 L-0051 L-0052 L-0053 L-0054" caption="The pulse table and the two rules. Every heartbeat rewrites one row’s last_hb with the current time in epoch seconds; GET /status applies two rules to decide the dot. Redrawn from the class board at 00:30–00:32.">
+<Desk><PulseTable /></Desk>
+<Phone><PulseTable layout="phone" /></Phone>
+</Figure>
+
+On each heartbeat the design runs one statement, `UPDATE pulse` `SET last_heartbeat = now()` `WHERE user_id = <id>`, again and again, so that user’s row always holds their latest beat. [[L-0051]] A user’s very first heartbeat has no row to update yet, so in practice write it as an upsert: PostgreSQL’s `INSERT … ON CONFLICT (user_id)` `DO UPDATE` inserts the row or updates the existing one atomically, even under high concurrency <Cite href="https://www.postgresql.org/docs/current/sql-insert.html">postgresql.org</Cite>. [[L-0051]]
+
+Reading changes too, because the row now holds a time instead of true or false. The getStatus logic becomes two rules, and the same rules run for every ID in a batch call. **Rule 1:** if there is no entry for a user, return offline; the user never came online. [[L-0052]] **Rule 2:** if there is an entry but its `last_heartbeat` is older than now minus 30 seconds, meaning no heartbeat for more than 30 seconds, return offline. Otherwise the user is online. [[L-0053]]
+
+```sql
+-- every POST /heartbeat
+-- (the first beat creates the row)
+INSERT INTO pulse (user_id, last_heartbeat)
+VALUES (:uid, :now)
+ON CONFLICT (user_id) DO UPDATE
+SET last_heartbeat = EXCLUDED.last_heartbeat;
+```
+
+```js
+// row: this user's pulse entry, or null
+function getStatus(row, now) {
+  if (!row) return 'offline';   // rule 1
+  if (row.last_heartbeat < now - 30)
+    return 'offline';           // rule 2
+  return 'online';
+}
+```
+
+The time is stored as **epoch seconds**: the number of seconds elapsed since 1 January 1970, the standard Unix epoch. Chapter 5 comes back to dates stored as epoch integers in [§5.7](#s5-7). [[L-0054]]
+
+</Section>
+
+<Section id="s2-6" no="2.6" title="Is storage the problem?" crumb="2.6 Storage estimate"
+  dek="Back-of-the-envelope arithmetic, seventh-standard maths, says what this system does not need."
+  meta="About 5 min · class 00:33–00:39">
+
+Now estimate the scale. Suppose the product has a billion users. How much space does the pulse table need?
+
+<PauseAndThink k="L-0055 L-0056 L-0057 L-0103"
+  q="One row per user: a 4-byte user ID and a 4-byte last-heartbeat time. There are 1 billion users; 1 million are active at once, each sending a heartbeat every 10 seconds. Work out the storage and the writes per minute. Which number is the real problem?"
+  choices={[{ label: 'The storage' }, { label: 'The writes', correct: true }]}
+  right="Right. 6 heartbeats a minute × 1 million users is 6 million writes a minute."
+  wrong="Not this time. 8 bytes × 1 billion is 8 GB, less than a phone holds.">
+
+Storage is 8 GB of payload (more with row overhead, still small), so it fits in one cheap machine’s RAM. The writes are 6 million a minute, about 100,000 a second, every one a database update. This is the classic case where storage is not the problem and computation is. This section settles the storage half; [§4.1](#s4-1) picks up the writes.
+
+</PauseAndThink>
+
+Each row holds two values: the user ID and the last-heartbeat timestamp, both integers. That is 4 bytes + 4 bytes = **8 bytes per user**, one entry per user, so 100 users means 100 entries and 1,000 users 1,000 entries. This is 8 bytes of data, not yet the space it takes on disk. [[L-0055]]
+
+With a billion users, about an eighth of the world’s population (Facebook has many more), that is a billion entries of 8 bytes each: **8 GB** in total. [[L-0056]] The 8 GB is raw payload. A real database adds overhead to every row: PostgreSQL stores a 23-byte header plus a 4-byte pointer for each row, so an 8-byte row takes roughly 36 bytes before any index <Cite href="https://www.postgresql.org/docs/current/storage-page-layout.html">postgresql.org</Cite>. The real footprint is several times 8 GB, and the conclusion below still holds. [[L-0056]]
+
+<Figure id="fig-2h" max={600} no="Fig 2·h" k="L-0055 L-0056 L-0057 L-0065" caption="How big is it? One row per user, 8 bytes a row: a billion users is 8 GB, less than the phone in your pocket. The bottom line is from the next section: with absence meaning offline, 100k active users need 800 KB. Redrawn from the class board at 00:34 and 00:41.">
+<Desk><HowBig /></Desk>
+<Phone><HowBig layout="phone" /></Phone>
+</Figure>
+
+8 GB is not much. Your phone has 128 GB in your pocket, and 8 GB fits in the RAM of a trivial, cheap machine. So this system does not need massive storage; **storage is not its challenge**. It needs something else. [[L-0057]] Storage, as used in this estimate, is simply the amount of space you need to hold the data, and here that is two integers per user. [[L-0058]]
+
+Could the 8 GB still shrink? It doesn’t have to, but asking is a habit worth keeping: at every step of a design, ask the critical questions. Can I change this? Is there an alternative? Every system is a matter of analysing hundreds and thousands of trade-offs and picking the best path. [[L-0059]]
+
+Stay open to every possibility, without bias, and stay humble. Document every option you know of and why you took the path you did. If someone asks “did you think of this?” and the answer is “no, I didn’t”, that earns you nothing. Thinking through all the cases is the heart and soul of being a better senior engineer. [[L-0060]]
+
+</Section>
+
+<Section id="s2-7" no="2.7" title="Absence means offline. Who deletes?" crumb="2.7 Absence = offline"
+  dek="If no row means offline, only online users need rows. Then something has to delete the rest."
+  meta="About 5 min · class 00:38–00:44, Q&A 02:44 and 02:53">
+
+Look at what the end user actually sees: a green dot or a grey one, nothing more. On the board: all we care about is online or offline. So treat the **absence of an entry as offline**. A row exists only for a user who is online, which cuts the number of rows by a significant margin. Storage was never the problem; this is the hypothetical optimisation from 2.6, followed through. [[L-0061]]
+
+Absence only means offline if entries go away on time. Every heartbeat resets a 30-second timer for that user, and once the 30 seconds run out the entry is deleted. The number of entries then equals the number of users online at that moment. [[L-0062]] The board puts numbers on it: with 1 billion users in total and 100,000 active, there are 100,000 entries, about **800 KB**. [[L-0065]]
+
+<PauseAndThink k="L-0063 L-0064 L-0066 L-0067 L-0068"
+  q="Only online users have a row now, and a row must vanish 30 s after the user’s last heartbeat. A teammate proposes a cron job that deletes stale rows every few seconds. Ship it?"
+  choices={[{ label: 'Yes: it’s simple and it works' }, { label: 'Look for something that needs nothing new to run', correct: true }]}
+  right="Right. Ask first whether the store can do it for you."
+  wrong="It works for a launch, but you’ve added a process someone must host, keep up and monitor.">
+
+A cron job is another moving part, with its own uptime and telemetry, and it isn’t robust to edge cases. Stores like Redis and DynamoDB expire keys natively: set a 30 s TTL on every heartbeat and the store deletes the key itself. Don’t reinvent the wheel, and don’t draw a box you wouldn’t want to run.
+
+</PauseAndThink>
+
+So who does the deleting? The simplest answer is a **cron job**. It runs periodically over the same `pulse` table, finds the entries whose last heartbeat is older than 30 seconds, and deletes them. getStatus then gets simpler: if the entry exists the user is online, and if it doesn’t, they are offline. [[L-0063]]
+
+That would work for a startup that is just launching. It is not a robust solution, though: there are edge cases to handle. [[L-0064]]
+
+<Figure id="fig-2i" max={660} no="Fig 2·i" k="L-0062 L-0063 L-0064 L-0066 L-0067 L-0068 L-0070" caption="Who deletes? Left: a cron job is a new process that someone must host, keep running and monitor. Right: a store with a TTL deletes the key itself, and nothing new runs. Drawn from the class board’s “Approach 1” and “Approach 2” pages at 00:41 and 00:44.">
+<Desk><WhoDeletes /></Desk>
+<Phone><WhoDeletes layout="phone" /></Phone>
+</Figure>
+
+The bigger cost is that a cron job adds **another moving part**. It is a separate process whose only job is to scan for expired entries and delete them. You have to host it and keep it constantly running, or the business logic falters. Its uptime now matters as much as the REST service’s, and you manage its monitoring and telemetry too. That is a lot on your plate for one delete. [[L-0066]]
+
+This runs against much of what you see online, where services get added here and there. Never draw a box for the sake of it. Think from the implementation: would you really want to build, monitor and manage this component? If not, look for a better alternative. Making your diagram look complex is the worst thing you can do. [[L-0067]]
+
+<MarginNote title="What about “last seen”?" why="skip unless your product shows it" k="L-0305">
+
+Showing “last seen” is out of scope here: the indicator has only green and grey. Whether to show it, as WhatsApp does, is a product call. If the product wants it, you can’t delete the rows. You keep them, and the last heartbeat received *is* the last-seen time. Nothing needs optimising then, because storage was never a problem: 8 GB is peanuts. Deleting offline entries is a stretch, there to make you think along those lines.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s2-8" no="2.8" title="Let the database expire it" crumb="2.8 Let the store expire it"
+  dek="Some stores delete a key on their own when its time is up. Use that instead of building a deleter."
+  meta="About 5 min · class 00:43–00:46 and 01:03, Q&A 02:44 and 03:00">
+
+The board’s next line asks: can we not offload this to our datastore? Can the database do this deletion itself? Databases exist that expire entries natively, so writing a cron job would be reinventing the wheel and adding a component you don’t need. Offload the expiry to the database and keep the design simple. [[L-0068]]
+
+<RuleBox rule="==Never re-invent the wheel!==" k="L-0068">
+
+If the database you need can expire entries natively, don’t run your own deleter. Every component you add is one more thing to host, keep up and monitor, so let the database do what it already does.
+
+<Desk><NeverReinvent /></Desk>
+<Phone><NeverReinvent layout="phone" /></Phone>
+
+</RuleBox>
+
+That sets the requirement: a database with **key-value access plus expiration**, a time to live or **TTL**. Two very common ones are Redis and DynamoDB. There are others; these two were picked on purpose, to drive the discussion in the next chapter. [[L-0069]]
+
+The whole logic now fits in a few lines. On every heartbeat, set the user’s entry in Redis or DynamoDB, whichever you choose, with a TTL of 30 seconds. As the board puts it, every heartbeat moves the expiration time forward. When 30 seconds pass without a heartbeat, the database deletes the entry by itself. If the entry exists, the user is online; if it doesn’t, they are offline. The app is just REST endpoints that talk to this database, and the database takes care of the deletion. [[L-0070]]
+
+<SourceNote href="https://redis.io/docs/latest/commands/expire/" site="redis.io" k="L-0070">
+
+Each heartbeat must re-send the TTL: in Redis a plain `SET` clears any expiry, so write `SET user:<id> 1 EX 30` every time. DynamoDB’s TTL deletes expired items “typically within a few days”, and until then reads still return them, so store `expires_at = now + 30` and treat `expires_at < now` as offline, filtering on Query and Scan <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">docs.aws.amazon.com</Cite>.
+
+</SourceNote>
+
+```text
+# Redis, every POST /heartbeat
+# (EX 30 on every write)
+SET presence:42 1 EX 30
+# getStatus: present = online
+EXISTS presence:42
+# DynamoDB: expires_at = now + 30
+#   online if expires_at > now
+```
+
+<AnimationClip clip="l04-heartbeat-expiry" no="Clip 2·1" k="L-0046 L-0047 L-0048 L-0062 L-0068 L-0070"
+  lead="The laptop’s battery dies right after a heartbeat. How long until the dot turns grey?"
+  caption="Forget the TTL on one write and the user never goes offline." />
+
+Is the TTL worth the work it puts on Redis? It is there because space mattered. If space doesn’t matter, skip it and keep the entries. And the extra work of expiring keys is no concern for Redis anyway: deleting in memory is peanuts for it. [[L-0327]] <ForwardChip when="Lecture 3" k="L-0306">how Redis expires keys inside: lazy deletion and sampling, and building a cache with TTL in Lecture 9</ForwardChip>
+
+<MarginNote title="Not how production does it" why="skip unless you build presence" k="L-0101 L-0102">
+
+Real online/offline indicators are not built this way: they are built using WebSockets, with many tunings and optimisations on top. The common thread is a persistent connection, and WebSocket is not the only way to hold one: when Facebook built Messenger, it kept its persistent connection over MQTT, chosen because it uses bandwidth and battery sparingly <Cite href="https://engineering.fb.com/2011/08/12/android/building-facebook-messenger/">engineering.fb.com</Cite>. Today’s simple design was about the granular details, the intuition and the trade-off decisions. [[L-0101]]
+
+<ForwardChip block when="Lecture 2" k="L-0102">WebSockets, §5.4 (in the next lecture)</ForwardChip>
+<ForwardChip block when="Lecture 4" k="L-0102">real-time presence in Slack’s design</ForwardChip>
+
+</MarginNote>
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Why can’t a client’s logout call be the only way to go offline?">
+
+Because a client can’t reliably announce that it is going away. A crash, a dead battery or a pulled plug sends no call, and the dot stays green. Only periodic heartbeats, with silence for long enough treated as offline, handle that case.
+
+  </RecallItem>
+  <RecallItem q="With heartbeats every 10 s and a 30 s threshold, how many heartbeats can be lost before a live user shows grey?">
+
+Two. A user is marked offline only after 30 s without a heartbeat, so two missed beats in a row still leave them green, and a third missed beat (30 s of silence) turns them grey.
+
+  </RecallItem>
+  <RecallItem q="What must every Redis heartbeat write include, and what must a DynamoDB read check, for “absent = offline” to hold?">
+
+In Redis, the TTL on every write (`SET key 1 EX 30`), because a plain `SET` clears the expiry and the key would never go away. In DynamoDB, an `expires_at` check on read (`expires_at < now` means offline), because the TTL deletes expired items only “typically within a few days”.
+
+  </RecallItem>
+</RecallQuestions>
+
+Two stores do key-value with a TTL. Which one, and why?
+
+<SectionEnd next={{ title: '3 · Redis or DynamoDB?', href: '#s3' }}
+  concepts={[{ label: 'key-value access pattern', href: '#s2-1' }, { label: 'batch endpoint', href: '#s2-2' }, { label: 'heartbeat', href: '#s2-3' }, { label: 'epoch seconds', href: '#s2-5' }, { label: 'absence = offline', href: '#s2-7' }, { label: 'TTL', href: '#s2-8' }]} />
+
+</Section>

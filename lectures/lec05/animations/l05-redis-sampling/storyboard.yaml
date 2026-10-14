@@ -1,0 +1,113 @@
+# Storyboard — clip l05-redis-sampling (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l05-redis-sampling
+title: Twenty keys at a time
+lecture: 3          # course position "Lecture 03"; folder lec05
+section: "4.2 Sampling 20 keys"
+status: reviewed    # draft | approved | built | reviewed (render-checked 2026-10-13, see review.md)
+why_motion: >
+  Rate and accumulation, then a deliberate stop. The algorithm is a loop whose stopping is the lesson: it keeps
+  sampling while a sample says "lots expired" and quits as soon as one says "few", leaving expired keys behind on
+  purpose. A still (Fig 4·b) shows one sample; only the repetition shows the expired share falling round by round,
+  the stop, and lazy deletion mopping up a leftover on its next read.
+static_twin: "Fig 4·b (board S69 redraw): a field of 200 keys with a TTL, about 30% struck (expired); an empty dashed sample frame"
+ledger:
+  taught:
+    - L-0244  # lazy deletion + periodic job, merged (B4 after the B1-B3 loop)
+    - L-0243  # the periodic job does not delete every expired key (B3 leftovers)
+    - L-0247  # sample 20 keys with an expiry, delete the expired ones in the sample (B1)
+    - L-0249  # again if more than 25% of the sample was deleted, stop when fewer (log header, rows, B2)
+    - L-0250  # the sample stands for the population (rings in the field mirror the tray; share label)
+    - L-0251  # a low sample: delete those and stop; some expired keys remain, which is fine (B3, with 4/20 for 3/20)
+    - L-0252  # speed over completeness: cleanup time is time not serving (B3 caption)
+    - L-0301  # works only on the sample, never scans the database; some expired keys remain (B3)
+  context_only:
+    - L-0237  # lazy deletion itself (taught in 4.1; B4 shows it in one move)
+    - L-0246  # the ~90% estimate (not animated)
+    - L-0253  # single thread (SN-13): the clip says "time not serving", not "no threads anywhere"
+    - L-0254  # memory bound (not animated)
+fidelity_notes:
+  - "Classic rule first, current rule last (SN-12, A-KSD-11): the loop shows the lecture's rule (20 random keys, again while > 25%). The poster adds a boxed note 'since 6.0: again above ~10%, in a time budget'. The clip never silently swaps the rules."
+  - "Example numbers (caption B0 says 'Example'): 200 keys, 59 expired (about 30%); rounds of 7/20 = 35%, 6/20 = 30%, 4/20 = 20%. Values avoid exactly 25%. The lecture's own example is 3/20 = 15% (L-0251); the clip's last round, 4/20 = 20%, is the same case (below the threshold: delete and stop)."
+  - "After three rounds 42 of 183 keys are still expired: the label says '≈ 23% still expired'. That is the arithmetic of the example, not a claim about Redis; L-0301's 'not more than 25%' is softened by the fact-check to a probabilistic estimate, so the clip states no bound."
+  - "The three samples are drawn without overlap so each round's 20 keys are distinct on screen; real sampling may pick a key twice."
+  - "Deleted keys turn into green ticks (freed), as in Fig 4·b. Expired keys are graphite-struck squares; in B3 the leftovers are re-inked red (stale), the strike is the second cue."
+  - "B4: a blue GET reaches one leftover and it is deleted on the spot (L-0237). The client and its 'key does not exist' reply are left to the prose of 4.1."
+  - "Not claimed: the central limit theorem (L-0255, unverified), '5 million keys' (L-0256), the 90% estimate (L-0246), 'no threads anywhere' (L-0253, SN-13), any timing, any memory share (L-0254)."
+additions:
+  - {fact: "Since Redis 6.0 the active-expire cycle keeps going while more than about 10% of a batch is stale, within a CPU time budget (A-KSD-11, SN-12)", source_url: "https://raw.githubusercontent.com/redis/redis/unstable/src/expire.c", checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30, note: "wide lettering 34 px (~15 px at the 540 px stage), captions 36 px (~16 px; shared band scaled by 0.75), ink 3.6 px (~1.6 px; the sheets use 1.7), matching the page sheets (critic C-05, 2026-10-14)"}
+phone_canvas: {width: 720, height: 1010, note: "portrait re-flow at <= 640 px: field of 200 on top (same grid), sample tray and round log side by side under it, the 6.0 note under them; 30 px lettering, 32 px captions"}
+duration_frames: 1030   # 34.3 s; 69 s at 0.5x
+start_frame_equals: "Fig 4·b's parts: field of 200 keys (59 struck), 'keys with an expiry', '≈ 30% expired', empty dashed sample frame 'sample of 20'"
+poster_frame: 1029
+reduced_motion_stills: [112, 322, 592, 742, 872, 1029]
+glyphs:
+  field: {shape: "20 x 10 grid of small hand squares (wide 28 px, pitch 38 = Fig 4·b's scale on the page; phone 24 px, pitch 32)", wide: [40, 124, 750, 370], phone: [45, 120, 632, 312], expired: "diagonal strike (graphite; red from B3)", deleted: "green tick in the square's place"}
+  field_label: {text: "keys with an expiry", font: hand, wide: [40, 100], phone: [45, 100]}
+  share_label: {text: "≈ 30% expired -> ≈ 23% still expired (red)", font: hand, wide: [40, 540], phone: [45, 478]}
+  rings: {shape: "blue square outline 3.5 px outside each sampled key (sampled neighbours share one edge)", colour: blue, note: "the job reading 20 keys scattered over the field, ringed in place and held before the tray fills (critic C-08); rounds 1-2 fade at the end of their round, round 3 ghosts to 38% and stays on the poster"}
+  tray: {shape: "dashed rounded frame around a 5 x 4 cluster of 34 px squares (the sample)", label: "sample of 20", wide: [846, 124, 230, 186], phone: [40, 552, 254, 208]}
+  log: {header: "again if > 25%", rows: ["① 7/20=35% again", "② 6/20=30% again", "③ 4/20=20% stop"], wide: "x 834, y 368..520", phone: "x 330, y 548..718"}
+  get: {route: "GET label above the field -> leftover key at row 0, col 19", solid, head: "at the key (the reader points at it)", colour: blue, after: "'deleted on read' green, left of GET"}
+  note: {shape: "thin solid ink-2 box (not dashed, so it never reads as a sample frame)", text: ["since 6.0: again above", "~10%, in a time budget"], wide: "bottom left", phone: "under tray + log"}
+beats:
+  - {id: B0, from: 0, to: 120, caption: "Example: keys with a TTL. About 30% expired but still in memory.", on_screen: [static figure], motion: none, ledger: [L-0250]}
+  - id: B1
+    from: 120
+    to: 330
+    caption: "Sample 20 keys. 7 expired: delete them. 35% > 25%, so go again."
+    events:
+      - {at: 130, dur: 30, what: "blue rings stamp on 20 keys scattered across the field, one by one in a seeded order; held ~12 f before the tray fills", colour: blue}
+      - {at: 172, dur: 20, what: "the tray fills with the same 20 keys (7 struck)"}
+      - {at: 200, dur: 14, what: "the 7 expired keys vanish, green ticks in their place (field + tray)", colour: green}
+      - {at: 216, dur: 20, what: "write header 'again if > 25%'"}
+      - {at: 240, dur: 22, what: "log row ① '7/20=35%'"}
+      - {at: 266, dur: 14, what: "verdict 'again'"}
+    ledger: [L-0247, L-0249, L-0250]
+  - id: B2
+    from: 330
+    to: 600
+    caption: "Again, and again, until a sample comes back mostly live."
+    events:
+      - {at: 340, dur: 14, what: "round 1 rings fade, its ticks ghost to 38%, tray emptied (10 f)"}
+      - {at: 354, dur: 20, what: "round 2 rings", colour: blue}
+      - {at: 382, dur: 16, what: "tray fills (6 struck)"}
+      - {at: 402, dur: 14, what: "6 deleted, ticks", colour: green}
+      - {at: 420, dur: 22, what: "row ② '6/20=30%'; verdict 'again' at 446"}
+      - {at: 468, dur: 14, what: "round 2 ghosts, tray emptied"}
+      - {at: 482, dur: 20, what: "round 3 rings", colour: blue}
+      - {at: 510, dur: 16, what: "tray fills (4 struck)"}
+      - {at: 530, dur: 14, what: "4 deleted, ticks", colour: green}
+      - {at: 548, dur: 22, what: "row ③ '4/20=20%'"}
+    ledger: [L-0249, L-0250]
+  - id: B3
+    from: 600
+    to: 750
+    caption: "Stop. Some expired keys stay: time spent cleaning is time not serving."
+    events:
+      - {at: 610, dur: 16, what: "verdict 'stop' on row ③"}
+      - {at: 630, dur: 14, what: "round 3 rings and ticks ghost to 38% (they stay on the poster)"}
+      - {at: 640, dur: 16, what: "the 42 leftover expired keys re-ink red", colour: red}
+      - {at: 662, dur: 10, what: "'≈ 30% expired' removed; '≈ 23% still expired' written red in its place (674, 24 f)", colour: red}
+    ledger: [L-0243, L-0251, L-0252, L-0301]
+  - id: B4
+    from: 750
+    to: 880
+    caption: "The next read of a leftover deletes it on the spot."
+    events:
+      - {at: 760, dur: 14, what: "write 'GET' above the field", colour: blue}
+      - {at: 778, dur: 30, what: "blue pen + packet GET -> leftover key (row 0, col 19)", colour: blue}
+      - {at: 810, dur: 12, what: "the key vanishes, green tick", colour: green}
+      - {at: 826, dur: 20, what: "write 'deleted on read'", colour: green}
+    ledger: [L-0244]
+  - id: B5
+    from: 880
+    to: 1030
+    caption: "Classic rule. Redis 6.0+: again above ~10%, within a time budget."
+    events:
+      - {at: 886, dur: 18, what: "thin solid note box pen"}
+      - {at: 904, dur: 20, what: "write 'since 6.0: again above'"}
+      - {at: 926, dur: 20, what: "write '~10%, in a time budget'"}
+    on_screen: [end state = poster]
+    ledger: [L-0247, L-0249]
+chapters: [{label: "round 1", frame: 130}, {label: "again", frame: 340}, {label: "stop", frame: 610}, {label: "lazy read", frame: 760}, {label: "since 6.0", frame: 890}]

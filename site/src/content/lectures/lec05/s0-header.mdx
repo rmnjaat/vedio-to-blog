@@ -1,0 +1,34 @@
+import MarginNote from '../../../components/MarginNote.astro';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec05.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec05.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 03 · week 2, day 1 · running cases: airline check-in, a key-value store on MySQL"
+      title: Locking the airline seats
+      dek: "See pessimistic locking work live on an airline check-in, then build a key-value store on top of MySQL."
+      contents: 1 Locks, in theory · 2 Building the airline check-in · 3 A key-value store on MySQL ·
+                4 If it were in memory: how Redis expires keys · 5 Making it distributed · 6 Craft, opinions, and what to keep.
+    The outline gives the header no figure. "Where we are" teaches nothing new, so it carries no ids. */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 1 of week 2. The day is about relational databases: a brief look at them, since everyone has used one, and most of the time on locking, pessimistic locking in particular. [[L-0001]]
+
+The class ran in this order, and so does this page: first the theory of locking, then a live demo in which an airline check-in system is actually coded to show how locking changes everything, then a short break, then a long build of a key-value store on top of a relational database. [[L-0004]]
+
+That second half goes deep on the implementation side: the performance decisions inside a relational database, what, when, why and how, with detours into how Redis does the same things. [[L-0166]] From here on, almost every system in the course is brainstormed with the reasons behind each decision, instead of being handed over as a finished answer, and chapter 3 is written that way. [[L-0167]]
+
+Pre-reads assumed: the course’s four articles on A, C, I and D, and its video on how indexes make database reads faster. A video on why databases use B+ trees was due out the day after the class. [[L-0015]]
+
+**How to use this page.** Don’t build the whole airline system. Implement only the core you want to understand, here the database part, as small prototypes, without writing CRUD for everything. [[L-0059]]
+
+</MarginNote>
+
+### Where we are
+
+Lecture 2 left Medium’s clap counter with a race: two readers clap at the same instant, both read the same count, both write back count + 1, and one clap is lost. That lecture gave the race a short taste and promised the depth later. This one takes it into the database, where the real tools live: row locks, the ways not to wait for them, deadlocks and isolation levels.
+
+Then the lecture swaps Medium for two fresh running cases. The first is an airline check-in, where 120 passengers pick seats at the same moment and two SQL words at a time take the program from double-booking to correct to fast. The second is a key-value store built on one MySQL table, where every clause of every query is costed before it is kept, and the store is then grown across machines. Lecture 1’s soft delete and its online indicator come back along the way.
+
+</div>

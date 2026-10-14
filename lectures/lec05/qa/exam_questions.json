@@ -1,0 +1,570 @@
+{
+ "lecture": "lec05",
+ "count": 141,
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "What three items were on the lecture's agenda, in the order written on the board?"
+  },
+  {
+   "id": "Q002",
+   "q": "What pattern did the teacher say every new foundational technology follows, and what examples did he give?"
+  },
+  {
+   "id": "Q003",
+   "q": "Why did relational databases have to provide very strong guarantees, and which property became their core?"
+  },
+  {
+   "id": "Q004",
+   "q": "According to the board, how is data represented in a relational database, what is its key highlight, and what is it known for?"
+  },
+  {
+   "id": "Q005",
+   "q": "What trade-off of database indexes was written on the board?"
+  },
+  {
+   "id": "Q006",
+   "q": "What is the core idea of pessimistic locking, and what is the typical flow written on the board, in order?"
+  },
+  {
+   "id": "Q007",
+   "q": "Using the Medium clap-count example, why do we need locking?"
+  },
+  {
+   "id": "Q008",
+   "q": "Locking lowers throughput. When is it worth taking locks and when can you skip them?"
+  },
+  {
+   "id": "Q009",
+   "q": "Describe the transactional deadlock drawn on the board (D-01): who holds what and who waits for what?"
+  },
+  {
+   "id": "Q010",
+   "q": "What did the teacher advise you to check whenever you write code or SQL that takes locks?"
+  },
+  {
+   "id": "Q011",
+   "q": "How do databases such as MySQL, Postgres and Oracle avoid entering a deadlock, and which transaction gets killed?"
+  },
+  {
+   "id": "Q012",
+   "q": "Why does a database never let itself actually enter a deadlock state?"
+  },
+  {
+   "id": "Q013",
+   "q": "How can you reproduce the database's deadlock protection locally?"
+  },
+  {
+   "id": "Q014",
+   "q": "What other names do shared locks and exclusive locks have, and which SQL suffix takes each?"
+  },
+  {
+   "id": "Q015",
+   "q": "List the four rules of shared locks written on the board."
+  },
+  {
+   "id": "Q016",
+   "q": "In the FOR SHARE example, T1 locks user_id IN (1,2,6) and T2 locks user_id IN (3,4,6). What can each transaction do, and what happens if T2 tries to update?"
+  },
+  {
+   "id": "Q017",
+   "q": "What is the benefit of using shared locks?"
+  },
+  {
+   "id": "Q018",
+   "q": "What happens when a transaction holding a shared (read) lock on a row then modifies that row?"
+  },
+  {
+   "id": "Q019",
+   "q": "What are the rules of an exclusive lock as written on the board?"
+  },
+  {
+   "id": "Q020",
+   "q": "With FOR UPDATE, T1 holds rows (1,2,6). What happens to T2's SELECT ... WHERE user_id IN (3,4,6) FOR UPDATE, and what if T2 had asked only for rows 3 and 4?"
+  },
+  {
+   "id": "Q021",
+   "q": "What is the cost of exclusive locks, and when do you still use them?"
+  },
+  {
+   "id": "Q022",
+   "q": "What does SKIP LOCKED do, and in the (3,4,6) example which rows would T2 get?"
+  },
+  {
+   "id": "Q023",
+   "q": "When is SKIP LOCKED not acceptable?"
+  },
+  {
+   "id": "Q024",
+   "q": "What does NOWAIT do, and what error did the board show?"
+  },
+  {
+   "id": "Q025",
+   "q": "Why does NOWAIT exist instead of always waiting for the lock?"
+  },
+  {
+   "id": "Q026",
+   "q": "What learning approach did the teacher highlight with the airline check-in demo?"
+  },
+  {
+   "id": "Q027",
+   "q": "List the airline check-in system's assumptions written on the board."
+  },
+  {
+   "id": "Q028",
+   "q": "Which five tables make up the check-in schema (D-04), and how are they linked?"
+  },
+  {
+   "id": "Q029",
+   "q": "Describe the high-level architecture of the check-in system (D-05) and what the admin service does."
+  },
+  {
+   "id": "Q030",
+   "q": "What concurrency scenario was the demo built to handle?"
+  },
+  {
+   "id": "Q031",
+   "q": "What does the check-in demo deliberately not handle?"
+  },
+  {
+   "id": "Q032",
+   "q": "Why was the demo written in Go, and what would you need otherwise?"
+  },
+  {
+   "id": "Q033",
+   "q": "What does approach 0 do, and what is wrong with it?"
+  },
+  {
+   "id": "Q034",
+   "q": "What changes in approach 1 and why does it still fail?"
+  },
+  {
+   "id": "Q035",
+   "q": "How does approach 2 simulate the 120 passengers, and what was the result?"
+  },
+  {
+   "id": "Q036",
+   "q": "What query does approach 3 use to pick a seat?"
+  },
+  {
+   "id": "Q037",
+   "q": "Approach 3 checks user_id IS NULL. Why do many users still get the same seat?"
+  },
+  {
+   "id": "Q038",
+   "q": "In approach 3, why does everyone get specifically the first free seat?"
+  },
+  {
+   "id": "Q039",
+   "q": "What did approach 3 actually produce over several runs?"
+  },
+  {
+   "id": "Q040",
+   "q": "Why did approach 3 still fill more than one seat?"
+  },
+  {
+   "id": "Q041",
+   "q": "What exactly changed from approach 3 to approach 4?"
+  },
+  {
+   "id": "Q042",
+   "q": "A student predicted approach 4 would deadlock. How did the teacher correct this?"
+  },
+  {
+   "id": "Q043",
+   "q": "Asked 'aren't ACID properties given by default, so why lock?', what did the teacher answer?"
+  },
+  {
+   "id": "Q044",
+   "q": "Would the serializable isolation level solve the seat problem, and why isn't it used?"
+  },
+  {
+   "id": "Q045",
+   "q": "The teacher asked how a database could just 'move to the next row' when the first is locked. What was his point about a pointed query like WHERE id = 67?"
+  },
+  {
+   "id": "Q046",
+   "q": "What was the result of running approach 4 (FOR UPDATE)?"
+  },
+  {
+   "id": "Q047",
+   "q": "Explain what the database does in approach 4 when 120 transactions run the same FOR UPDATE query."
+  },
+  {
+   "id": "Q048",
+   "q": "In approach 4, does user 1 get seat 1, user 2 seat 2, and so on?"
+  },
+  {
+   "id": "Q049",
+   "q": "What is the cost of approach 4, even though it is correct?"
+  },
+  {
+   "id": "Q050",
+   "q": "What is the change in approach 5, and what was its measured effect?"
+  },
+  {
+   "id": "Q051",
+   "q": "With SKIP LOCKED, what does the database do when the second transaction finds the first row locked?"
+  },
+  {
+   "id": "Q052",
+   "q": "What did the teacher say about the claim that 'relational databases don't scale'?"
+  },
+  {
+   "id": "Q053",
+   "q": "Summarise the progression from approach 0 to approach 5."
+  },
+  {
+   "id": "Q054",
+   "q": "What phrase did the teacher ask you to remember for life, and how does the check-in problem map to it?"
+  },
+  {
+   "id": "Q055",
+   "q": "Which similar fixed-inventory-plus-contention systems were listed?"
+  },
+  {
+   "id": "Q056",
+   "q": "For the COVID portal, how might they have implemented the slot booking?"
+  },
+  {
+   "id": "Q057",
+   "q": "What did the teacher say about IRCTC and BookMyShow in terms of locks?"
+  },
+  {
+   "id": "Q058",
+   "q": "Is row locking implemented at the disk level? How is it implemented?"
+  },
+  {
+   "id": "Q059",
+   "q": "How is holding a seat for ~10 minutes while the user pays handled? Is it a SQL lock?"
+  },
+  {
+   "id": "Q060",
+   "q": "When users pick a specific seat (BookMyShow-style), should you use SKIP LOCKED? What does the losing transaction see?"
+  },
+  {
+   "id": "Q061",
+   "q": "How did the teacher suggest exploring FOR SHARE / FOR UPDATE behaviour yourself?"
+  },
+  {
+   "id": "Q062",
+   "q": "With SKIP LOCKED, if the transaction that locked seat 2 fails, is seat 2 lost?"
+  },
+  {
+   "id": "Q063",
+   "q": "What did the teacher recommend for building deep understanding of database internals?"
+  },
+  {
+   "id": "Q064",
+   "q": "Without SKIP LOCKED, how many query evaluations happen in the worst case for N transactions, and why?"
+  },
+  {
+   "id": "Q065",
+   "q": "If you fire only an UPDATE (no SELECT ... FOR UPDATE), what governs concurrent behaviour, and how do you take a lock explicitly?"
+  },
+  {
+   "id": "Q066",
+   "q": "Where does the demo code release (unlock) the locks it took?"
+  },
+  {
+   "id": "Q067",
+   "q": "When a lock is released, how do the waiting transactions find out? Is it a busy loop checking the lock?"
+  },
+  {
+   "id": "Q068",
+   "q": "Before the break, which generic claims about relational databases did the teacher say never to believe?"
+  },
+  {
+   "id": "Q069",
+   "q": "How should you approach a problem labelled 'distributed'?"
+  },
+  {
+   "id": "Q070",
+   "q": "What are the KV store's requirements, and which real system is built this way?"
+  },
+  {
+   "id": "Q071",
+   "q": "Which parts did the brainstorm cover, in the order listed on the board?"
+  },
+  {
+   "id": "Q072",
+   "q": "What type was chosen for the key column, and why does the key's type matter so much?"
+  },
+  {
+   "id": "Q073",
+   "q": "What determines the value column's type, and what was chosen here?"
+  },
+  {
+   "id": "Q074",
+   "q": "What annotations were drawn next to the key and value columns of the store table?"
+  },
+  {
+   "id": "Q075",
+   "q": "What was the first proposal for supporting key-specific TTL?"
+  },
+  {
+   "id": "Q076",
+   "q": "Why is DELETE ... WHERE now() - created_at >= ttl 'the worst query you can write'?"
+  },
+  {
+   "id": "Q077",
+   "q": "How was the TTL design fixed so the cleanup query is efficient?"
+  },
+  {
+   "id": "Q078",
+   "q": "What was the first soft-delete design proposed, and what did it require?"
+  },
+  {
+   "id": "Q079",
+   "q": "How is delete implemented in the final design?"
+  },
+  {
+   "id": "Q080",
+   "q": "Why does marking deletes with expired_at = -1 make the background job elegant?"
+  },
+  {
+   "id": "Q081",
+   "q": "What was the plain insert proposed for PUT?"
+  },
+  {
+   "id": "Q082",
+   "q": "Why does a plain INSERT fail for 'put k1 v1' followed by 'put k1 v2'?"
+  },
+  {
+   "id": "Q083",
+   "q": "Why is 'GET the key, then UPDATE if it exists else INSERT' a bad way to implement put?"
+  },
+  {
+   "id": "Q084",
+   "q": "What is an upsert and why is it better?"
+  },
+  {
+   "id": "Q085",
+   "q": "Which statements give upsert behaviour in Postgres and in MySQL?"
+  },
+  {
+   "id": "Q086",
+   "q": "A student proposed fetching the key and checking expiry in the API server. Why is that wasteful?"
+  },
+  {
+   "id": "Q087",
+   "q": "What GET query was written, and what does its extra clause save?"
+  },
+  {
+   "id": "Q088",
+   "q": "What storage choice and starting setup did the summary notes give?"
+  },
+  {
+   "id": "Q089",
+   "q": "What did the teacher say about the habitual auto-increment ID column?"
+  },
+  {
+   "id": "Q090",
+   "q": "How does the final schema save storage compared with key | value | ttl | is_deleted?"
+  },
+  {
+   "id": "Q091",
+   "q": "How are rows hard deleted, and why that way?"
+  },
+  {
+   "id": "Q092",
+   "q": "According to the notes, what are the two cases when inserting a new key/value, and what is used instead of GET + INSERT/UPDATE?"
+  },
+  {
+   "id": "Q093",
+   "q": "How did the teacher suggest handling multiple concurrent PUT requests on the same key?"
+  },
+  {
+   "id": "Q094",
+   "q": "Describe TTL approach 1 and the timeline drawn for it (D-07)."
+  },
+  {
+   "id": "Q095",
+   "q": "With cron deletion, what about expired keys read before the job runs, and what does the fix save?"
+  },
+  {
+   "id": "Q096",
+   "q": "What is lazy deletion (TTL approach 2), and for which kind of database is it suitable?"
+  },
+  {
+   "id": "Q097",
+   "q": "Why is pointed (lazy) deletion fine in memory but not for a disk-based database?"
+  },
+  {
+   "id": "Q098",
+   "q": "What problem remains if you rely on lazy deletion alone?"
+  },
+  {
+   "id": "Q099",
+   "q": "Why doesn't Redis's periodic job just delete all expired keys on every run?"
+  },
+  {
+   "id": "Q100",
+   "q": "List the steps of Redis's random sampling expiry (TTL approach 3) in the board's order."
+  },
+  {
+   "id": "Q101",
+   "q": "What is the statistical idea behind the 25% threshold?"
+  },
+  {
+   "id": "Q102",
+   "q": "In one iteration, 3 of the 20 sampled keys are expired. What happens next?"
+  },
+  {
+   "id": "Q103",
+   "q": "What does Redis trade off with this expiry design, and why?"
+  },
+  {
+   "id": "Q104",
+   "q": "Why exactly 20 keys, and up to what scale was it said to work?"
+  },
+  {
+   "id": "Q105",
+   "q": "What is the delete micro-optimization, and what does it save?"
+  },
+  {
+   "id": "Q106",
+   "q": "Write the three final queries for delete, batch cleanup and get."
+  },
+  {
+   "id": "Q107",
+   "q": "Why set ttl to -1 on delete instead of relying on the stored expiry time?"
+  },
+  {
+   "id": "Q108",
+   "q": "What was the response to adding an in-memory append-only layer in front of the database to reduce insert I/O?"
+  },
+  {
+   "id": "Q109",
+   "q": "Why does the KV store need to become distributed, and what does the single-node architecture (D-08) look like?"
+  },
+  {
+   "id": "Q110",
+   "q": "What is the first thing you scale when load grows, and on what assumption? What do you check next?"
+  },
+  {
+   "id": "Q111",
+   "q": "When do you add read replicas, and which operations go to the master versus a replica (D-09)?"
+  },
+  {
+   "id": "Q112",
+   "q": "What do you do when the master can no longer handle the writes?"
+  },
+  {
+   "id": "Q113",
+   "q": "Describe the partitioned architecture (D-10)."
+  },
+  {
+   "id": "Q114",
+   "q": "Who holds the routing information in the sharded KV store, and where would requests for 'Google' and 'Zomato' go?"
+  },
+  {
+   "id": "Q115",
+   "q": "Why is static range-based sharding with routing in the API enough for most systems?"
+  },
+  {
+   "id": "Q116",
+   "q": "What hands-on exercise did the teacher recommend for the distributed KV store?"
+  },
+  {
+   "id": "Q117",
+   "q": "Why does the user delete query use ttl > now() while the batch cleanup uses ttl <= now()?"
+  },
+  {
+   "id": "Q118",
+   "q": "For a key that is already expired, what happens when a user delete with the ttl > now() clause runs?"
+  },
+  {
+   "id": "Q119",
+   "q": "Does the KV store keep ACID guarantees once it is partitioned?"
+  },
+  {
+   "id": "Q120",
+   "q": "How should you mock a distributed system on a local machine?"
+  },
+  {
+   "id": "Q121",
+   "q": "Is Redis's 25% condition about expired keys or deleted keys, and on what set?"
+  },
+  {
+   "id": "Q122",
+   "q": "Why should random sampling not be used for expiry in a disk-based database?"
+  },
+  {
+   "id": "Q123",
+   "q": "With autocommit = true, do you still need an explicit transaction for SELECT ... FOR UPDATE?"
+  },
+  {
+   "id": "Q124",
+   "q": "Is the N(N+1)/2 figure a count of queries the client fires?"
+  },
+  {
+   "id": "Q125",
+   "q": "Why does SKIP LOCKED need only about N evaluations even with ORDER BY id LIMIT 1?"
+  },
+  {
+   "id": "Q126",
+   "q": "At what point in query execution is LIMIT applied?"
+  },
+  {
+   "id": "Q127",
+   "q": "What reasons did the teacher give for disliking ORMs?"
+  },
+  {
+   "id": "Q128",
+   "q": "When is using an ORM fine?"
+  },
+  {
+   "id": "Q129",
+   "q": "Is writing native SQL queries inside an ORM for complex cases a good compromise?"
+  },
+  {
+   "id": "Q130",
+   "q": "Why did the teacher favour Go (and Python/C++) over Java?"
+  },
+  {
+   "id": "Q131",
+   "q": "What 'circle of life' of programming languages did the teacher describe?"
+  },
+  {
+   "id": "Q132",
+   "q": "Why is 'SELECT TOP 1 1 ... then INSERT or UPDATE' still worse than an upsert?"
+  },
+  {
+   "id": "Q133",
+   "q": "What causes 'lock wait timeout exceeded; try restarting transaction'?"
+  },
+  {
+   "id": "Q134",
+   "q": "Why not hard delete the row right away instead of setting -1 and batch cleaning?"
+  },
+  {
+   "id": "Q135",
+   "q": "Why doesn't Redis hand off deleting an expired key it just read to a later job?"
+  },
+  {
+   "id": "Q136",
+   "q": "For an online/offline indicator, why can't the server push/poll the user?"
+  },
+  {
+   "id": "Q137",
+   "q": "Why might WhatsApp Web show no heartbeat requests?"
+  },
+  {
+   "id": "Q138",
+   "q": "Are real KV stores built on a relational database like this?"
+  },
+  {
+   "id": "Q139",
+   "q": "Why did the teacher refuse to share the demo code?"
+  },
+  {
+   "id": "Q140",
+   "q": "Why don't relational databases provide soft deletion out of the box?"
+  },
+  {
+   "id": "Q141",
+   "q": "For the previous week's blogging assignment, should students build a front end?"
+  }
+ ]
+}

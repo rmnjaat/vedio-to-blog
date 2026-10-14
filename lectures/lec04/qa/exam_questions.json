@@ -1,0 +1,482 @@
+{
+ "lecture": "lec04",
+ "count": 119,
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "Can the systems discussed in the course be implemented without massive infrastructure, and what part of each system should you implement?"
+  },
+  {
+   "id": "Q002",
+   "q": "Why does implementing the core of a system matter more than drawing boxes, according to the teacher?"
+  },
+  {
+   "id": "Q003",
+   "q": "What two items were on the agenda for the second half of this session, and what example application were they discussed in?"
+  },
+  {
+   "id": "Q004",
+   "q": "Why did the teacher say the online/offline indicator would be designed without worrying much about scale?"
+  },
+  {
+   "id": "Q005",
+   "q": "What is the 'spiral' approach to building a system, and what is usually its core?"
+  },
+  {
+   "id": "Q006",
+   "q": "List the steps of the 'incremental building' approach in the order written on the board, and say which step the loop arrow returns to."
+  },
+  {
+   "id": "Q007",
+   "q": "When do you typically choose the spiral approach versus incremental building?"
+  },
+  {
+   "id": "Q008",
+   "q": "What simple day-zero architecture did the teacher give as an example for incremental building?"
+  },
+  {
+   "id": "Q009",
+   "q": "What are the three 'points to remember' written on the board before the online/offline design began?"
+  },
+  {
+   "id": "Q010",
+   "q": "What misconception about choosing technology did the teacher warn against at the start of the design?"
+  },
+  {
+   "id": "Q011",
+   "q": "In the first storage model for the indicator, what types were stored and what access pattern did it reveal?"
+  },
+  {
+   "id": "Q012",
+   "q": "What is the first critical API design decision for rendering statuses, and why?"
+  },
+  {
+   "id": "Q013",
+   "q": "In the 'Interfacing API' diagram, what are the components and how are they connected?"
+  },
+  {
+   "id": "Q014",
+   "q": "Why can't the API server use a pull-based model to learn whether a user is online?"
+  },
+  {
+   "id": "Q015",
+   "q": "What endpoint do clients use to report they are alive, and what does it do?"
+  },
+  {
+   "id": "Q016",
+   "q": "Why isn't it enough to send one call when the user comes online and one when they log out?"
+  },
+  {
+   "id": "Q017",
+   "q": "When is a user considered offline in the heartbeat design, and how long is 'long enough'?"
+  },
+  {
+   "id": "Q018",
+   "q": "How did the stored data change once heartbeats were introduced?"
+  },
+  {
+   "id": "Q019",
+   "q": "The teacher draws tables and writes SQL on the board. Does that mean the design uses a relational database?"
+  },
+  {
+   "id": "Q020",
+   "q": "State the getStatus business logic rules in order."
+  },
+  {
+   "id": "Q021",
+   "q": "How often did the board say a user sends a heartbeat?"
+  },
+  {
+   "id": "Q022",
+   "q": "How large is each row of the pulse table and why?"
+  },
+  {
+   "id": "Q023",
+   "q": "What is the total storage for 1 billion users and what does it tell you about the system?"
+  },
+  {
+   "id": "Q024",
+   "q": "Even though storage is not a problem, why did the teacher still ask 'can we do better on storage?'"
+  },
+  {
+   "id": "Q025",
+   "q": "What is the 'absence == offline' idea and how does it reduce storage?"
+  },
+  {
+   "id": "Q026",
+   "q": "With absence == offline, what is the storage for 1B total users of whom 100k are active?"
+  },
+  {
+   "id": "Q027",
+   "q": "What was 'Approach 1' for deleting expired entries, and what were its drawbacks?"
+  },
+  {
+   "id": "Q028",
+   "q": "What design warning did the teacher give about adding extra components like the cron job?"
+  },
+  {
+   "id": "Q029",
+   "q": "What was 'Approach 2' and which databases did the teacher name for it?"
+  },
+  {
+   "id": "Q030",
+   "q": "With a TTL-based store, what happens on each heartbeat and what determines online/offline?"
+  },
+  {
+   "id": "Q031",
+   "q": "In the Redis vs DynamoDB table, which column got the ticks for 'persistence' and 'managed', and what qualifier was added to 'managed'?"
+  },
+  {
+   "id": "Q032",
+   "q": "What is vendor lock-in?"
+  },
+  {
+   "id": "Q033",
+   "q": "Besides cost and security incidents, what 'very interesting' reason for avoiding vendor lock-in did the teacher add?"
+  },
+  {
+   "id": "Q034",
+   "q": "What counter-example did the teacher give to the competitor rule, and why?"
+  },
+  {
+   "id": "Q035",
+   "q": "When does vendor lock-in not matter much for a company?"
+  },
+  {
+   "id": "Q036",
+   "q": "Why do many companies prefer open-source technologies over proprietary ones?"
+  },
+  {
+   "id": "Q037",
+   "q": "A student said DynamoDB gives persistence. What did the teacher say about Redis persistence?"
+  },
+  {
+   "id": "Q038",
+   "q": "Which column of the table did 'vendor lock-in' and 'future extensibility' go to, and what Redis features make it extensible?"
+  },
+  {
+   "id": "Q039",
+   "q": "Is it true that Redis only stores strings while DynamoDB has numbers?"
+  },
+  {
+   "id": "Q040",
+   "q": "What did the teacher say about databases' features converging?"
+  },
+  {
+   "id": "Q041",
+   "q": "Why is Redis better for time sensitivity than DynamoDB, according to the teacher (it is not only because it is in-memory)?"
+  },
+  {
+   "id": "Q042",
+   "q": "Name the final five rows of the Redis vs DynamoDB table and which side each favoured."
+  },
+  {
+   "id": "Q043",
+   "q": "Why do teams go for managed services?"
+  },
+  {
+   "id": "Q044",
+   "q": "How are online/offline indicators actually built in the real world?"
+  },
+  {
+   "id": "Q045",
+   "q": "How many requests per minute does the heartbeat design generate for 1 million active users, and what does each cause?"
+  },
+  {
+   "id": "Q046",
+   "q": "For this system, which is the challenge: storage or computation?"
+  },
+  {
+   "id": "Q047",
+   "q": "How many network trips does setting up and tearing down a TCP connection cost, and why does this matter here?"
+  },
+  {
+   "id": "Q048",
+   "q": "What is a connection pool?"
+  },
+  {
+   "id": "Q049",
+   "q": "The number of queries stays the same with a connection pool. Why does it still reduce load on the database?"
+  },
+  {
+   "id": "Q050",
+   "q": "List the benefits of connection pooling the teacher gave."
+  },
+  {
+   "id": "Q051",
+   "q": "What happens when all pooled connections are busy and a new request arrives?"
+  },
+  {
+   "id": "Q052",
+   "q": "Why do connection pools need a maximum size and an idle TTL?"
+  },
+  {
+   "id": "Q053",
+   "q": "Is a connection pool a separate service? How is it implemented?"
+  },
+  {
+   "id": "Q054",
+   "q": "When does a connection pool give a massive boost, and when is the benefit outweighed?"
+  },
+  {
+   "id": "Q055",
+   "q": "What other system can be built with the same pattern as the online/offline indicator?"
+  },
+  {
+   "id": "Q056",
+   "q": "If a new API server cannot get a DB connection because the DB hit its TCP connection limit, what happens?"
+  },
+  {
+   "id": "Q057",
+   "q": "What is the most common bottleneck of a database, according to the teacher, and how does concurrency relate to DB size?"
+  },
+  {
+   "id": "Q058",
+   "q": "Self-hosted Redis vs DynamoDB for a small team that needs to autoscale: what order of choice did the teacher give?"
+  },
+  {
+   "id": "Q059",
+   "q": "If a pool has max 100 and some connections expired, what happens when demand rises again? Are there always 100 connections?"
+  },
+  {
+   "id": "Q060",
+   "q": "Why is the number of connections the key factor in scaling the DB for this system?"
+  },
+  {
+   "id": "Q061",
+   "q": "When would you not stress on connections and focus elsewhere?"
+  },
+  {
+   "id": "Q062",
+   "q": "How do you find how many concurrent connections a database can handle?"
+  },
+  {
+   "id": "Q063",
+   "q": "What are the four things in computer science that determine scaling, with an example of each?"
+  },
+  {
+   "id": "Q064",
+   "q": "How do you set the minimum and maximum size of a connection pool?"
+  },
+  {
+   "id": "Q065",
+   "q": "After setting initial pool sizes, how should you tune them, and what should you monitor?"
+  },
+  {
+   "id": "Q066",
+   "q": "For a festival with 2x users, how should you handle the connection load?"
+  },
+  {
+   "id": "Q067",
+   "q": "What are the six foundational components to think about when designing systems?"
+  },
+  {
+   "id": "Q068",
+   "q": "Describe the schema of the blogging platform."
+  },
+  {
+   "id": "Q069",
+   "q": "What happens when a user deletes a blog with soft delete?"
+  },
+  {
+   "id": "Q070",
+   "q": "What are the three key reasons for soft delete, in the order on the board?"
+  },
+  {
+   "id": "Q071",
+   "q": "What example illustrates recoverability?"
+  },
+  {
+   "id": "Q072",
+   "q": "How does soft delete enable archival?"
+  },
+  {
+   "id": "Q073",
+   "q": "What real story illustrated the audit reason?"
+  },
+  {
+   "id": "Q074",
+   "q": "Why is soft delete 'easy on the database engine'?"
+  },
+  {
+   "id": "Q075",
+   "q": "How does the DB store a LONGTEXT column vs a VARCHAR column?"
+  },
+  {
+   "id": "Q076",
+   "q": "Which fields of the blogging schema are short text and which long text, and why not make everything inline?"
+  },
+  {
+   "id": "Q077",
+   "q": "What are the three ways to store date-time on the board, in order?"
+  },
+  {
+   "id": "Q078",
+   "q": "Why can a native datetime type be slow for a query like published_at > now() - 7 days?"
+  },
+  {
+   "id": "Q079",
+   "q": "What labels did the board attach to 'datetime as datetime'?"
+  },
+  {
+   "id": "Q080",
+   "q": "What is an epoch integer, and how much space does it save compared with the string?"
+  },
+  {
+   "id": "Q081",
+   "q": "What is the trade-off of storing date-time as an epoch integer?"
+  },
+  {
+   "id": "Q082",
+   "q": "What did Redbus do in 2016 with date-time and why?"
+  },
+  {
+   "id": "Q083",
+   "q": "Does the YYYYMMDD integer perform better than an epoch integer?"
+  },
+  {
+   "id": "Q084",
+   "q": "What does storing epoch time lose compared with a datetime, and how do you handle it?"
+  },
+  {
+   "id": "Q085",
+   "q": "If soft-deleted rows are eventually hard-deleted, is the no-rebalancing benefit lost?"
+  },
+  {
+   "id": "Q086",
+   "q": "What limitation of a 4-byte epoch integer was raised, and what did the teacher recommend reading?"
+  },
+  {
+   "id": "Q087",
+   "q": "What is caching, according to the teacher's definition?"
+  },
+  {
+   "id": "Q088",
+   "q": "Are caches only RAM based? Give an example otherwise."
+  },
+  {
+   "id": "Q089",
+   "q": "What are caches fundamentally, according to the board?"
+  },
+  {
+   "id": "Q090",
+   "q": "Describe the blogging platform diagram with the cache."
+  },
+  {
+   "id": "Q091",
+   "q": "Describe the read path through the central cache."
+  },
+  {
+   "id": "Q092",
+   "q": "Why use a central remote cache for the blogging platform?"
+  },
+  {
+   "id": "Q093",
+   "q": "What was the 'fun exercise' for the next class?"
+  },
+  {
+   "id": "Q094",
+   "q": "Can the DB itself hold pre-computed results as a cache?"
+  },
+  {
+   "id": "Q095",
+   "q": "Soft-deleted rows grow the DB. What do you do?"
+  },
+  {
+   "id": "Q096",
+   "q": "What does GDPR's right to be forgotten require, and how soon?"
+  },
+  {
+   "id": "Q097",
+   "q": "In practice, is data fully removed after a right-to-be-forgotten request?"
+  },
+  {
+   "id": "Q098",
+   "q": "Should a cache compress data, and where?"
+  },
+  {
+   "id": "Q099",
+   "q": "An interviewer said a background job hard-deleting soft-deleted rows would cause downtime because of locking. How did the teacher answer?"
+  },
+  {
+   "id": "Q100",
+   "q": "If the same pre-computed result is stored in Redis and in a database table, what decides which is faster to read?"
+  },
+  {
+   "id": "Q101",
+   "q": "How should you hard delete 100,000 soft-deleted rows without hurting a busy database?"
+  },
+  {
+   "id": "Q102",
+   "q": "A table has a unique index on email and uses soft delete. A user deletes their account and wants to sign up again with the same email. What must you do?"
+  },
+  {
+   "id": "Q103",
+   "q": "Instead of a cron job, can you set a retention policy in the DB to delete old rows? Which approach is better for DB performance?"
+  },
+  {
+   "id": "Q104",
+   "q": "If the cached field in the DB is indexed, isn't it read from RAM, making the DB as fast as Redis?"
+  },
+  {
+   "id": "Q105",
+   "q": "If you work at Google and will always use GCP, does vendor lock-in matter? What other concern might a manager still have?"
+  },
+  {
+   "id": "Q106",
+   "q": "Why wasn't availability one of the rows comparing Redis and DynamoDB?"
+  },
+  {
+   "id": "Q107",
+   "q": "How would you support showing 'last seen' in the online/offline design?"
+  },
+  {
+   "id": "Q108",
+   "q": "Are soft delete and archival the same thing?"
+  },
+  {
+   "id": "Q109",
+   "q": "Is it fine to use Redis as the primary database for the online/offline indicator?"
+  },
+  {
+   "id": "Q110",
+   "q": "Should autoscaling for sudden surges count against self-managed Redis versus DynamoDB?"
+  },
+  {
+   "id": "Q111",
+   "q": "Should you avoid database-specific features like TTL so you can switch databases later?"
+  },
+  {
+   "id": "Q112",
+   "q": "What did the teacher recommend for understanding how connection pooling behaves when the database is scaled?"
+  },
+  {
+   "id": "Q113",
+   "q": "What is the downside of a connection pool configured with a minimum of 100 connections per server when the DB supports at most 1000?"
+  },
+  {
+   "id": "Q114",
+   "q": "What goes wrong if pools may grow freely and the idle-connection TTL is very long (e.g. 10 minutes)?"
+  },
+  {
+   "id": "Q115",
+   "q": "What conservative starting configuration for a connection pool did the teacher recommend?"
+  },
+  {
+   "id": "Q116",
+   "q": "What single metric matters most for tuning a connection pool, and why?"
+  },
+  {
+   "id": "Q117",
+   "q": "Using TTL saves space but makes Redis do deletions. Is that computation a concern?"
+  },
+  {
+   "id": "Q118",
+   "q": "HTTP is stateless. Does that mean HTTP connections can never stay open?"
+  },
+  {
+   "id": "Q119",
+   "q": "What is the relationship between HTTP and TCP?"
+  }
+ ]
+}

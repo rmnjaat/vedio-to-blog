@@ -1,0 +1,216 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { EpochLine, LongShortText, ThreeDates, TwentyOrFour } from '../../../figures/lec04/s5b-blog-rows';
+
+{/* Chapter 5 "Blog rows", part b: 5.6–5.9, after s5a-blog-rows.mdx. Writer w3. */}
+
+<Section id="s5-6" no="5.6" title="bio vs body: where long text lives" crumb="5.6 bio vs body"
+  dek="A 140-character bio and a blog body of thousands of words sit in the same schema. They should not sit in the row the same way."
+  meta="About 5 min · class 01:48–01:52">
+
+A `bio` of about 140 characters and a `body` of thousands of words are both text. Should they be stored the same way? No. `bio` uses a **short text** type and `body` a **long text** type, and the database handles the difference in storage internally. [[L-0189]]
+
+In a row-based database, all the data of a row stays together, in what are taught as **fixed-width rows**: every row has a fixed length, so the database knows at which byte each column starts. That holds for relational and non-relational stores alike; think of the 8-byte pulse row of [§2.6](#s2-6), two 4-byte fields side by side. [[L-0190]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-row-format.html" site="dev.mysql.com" k="L-0190">
+
+Row stores do keep a row’s columns together. Fixed-length columns sit at known offsets, but variable-length columns such as `VARCHAR` are located through length fields in the record header, so rows are generally variable length <Cite href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html">dev.mysql.com</Cite>. The real point, that a row’s size is bounded so long values go off-page, still holds.
+
+</SourceNote>
+
+It is like a C struct, where you know the byte offset of each field. [[L-0191]] The analogy holds for fixed-length columns (`INT`, `CHAR`, `DATETIME`); variable-length ones break the fixed offsets. [[L-0191]]
+
+A **short text** column (`VARCHAR`) stays inline, with the other columns of the row. [[L-0192]] A **long text** column (`LONGTEXT`) is stored by the database in a separate location on disk (still disk, not a network call), and the row keeps only a reference to it. The database does this for you. [[L-0193]]
+
+<Figure id="fig-5f" max={620} no="Fig 5·f" k="L-0189 L-0192 L-0193"
+  caption="Long text vs short text, as taught. InnoDB moves long values off-page only when the row doesn’t fit; PostgreSQL does it for any wide value (TOAST). Redrawn from the class board at 01:49.">
+  <Desk><LongShortText /></Desk>
+  <Phone><LongShortText layout="phone" /></Phone>
+</Figure>
+
+Engines differ. InnoDB’s default `DYNAMIC` format moves long `VARCHAR`, `TEXT` and `BLOB` values off-page behind a 20-byte pointer only when the row is too long for the page; `TEXT`/`BLOB` values of 40 bytes or less stay inline <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-row-format.html">dev.mysql.com</Cite>. PostgreSQL has no short/long split: TOAST compresses or moves any wide value out of line once the row passes about 2 kB, and fetches it only if the query selects that column <Cite href="https://www.postgresql.org/docs/current/storage-toast.html">postgresql.org</Cite>. [[L-0193]]
+
+The cost: reading a long text column takes two disk calls, one for the row and one for the text, which makes the read expensive. A short text column comes back with the row in one read. [[L-0194]]
+
+Why not keep everything inline? A row’s length has to be limited: gigantic text can’t sit in rows, and small rows scan easily. [[L-0195]] Hard limits apply too: InnoDB’s in-page row must fit in just under 8 KB with the default 16 KB pages, and MySQL caps any row at 65,535 bytes, with `TEXT`/`BLOB` columns counting only 9–12 bytes toward it because their contents live elsewhere <Cite href="https://dev.mysql.com/doc/refman/8.4/en/column-count-limit.html">dev.mysql.com</Cite>. [[L-0195]]
+
+Email, bio, first name and last name are short text, typically `VARCHAR`; a blog body or a long comment is long text. [[L-0196]] A 5,000-character comment is 5,000 bytes; stored inline, it makes every row huge. Know when data is long enough to be stored separately. [[L-0197]] (In MySQL’s `utf8mb4` a character can take up to 4 bytes, so 5,000 characters can be up to 20,000 bytes <Cite href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html">dev.mysql.com</Cite>, which only strengthens the point.) [[L-0197]]
+
+The extra read is usually not paid at all. A listing page shows each blog’s title, first few lines and an image, not the body; the second disk read happens only when someone opens the blog. [[L-0198]] Rule of thumb: keep the row, or the document, to a bare minimum. Very large text is long text; everything else is short text. [[L-0199]]
+
+</Section>
+
+<Section id="s5-7" no="5.7" title="Three ways to store a date" crumb="5.7 Dates"
+  dek="published_at can be a native datetime, an epoch integer or a custom integer. How it sits on disk decides how fast “last 7 days” runs."
+  meta="About 8 min · class 01:52–02:01">
+
+The blog list wants the posts published in the last 7 days. How should `published_at` be stored? There are several ways to store a date and time, each with different advantages. Here are three. [[L-0200]]
+
+<Figure id="fig-5g" max={740} no="Fig 5·g" k="L-0200 L-0201 L-0203 L-0209 L-0216 L-0217"
+  caption="Three ways to store a date. The board’s epoch example, 172562347162, was illustrative; the redraw uses 1648890096, the epoch seconds for the same instant, 2 April 2022 09:01:36 UTC. Redrawn from the class board at 01:56.">
+  <Desk><ThreeDates /></Desk>
+  <Phone><ThreeDates layout="phone" /></Phone>
+</Figure>
+
+**1. The native type.** Every database offers a date-time column type; it is the most basic way. [[L-0201]] Under the hood, the database serialises the value in some format and flushes it to disk; to read it back, it converts that format into a date-time object before it can process it. [[L-0202]]
+
+Take a hypothetical, naive engine that stores the date as a string on disk, say `02-04-2022T09:01:36Z` for 2 April 2022, 09:01:36. Every read turns that string back into a date-time object before comparing. [[L-0203]] Run `SELECT * FROM blogs` `WHERE published_at` `> now() - 7 days`. The engine reads the string of every row, extracts date, month, year, hour, minute and second, and applies the comparison logic, in its C++ code, say. [[L-0204]] That is expensive: how your database stores this data on disk determines its performance. [[L-0205]]
+
+Not every database stores a date as a string. MySQL has its own format, Postgres its own, MongoDB its own; some store epoch seconds, some epoch milliseconds. [[L-0206]] Understand how yours stores date-time on disk; if that isn’t performant enough for your use case, find a more efficient way to store the information. [[L-0207]]
+
+The native type is extremely convenient: your language hands you a date object to compare. But it may be suboptimal in some cases and can ruin performance (5.8 has a company that moved away from it): convenient, sub-optimal, heavy on size and index. [[L-0208]] In the major engines, though, native types are compact binary values, not strings. MySQL stores a `DATE` in 3 bytes and a `DATETIME` in 5 <Cite href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html">dev.mysql.com</Cite>, and a PostgreSQL `timestamp` takes 8 <Cite href="https://www.postgresql.org/docs/current/datatype-datetime.html">postgresql.org</Cite>. [[L-0208]]
+
+**2. An epoch integer.** Create `published_at` as an **integer** column and store the epoch in it. A lot of companies have started doing this, for a lot of benefits. [[L-0209]] The epoch is the number of seconds, or milliseconds, elapsed since 1 January 1970: where the clock started ticking. [[L-0210]]
+
+What you gain is space. Stored as that string, the date takes about 20 bytes; as an epoch integer, 4. From 20 bytes to 4: a massive space gain. [[L-0211]]
+
+<Figure id="fig-5h" max={600} no="Fig 5·h" k="L-0211"
+  caption="Twenty bytes or four. The string from the board, one byte per character, against the same instant as a 32-bit integer. The faint strip is what MySQL actually uses for a DATETIME.">
+  <Desk><TwentyOrFour /></Desk>
+  <Phone><TwentyOrFour layout="phone" /></Phone>
+</Figure>
+
+What you lose is readability. Efficient, optimal and lightweight, an epoch integer is not at all readable: you can’t tell the time from the number, while a date-time reads at a glance. [[L-0212]]
+
+It is also lightweight on the index: a comparison is a plain integer comparison, the most efficient operation there is for the database, the disk and the computer in general, while a date-time needs a complex multi-attribute object before it can be compared. [[L-0213]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html" site="dev.mysql.com" k="L-0213">
+
+Epoch integers are compact and fast to compare, but native date/time types are compact binary values too (MySQL `DATETIME` 5 bytes, PostgreSQL `timestamp` 8 bytes) and index almost as efficiently <Cite href="https://www.postgresql.org/docs/current/datatype-datetime.html">postgresql.org</Cite>.
+
+</SourceNote>
+
+</Section>
+
+<Section id="s5-8" no="5.8" title="Redbus and the custom format" crumb="5.8 Custom format"
+  dek="A team that needed fast date comparisons and readable values relaxed a constraint it didn’t need."
+  meta="About 5 min · class 02:00–02:06">
+
+The third way comes from a second-hand account, from an engineer who did the work.
+
+In 2016, Redbus, the bus-booking site, had a table storing dates as date-time, and massive date-time comparisons made it the bottleneck. [[L-0214]] Epoch integers would have cost readability: engineers read the value as-is in their SQL IDEs and UI to debug. [[L-0215]] The use case, not disclosed further, was more analytics than transactional, and date-time comparisons were creating havoc, so they went with a custom format. [[L-0227]]
+
+**3. A custom format.** They relaxed a constraint they didn’t need: they needed the date, not the time. [[L-0216]] They stored the date as an **integer** in `YYYYMMDD` form, not a string: `20220402` for 2 April 2022, heavily optimised for their use case. [[L-0217]] Readable, because you can see it is 2 April; fast, because integer comparison and integer index are lightning fast. [[L-0218]]
+
+```sql
+-- before: a date-time column (as taught, decoded before every compare)
+WHERE journey_date >= '2016-04-02 00:00:00'
+-- after: an INT in YYYYMMDD form, compared as one integer, still readable
+WHERE journey_date >= 20160402
+-- (column name illustrative; the story gave no schema)
+```
+
+Custom date formats are in use in a bunch of other places too, in practice, with proprietary details. [[L-0223]] There is no hard rule to use the date-time type or epoch integers. Be creative, and be open to altering constraints: that is where the next level of optimisation comes from. [[L-0219]]
+
+<PauseAndThink k="L-0204 L-0216 L-0217 L-0218 L-0221 L-0222"
+  q="A team stores dates as the integer <code>20220402</code> (YYYYMMDD) instead of an epoch integer like <code>1648890096</code>. Does that make date comparisons faster than epoch?"
+  choices={[{ label: 'Yes: it’s a custom, optimised format' }, { label: 'No: both are integer compares', correct: true }]}
+  right="Right. The win was elsewhere."
+  wrong="Not faster. Both are plain integers to the database.">
+
+Both integers beat a slow native date-time; against each other there’s no speed difference, and epoch plus a client-side formatting function would perform the same. The custom format buys **readability** (`20220402` in a SQL console), and that was the team’s call. [[L-0222]] It is inflexible if the time is ever needed, but Redbus knew it never would. [[L-0221]] Relax a constraint you don’t need, and know what you gave up.
+
+</PauseAndThink>
+
+Each approach, native date-time, epoch integer or custom integer, has its own advantages and disadvantages, and no format is better than the others overall. Pick by asking what you need: readability, performance or convenience? [[L-0220]]
+
+</Section>
+
+<Section id="s5-9" no="5.9" title="Time zones and running out of numbers" crumb="5.9 Time zones"
+  dek="What each format loses: the zone, the far future, the past before 1970."
+  meta="About 5 min · class 02:04–02:11">
+
+Each format gives something up. A native date-time can capture time zone information, which is somewhat lost in the epoch and custom formats; weigh that when you choose. You get something, you lose something. [[L-0224]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/datetime.html" site="dev.mysql.com" k="L-0224">
+
+Native timestamp types usually normalise to UTC (MySQL `TIMESTAMP`, PostgreSQL `timestamptz`) or store no zone at all (MySQL `DATETIME`) <Cite href="https://www.postgresql.org/docs/current/datatype-datetime.html">postgresql.org</Cite>. If you need the original time zone, store it in its own column, whichever format you use.
+
+</SourceNote>
+
+With an epoch, display is easy: render it in the local device’s time zone. [[L-0225]]
+
+<MarginNote title="From practice: burned by time zones" why="skip unless you store times" k="L-0226">
+
+Nearly everyone who stores times has “burned their hands” with this once. The same epoch value is a different local time in different zones, so be especially careful to take everything in UTC. [[L-0226]]
+
+</MarginNote>
+
+The future is a limit too: the epoch keeps growing and will max out a 4-byte int, forcing a move to 64 bits. [[L-0231]] As taught, the 4-byte range maxes out in 2032, and moving from 4 to 8 bytes doubles the space a date needs. [[L-0232]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/datetime.html" site="dev.mysql.com" k="L-0232">
+
+A signed 32-bit epoch-seconds value runs out on 19 January 2038 (MySQL’s 4-byte `TIMESTAMP` ends at 2038-01-19 03:14:07 UTC), not in 2032. Moving to 64 bits doubles the size and removes the limit for any practical horizon <Cite href="https://www.postgresql.org/docs/current/datatype-numeric.html">postgresql.org</Cite>.
+
+</SourceNote>
+
+<Figure id="fig-5i" max={600} no="Fig 5·i" k="L-0232 L-0233"
+  caption="The epoch number line, in seconds. 0 is 1 January 1970 and −1 is the second before it. A signed 32-bit value hits its wall on 19 January 2038; a 64-bit one carries on. Not to scale.">
+  <Desk><EpochLine /></Desk>
+  <Phone><EpochLine layout="phone" /></Phone>
+</Figure>
+
+The past is awkward too. The epoch starts on 1 January 1970, so 31 December 1969 needs a negative number like −1, wrong on so many levels in the lecture’s view. [[L-0233]] In practice negative epochs are normal: MongoDB’s date type is signed, and “negative values represent dates before 1970” <Cite href="https://www.mongodb.com/docs/manual/reference/bson-types/">mongodb.com</Cite>. The real constraint is the width, not the sign. [[L-0233]]
+
+An alternative is a compressed, serialised date-time covering the whole range without an integer’s size limit, at a little extra space: “let’s say” about 6 bytes rather than 8. MySQL’s date-time balances both worlds: not an integer, yet good enough performance. [[L-0234]] The real figures: MySQL stores a `DATETIME` in 5 bytes, plus 0–3 bytes for fractional seconds <Cite href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html">dev.mysql.com</Cite>. [[L-0234]]
+
+As taught, MySQL stores date-time in a mind-blowingly efficient way, covering a massive range, from BCE up to about 20,000 years (offered with an “I think”), in very few bytes. [[L-0235]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/datetime.html" site="dev.mysql.com" k="L-0235">
+
+MySQL `DATETIME` covers years 1000–9999 in 5 bytes. The very wide range belongs to PostgreSQL, whose 8-byte `timestamp` spans 4713 BC to 294276 AD <Cite href="https://www.postgresql.org/docs/current/datatype-datetime.html">postgresql.org</Cite>.
+
+</SourceNote>
+
+So read MySQL’s official date-time documentation, not a blog, a video or a random person. It explains why MySQL serialises date-time instead of storing integers. [[L-0236]]
+
+<TradeoffTable caption="Storing published_at: native datetime, epoch integer or custom YYYYMMDD integer"
+  k="L-0208 L-0211 L-0212 L-0213 L-0218 L-0224 L-0232"
+  columns={[{ label: 'Native datetime' }, { label: 'Epoch integer' }, { label: 'Custom YYYYMMDD int' }]}
+  rows={[
+    { label: 'Size', k: 'L-0211 L-0232', cells: ['Serialised in some format; as a string, about 20 B (MySQL DATETIME 5 B, PostgreSQL timestamp 8 B)', '4 B (8 B to get past the overflow)', '4 B integer'] },
+    { label: 'Compare cost', k: 'L-0208 L-0213 L-0218', cells: ['Decode into a date object, then compare: can be suboptimal (natives index almost as well in MySQL and PostgreSQL)', 'Plain integer compare', 'Plain integer compare: same as epoch, no faster'] },
+    { label: 'Readable?', k: 'L-0212 L-0218', cells: ['Yes, at a glance', { text: 'No: 1648890096 says nothing', bad: true }, 'Yes: 20220402'] },
+    { label: 'Time zone', k: 'L-0224', cells: ['Can capture it (usually normalised to UTC; store the zone separately if you need it)', 'Lost; keep everything in UTC and render in the viewer’s zone', 'Lost; a date only'] },
+    { label: 'Range', k: 'L-0232', cells: ['MySQL DATETIME: years 1000–9999; PostgreSQL: 4713 BC–294276 AD', 'Signed 32-bit seconds end 19 Jan 2038 (taught as 2032)', 'Any date, no time of day'] },
+    { label: 'Convenience', k: 'L-0208 L-0221', cells: ['Highest: the language gives you a date object', 'Convert on every display', 'Readable, but inflexible if you ever need the time'] },
+  ]} />
+
+<h3 id="s5-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Give the three reasons to soft delete, and one case where you must hard delete anyway." k="L-0175 L-0177 L-0179 L-0296">
+
+Recoverability (let the user undo, like a 30-day trash), archival (deleted content is rich data a job can move to blob storage later), and audit (evidence must not vanish when a harasser deletes a comment). Hard delete anyway when a soft-deleted row blocks a unique index, such as a user re-registering with the same email (or use a partial unique index), and when the law requires erasure.
+
+  </RecallItem>
+  <RecallItem q="A blog list page shows titles and excerpts. Why does storing body as long text help it?" k="L-0193 L-0195 L-0198">
+
+The body lives outside the row, with only a reference inline, so rows stay small and the list query reads compact rows without dragging thousands of words along. The extra read for the body is paid only when someone opens a post.
+
+  </RecallItem>
+  <RecallItem q="Redbus’s YYYYMMDD: what did it buy over epoch, and what did it give up?" k="L-0218 L-0221 L-0222">
+
+Readability: engineers could read 20220402 in their SQL tools. It bought no speed over epoch; both are integer compares, and the speed gain was over the native date-time. It gave up the time of day, which Redbus knew it would never need, and the time zone.
+
+  </RecallItem>
+</RecallQuestions>
+
+The blog is stored. A popular post still costs a join on every read.
+
+<SectionEnd next={{ title: '6 · What a cache is', href: '#s6' }}
+  concepts={[{ label: 'six foundation topics', href: '#s5-1' }, { label: 'soft delete', href: '#s5-2' }, { label: 'staggered deletion', href: '#s5-4' }, { label: 'right to be forgotten', href: '#s5-5' }, { label: 'long text vs short text', href: '#s5-6' }, { label: 'epoch integer', href: '#s5-7' }, { label: 'custom date format', href: '#s5-8' }]} />
+
+</Section>
