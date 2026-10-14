@@ -1,0 +1,185 @@
+{
+ "lecture": "lec03",
+ "verdict": "pass",
+ "issues": [
+  {
+   "id": "C-01",
+   "severity": "high",
+   "owner": "design",
+   "where": "fig-2c step 4, fig-5a steps 3 and 5 at 390px: step/390-light-fig-2c-s4.png, step/390-light-fig-5a-s3.png, step/390-light-fig-5a-s5.png",
+   "problem": "On phone, the step-through drawing sits in a fixed-height stage that clips the bottom of the SVG, so the step being explained is cut off. In fig-2c step 4 the m1-01…m2-03 result rows, which are the whole point of the step, are hidden below the Prev/Next bar. In fig-5a step 3 the payments s1 box and its [0, 2000) range are half cut, and in step 5 payments s1 has disappeared. Desktop and fig-3d and fig-7d on phone are fine.",
+   "fix": "Size the phone stage to the full height of the phone drawing (or crop the viewBox per step so it always includes the active step's elements and anything the step text names). Re-shoot every step of 2c, 2d, 3d, 5a and 7d at 390 and check that the element named in the step text is visible above the controls.",
+   "status": "resolved",
+   "recheck": "Every phone step of 2c, 5a and 7d now shows the whole drawing, with the bar under it (final_shots/step/390-light-fig-2c-s4.png: m1-01…m2-03 visible; 390-light-fig-5a-s3.png and -s5.png: payments s1 and [0, 2000) whole). fig-2d and fig-3d no longer exist."
+  },
+  {
+   "id": "C-02",
+   "severity": "medium",
+   "owner": "content",
+   "where": "6-snowflake §6.6: fig-6d (fig/1440-light-fig-6d.png, fig/390-dark-fig-6d.png), the paragraph after it (sweep/1440-light/6-snowflake/011.png) and Check yourself Q2",
+   "problem": "Fig 6·d, its caption and Check-yourself answer 2 say Discord uses 'the same 41 bits' from 2015, lasting to about 2084. The very next paragraph says Discord's documentation specifies a 42-bit timestamp, which from 2015 lasts to about 2154. The page contradicts itself across two adjacent blocks.",
+   "fix": "Keep the figure's teaching point (same bit width, later epoch = more years) but label the lower line 'epoch 2015' without '(discord)', and say in the caption that Discord's docs count 42 bits (the sign bit included), which stretches it further. Alternatively, reconcile in one sentence in the paragraph: Twitter's layout is also 42 bits if you count the unused top bit; kept positive in a signed 64-bit integer, both effectively get 41. Make answer 2 match whichever you choose.",
+   "status": "resolved",
+   "recheck": "Fig 6·d's lower line now reads 'epoch 2015'. The caption says Discord's docs count one more bit, and the paragraph after it reconciles 41 and 42 bits (2084 and 2154) (final_shots/fig/1440-light-fig-6d.png, sweep/1440-light/6-snowflake/011.png)."
+  },
+  {
+   "id": "C-03",
+   "severity": "medium",
+   "owner": "content",
+   "where": "§1.1 (sweep/1440-light/1-why-own-ids/002.png), §2.3, §2.5, §2.6 (sweep/1440-light/2-building-getid/012.png), §4.3, §5.2 (sweep/1440-light/5-central-services/001.png), §5.4, §5.6, §6.2, §8.4 (sweep/1440-light/8-pagination/006.png), fig-3-2 label",
+   "problem": "The prose narrates the recording and the teacher instead of stating things, which is lec01's issue 14 again. Examples: '(The recording garbles the lecture's exact words here; that reflex is the sense of it.)'; 'When someone tells the instructor their database is slow, the first thing he checks…'; 'the team that built Amazon's ID service sat right next to him'; 'In 2016, bored at Amazon and heavily into MongoDB, the instructor wrote…'; 'the class board crossed it out at the crash, and the lecture counted both 8 and 9 as leaked'; 'One idea raised in class'; 'The lecture describes it as living on the heap'; 'As worked out in class'; the fig-3-2 label 'strictly monotonic, as the lecture says it'.",
+   "fix": "Delete the recording-garbled aside. Rewrite teacher biography as plain claims ('A common first check for a slow database is index size'; 'Amazon described the design in a public tech talk'; 'A 2016 benchmark (arpitbhayani.me) measured…'). Change 'raised in class' to 'One tempting idea'. Leave provenance to the meta lines and the 'Redrawn from the class board' captions. Relabel fig-3-2 as 'strictly monotonic'.",
+   "status": "resolved",
+   "recheck": "Resolved on the current pages. Every example named in the first critique and in the previous final look is gone: both garbled-recording asides (§1.1, §5.2 'the exact words are lost in the recording'), 'the instructor's first check' (§4.3 now 'From the lecture's own practice: when a database is slow, check index size first'), the Amazon-team biography, 'The lecture learned it from a blog post', 'The class sketched thousands of them' (Fig 7·b caption now 'Thousands of them on \"say, 10 or 15\" servers', fig/1440-light-fig-7b.png), '(The lecture spoke of losing both 8 and 9 …)' (§2.6 now 'Had the crash come before 8 went out, both 8 and 9 would be lost', sweep/1440-light/2-building-getid/012.png), 'living on the heap' (now a plain analogy with a cppreference note), and the fig-3-2 label reads 'strictly monotonic' (fig/1440-light-fig-3-2.png). Mentions of the lecture, class or instructor across the lec03 sources are now 58 against 84 in the Lecture 1 reference, and most of what is left attributes an opinion ('in the lecture's view'), as lec01 does. The Jeff Dean story sits in a collapsed 'skip unless you like war stories' aside (sweep/1440-light/3-order-and-clocks/006.png), where narration is in place. Four leftover narrating spots are logged as C-18 (low)."
+  },
+  {
+   "id": "C-04",
+   "severity": "medium",
+   "owner": "design",
+   "where": "§3.5 (sweep/1440-light/3-order-and-clocks/007.png, 008.png, 009.png); §2.6 (sweep/1440-light/2-building-getid/011.png, 012.png)",
+   "problem": "§3.5 tells the four-clocks story three times in a row with almost no prose between: the pause-and-think card (23, 24, 23, 23 → 232, 244, 237, 239), then Clip 3·1 with the same numbers, one sentence, then fig-3d, a step-through captioned 'the clip's static twin' with the same four steps. That is the 'stack of components without prose' the sample forbids. §2.6 repeats the pattern with Clip 2·1, then fig-2d (static twin of the same flush/crash), then a pause card on the same 6+3+1 answer.",
+   "fix": "Keep one moving and one static telling per story, at most. Either drop fig-3d and fig-2d (the 'clip as text' already serves readers who can't play the clip), or keep the step-through and show the clip only when the reader asks for it. Put a real paragraph between the pause card and the clip, for example the 'why' that lets the reader check their answer.",
+   "status": "resolved",
+   "recheck": "§3.5 is now: pause card, then the 232/244/237/239 sentence, then Clip 3·1, then prose; fig-3d is gone (final_shots/sweep/1440-light/3-order-and-clocks/007.png, 008.png). §2.6 is now: pause card, then the safest-value paragraph, then Clip 2·1, then prose; the old fig-2d is gone (sweep/1440-light/2-building-getid/011.png to 013.png). One telling per story."
+  },
+  {
+   "id": "C-05",
+   "severity": "medium",
+   "owner": "design",
+   "where": "fig-6c at 1440 (fig/1440-light-fig-6c.png, sweep/1440-light/6-snowflake/008.png)",
+   "problem": "The 64-digit binary string is packed edge to edge. The leading 0 sits on the border of the unused-bit cell, digits touch the 41|10 and 10|12 dividers, and the digits render at about 11px, under the 12px floor. It reads as a smudge rather than three fields. The phone redraw (fields only) is fine.",
+   "fix": "Group the bits by field with at least 4px of padding inside each cell. Either use nibble spacing at 12px or more, or drop the full binary at desktop too and show the field values (time 362…, machine 7, counter 0) as on the phone, with the binary as an optional line below.",
+   "status": "resolved",
+   "recheck": "The bits are grouped in nibbles at about 14px and centred in each field, clear of the dividers; time, machine and counter read as three fields (final_shots/fig/1440-light-fig-6c.png). The phone version is fields only and fine (fig/390-dark-fig-6c.png)."
+  },
+  {
+   "id": "C-06",
+   "severity": "medium",
+   "owner": "design",
+   "where": "fig-2d every step, desktop and phone (step/1440-light-fig-2d-s5.png, step/390-light-fig-2d-s3.png)",
+   "problem": "The vertical 'time' axis label is drawn on top of the circled step ① marker at the top left; the two glyphs overlap at both widths.",
+   "fix": "Move 'time' to the bottom of the axis next to the arrowhead, or shift the axis 20px left of the step circles.",
+   "status": "resolved",
+   "recheck": "That figure was removed under C-04. The new Fig 2·d (a six-versions ladder) has no axis label and no collisions (final_shots/fig/1440-light-fig-2d.png, fig/390-dark-fig-2d.png)."
+  },
+  {
+   "id": "C-07",
+   "severity": "medium",
+   "owner": "animation",
+   "where": "all 4 clips at 1440 and 1024 (clip/1440-light-l03-*-poster.png, sweep/1440-light/3-order-and-clocks/008.png); reference lec01 fixes_design_shots/after/nav-1440-dark-clip.png",
+   "problem": "On desktop the clip stage is about 540px wide, centred in the 920px sheet column with bare page around it, while the play button, chips, caption and 'clip as text' hang off the sheet's left edge. Lecture 1's clips fill the sheet width, with the controls aligned under them. The lec03 clips look like the portrait phone composition reused on desktop, and the misaligned controls make the block look broken.",
+   "fix": "Give each composition a landscape layout used above 640px that fills the sheet width like lec01 (lettering 18–22px). If the stage must stay narrow, at least put stage, controls, chips and caption in one column of the same width.",
+   "status": "resolved",
+   "recheck": "Fixed by the fallback the fix allowed: stage, Play and scrubber, chips, caption and 'clip as text' now form one 540px column under the stage at 1440 and 1024 (final_shots/clip/1440-light-l03-flush-crash-fig-poster.png, clip/1440-dark-l03-offset-vs-keyset-fig-playing.png, 1024-dark-3-order-and-clocks-mid.png). The compositions are landscape. The stage is still narrower than the prose column; that is the shared course-wide 540px clip cap, not a lec03 defect."
+  },
+  {
+   "id": "C-08",
+   "severity": "medium",
+   "owner": "content",
+   "where": "fig-4a (fig/1440-light-fig-4a.png, fig/390-light-fig-4a.png)",
+   "problem": "The '1 GB' and '~4 GB' labels sit next to whole index entries (user_id + id), so the figure says the index grows 4×. With a 4-byte user_id the entry goes from 8 to 20 bytes, about 2.5×; only the id column grows 4×. The footnote ('~4× vs a 4-byte INT') is about the column, not the entry, so the label and the footnote disagree.",
+   "fix": "Label the id cells '4 B' and '16 B' and the entries '8 B → 20 B per entry (~2.5×)', or drop the GB numbers. Keep the footnote about the column.",
+   "status": "resolved",
+   "recheck": "The figure now labels '8 B per entry' and '20 B per entry', and the footnote reads 'the id grows ~4× vs an INT (~2× vs a BIGINT); the whole entry 8 B → 20 B, ~2.5×'. Label and footnote agree (final_shots/fig/1440-light-fig-4a.png). The content is correct; the phone layout regression it caused (C-16) is now fixed too."
+  },
+  {
+   "id": "C-09",
+   "severity": "low",
+   "owner": "content",
+   "where": "§2.6 paragraph after Clip 2·1 (sweep/1440-light/2-building-getid/012.png)",
+   "problem": "'Some integers are never handed out: 9, and 8 as well if it was still in flight' contradicts fig-2d and Clip 2·1, where m1-08 was handed out before the crash (it is the duplicate) and only m1-09 is 'never used'.",
+   "fix": "Say 'm1-09 is never handed out' and drop the clause about 8, or say explicitly that it differs from the drawn example.",
+   "status": "resolved",
+   "recheck": "The sentence now reads 'here, m1-09', and it reconciles the lecture's '8 and 9' with the drawn example (final_shots/sweep/1440-light/2-building-getid/012.png). The narrating parenthesis is gone: it now reads 'Had the crash come before 8 went out, both 8 and 9 would be lost.'"
+  },
+  {
+   "id": "C-10",
+   "severity": "low",
+   "owner": "content",
+   "where": "fig-5a caption (step/1440-light-fig-5a-s1.png)",
+   "problem": "The caption says 'a green dot marks a server that holds a range', but the drawing uses green tick marks; there are no dots.",
+   "fix": "Change the caption to 'a green tick'.",
+   "status": "resolved",
+   "recheck": "The caption now reads 'a green tick marks a server that holds a range' (final_shots/step/1440-light-fig-5a-s3.png)."
+  },
+  {
+   "id": "C-11",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-3c (fig/1440-light-fig-3c.png, fig/390-dark-fig-3c.png)",
+   "problem": "The 'perfect' label is crammed between the clock A and clock B line ends, and at 390 the clock A line runs through its first letter.",
+   "fix": "Put 'perfect' at the end of the dashed line with 6px clearance, offset below clock B's label, or use a three-line legend.",
+   "status": "resolved",
+   "recheck": "The clock A, perfect and clock B labels are stacked with clear gaps, and no line crosses a letter (final_shots/fig/390-dark-fig-3c.png)."
+  },
+  {
+   "id": "C-12",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-9a at 1440 (fig/1440-light-fig-9a.png)",
+   "problem": "In the third row, the 'instagram next_id() · §7' chip and the 'mongodb objectid · §4' chip almost touch (about 4px), so the two columns run together.",
+   "fix": "Shorten to 'instagram next_id · §7', or widen the column gap so chips keep 16px or more apart.",
+   "status": "resolved",
+   "recheck": "The chip now reads 'instagram next_id · §7', and the columns are well apart (final_shots/fig/1440-light-fig-9a.png)."
+  },
+  {
+   "id": "C-13",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-2d and Clip 2·1 'flush' arrows (step/1440-light-fig-2d-s5.png, clip/1440-light-l03-flush-crash-fig-poster.png)",
+   "problem": "The flush uses the key's dashed 'async copy (head on whoever starts it)' glyph with the head on the disk, but the machine starts the flush. By the course key that reads as the disk pulling.",
+   "fix": "Draw the flush as a solid write arrow memory → disk (the machine is pushing a write), keeping dashed async copy for replication only.",
+   "status": "resolved",
+   "recheck": "The old fig-2d is removed. In Clip 2·1 the flush is now a solid arrow from memory to disk (final_shots/clip/1440-light-l03-flush-crash-fig-poster.png)."
+  },
+  {
+   "id": "C-14",
+   "severity": "low",
+   "owner": "content",
+   "where": "§3.5 pause-and-think (fig/1440-light-3-order-and-clocks-think1-after.png)",
+   "problem": "The options are unbalanced: 'Yes: time is on the left' against a bare 'No'. The bare option gives the answer away by its shape.",
+   "fix": "Make it 'No: the clocks disagree'.",
+   "status": "resolved",
+   "recheck": "The option now reads 'No: the clocks disagree', and the verdict agrees with the reveal (final_shots/fig/1440-light-3-order-and-clocks-think1-after.png)."
+  },
+  {
+   "id": "C-15",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-7d at 390, steps 3–6 (step/390-light-fig-7d-s6.png)",
+   "problem": "The three 'result := …' blocks under the bar sit with almost no leading. The 19-digit values touch the next line, and the first line nearly touches the 'ms since the epoch / shard / seq' labels.",
+   "fix": "Add 8px between result blocks and 10px under the bar labels on the phone layout; the stage can grow since it is a vertical redraw.",
+   "status": "resolved",
+   "recheck": "The result blocks now have clear leading, and the first sits well below the bar labels (final_shots/step/390-light-fig-7d-s6.png, -s3.png)."
+  },
+  {
+   "id": "C-16",
+   "severity": "high",
+   "owner": "design",
+   "where": "fig-4a at 390 (final_shots/fig/390-light-fig-4a.png, sweep/390-light/4-id-size/004.png); same phone layout in dark",
+   "problem": "This regression comes from the C-08 relabel. On the phone, the speech bubble 'I'm unique, what's the problem?' sits on top of the new '8 B per entry' label, so only '8 B' and a scrap of the rest show. The '20 B per entry' label runs past the figure's right edge: the figure shot shows '20 B per entr', and the page sweep shows it spilling over the sheet border. The two sizes are the figure's whole point, and a phone reader can read neither.",
+   "fix": "In the phone layout of s4-id-size.tsx, put each size label on its own line under its bar ('8 B / entry', '20 B / entry'), or shorten the red id bar so the label fits within the 358px frame. Move the bubble clear of every label, above the 4-byte row or to the left. Re-shoot fig-4a at 360 and 390, light and dark.",
+   "status": "resolved",
+   "recheck": "Resolved. On the phone, '8 B / entry' and '20 B / entry' sit on their own lines under each bar; the bubble sits between the two rows and covers nothing; nothing crosses the figure edge, light or dark (final_shots/fig/390-light-fig-4a.png, fig/390-dark-fig-4a.png, sweep/390-light/4-id-size/004.png). Desktop keeps '8 B per entry' / '20 B per entry' beside the bars with the bubble clear (fig/1440-light-fig-4a.png)."
+  },
+  {
+   "id": "C-17",
+   "severity": "low",
+   "owner": "design",
+   "where": "final_shots/step/390-light-fig-5a-s1.png, -s2.png, -s3.png, step/390-light-fig-7d-s6.png",
+   "problem": "In these element shots the step text under Prev/Next is cut after its first line, and the area below is blank. The 390 clip shots show the same cut-off in both rounds, and the phone page sweeps show the clip controls whole (sweep/390-light/3-order-and-clocks/012.png). So this is most likely a capture artifact of the sticky bar in tall elements, not what a reader sees. Nobody has checked it on a real viewport for the step-throughs.",
+   "fix": "Take one viewport screenshot (not an element screenshot) at 390×844 of fig-5a at step 3 and fig-7d at step 6, and confirm the step text is fully visible. If it is cut, the sticky panel needs its full height inside the figure box.",
+   "status": "resolved",
+   "recheck": "Resolved as a capture artifact. The element shots still cut the step text (step/390-light-fig-5a-s3.png, step/390-light-fig-7d-s6.png, clip/390-dark-l03-offset-vs-keyset-fig-playing.png), but the 390×844 viewport sweep shows the same panel whole: sweep/390-light/5-central-services/005.png has Prev/Next, '1 / 5', the full step-1 text and the caption. The other phone element shots (step/390-light-fig-2c-s4.png, -5a-s5.png) show the full text, and every drawing is whole at every step."
+  },
+  {
+   "id": "C-18",
+   "severity": "low",
+   "owner": "content",
+   "where": "§8.4 (1024-light-8-pagination-mid.png); §3.1 conflicts paragraph (s3-order-and-clocks); Flickr gossip paragraph (s5b-central-services); §7.3 lead (s7-instagram)",
+   "problem": "Four spots still narrate the lecture where a plain statement would do: '§8.4 A quick 2016 benchmark by the lecture's author (then at Amazon, and deep into MongoDB)' (the first critique's 'bored at Amazon' example, reworded but still biography); '§3.1 A harder version of the question came up in class … it was deferred, and the class did not come back to it'; 'as far as the lecture knew, Lamport clocks are something quite different'; 'on the instructor's YouTube channel'. The overall rate is below Lecture 1's, so this does not block, but these lines read as transcript, not as a page.",
+   "fix": "'A 2016 benchmark (arpitbhayani.me) compared the two strategies in MongoDB'; 'A harder version: how do you resolve conflicts by ID when IDs might not even be unique? §9.1 sets out what this lecture gives you for it'; 'Lamport clocks solve a different problem (ordering events), not gossip'; 'The sharding video in this week's readings is the background for this section'.",
+   "status": "open"
+  }
+ ]
+}

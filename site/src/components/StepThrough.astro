@@ -4,7 +4,8 @@
 // Keys on the focused figure: ← → ↑ ↓ Home End. Deep link: #<id>/step-3. Without JS every step shows.
 // `grow`: on phones (≤860px) the drawing is cropped to the steps so far and grows downward as you step, so tall
 // swim lanes don't push the step text a screen away from the arrow it explains. At the last step the sticky step bar
-// returns to the flow under the whole drawing. Opt-in; desktop is unchanged.
+// returns to the flow under the whole drawing. Opt-in; desktop is unchanged. On every phone step-through the step bar
+// stays in flow under the drawing when both fit on one screen, and only sticks to the bottom for taller drawings.
 interface Props { id: string; no?: string; caption?: string; steps: string[]; label?: string; k?: string; stepK?: string[]; grow?: boolean }
 const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], grow = false } = Astro.props;
 ---
@@ -35,6 +36,7 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
   document.querySelectorAll<HTMLElement>('figure.stepper-fig').forEach((fig) => {
     const TOTAL = Number(fig.dataset.total);
     const groups = fig.querySelectorAll<SVGGElement>('.lag .step');
+    const states = fig.querySelectorAll<SVGGElement>('.lag .state');
     const items = fig.querySelectorAll<HTMLLIElement>('.steps li');
     const prev = fig.querySelector<HTMLButtonElement>('[data-prev]')!;
     const next = fig.querySelector<HTMLButtonElement>('[data-next]')!;
@@ -47,13 +49,17 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
         const s = Number(g.dataset.step);
         g.classList.toggle('now', s === cur); g.classList.toggle('past', s < cur); g.classList.toggle('future', s > cur);
       });
+      // kit StepState: parts of the drawing that hold only for a range of steps
+      states.forEach((g) => {
+        g.classList.toggle('off', cur < Number(g.dataset.from ?? 1) || cur > Number(g.dataset.to ?? TOTAL));
+      });
       items.forEach((li) => {
         const s = Number(li.dataset.step);
         li.classList.toggle('now', s === cur); li.classList.toggle('future', s > cur);
         if (s === cur) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
       });
       prev.disabled = cur === 1; next.disabled = cur === TOTAL;
-      crop();
+      crop(); place();
       counter.textContent = cur + ' / ' + TOTAL;
       if (announce) live.textContent = 'Step ' + cur + ' of ' + TOTAL + '. ' + (items[cur - 1].lastElementChild?.textContent ?? '').trim();
       if (announce && narrow.matches) keepInView();
@@ -65,9 +71,6 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
     // grow: crop each shown drawing's viewBox to the bottom of the steps so far (+ a margin), phones only.
     function crop() {
       if (!('grow' in fig.dataset)) return;
-      // at the last step the drawing is whole and nothing more grows below it: the step bar stops sticking and sits
-      // in flow under the drawing, so scrolling back up never leaves the bar over the final rows (lec02 critic C-02)
-      panel.style.position = narrow.matches && cur === TOTAL ? 'static' : '';
       fig.querySelectorAll<SVGSVGElement>('.lag svg.fig-svg').forEach((svg) => {
         const full = (svg.dataset.vb ??= svg.getAttribute('viewBox') ?? '').split(' ').map(Number);
         if (full.length !== 4) return;
@@ -82,7 +85,22 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
         svg.style.overflow = h < full[3] ? 'hidden' : '';
       });
     }
-    narrow.addEventListener('change', crop);
+    // the top bar, and on docs pages the sticky "On this page" bar under it
+    const barH = () => Math.max(0, ...Array.from(document.querySelectorAll<HTMLElement>('.bar, .otp-bar'))
+      .map((b) => b.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => r.bottom));
+    // Phones: the step bar only sticks when it has to. It sits in flow under the drawing (so it can never cover it)
+    // when the drawing and the bar fit on one screen together, and, on a `grow` figure, at the last step: the drawing
+    // is whole and nothing more grows below it, so scrolling back up never leaves the bar over the final rows
+    // (lec02 critic C-02; lec03 critic C-01).
+    let inFlow = false;
+    function place() {
+      const drawH = fig.querySelector<HTMLElement>('.lag-wrap')!.getBoundingClientRect().height;
+      inFlow = narrow.matches && (('grow' in fig.dataset && cur === TOTAL)
+        || drawH + panel.getBoundingClientRect().height + barH() + 24 <= innerHeight);
+      panel.style.position = inFlow ? 'static' : '';
+    }
+    narrow.addEventListener('change', () => { crop(); place(); });
+    addEventListener('resize', place);
     // a smooth scroll still running from the previous step: measure against where it will end, not where it is now
     // (a new smooth scroll cancels the old one, so measuring mid-flight lost the rest of it and left rows under the bar)
     let pendingY: number | null = null, pendingAt = 0;
@@ -92,18 +110,19 @@ const { id, no, caption, steps, label = 'Step-through figure', k, stepK = [], gr
       if (!rects.length) return;
       const base = pendingY !== null && performance.now() - pendingAt < 900 ? pendingY : scrollY;
       const ahead = base - scrollY; // how much further the running scroll will move the page
+      // in flow, the drawing and the bar fit on one screen: bring the whole figure, drawing to step text, into view
+      if (inFlow) {
+        rects.push(fig.querySelector<HTMLElement>('.lag-wrap')!.getBoundingClientRect(), panel.getBoundingClientRect());
+      }
       const top = Math.min(...rects.map((r) => r.top)) - ahead, bottom = Math.max(...rects.map((r) => r.bottom)) - ahead;
-      // the top bar, and on docs pages the sticky "On this page" bar under it
-      const barH = Math.max(0, ...Array.from(document.querySelectorAll<HTMLElement>('.bar, .otp-bar'))
-        .map((b) => b.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => r.bottom));
+      const bar = barH();
       // the sticky step bar (Prev/Next + step text): where it sits once stuck to the bottom of the screen. When it is
       // not stuck it is in flow under the drawing, so the drawing can't be under it; measure its full box height
       // (the step text can be taller than at the last step, and the drawing has just grown).
-      const stepBarTop = innerHeight - panel.getBoundingClientRect().height;
-      const limit = stepBarTop - 12;
+      const limit = inFlow ? innerHeight - 12 : innerHeight - panel.getBoundingClientRect().height - 12;
       let dy = 0;
       if (bottom > limit) dy = bottom - limit;
-      if (top - dy < barH + 12) dy = top - barH - 12;
+      if (top - dy < bar + 12) dy = top - bar - 12;
       if (Math.abs(dy) > 4 || ahead !== 0) {
         const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
         pendingY = Math.max(0, Math.min(base + dy, document.documentElement.scrollHeight - innerHeight)); pendingAt = performance.now();

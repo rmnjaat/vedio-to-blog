@@ -1,0 +1,130 @@
+# Storyboard — clip l03-offset-vs-keyset (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l03-offset-vs-keyset
+title: Page 1, page 10, page 1,000
+lecture: 3          # folder lec03, course position 06 ("Lecture 06")
+section: "8.2 Why offset gets slower as you go"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  Accumulation: the lesson is that offset's work for one page grows with the page's depth, because every page
+  re-walks all the rows before it, while ID-limit's work stays the same. The clip runs the pages one after another
+  with the pen at a constant speed, so the offset walk visibly takes longer each page (4 s at page 1,000) while the
+  ID-limit seek takes the same short time every page. Fig 8·a shows one deep page; Fig 8·b shows the result curve;
+  neither shows the walk starting again from row 1 on every page.
+static_twin: "Fig 8·a 'Skip vs seek' (offset walking past rows to the ringed 10 vs a B+ tree descent to the last ID then 10), laid out as a table of pages 1 / 10 / 100 / 1,000; Fig 8·b's rising-vs-flat shape is the end state"
+ledger:
+  taught:
+    - L-0218  # limit-offset is pathetically slow when you paginate deep (B4, B5 'grows with depth')
+    - L-0224  # the DB evaluates the query up to the requested point, skips those rows, picks the next n; recomputed every query; cost grows with depth (B2-B5, 'computed, thrown away')
+    - L-0228  # fetch the first 10, note the last ID, then id > last ID limit 10, repeat (ID column labels LIMIT 10, id > 90, id > 990, id > 9990)
+    - L-0233  # B+ tree in key order: log n to reach the ID, then a sequential read; time does not increase with depth ('log n + 10 rows', 'same at any depth')
+  context_only:
+    - L-0217  # LIMIT 10 OFFSET 0, 10, 20 ... (the header query; prose 8.1)
+    - L-0219  # pages 3-5 fine, 6 slower, 7 slower (prose 8.2, right before the clip)
+    - L-0225  # ID-limit pagination is the other way (the lane title 'ID-limit'; prose 8.1)
+    - L-0227  # IDs must be comparable (B6 caption; prose 8.3)
+    - L-0229  # stored in primary-key order -> SN-15: the index seek is what makes it fast (B6 caption 'an index on them'; prose 8.3)
+    - L-0230  # benchmark: skip-limit linear, ID-limit flat (Fig 8·b, prose 8.4)
+fidelity_notes:
+  - "The lecture's own names: 'limit-offset' and 'ID-limit' (L-0217, L-0225). 'Keyset' appears only in the clip id; nothing on screen says it."
+  - "Page size 10 and the depths 1 / 10 / 100 / 1,000 are illustrative (the class gave no depths beyond 'sixth, seventh' and the benchmark's records). The offsets 0 / 90 / 990 / 9990 are just the arithmetic of LIMIT 10 OFFSET 10(k-1); 9990 is Fig 8·a's number."
+  - "IDs are drawn as 1, 2, 3 ... with no gaps and no filter, so the last ID of page k is 10k and the ID query for page 10 reads 'id > 90'. Real IDs (Snowflake, ObjectId) have gaps; only their order matters. The sort (ORDER BY id, fact-check A-PEM-01) lives in the page's CodeBlock, not on screen."
+  - "The offset strip is to scale for the walked rows (row 1 to 10,000 across the strip); the ring around the ten returned rows is a highlight, not to scale (it is the same width at every depth)."
+  - "Pen speed of the offset walk is constant, so its duration is proportional to the rows walked (page 10 is a 4 px walk, page 1,000 the whole strip in 4 s). No response times, no units, no benchmark numbers on screen (the class showed a graph, not reproducible figures)."
+  - "The ID-limit seek is drawn as a three-step descent through index nodes (log n, L-0233) into the ten rows. It does not claim the table itself is physically sorted (SN-15: true for InnoDB's clustered key; elsewhere it is the index seek), so it stays true for heap stores too."
+  - "Not claimed: that offset is slow at small depths (the clip shows page 1 and page 10 nearly the same, matching L-0230's 'little difference at small depths'); anything about WHERE-clause filters (SN-16 lives in prose 8.5); jumping to page N."
+  - "'computed, thrown away' is Fig 8·a's label for L-0224 ('evaluate the entire query ... skip those rows'). 'log n + 10 rows' is L-0233 ('log n to reach that ID, then a sequential scan', LIMIT 10). 'same at any depth' is L-0233's 'no matter how deep you paginate, the time does not increase' (approximately; log n grows slowly, A-PEM-15, prose)."
+  - "B6's caption 'It needs IDs you can compare, and an index on them' is L-0227 + L-0229 in the fact-checked wording of SN-15 (index seek), as in clips.json."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1064, note: "portrait re-flow at <= 640 px: the two columns become two stacked blocks (limit-offset above, ID-limit below), each with its own header, four page rows and two notes; page numbers in a left column; 30 px lettering, 32 px captions"}
+duration_frames: 1140   # 38 s; 76 s at 0.5x
+start_frame_equals: "Fig 8·a as a table: column 'page' (1, 10, 100, 1,000); column 'limit-offset' / LIMIT 10 OFFSET m with an empty row strip per page; column 'ID-limit' / WHERE id > last with a three-node index descent glyph (graphite) per page; no rings, no labels"
+poster_frame: 1139
+reduced_motion_stills: [95, 225, 415, 575, 865, 1035, 1139]
+glyphs:
+  header: {shape: hand title + mono query per column, text: "limit-offset / LIMIT 10 OFFSET m; ID-limit / WHERE id > last; 'page' (hand, ink3) over the page column", pos: "wide y 52 / 98; phone per block"}
+  page_numbers: {shape: mono, text: "1, 10, 100, 1,000", pos: "wide right-aligned at x 170, rows at y 124 + 100i; phone x 130"}
+  offset_strip: {shape: thin ink2 chamfered strip = rows 1..10,000 in id order, pos: "wide x 200-700, h 32 per row; phone x 150-690, h 26"}
+  walked_trail: {shape: thick graphite line along the strip from row 1 to the offset, colour: "graphite; page 1,000's re-inked red in B5"}
+  ring: {shape: blue chamfered box (54 x 44) with blue wash and a short thick blue bar = the ten rows returned, colour: blue}
+  offset_labels: {shape: mono above the strip, text: "OFFSET 0 / OFFSET 90 / OFFSET 990 / OFFSET 9990"}
+  id_descent: {shape: "three small node boxes stepping down (root, inner, leaf) joined by thin graphite edges; blue pen re-inks root -> leaf -> ring", head: none}
+  id_labels: {shape: mono right of the ring, text: "LIMIT 10 / id > 90 / id > 990 / id > 9990"}
+  notes: {shape: hand under each column, text: "computed, thrown away (ink2) + grows with depth ✕ (red); log n + 10 rows (ink2) + same at any depth ✓ (green)"}
+beats:
+  - id: B0
+    from: 0
+    to: 100
+    caption: "Two ways to ask for the next ten rows, page after page."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0224, L-0228]
+  - id: B1
+    from: 100
+    to: 230
+    caption: "Page 1: both read the first ten rows. Same work."
+    events:
+      - {at: 108, dur: 18, what: "'OFFSET 0' written above row 1's strip"}
+      - {at: 118, dur: 14, what: "blue ring + ten-row bar at the strip's start", colour: blue}
+      - {at: 140, dur: 24, what: "ID row 1: blue pen down the three index nodes into the ring", colour: blue}
+      - {at: 164, dur: 14, what: "ID ring", colour: blue}
+      - {at: 168, dur: 18, what: "'LIMIT 10' written right of the ring"}
+    ledger: [L-0228]
+  - id: B2
+    from: 230
+    to: 420
+    caption: "Page 10: offset walks past 90 rows first. ID-limit seeks id > 90."
+    events:
+      - {at: 230, dur: 12, what: "row 1 ghosts to 38%"}
+      - {at: 238, dur: 18, what: "'OFFSET 90'"}
+      - {at: 248, dur: 6, what: "walk from row 1 to row 90 (4 px, constant pen speed)", colour: ink}
+      - {at: 256, dur: 14, what: "blue ring", colour: blue}
+      - {at: 280, dur: 24, what: "ID descent", colour: blue}
+      - {at: 304, dur: 14, what: "ID ring", colour: blue}
+      - {at: 308, dur: 18, what: "'id > 90'"}
+      - {at: 336, dur: 24, what: "'log n + 10 rows' written under the ID column (ink2)"}
+    ledger: [L-0224, L-0228, L-0233]
+  - id: B3
+    from: 420
+    to: 580
+    caption: "Page 100: offset walks past 990. ID-limit makes the same short seek."
+    events:
+      - {at: 420, dur: 12, what: "row 2 ghosts"}
+      - {at: 428, dur: 18, what: "'OFFSET 990'"}
+      - {at: 440, dur: 12, what: "walk to row 990 (45 px)", colour: ink}
+      - {at: 454, dur: 14, what: "blue ring", colour: blue}
+      - {at: 480, dur: 24, what: "ID descent", colour: blue}
+      - {at: 504, dur: 14, what: "ID ring", colour: blue}
+      - {at: 508, dur: 18, what: "'id > 990'"}
+    ledger: [L-0224, L-0228, L-0233]
+  - id: B4
+    from: 580
+    to: 870
+    caption: "Page 1,000: offset recomputes 9,990 rows only to skip them."
+    events:
+      - {at: 580, dur: 12, what: "row 3 ghosts"}
+      - {at: 588, dur: 18, what: "'OFFSET 9990'"}
+      - {at: 600, dur: 120, what: "walk from row 1 across the whole strip, constant (linear) speed: the duration is the cost", colour: ink}
+      - {at: 722, dur: 14, what: "blue ring at the strip's end", colour: blue}
+      - {at: 742, dur: 22, what: "'computed, thrown away' written under the offset column (ink2)"}
+      - {at: 776, dur: 24, what: "ID descent, same as every page", colour: blue}
+      - {at: 800, dur: 14, what: "ID ring", colour: blue}
+      - {at: 804, dur: 18, what: "'id > 9990'"}
+    ledger: [L-0218, L-0224, L-0228, L-0233]
+  - id: B5
+    from: 870
+    to: 1040
+    caption: "Offset's cost grows with depth. ID-limit's stays the same."
+    events:
+      - {at: 872, dur: 12, what: "all four rows return to full ink to be compared"}
+      - {at: 886, dur: 30, what: "page 1,000's walked trail re-inked red", colour: red}
+      - {at: 920, dur: 22, what: "'grows with depth' written (red), ✕ at 944 (8 f)", colour: red}
+      - {at: 966, dur: 22, what: "'same at any depth' written (green), ✓ at 990 (8 f)", colour: green}
+    ledger: [L-0218, L-0224, L-0233]
+  - id: B6
+    from: 1040
+    to: 1140
+    caption: "It needs IDs you can compare, and an index on them."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0227, L-0229]   # context ids: the caption is clips.json's page caption, restating 8.3 in SN-15's wording

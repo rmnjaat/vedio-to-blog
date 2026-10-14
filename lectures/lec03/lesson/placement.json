@@ -1,0 +1,3069 @@
+{
+ "lecture": "lec03",
+ "ledger": "lectures/lec03/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1": "Why build your own IDs",
+  "1.1": "What an ID is, and the job",
+  "1.2": "Where the database's own IDs stop working",
+  "1.3": "A function, not a service",
+  "2": "Building getid(), one constraint at a time",
+  "2.1": "Version 1: the current millisecond",
+  "2.2": "More machines, then threads",
+  "2.3": "A static counter, and time drops out",
+  "2.4": "Surviving a reboot",
+  "2.5": "A disk write on every ID",
+  "2.6": "Flush every N, restart from the safest value",
+  "3": "Order, and why clocks break it",
+  "3.1": "Why order matters",
+  "3.2": "Increasing is not the same as sequential",
+  "3.3": "Put time on the left",
+  "3.4": "Clocks drift",
+  "3.5": "Four machines, four clocks",
+  "3.6": "One server, one clock",
+  "3.7": "Two servers, gossip, and the impossibility",
+  "3.8": "Relax the constraint",
+  "4": "How big should an ID be?",
+  "4.1": "Why not just use a UUID?",
+  "4.2": "Every index carries the ID",
+  "4.3": "Indexes belong in RAM",
+  "4.4": "When a UUID is the right call",
+  "4.5": "MongoDB's 12 bytes",
+  "5": "Central services: Amazon and Flickr",
+  "5.1": "How to read someone else's design",
+  "5.2": "Amazon: hand out ranges, not IDs",
+  "5.3": "What ranges buy, and what they cost",
+  "5.4": "Ranges from a queue?",
+  "5.5": "Flickr: MySQL as the ticket server",
+  "5.6": "Upsert: one statement instead of delete + insert",
+  "5.7": "Two ticket servers, odd and even",
+  "5.8": "When the odd server comes back",
+  "6": "Snowflake: IDs without a service",
+  "6.1": "Twitter's Snowflake",
+  "6.2": "41 | 10 | 12",
+  "6.3": "Where Snowflake runs",
+  "6.4": "Making one: a few lines of bit arithmetic",
+  "6.5": "Roughly sortable",
+  "6.6": "A custom epoch: Discord and Sony",
+  "6.7": "No moving parts, and an opinion about microservices",
+  "7": "Instagram: Snowflake inside the database",
+  "7.1": "Three requirements",
+  "7.2": "41 | 13 | 10",
+  "7.3": "Logical shards on physical servers",
+  "7.4": "A function as the column default",
+  "7.5": "A sequence is the static counter",
+  "7.6": "What moving it into the database buys",
+  "8": "Pagination: the side effect",
+  "8.1": "Two ways to ask for the next page",
+  "8.2": "Why offset gets slower as you go",
+  "8.3": "ID-based pagination",
+  "8.4": "The benchmark",
+  "8.5": "What ID-based paging gives up",
+  "8.6": "Beyond SQL",
+  "9": "What to keep",
+  "9.1": "Bank or Instagram?",
+  "9.2": "Where the ID is born"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Opening line of the note: this session is all about distributed ID generators. The garbled 'third day second' is not quoted; the course order gives week 3, day 2."
+  },
+  "L-0002": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'One of the most misunderstood topics'; the garbled clause is read, hedged, as 'people assume auto-increment is enough'."
+  },
+  "L-0003": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Most teams meet the problem only at scale, and reach that scale sooner than they think."
+  },
+  "L-0004": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Reason 2: the computer science behind the solutions is beautiful (one clause, no hype)."
+  },
+  "L-0005": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Reason 3: side effects most people never think about; forward link to section 8."
+  },
+  "L-0006": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "The plan: foundations first, then Amazon, Flickr, Twitter, Instagram, plus one side effect worth a demo (named as pagination in L-0100)."
+  },
+  "L-0007": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "'How to use this page': implement every approach; past cohorts understood far more. Echoed in the 9.2 'Build them all' margin note."
+  },
+  "L-0008": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition of an ID: anything that uniquely identifies a row, document, object or event."
+  },
+  "L-0009": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Problem statement in one sentence: a function that returns something unique every time it is called."
+  },
+  "L-0010": {
+   "section": "1.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §1: start with a function in your business logic, invoked locally per request; a central service only later if needed."
+  },
+  "L-0011": {
+   "section": "2.1",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "v1: return the current epoch millisecond, because time is unique and moves forward. Board code shown."
+  },
+  "L-0012": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'Something must break, or everyone would use it': the hook into 2.2."
+  },
+  "L-0013": {
+   "section": "2.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Millisecond granularity: two calls in one ms collide unless you go finer. Fig 2.a (D-01) carries the board line 'works on one machine if never called twice in one ms'."
+  },
+  "L-0014": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Two machines, same ms, both 1729: collision. Fig 2.b panel 1 (D-02) with both t = 1729 ringed red."
+  },
+  "L-0015": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "CodeBlock"
+    },
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Fix: concatenate the machine ID, m1-1729 / m2-1729 (naming is arbitrary). Fig 2.b panel 1 label line; CodeBlock concat(machine_id, get_epoch_ms())."
+  },
+  "L-0016": {
+   "section": "2.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §2: whenever you see a collision, add the thing that led to it. Echoed on the 9.2 heuristics card."
+  },
+  "L-0017": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Threads on several cores collide inside one machine: m1-1729 twice."
+  },
+  "L-0018": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Aside, one clause: thread IDs are OS-assigned integers; T1/T2 is shorthand."
+  },
+  "L-0019": {
+   "section": "2.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Fix 1 for threads: m1-t1-1729. Fig 2.b panel 2 (D-03); the board's 'm2-t3' slip is drawn as m2-t2."
+  },
+  "L-0020": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Fix 2 for threads: add a counter (commonly one that resets every few minutes)."
+  },
+  "L-0021": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Why: always appending the cause makes gigantic IDs; a counter avoids that."
+  },
+  "L-0022": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Static counter defined: one process-wide variable all threads share, incremented atomically. Light inline clarification (imprecise/low): static storage, not the heap."
+  },
+  "L-0023": {
+   "section": "2.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "getid() = machine + ts + counter++: m1-1729-01/02/03, then m1-1730-... Fig 2.c step 2 (D-04 first form; board slip 'm3' drawn as m2). CodeBlock with the counter."
+  },
+  "L-0024": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The increment must be atomic: lock/mutex or a native atomic. Link back to Lecture 2's count++ race."
+  },
+  "L-0025": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "When to reset is business logic; uniqueness holds because the ms moves on, as long as the counter stays under the integer limit."
+  },
+  "L-0026": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Summary sentence: two ways to beat thread collisions (thread ID, or atomic counter for any number of threads)."
+  },
+  "L-0027": {
+   "section": "2.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    },
+    {
+     "section": "2.3",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "The sharp move: with an atomic counter, time is redundant; drop it, ID = machine + counter (m101, m102). Fig 2.c steps 3-4 (D-04 final form, time struck out)."
+  },
+  "L-0028": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Limit: the counter can hit the integer limit (~4 billion); 2^64 you'll never hit. Simplified/low: left as taught ('~4 billion' is the unsigned 32-bit figure, correct as such)."
+  },
+  "L-0029": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Machine ID + atomic counter solves uniqueness (closing line of 2.3)."
+  },
+  "L-0030": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Reboot resets the in-memory counter to 0; the machine reissues m101, m102."
+  },
+  "L-0031": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Root cause: volatile memory."
+  },
+  "L-0032": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Class idea: back the counter up to a local file; accepted because volatility is the problem. 'One idea raised in class'."
+  },
+  "L-0033": {
+   "section": "2.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "File-backed counter: load() at start, counter++ then save on every call. Simplified/low, left as taught; A-IG-03 woven in as a separate sourced sentence (fsync, page cache). Board label 'Fault Tolerance'."
+  },
+  "L-0034": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Loading once at boot is fine."
+  },
+  "L-0035": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Problem 1 of saving every call: a disk IO per ID, many micro IOs, heavy disk pressure."
+  },
+  "L-0036": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Problem 2: latency, disk IO every time instead of memory."
+  },
+  "L-0037": {
+   "section": "2.5",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Class idea (a): boot counter as a third ID part, written once per startup; in-memory counter never saved per call. Revealed in P2 and stated in prose."
+  },
+  "L-0038": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Boot-counter costs: the startup increment must be atomic; the ID gets longer."
+  },
+  "L-0039": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "It tackles disk IO head on; the long-ID cost is picked up in section 4 (link to 4.5 L-0149)."
+  },
+  "L-0040": {
+   "section": "2.5",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Class idea (b): bank of IDs, read 1, store 1001, serve 1000 from memory. Revealed in P2 and in prose."
+  },
+  "L-0041": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Reframed as periodic writes; 'comes in handy at two different places' with links to 2.6 and 5.2."
+  },
+  "L-0042": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Flush frequency: write every N (e.g. 1000) IDs, 1000x fewer disk IOs."
+  },
+  "L-0043": {
+   "section": "2.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Code: counter = load() + N; counter++; if counter % N == 0 then save. Board code."
+  },
+  "L-0044": {
+   "section": "2.6",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "2.6",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Worked example N = 3: flush 3 and 6, issue 7 and 8, crash; restarting at 6 reissues 7 and 8. Fig 2.d (D-05) steps 1-4; also the clip l03-flush-crash and P3."
+  },
+  "L-0045": {
+   "section": "2.6",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "2.6",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "2.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Safest value = last flushed + N + 1 = 6 + 3 + 1 = 10 (m1-10). Note that load() + N = 9 and the first ++ gives 10, so code and board agree. Fig 2.d step 5; clip; P3 reveal."
+  },
+  "L-0046": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "8 and 9 never used: fine, correctness over using every integer. Also in the clip's last caption."
+  },
+  "L-0047": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Takeaway 1: periodicity via a mod, not a timer thread."
+  },
+  "L-0048": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Takeaway 2: on recovery start from the safest value; think correctness. Reused in 5.8 (L-0186) and on the 9.2 heuristics card."
+  },
+  "L-0049": {
+   "section": "3",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening problem of section 3: machine + counter IDs carry no order; m1 can be anything."
+  },
+  "L-0050": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "New constraint: globally increasing IDs wherever the request lands."
+  },
+  "L-0051": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Why: Lecture 3's airline check-in, T1 and T2 ordered by number. ForwardChip-style back-link to Lecture 3."
+  },
+  "L-0052": {
+   "section": "3.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Newer write wins: the larger number marks the newer write. Fig 3.a (D-06: a = 10, T1 -> 20, T2 -> 30)."
+  },
+  "L-0053": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Hedge kept: one of the places, not all, where ordered IDs matter."
+  },
+  "L-0054": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Monotonic vs strictly monotonic, as taught (1 2 3 4 5 6 vs 1 2 5 7 8 9 32 33 34). Light inline clarification (imprecise/low): increasing with gaps allowed; gap-free is usually called sequential."
+  },
+  "L-0055": {
+   "section": "3.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Flip to time-then-machine; time in the most significant digits sorts IDs. Fig 3.b (D-07 sorted column)."
+  },
+  "L-0056": {
+   "section": "3.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "The lower part can be machine or counter; Fig 3.b annotation 'conflict in the first half, tie break in the second'."
+  },
+  "L-0057": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Within one ms the order can flip (17290002 before 17290001); across ms almost monotonic."
+  },
+  "L-0058": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Still stateless, no central state, excellent throughput; accepts a little incorrectness."
+  },
+  "L-0059": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Aside: with an integer machine ID the whole ID is just bits (sets up section 6)."
+  },
+  "L-0060": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "'Time on the leftmost side' of every ID generator. Light inline (imprecise/low): IDs sort roughly by creation time. On the 9.2 heuristics card."
+  },
+  "L-0061": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Good but not a guarantee; the within-ms flip is one reason (board: clocks out of sync, leads into 3.4)."
+  },
+  "L-0062": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The design assumed synchronized clocks; they aren't."
+  },
+  "L-0063": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Within-ms misordering tolerable, second-level not; that's where clocks bite."
+  },
+  "L-0064": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "SRE/DevOps teams sync clocks to NTP. Simplified/low: left as taught; the daemon nuance lives in the 3.4 margin note 'How clocks are actually synced' as its own topic (with A-IG-02), not as a correction."
+  },
+  "L-0065": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Why clocks drift: a quartz crystal's vibrations are counted."
+  },
+  "L-0066": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Physics analogy (energy -> vibration; boiling, freezing), one sentence."
+  },
+  "L-0067": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Heat runs the clock fast, cold slow. SourceNote SN-01 right after (wrong/low): both extremes slow a common crystal (parabolic curve), A-IG-25.",
+   "source_note": "SN-01"
+  },
+  "L-0068": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Physics nudges clocks, so sync runs more often than you think."
+  },
+  "L-0069": {
+   "section": "3.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'You can't run away from nature': Jeff Dean and Sanjay Ghemawat chasing a flipped bit. Unverifiable: attributed to the lecture; article named by its real title, The New Yorker, 'The Friendship That Made Google Huge'."
+  },
+  "L-0070": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Even with periodic sync, a clock can be off at the moment an ID is made. Fig 3.c."
+  },
+  "L-0071": {
+   "section": "3.5",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "3.5",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Machines 2,4,7,9 at 23,24,23,23; requests in order give 232, 244, 237, 239 (arithmetic checked). Fig 3.d (D-08); clip l03-clock-skew; P4."
+  },
+  "L-0072": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Where order is needed, skew affects correctness and must be handled."
+  },
+  "L-0073": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Almost impossible' (hedge kept; no proof, many practical breakers). Simplified/low: left as taught; the 'you pay with coordination' footnote is A-IG-20/21 in 3.7."
+  },
+  "L-0074": {
+   "section": "3.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Central ID service: one machine, a network call per ID. Fig 3.e (D-09)."
+  },
+  "L-0075": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "At this point the problem becomes clock synchronization, not ID generation (board line)."
+  },
+  "L-0076": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'The clock never goes back in time. Never.' kept as taught, then SourceNote SN-02 (wrong/high): small offsets are slewed, larger ones can step back; generators must detect it. A-IG-01, A-IG-02.",
+   "source_note": "SN-02"
+  },
+  "L-0077": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "One server gives increasing IDs; SourceNote SN-03 (imprecise/medium): only if it guards against a backward step (Snowflake waits; or a monotonic clock).",
+   "source_note": "SN-03"
+  },
+  "L-0078": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "SPOF -> a second machine behind a load balancer (link to Lecture 5). Board nuance: the server or its disk can fail."
+  },
+  "L-0079": {
+   "section": "3.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Two ID servers must ask each other for the last ID, add a buffer, then answer. Fig 3.f (D-10)."
+  },
+  "L-0080": {
+   "section": "3.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "3.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Constant gossip makes it complex and slow; board 'we made the entire process super complicated'. Fig 3.f gossip arc scribbled red."
+  },
+  "L-0081": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "No distributed service with strict monotonicity at high throughput. Light inline (imprecise/low, overridden): systems that do it pay with coordination (TiDB's one allocator, Spanner's clock hardware), A-IG-20, A-IG-21. Part of RuleBox §3."
+  },
+  "L-0082": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Every fix brings a new problem, so people relax constraints; board 'non-integer IDs, no monotonicity'."
+  },
+  "L-0083": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Objection 'MySQL has monotonic IDs': one machine, the engine owns the counter. Simplified/low, left as taught; A-IG-13 woven in (gaps after rollback are normal). Previewed in 1.2."
+  },
+  "L-0084": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Multi-master MySQL with auto-increment would conflict. Simplified/low, left as taught; A-IG-12 woven in (Group Replication sets increment/offset: uniqueness, not order)."
+  },
+  "L-0085": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Everything is a trade-off. On the 9.2 heuristics card."
+  },
+  "L-0086": {
+   "section": "3.8",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Ask whether you need each constraint (integers? random? monotonic?); requirements often weren't thought through. RuleBox §3 body."
+  },
+  "L-0087": {
+   "section": "1.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "The opening problem: two masters both auto-increment 1, 2, 3, 4 and collide. Fig 1.a redraws D-11 with the colliding IDs ringed red."
+  },
+  "L-0088": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "So you can't rely on database IDs and need your own ID logic (e.g. machine ID); forward links to sections 5-7."
+  },
+  "L-0089": {
+   "section": "3.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: a shared database with locks is unique but is the same thing, a shared service on one machine."
+  },
+  "L-0090": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "The deferred class question (conflicts when IDs may not be unique) named here and answered as far as the lecture went in 9.1."
+  },
+  "L-0091": {
+   "section": "1.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    },
+    {
+     "section": "5.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Class idea: step by the number of masters (0,2,4 / 1,3,5). Works, with a disadvantage covered later. P1's reveal; payoff link to 5.7 (Flickr odd/even)."
+  },
+  "L-0092": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: why a counter and not a random suffix: the counter served order; drop order and a random ID works."
+  },
+  "L-0093": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.8",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "UUIDs lose ordering, 'you get some, you lose some'. SourceNote SN-04 labelled 'Since the class' (outdated/low): UUIDv7 (RFC 9562) keeps rough time order; A-IG-05.",
+   "source_note": "SN-04"
+  },
+  "L-0094": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "In-lecture deferral becomes an internal link: 'where UUIDs and MongoDB IDs fit is section 4'."
+  },
+  "L-0095": {
+   "section": "3.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Class idea: each ID server prefixes its own ID; correct, loses monotonicity, which is fine."
+  },
+  "L-0096": {
+   "section": "3.8",
+   "component": "Prose",
+   "also": [],
+   "note": "No one right way; choose what you want and what you can give up."
+  },
+  "L-0097": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opener: so far only the core idea; each company shows what its design gains and loses."
+  },
+  "L-0098": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting alternative (student, corrected): restart from the max row ID in the database. Stated as the tempting idea."
+  },
+  "L-0099": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The correction: that's load() by another name, and it assumes every ID is written back as a row; many IDs (request IDs) never are, and writing each back would be expensive."
+  },
+  "L-0100": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Second-half agenda; pagination framed as 'a very interesting side effect of having a good ID generation system'. Also the opening line of section 8."
+  },
+  "L-0101": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Source of the Amazon account: the team sat next to the instructor and gave a public tech talk. Unverifiable/none: attributed as his first-hand account."
+  },
+  "L-0102": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Every order gets a globally unique ID; the same service serves many internal services. Unverifiable/low: attributed."
+  },
+  "L-0103": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Batching, 'one of the most effective ways to get performance' (wording partly lost, kept as said). On the 9.2 heuristics card."
+  },
+  "L-0104": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "About 150 lines of Python; write it yourself."
+  },
+  "L-0105": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Architecture: API servers behind an LB, backed by a DB ('APIs for ID Svc'). Unverifiable/low: attributed. Fig 5.a frame (D-12)."
+  },
+  "L-0106": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "A classic relational DB, nothing fancy; 'I don't like to complicate things'."
+  },
+  "L-0107": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Core idea: one call fetches a batch; same idea as 2.6's flush every 1000 (back-link). T2 row."
+  },
+  "L-0108": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Videos exist on this design; the page goes into implementation; after Lecture 3's airline check-in it's easy (back-link)."
+  },
+  "L-0109": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Orders and payments need only uniqueness, not order."
+  },
+  "L-0110": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Orders server boots, asks for 500; one SQL update sets the value to 500 and returns 0-500. Fig 5.a step 1."
+  },
+  "L-0111": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Only start and end are returned; IDs are integers."
+  },
+  "L-0112": {
+   "section": "5.2",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "SELECT ... FOR UPDATE in a transaction, then update: atomic hand-out. CodeBlock shows the transaction."
+  },
+  "L-0113": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Walkthrough [0,500), [500,1000); payments [0,2000). Fig 5.a steps 1-3."
+  },
+  "L-0114": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Ranges kept in memory; orders written into the service's own DB; optional per-service prefix."
+  },
+  "L-0115": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Decoupling: the orders DB can shard with every shard taking writes; no call per ID."
+  },
+  "L-0116": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Real batch sizes 10,000 / 50,000 / 100,000 by throughput. Unverifiable/none: attributed."
+  },
+  "L-0117": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Batch-size trade-off: crash loses a range; small = frequent calls, big = more lost. T2 row."
+  },
+  "L-0118": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "One row per service holds its counter (board table service | counter). Fig 5.a table."
+  },
+  "L-0119": {
+   "section": "5.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Refill near exhaustion: at 490 of 500 ask again, maybe get 3000-3500. Fig 5.a step 4. (A-IG-24 is used in 9.2.)"
+  },
+  "L-0120": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "9.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "No order across servers, only uniqueness. T2 row; restated in T5."
+  },
+  "L-0121": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "It's Lecture 3's airline check-in transaction copied over ('Ctrl-C, Ctrl-V'). Back-link."
+  },
+  "L-0122": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Simple: one DB as the single source of truth, no gossip, one tiny update per request. Simplified/low: left as taught (one neutral clause that range batching keeps the DB off the hot path)."
+  },
+  "L-0123": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting fix (student, corrected): track used IDs so nothing is wasted (9,900 of 10,000)."
+  },
+  "L-0124": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Correction: massive overhead; 2^64 never runs out, even at Amazon."
+  },
+  "L-0125": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Think practically: nobody cares about every integer."
+  },
+  "L-0126": {
+   "section": "5.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Number sense: a million vs a billion; the gap is itself almost a billion (999 million, checked)."
+  },
+  "L-0127": {
+   "section": "5.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "4-byte integer ~4 billion orders; then 64 bits. Simplified/low: left as taught."
+  },
+  "L-0128": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening question of section 4 (asked in class): if order isn't required, why not UUIDs?"
+  },
+  "L-0129": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'Extremely inefficient at scale' kept; SourceNote SN-05 (imprecise/medium): random v4 UUIDs scatter inserts and enlarge every index; v7 or 64-bit IDs avoid most of it. A-IG-04.",
+   "source_note": "SN-05"
+  },
+  "L-0130": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "UUID = 128 bits, readable as a gigantic integer. T1 column."
+  },
+  "L-0131": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Back-link: the week-2 pre-read video on how indexes speed up reads (Lecture 3's week). One clause."
+  },
+  "L-0132": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Index = a B+ tree table of values plus row IDs, managed by the DB. Simplified/low: left as taught; A-D-01 (next) shows what the 'row ID' is in InnoDB."
+  },
+  "L-0133": {
+   "section": "4.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Posts table -> an index on user_id is a two-column table (user_id, post_id). Fig 4.a."
+  },
+  "L-0134": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Dense index stores the row ID in every entry, so a big ID bloats every index. A-D-01 woven in (InnoDB secondary indexes carry the PK; 'advantageous to have a short primary key')."
+  },
+  "L-0135": {
+   "section": "4.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    },
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "16 B vs 4 B: 1 GB index -> 4 GB. Light inline (imprecise/low): 4x vs INT, 2x vs BIGINT, and size isn't exactly linear. P5's reveal uses the same wording."
+  },
+  "L-0136": {
+   "section": "4.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    },
+    {
+     "section": "4.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Indexes must fit in RAM. SourceNote SN-06 (imprecise/medium) in 4.3: the hot working set must fit the buffer pool. RuleBox §4 uses SN-06's wording. On the 9.2 heuristics card.",
+   "source_note": "SN-06"
+  },
+  "L-0137": {
+   "section": "4.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Query plan runs on indexes, rows read last. Light inline (imprecise/low) + A-D-03: covering index can skip the table, else rows are fetched as it goes. Fig 4.b."
+  },
+  "L-0138": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "With indexes in RAM, everything but the result rows runs in memory. Simplified/low: left as taught."
+  },
+  "L-0139": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'The first thing to check': the instructor checks index sizes first; random indexes spilled to disk. Unverifiable: attributed; fact-check's other first checks (slow-query log, EXPLAIN) in one clause."
+  },
+  "L-0140": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Indexes are loaded at boot or on demand and kept. Simplified/low: left as taught; A-D-02 woven in (LRU eviction; 25% reload at startup)."
+  },
+  "L-0141": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "RAM >= total index size or queries crawl. Light inline (imprecise/low): size the buffer pool for hot indexes and data; RAM must exceed it."
+  },
+  "L-0142": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Bridge to section 5: later designs avoided UUIDs for this reason."
+  },
+  "L-0143": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "UUIDs good for security (unguessable, hard to scrape) kept; SourceNote SN-07 (imprecise/medium): enumeration resistance, not a security control; authorize every request. A-IG-07.",
+   "source_note": "SN-07"
+  },
+  "L-0144": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Facebook with IDs 1, 2, 3 -> loop to a billion scrapes it."
+  },
+  "L-0145": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "UUIDs fine for apps that never reach scale; don't reach for the best solution by default. Restated in T5."
+  },
+  "L-0146": {
+   "section": "4.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    },
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "ObjectId = 4 B time | 5 B random | 3 B counter. Fig 4.c (D-13). A-IG-08 woven in. T1 column."
+  },
+  "L-0147": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "MongoDB 'went smaller to save four bytes': unverifiable/low, worded as the lecture's inference."
+  },
+  "L-0148": {
+   "section": "4.5",
+   "component": "TradeoffTable",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    },
+    {
+     "section": "4.3",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "MySQL auto-increment INT = 4 B; 4-8 B fine, beyond 8 worry. Simplified/low: left as taught; A-D-07 woven in. T1 column; part of RuleBox §4."
+  },
+  "L-0149": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Pattern: time on the left, ID small; why 2.5's long IDs were a cost (back-link)."
+  },
+  "L-0150": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Every case study that follows rejects UUIDs for indexing."
+  },
+  "L-0151": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Flickr, the photo site before Instagram. Light inline (imprecise/low): launched 2004, 'the Instagram of the 2000s'."
+  },
+  "L-0152": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Sharded multi-master DB: per-shard auto-increment would collide (the section 1 problem)."
+  },
+  "L-0153": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Flickr's blog: no UUIDs because they index badly (link to 4.1)."
+  },
+  "L-0154": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The lecture's own hedge, kept: the 4x is a rough estimate, 'don't quote it'."
+  },
+  "L-0155": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Flickr's engineering blog says the same, and the lecture agrees."
+  },
+  "L-0156": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Provisioning heuristic: minimum memory = sum of index sizes ('interviews are crappy' softened to 'interview questions aside'). Simplified/low: left as taught."
+  },
+  "L-0157": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Database = most essential, most brutal component; link to Lecture 2's 'most critical and most brittle'."
+  },
+  "L-0158": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Learn your database's fundamentals well."
+  },
+  "L-0159": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    },
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Central ticket server on MySQL: ask MySQL, get an ID. Fig 5.b (D-15). T2 column."
+  },
+  "L-0160": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Read designs for their beauty and take the good parts; don't list faults (e.g. a MySQL query per ID)."
+  },
+  "L-0161": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Neighbours-fighting analogy, one sentence."
+  },
+  "L-0162": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Table tickets: id BIGINT unsigned AUTO_INCREMENT PK (2^64), stub with UNIQUE KEY. Fig 5.c (D-14) with example row 74 | a."
+  },
+  "L-0163": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "MySQL's auto-increment can itself be the ID service: the earlier class question about using the DB as generator, answered."
+  },
+  "L-0164": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Ticket DB separate from photo shards; only lends its auto-increment."
+  },
+  "L-0165": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Naive use: delete the row, insert a new one, auto-increment gives the next ID."
+  },
+  "L-0166": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "stub exists because you can't insert an empty row; its constant value just hits the unique key. Fig 5.c arrow 'some dummy value, nothing special'."
+  },
+  "L-0167": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Delete + insert in a transaction, or an upsert. Light inline (imprecise/low): one upsert statement replaces the pair."
+  },
+  "L-0168": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Upsert defined."
+  },
+  "L-0169": {
+   "section": "5.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "INSERT ... ON DUPLICATE KEY UPDATE. A-D-05 woven in (affected rows; avoid with several unique keys)."
+  },
+  "L-0170": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "REPLACE INTO deletes and inserts; seen in Lecture 3's KV store (back-link). A-D-04 woven in."
+  },
+  "L-0171": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "~32x slower in the instructor's benchmark; 'either works'. SourceNote SN-09 (imprecise/medium): usually slower, resets columns; prefer ON DUPLICATE unless you want a fresh row.",
+   "source_note": "SN-09"
+  },
+  "L-0172": {
+   "section": "5.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    },
+    {
+     "section": "5.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "The class query INSERT ... ON DUPLICATE KEY UPDATE id = id + 1 (74 -> 75 -> 76). SourceNote SN-10 (imprecise/medium): Flickr's published query is REPLACE INTO ...; SELECT LAST_INSERT_ID(); A-IG-09. Both forms shown, labelled.",
+   "source_note": "SN-10"
+  },
+  "L-0173": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Leans on MySQL's transactions and atomicity (board: both upserts are atomic, 'remember upsert in the KV store?')."
+  },
+  "L-0174": {
+   "section": "5.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Flow: post photo -> photo API server -> ticket server for an ID -> sharded photos DB. Fig 5.b."
+  },
+  "L-0175": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "One ticket server is a SPOF (opener of 5.7). T2 row."
+  },
+  "L-0176": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Prose"
+    },
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Two ticket DBs behind an LB; like 3.7 but no order needed; the 1.2 idea. A-IG-11 woven in (no replication between them). Fig 5.d (D-16). T2 row."
+  },
+  "L-0177": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Increment by 2: odd and even. Fig 5.d numbers 1 3 5 7 / 2 4 6 8."
+  },
+  "L-0178": {
+   "section": "5.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.7",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "auto_increment_increment = 2, offset = 1 and 2. Fig 5.d labels; CodeBlock with the two settings."
+  },
+  "L-0179": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Round robin alternates servers: 1, 2, 3, 4... almost in order. A-IG-10 woven in (the sides drift; 'hurts no one')."
+  },
+  "L-0180": {
+   "section": "5.7",
+   "component": "Prose",
+   "also": [],
+   "note": "If one dies the other carries on."
+  },
+  "L-0181": {
+   "section": "5.8",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "Prose"
+    },
+    {
+     "section": "5.8",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Odd dies at 5, even reaches 202, odd resumes 7, 204, 9, 206: aesthetics, not correctness. A-IG-14 woven in (redo-log persistence and the crash caveat). Clip l03-odd-even; P6."
+  },
+  "L-0182": {
+   "section": "5.8",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Optional reset: max 202 + buffer -> 240; restart sides at 241 and 242 so round robin continues 241, 242, 243, 244 (one consistent example; board shows 240/241 and 239/240). Clip beat 5."
+  },
+  "L-0183": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "9.2",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "5.8",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Reset is for looks; strict order never promised, nearly monotonic is a byproduct. T2 row; restated in T5."
+  },
+  "L-0184": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "'Simple but brilliant in its own sense'."
+  },
+  "L-0185": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Who resets: an SRE, or automation (find max, add buffer, set, restart). Simplified/low: left as taught; the 'variables are dynamic, Flickr never resets' nuance sits with SN-11 as context, not a correction."
+  },
+  "L-0186": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Reset value is the architect's call; 'the safest value' from 2.6 again (back-link)."
+  },
+  "L-0187": {
+   "section": "5.8",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "Prose"
+    }
+   ],
+   "note": "Tempting objection (student, corrected): without the reset IDs aren't monotonic. 'Where did we enforce monotonicity?' becomes P6's wrong-verdict text and a prose sentence."
+  },
+  "L-0188": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Not everyone needs monotonic IDs; social media doesn't care."
+  },
+  "L-0189": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Decentralized generation, a piece of logic not a service. Light inline (imprecise/low): Twitter's 2010 Snowflake was itself a network service; the library style is how many run it."
+  },
+  "L-0190": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Twitter still uses it; 'one of the best' as the lecture's view. Simplified/low: left as taught (A-IG-15 sits in SN-13)."
+  },
+  "L-0191": {
+   "section": "6.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Named after snowflakes, no two alike. Unverifiable/none: the lecture's reading; Twitter never explained the name."
+  },
+  "L-0192": {
+   "section": "6.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Numberphile video on why real snowflakes are unique (plain reference)."
+  },
+  "L-0193": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Tweet IDs are Snowflakes; Discord and Instagram adopted it (forward links to 6.6, 7)."
+  },
+  "L-0194": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "64 bits, deliberately small. T1 column (BIGINT / Snowflake)."
+  },
+  "L-0195": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "64 vs 128 bits matters at Twitter scale: 128 would double the space."
+  },
+  "L-0196": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Like MongoDB's ID, but smaller (back-link to 4.5)."
+  },
+  "L-0197": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "First 41 bits = milliseconds; time on the left. Simplified/low: left as taught; worded 'milliseconds from an epoch' (no 1970 claim). Fig 6.a (D-17)."
+  },
+  "L-0198": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Almost ordered; the byproduct makes pagination efficient. A-IG-17 woven in ('k-sorted' within a second)."
+  },
+  "L-0199": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Next 10 bits = machine ID, placed by the lecture on API servers. Light inline (imprecise/low): in Twitter's original, Snowflake server processes. Fig 6.a."
+  },
+  "L-0200": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Tweet creation flow through an API server to a partitioned tweets DB. Light inline (imprecise/low): in 2010 the API tier called a separate Snowflake service. Fig 6.b."
+  },
+  "L-0201": {
+   "section": "6.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    },
+    {
+     "section": "6.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Snowflake as a library inside API servers (Fig 6.b, D-18, captioned 'as taught'). SourceNote SN-13 (wrong/medium): Twitter's ran as a Thrift service; Sonyflake is library-style. A-IG-15.",
+   "source_note": "SN-13"
+  },
+  "L-0202": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "7.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "At most 2^10 = 1024 machines (checked). Light inline (imprecise/low): generator processes, not API servers. P7; T3 row."
+  },
+  "L-0203": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Last 12 bits = per-machine counter, the static counter from 2.3 (back-link). Simplified/low: left as taught; one clause 41+10+12 = 63, top bit 0 (Fig 6.a draws it as a thin grey cell)."
+  },
+  "L-0204": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "A server needs only time, its machine ID and its counter."
+  },
+  "L-0205": {
+   "section": "6.2",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "2^12 = 4096 IDs per ms per machine (checked). P7 reveal."
+  },
+  "L-0206": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Humongous headroom; A-IG-16 woven in (Twitter's stated need: 10k IDs/s per process)."
+  },
+  "L-0207": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "SourceNote"
+    },
+    {
+     "section": "6.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Collision needs >4096 in one ms on one machine; '400,000 per second, nobody does that'. SourceNote SN-12 (wrong/low): 4,096/ms is about 4 million/s; conclusion holds. P7 wrong-verdict uses the corrected number.",
+   "source_note": "SN-12"
+  },
+  "L-0208": {
+   "section": "6.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "'Three lines of code, even one'. Simplified/low: left as taught; the CodeBlock adds the two guards a real generator has, labelled as the page's additions."
+  },
+  "L-0209": {
+   "section": "6.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    },
+    {
+     "section": "6.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Shift time by 23 and OR the parts, as taught. SourceNote SN-14 (wrong/low): Twitter's shift is 22; 23 is Instagram's. CodeBlock uses 22 with the class's 23 noted.",
+   "source_note": "SN-14"
+  },
+  "L-0210": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "No moving part, no central service (board: no service, just a function call, no extra DB load). Light inline (imprecise/low): true of the library form; Twitter's nodes simply never coordinate."
+  },
+  "L-0211": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Why Twitter scales: no separate ID tier to scale for its busiest workload; also the section 6 opening problem. Light inline (imprecise/low): Twitter did run a Snowflake tier; uncoordinated nodes made it easy."
+  },
+  "L-0212": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Twitter uses since_id, not limit/offset (board-only item). Simplified/low: left as taught; A-PEM-11 woven in."
+  },
+  "L-0213": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Within one ms, the smaller machine ID gives the smaller ID."
+  },
+  "L-0214": {
+   "section": "6.5",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "A tweet link's number is a Snowflake carrying its creation ms. Fig 6.c 'Decode a tweet ID' (placeholder ID, 22-bit shift)."
+  },
+  "L-0215": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Before/after a time from IDs alone; pagination is efficient. Bridge sentence and link to section 8."
+  },
+  "L-0216": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Twitter's API docs are worth reading for pagination; the API is now paid (hedged as the lecture said)."
+  },
+  "L-0217": {
+   "section": "8.1",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "8.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Limit-offset (skip-limit): LIMIT 10 OFFSET 0/10/20. Simplified/low: left as taught; A-PEM-02 woven in (ORDER BY)."
+  },
+  "L-0218": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Limit-offset is very slow when paging deep."
+  },
+  "L-0219": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [],
+   "note": "10,000-tweet account: pages 6, 7 get slower."
+  },
+  "L-0220": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Trending-topics job over millions of tweets an hour; also the section 8 opening problem."
+  },
+  "L-0221": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [],
+   "note": "2016 benchmark of MongoDB pagination ('bored at Amazon'). Unverifiable/none: attributed; links the instructor's published post."
+  },
+  "L-0222": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Holds for MongoDB, SQL and 'every database' (quoted as the lecture's words). Simplified/low: left as taught."
+  },
+  "L-0223": {
+   "section": "8.2",
+   "component": "Prose",
+   "also": [],
+   "note": "In MongoDB it's skip and limit."
+  },
+  "L-0224": {
+   "section": "8.2",
+   "component": "AnimationClip",
+   "also": [
+    {
+     "section": "8.2",
+     "component": "Prose"
+    },
+    {
+     "section": "8.3",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "8.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Why: the DB evaluates up to the offset, skips, returns n, every page; cost grows with depth. A-D-12 woven in. Clip l03-offset-vs-keyset; P8; T4 row."
+  },
+  "L-0225": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "ID-limit pagination for iterating without advanced filters. Simplified/low: left as taught; 8.5 qualifies it via SN-16."
+  },
+  "L-0226": {
+   "section": "8.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Twitter iterates the last N minutes for trends, recommendations, feeds. Unverifiable/none: worded as an illustration."
+  },
+  "L-0227": {
+   "section": "8.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Needs comparable IDs: auto-increment, ObjectId, Snowflake, time-left IDs. Simplified/low: left as taught; A-PEM-07 and A-PEM-08 woven in."
+  },
+  "L-0228": {
+   "section": "8.3",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "Prose"
+    },
+    {
+     "section": "8.3",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "8.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Fetch 10, note last ID, WHERE id > last LIMIT 10. Simplified/low: left as taught; A-PEM-01 woven in (add the sort). P8 reveal; T4 row."
+  },
+  "L-0229": {
+   "section": "8.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "8.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Fast because tables are stored in PK order. SourceNote SN-15 (imprecise/medium): true for InnoDB's clustered key; elsewhere the index seek does it. A-PEM-05, A-PEM-06. T4 row.",
+   "source_note": "SN-15"
+  },
+  "L-0230": {
+   "section": "8.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Skip-limit linear, ID-limit flat; similar at small depth (blog: comparable to ~500-600). Fig 8.b shape only."
+  },
+  "L-0231": {
+   "section": "8.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Spike = disk throttling during a flush; trend still linear. Unverifiable/none: attributed. Fig 8.b annotation."
+  },
+  "L-0232": {
+   "section": "8.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Go deeper': the instructor's members-only video on database engineering (B+ trees, physical storage). Plain mention."
+  },
+  "L-0233": {
+   "section": "8.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "8.3",
+     "component": "Prose"
+    },
+    {
+     "section": "8.2",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "8.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "B+ tree in key order: log n descent then a short sequential read, any depth. Simplified/low: left as taught; A-PEM-15 woven in. Fig 8.a; clip's keyset lane. T4 row."
+  },
+  "L-0234": {
+   "section": "8.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "8.5",
+     "component": "SourceNote"
+    },
+    {
+     "section": "8.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Disadvantage as taught: no complex WHERE clauses. SourceNote SN-16 (imprecise/medium): keyset handles filters with a matching index; the real costs are no page jumps and a deterministic sort. A-PEM-03, A-PEM-04. T4 row.",
+   "source_note": "SN-16"
+  },
+  "L-0235": {
+   "section": "8.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Use ID-based for deep paging without fancy filters even in MySQL; don't rewrite every loop. Simplified/low: left as taught."
+  },
+  "L-0236": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Epoch ms counts from 1 January 1970."
+  },
+  "L-0237": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "A company can start its own epoch and reclaim the years since 1970. Simplified/low: left as taught, worded 'you can' with no claim that Twitter didn't. Fig 6.d."
+  },
+  "L-0238": {
+   "section": "6.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "'Roughly 35 more years' with its hedge. Simplified/low: left as taught; arithmetic shown as the page's worked numbers: 2^41 ms = about 69.7 years from any epoch; 1970 -> 2039, 2015 -> about 2084. Fig 6.d."
+  },
+  "L-0239": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Discord: Twitter's layout with a 2015 epoch. A-IG-18 woven in (42 time bits, worker/process IDs, sent as strings)."
+  },
+  "L-0240": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Sony's open-source Sonyflake, about five lines at its core. Simplified/low: left as taught; A-IG-19 woven in (its default layout differs)."
+  },
+  "L-0241": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "First instinct 'write a microservice'; good engineers look at the problem. Unverifiable/none: the lecture's view, worded as such. Previewed in 1.3."
+  },
+  "L-0242": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Every design is contextual: organization, expertise, management support."
+  },
+  "L-0243": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Bring data to change minds."
+  },
+  "L-0244": {
+   "section": "6.7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Microservices are an overkill in most cases': unverifiable/low, labelled as the lecture's opinion; A-PEM-14 (Fowler, 'monolith first') as the mainstream milder form."
+  },
+  "L-0245": {
+   "section": "6.7",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.7",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §6: understand the context, build only what you need, simple systems scale. On the 9.2 heuristics card."
+  },
+  "L-0246": {
+   "section": "8.4",
+   "component": "Prose",
+   "also": [],
+   "note": "How he knew: Prometheus + node exporter showed disk IO at 100%. Unverifiable/none: attributed footnote."
+  },
+  "L-0247": {
+   "section": "8.6",
+   "component": "Prose",
+   "also": [],
+   "note": "NoSQL? Depends on the storage engine; works in MongoDB. Simplified/low: left as taught."
+  },
+  "L-0248": {
+   "section": "8.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Any store with sequential scans and locality, DynamoDB included; hash-scattered layouts never get it. Simplified/low: left as taught; A-PEM-10 woven in."
+  },
+  "L-0249": {
+   "section": "8.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "8.5",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §8: understand how your database stores data on disk. On the 9.2 heuristics card."
+  },
+  "L-0250": {
+   "section": "8.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Elasticsearch caps offset at 10,000 and points to a cursor (hedge on the parameter name kept). Light inline (imprecise/low) + A-PEM-09: index.max_result_window; search_after with PIT."
+  },
+  "L-0251": {
+   "section": "8.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Past 10,000, cursors beat offset; small pages don't matter."
+  },
+  "L-0252": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: why it helps: 1.68e12 ms already uses about 76% of 2^41 (2.2e12), so starting at zero on launch day uses the whole range (arithmetic checked)."
+  },
+  "L-0253": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "The class's epoch second 1676784716 (+000 for ms), used as the worked number."
+  },
+  "L-0254": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Class idea, accepted: it is subtracting the start time from now."
+  },
+  "L-0255": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening admiration (the lecture's view): a brilliant optimization from a blog post; what decent DB knowledge buys. 'Started cursing' kept as tone, not quoted."
+  },
+  "L-0256": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Instagram makes the ID inside the DB during insert. Light inline (imprecise/low): its own Snowflake-like layout in PL/pgSQL, not Twitter's code."
+  },
+  "L-0257": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Twitter in API servers, Instagram in the DB."
+  },
+  "L-0258": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirement 1: sortable by time (recent items, trending hashtags, feeds; board arrow to pagination)."
+  },
+  "L-0259": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirement 2: 64 bits for index efficiency (back-link to section 4)."
+  },
+  "L-0260": {
+   "section": "7.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirement 3: no new service."
+  },
+  "L-0261": {
+   "section": "7.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "41 bits of ms since a 2011 custom epoch. Light inline (imprecise/low): the constant is 24 Aug 2011. Fig 7.a (D-20 as a bar)."
+  },
+  "L-0262": {
+   "section": "7.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "13 bits of DB shard ID. Fig 7.a."
+  },
+  "L-0263": {
+   "section": "7.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "10 bits of per-shard sequence, a static counter. Fig 7.a."
+  },
+  "L-0264": {
+   "section": "7.2",
+   "component": "TradeoffTable",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "41/10/12 vs 41/13/10. T3 and Fig 7.a's comparison."
+  },
+  "L-0265": {
+   "section": "7.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Watch first': the sharding and partitioning video in the readings."
+  },
+  "L-0266": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Instagram runs Postgres; the page says 'database servers' where the lecture later says MySQL."
+  },
+  "L-0267": {
+   "section": "7.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Logical shards (partitions) on fewer physical servers; physical = the machine, logical = a database created inside. Simplified/low: left as taught; A-D-11 woven in (Postgres schemas such as insta5). Fig 7.b (D-19)."
+  },
+  "L-0268": {
+   "section": "7.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "Prose"
+    },
+    {
+     "section": "7.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Thousands of logical shards, max 2^13 = 8192 (checked), on 10-15 servers. Fig 7.b labels. T3 row."
+  },
+  "L-0269": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "CREATE DATABASE insta1.. on one server, insta2000, insta5000 on another. Simplified/low: left as taught."
+  },
+  "L-0270": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Same tables and schemas in every logical shard; different data."
+  },
+  "L-0271": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Cost: a migration runs on every logical database, thousands of times (~8,000)."
+  },
+  "L-0272": {
+   "section": "7.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Benefit: dump a hot logical shard and load it elsewhere. Simplified/low: left as taught. Fig 7.c panel 1-2."
+  },
+  "L-0273": {
+   "section": "7.3",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Moving logical partitions covered again in week 5 (Lecture 9)."
+  },
+  "L-0274": {
+   "section": "7.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "7.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Scale out = new server + move a shard. Fig 7.c panel 2."
+  },
+  "L-0275": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Without logical shards you walk every row to pick what to move."
+  },
+  "L-0276": {
+   "section": "7.3",
+   "component": "Prose",
+   "also": [],
+   "note": "~10 servers x thousands of logical DBs; the 13-bit field is the logical shard ID. Light inline (imprecise/low): Postgres, not MySQL."
+  },
+  "L-0277": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Stored procedures, the thing people skipped in college. Simplified/low: left as taught; the page names the language PL/pgSQL in the code block caption."
+  },
+  "L-0278": {
+   "section": "7.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    },
+    {
+     "section": "7.4",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "photos.id bigint not null default insta5.next_id(): insert without an ID, the function's result is the ID."
+  },
+  "L-0279": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Each logical DB has its own next_id with its shard ID hard-coded; created in every DB."
+  },
+  "L-0280": {
+   "section": "7.4",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Declares epoch, seq_id, now_ms, shard_id = 5. Light inline (imprecise/low): epoch constant = 24 Aug 2011."
+  },
+  "L-0281": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Every DB has a sequencer behind auto-increment. Simplified/low: left as taught; one neutral clause that this is PostgreSQL's model."
+  },
+  "L-0282": {
+   "section": "7.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "seq_id = nextval(...) % 1024 (2^10, checked): atomic, cut to 10 bits. Fig 7.d step 2."
+  },
+  "L-0283": {
+   "section": "7.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "result = (now_ms - epoch) << 23. Light inline (imprecise/low): same epoch note. Fig 7.d step 3."
+  },
+  "L-0284": {
+   "section": "7.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "result |= shard_id << 10; result |= seq_id. Fig 7.d steps 4-5."
+  },
+  "L-0285": {
+   "section": "7.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Every insert without an ID runs it: Snowflake in a stored procedure. Fig 7.d step 6."
+  },
+  "L-0286": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Build it yourself on MySQL, Postgres or any DB; the last batch found it easy."
+  },
+  "L-0287": {
+   "section": "7.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7.4",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "RuleBox §7: no ID logic on the API side; the DB calls the function. Restated in T5."
+  },
+  "L-0288": {
+   "section": "7.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Instagram posts still carry IDs from this scheme, per the lecture. Unverifiable/low: attributed ('says the lecture')."
+  },
+  "L-0289": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting reading (student, corrected): table_id_seq is a column."
+  },
+  "L-0290": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Correction: a sequence object; auto-increment columns create one behind the scenes; Instagram creates its own. A-D-10 woven in (serial = CREATE SEQUENCE + nextval default)."
+  },
+  "L-0291": {
+   "section": "7.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "'We just lifted it into the DB?' -> the API tier now has no limit. Simplified/low: left as taught; one clause that the ceilings move to 8192 shards and 1024 per ms per shard. T3 row."
+  },
+  "L-0292": {
+   "section": "7.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Twitter capped at 2^10 API servers, by the lecture's account. Light inline (imprecise/low): generator processes. T3 row."
+  },
+  "L-0293": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: machine IDs can be assigned, e.g. by ZooKeeper at startup."
+  },
+  "L-0294": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Not strictly monotonic; strict order -> auto-increment. Light inline (imprecise/low, overridden): auto-increment allocates increasing values but concurrent commits can land out of ID order. Linked from 9.1."
+  },
+  "L-0295": {
+   "section": "9.1",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "Prose"
+    },
+    {
+     "section": "9.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Instagram tolerates slight disorder; a bank's transaction list needs exact order, so auto-increment. Simplified/low: left as taught. P9 reveal; restated in T5."
+  },
+  "L-0296": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting reading (student, corrected): every table gets a sequence."
+  },
+  "L-0297": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Correction: only auto-increment columns create one; you can have several. Light inline (imprecise/low): PostgreSQL several, MySQL one AUTO_INCREMENT per table."
+  },
+  "L-0298": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "The sequencer is 2.3's static counter (back-link). A-D-08 woven in (gaps)."
+  },
+  "L-0299": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded: Lamport clocks for gossip? Unsure Flickr specified; doesn't think Lamport clocks are used for gossip. Light inline (imprecise/low): Flickr's post never mentions gossip; Lamport clocks can appear in gossip systems."
+  },
+  "L-0300": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.8",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'Flickr said abstractly they need to gossip; write your own.' SourceNote SN-11 (wrong/medium): Flickr's servers never coordinate; odd/even keeps them unique and they drift.",
+   "source_note": "SN-11"
+  },
+  "L-0301": {
+   "section": "5.8",
+   "component": "Prose",
+   "also": [],
+   "note": "Both servers must agree on the other's value. Light inline (imprecise/low): only for the optional aesthetic reset."
+  },
+  "L-0302": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Class idea: ID generator pushes ranges into a queue; servers read a batch. Agreed."
+  },
+  "L-0303": {
+   "section": "5.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Atomicity moves to the queue; DB, queue, DynamoDB, Redis all fine. SourceNote SN-08 (imprecise/medium) inside the note: at-least-once queues can redeliver a range; A-IG-22, A-IG-23.",
+   "source_note": "SN-08"
+  },
+  "L-0304": {
+   "section": "5.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §5: focus on the core property (atomic increment); any system that has it is good enough."
+  },
+  "L-0305": {
+   "section": "8.4",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "8.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Spike around 6,000 records: other local processes competing. Fig 8.b second annotation."
+  },
+  "L-0306": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea (student, corrected): keep the sequence in a cache, not on disk."
+  },
+  "L-0307": {
+   "section": "7.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Correction: it must persist or a reboot restarts at 0 (2.4 again); the DB optimizes flushing. A-D-09 woven in."
+  },
+  "L-0308": {
+   "section": "9.2",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next week: social networks, CDNs in depth, social-network services (Lectures 7 and 8)."
+  },
+  "L-0309": {
+   "section": "9.2",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "From week 4: a senior engineer's view, ambiguous systems, own requirements, several hats (link Lecture 8's 'hats')."
+  },
+  "L-0310": {
+   "section": "8.6",
+   "component": "Prose",
+   "also": [],
+   "note": "String IDs compare lexicographically, so they work. Simplified/low: left as taught; A-PEM-13 woven in as a sourced caution (collation; '10' < '9')."
+  },
+  "L-0311": {
+   "section": "9.2",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "CDC, sprinkled so far, in depth in week 5 (Lecture 9); the class question was deferred there."
+  },
+  "L-0312": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A folded (student proposal rejected): round robin routing doesn't make Snowflake IDs increase ('not necessarily')."
+  },
+  "L-0313": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.2",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Can't guarantee monotonicity in a distributed setup, 'written in stone'; take rough sortability. Restated in T5."
+  },
+  "L-0314": {
+   "section": "9.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "9.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Where strict order is required (banks), lower your throughput expectations."
+  }
+ },
+ "dropped": [],
+ "source_notes": {
+  "SN-01": [
+   "L-0067"
+  ],
+  "SN-02": [
+   "L-0076"
+  ],
+  "SN-03": [
+   "L-0077"
+  ],
+  "SN-04": [
+   "L-0093"
+  ],
+  "SN-05": [
+   "L-0129"
+  ],
+  "SN-06": [
+   "L-0136"
+  ],
+  "SN-07": [
+   "L-0143"
+  ],
+  "SN-08": [
+   "L-0303"
+  ],
+  "SN-09": [
+   "L-0171"
+  ],
+  "SN-10": [
+   "L-0172"
+  ],
+  "SN-11": [
+   "L-0300"
+  ],
+  "SN-12": [
+   "L-0207"
+  ],
+  "SN-13": [
+   "L-0201"
+  ],
+  "SN-14": [
+   "L-0209"
+  ],
+  "SN-15": [
+   "L-0229"
+  ],
+  "SN-16": [
+   "L-0234"
+  ]
+ },
+ "additions": {
+  "A-IG-25": {
+   "section": "3.4",
+   "component": "SourceNote",
+   "note": "SN-01: crystal error is parabolic; accuracy drops at both hot and cold extremes."
+  },
+  "A-IG-01": {
+   "section": "3.6",
+   "component": "SourceNote",
+   "note": "SN-02: CLOCK_REALTIME can jump; CLOCK_MONOTONIC doesn't; generators detect a backward step and wait or refuse."
+  },
+  "A-IG-02": {
+   "section": "3.6",
+   "component": "SourceNote",
+   "note": "SN-02 + the 3.4 margin note: ntpd slews under 128 ms and steps above; slew limited to 0.5 ms/s."
+  },
+  "A-IG-20": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "L-0081 inline: Spanner's TrueTime gives increasing timestamps across servers with special clocks."
+  },
+  "A-IG-21": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "L-0081 inline: TiDB's Placement Driver is one timestamp allocator (46 bits ms + 18-bit logical)."
+  },
+  "A-IG-12": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "L-0084, woven in: Group Replication multi-primary sets increment 7 and offset = server ID."
+  },
+  "A-IG-13": {
+   "section": "3.7",
+   "component": "Prose",
+   "note": "L-0083, woven in: auto-increment values are never reused after rollback; gaps are normal."
+  },
+  "A-IG-05": {
+   "section": "3.8",
+   "component": "SourceNote",
+   "note": "SN-04: PostgreSQL 18 uuidv7()."
+  },
+  "A-IG-04": {
+   "section": "4.1",
+   "component": "SourceNote",
+   "note": "SN-05: RFC 9562 says non-time-ordered UUIDs have poor index locality; UUIDv7 fixes it."
+  },
+  "A-D-01": {
+   "section": "4.2",
+   "component": "Prose",
+   "note": "L-0134, woven in: InnoDB secondary indexes store the PK; a short PK is advantageous."
+  },
+  "A-D-03": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "L-0137 inline: index-only scans need a covering index; otherwise rows are fetched."
+  },
+  "A-D-02": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "L-0140, woven in: LRU buffer pool; 25% of hot pages reloaded at startup."
+  },
+  "A-IG-07": {
+   "section": "4.4",
+   "component": "SourceNote",
+   "note": "SN-07: OWASP, access checks are essential even with complex identifiers."
+  },
+  "A-IG-08": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "L-0146, woven in: ObjectId second resolution, per-process random, sorts roughly by second."
+  },
+  "A-D-07": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "L-0148, woven in: INT 4 B / BIGINT 8 B; AUTO_INCREMENT fails at the type limit; Flickr uses bigint unsigned."
+  },
+  "A-IG-03": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "L-0033, woven in: write() lands in the page cache; only fsync() survives a crash, and is the expensive part."
+  },
+  "A-IG-22": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-08: SQS standard is at-least-once; a redelivered range duplicates IDs unless deduplicated."
+  },
+  "A-IG-23": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-08: a DynamoDB atomic counter can over-count on retry, which only wastes a range."
+  },
+  "A-D-05": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "L-0169, woven in: affected-rows 1/2/0; avoid with multiple unique indexes."
+  },
+  "A-D-04": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "L-0170, woven in: REPLACE resets unlisted columns and fires DELETE triggers."
+  },
+  "A-IG-09": {
+   "section": "5.6",
+   "component": "SourceNote",
+   "note": "SN-10: Flickr's published REPLACE INTO Tickets64 ...; SELECT LAST_INSERT_ID();"
+  },
+  "A-IG-11": {
+   "section": "5.7",
+   "component": "Prose",
+   "note": "L-0176, woven in: Flickr doesn't replicate between the two; locking would kill performance."
+  },
+  "A-IG-10": {
+   "section": "5.7",
+   "component": "Prose",
+   "note": "L-0179, woven in: the sides drift (a few hundred thousand more odds), 'hurts no one'. Also cited in SN-11."
+  },
+  "A-IG-14": {
+   "section": "5.8",
+   "component": "Prose",
+   "note": "L-0181, woven in: InnoDB persists the counter in the redo log; crash caveat."
+  },
+  "A-IG-16": {
+   "section": "6.2",
+   "component": "Prose",
+   "note": "L-0206, woven in: Twitter's stated need, 10k IDs/s per process, ~2 ms."
+  },
+  "A-IG-15": {
+   "section": "6.3",
+   "component": "SourceNote",
+   "note": "SN-13: Twitter's 2010 Snowflake was a Thrift server in Scala; repo archived 2021, internal rewrite."
+  },
+  "A-IG-17": {
+   "section": "6.5",
+   "component": "Prose",
+   "note": "L-0198, woven in: k-sorted within one second."
+  },
+  "A-IG-18": {
+   "section": "6.6",
+   "component": "Prose",
+   "note": "L-0239, woven in: Discord's documented layout, 2015 epoch, IDs as strings."
+  },
+  "A-IG-19": {
+   "section": "6.6",
+   "component": "Prose",
+   "note": "L-0240, woven in: Sonyflake default 39/8/16 in 10 ms units; configurable in v2."
+  },
+  "A-PEM-14": {
+   "section": "6.7",
+   "component": "MarginNote",
+   "note": "optional, used: Fowler's 'monolith first' as the mainstream milder form of L-0244's opinion."
+  },
+  "A-D-11": {
+   "section": "7.3",
+   "component": "Prose",
+   "note": "L-0267, woven in: Instagram's logical shards were Postgres schemas such as insta5."
+  },
+  "A-D-10": {
+   "section": "7.5",
+   "component": "Prose",
+   "note": "L-0290, woven in: serial = CREATE SEQUENCE + nextval default."
+  },
+  "A-D-08": {
+   "section": "7.5",
+   "component": "Prose",
+   "note": "L-0298, woven in: nextval values are never reused; sequences have gaps."
+  },
+  "A-D-09": {
+   "section": "7.5",
+   "component": "Prose",
+   "note": "L-0307, woven in: MySQL redo-logs the counter; Postgres CACHE leaves holes."
+  },
+  "A-PEM-11": {
+   "section": "8.1",
+   "component": "Prose",
+   "note": "L-0212, woven in: X API v2 next_token cursors; since_id for new data."
+  },
+  "A-PEM-02": {
+   "section": "8.1",
+   "component": "Prose",
+   "note": "L-0217, woven in: LIMIT/OFFSET needs a predictable ORDER BY."
+  },
+  "A-D-12": {
+   "section": "8.2",
+   "component": "Prose",
+   "note": "L-0224, woven in: PostgreSQL docs, skipped rows 'still have to be computed'."
+  },
+  "A-PEM-07": {
+   "section": "8.3",
+   "component": "Prose",
+   "note": "L-0227, woven in: ObjectIds are approximately time-ordered."
+  },
+  "A-PEM-08": {
+   "section": "8.3",
+   "component": "Prose",
+   "note": "L-0227, woven in: Snowflake 41/10/12, 'k-sorted'."
+  },
+  "A-PEM-01": {
+   "section": "8.3",
+   "component": "Prose",
+   "note": "L-0228, woven in: MongoDB's range example sorts explicitly."
+  },
+  "A-PEM-05": {
+   "section": "8.3",
+   "component": "SourceNote",
+   "note": "SN-15: normal MongoDB collections store _id index separately; clustered since 5.3."
+  },
+  "A-PEM-06": {
+   "section": "8.3",
+   "component": "SourceNote",
+   "note": "SN-15: PostgreSQL CLUSTER is one-time; keyset is fast via the B-tree."
+  },
+  "A-PEM-15": {
+   "section": "8.3",
+   "component": "Prose",
+   "note": "L-0233, woven in: InnoDB clustered index = exactly a descent + leaf walk."
+  },
+  "A-PEM-03": {
+   "section": "8.5",
+   "component": "SourceNote",
+   "note": "SN-16: keyset with filters and (sale_date, sale_id) sort, backed by an index."
+  },
+  "A-PEM-04": {
+   "section": "8.5",
+   "component": "SourceNote",
+   "note": "SN-16: you cannot jump to arbitrary pages."
+  },
+  "A-PEM-10": {
+   "section": "8.6",
+   "component": "Prose",
+   "note": "L-0248, woven in: DynamoDB LastEvaluatedKey -> ExclusiveStartKey."
+  },
+  "A-PEM-09": {
+   "section": "8.6",
+   "component": "Prose",
+   "note": "L-0250 inline: index.max_result_window; search_after with PIT; scroll not recommended."
+  },
+  "A-PEM-13": {
+   "section": "8.6",
+   "component": "Prose",
+   "note": "optional, used: L-0310, collation and '10' < '9' caution."
+  },
+  "A-IG-24": {
+   "section": "9.2",
+   "component": "MarginNote",
+   "note": "optional, used: Meituan's Leaf as a reference implementing both ranges and Snowflake."
+  }
+ },
+ "additions_not_used": {
+  "A-D-06": "optional; duplicates A-IG-09 (Flickr's REPLACE INTO query), which SN-10 uses instead.",
+  "A-IG-06": "optional; duplicates A-D-01 (InnoDB secondary indexes carry the primary key), which 4.2 uses instead.",
+  "A-PEM-12": "optional; X API pricing is volatile and no class point needs it (L-0216 says only that the API is paid now)."
+ }
+}

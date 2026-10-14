@@ -1,0 +1,203 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import Nb from '../../../components/Nb.astro';
+import { IndexTable, QueryRuns, ObjectIdBar, RuleSketch4 } from '../../../figures/lec03/s4-id-size';
+
+{/* §4 How big should an ID be? (4.1–4.5). Chapter page /lectures/lec03/4-id-size/. */}
+
+<Section id="s4" no="4" title="How big should an ID be?" crumb="4 ID size"
+  dek="A UUID is unique with no coordination at all. The companies after Amazon in this lecture still turned it down, and the reason is the index."
+  meta="About 14 min · class 01:10–01:20">
+
+The orders table from [chapter 1](#s1) uses 4-byte integer IDs. Someone proposes switching to UUIDs: any server could then mint an ID on its own, with no counter, no clock and nobody to ask. Uniqueness for free.
+
+So why did Flickr, Twitter and Instagram, the case studies that follow, all stay away from it? [[L-0150]] Not because of uniqueness. Because of what the ID does to every index on the table.
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Why not just use a UUID?" crumb="4.1 Why not UUID"
+  dek="If order isn’t required, a random 128-bit value would do. Companies at scale still avoid it."
+  meta="About 2 min · class 01:10–01:12">
+
+[Chapter 3](#s3-8) ended by relaxing the order requirement. That raises the obvious question: if IDs don’t need to be monotonic, why not just use UUIDs? It is the right question to ask before building anything, and the answer is a question of its own: why don’t companies at scale prefer them? [[L-0128]]
+
+The short answer: at scale, UUIDs are extremely inefficient. If your company uses UUIDs everywhere, then yes, at scale that is inefficient. [[L-0129]]
+
+<SourceNote href="https://www.rfc-editor.org/rfc/rfc9562.html" k="L-0129">
+
+The cost comes from two things. Random (version 4) UUIDs land at random places in the index, and RFC 9562 itself says UUID versions that are not time-ordered “have poor database-index locality”. And at 16 bytes they enlarge every index that carries them <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html">dev.mysql.com</Cite>. Time-ordered UUIDv7, introduced by the same RFC in 2024, or a 64-bit ID avoids most of this.
+
+</SourceNote>
+
+First, what a UUID is: a 128-bit value. It is usually written as a string, but it can be read as one gigantic integer. Keep the number 128 in mind; the rest of this chapter is about what those bits cost. [[L-0130]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Every index carries the ID" crumb="4.2 Index carries the ID"
+  dek="An index is a smaller table, and every one of its entries stores the row’s ID. Make the ID four times bigger and the index follows."
+  meta="About 4 min · class 01:11–01:13, 01:15–01:19">
+
+Indexes make database reads faster; the week-2 pre-reads, in the week of Lecture 3, included a video on exactly how. [[L-0131]] The one fact this chapter needs from it: an index is itself just a table. Effectively it is a B+ tree holding the indexed values and the IDs of the rows they point to, and the database manages it internally. [[L-0132]]
+
+Take a posts table with a post ID, a user ID, a title and the rest. Create an index on `user_id`, and the database builds what is, in effect, a new table with just two columns: the post’s user ID, and the post ID. [[L-0133]]
+
+<Figure id="fig-4a" no="Fig 4·a" k="L-0133 L-0134 L-0135 L-0154"
+  caption="An index on user_id is a two-column table sorted by user_id, and each entry carries the post_id of its row. Widen the ID from 4 bytes to a 16-byte UUID and that column, in every entry, grows with it. New figure.">
+  <Desk><IndexTable /></Desk>
+  <Phone><IndexTable layout="phone" /></Phone>
+</Figure>
+
+Look at the second column. In a dense index, every single entry also stores the row ID. So the size of your ID type is paid again in every entry of every index, and a big ID makes every index bulky. [[L-0134]] In MySQL’s InnoDB this is literal: each secondary-index record contains the row’s primary-key columns, and the manual says that if the primary key is long the secondary indexes use more space, “so it is advantageous to have a short primary key” <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html">dev.mysql.com</Cite>.
+
+<PauseAndThink k="L-0134 L-0135 L-0136 L-0154"
+  q="An index keyed by a 4-byte integer ID is about 1 GB. You switch the ID to a 16-byte UUID. Is this just a little more disk space?"
+  choices={[{ label: 'Yes: disk is cheap' }, { label: 'No: it’s about RAM', correct: true }]}
+  right="Right: the index grows several times over, and it has to live in memory."
+  wrong="Disk is cheap, but the index has to live in memory to be fast, and that is what grows:">
+
+Every index entry carries the ID, so the index grows several times over: about 4× against a 4-byte INT, about 2× against an 8-byte BIGINT. An index that spills out of memory turns lookups into disk reads (4.3). The 4× is a rough estimate; real size depends on the values and page overhead. What matters is the direction: big IDs make every index bigger, and random UUIDs also land in random places in the index.
+
+</PauseAndThink>
+
+Now the arithmetic. A 128-bit UUID is 16 bytes; a plain integer ID is 4. Switch from one to the other and you bloat the index by a factor of four: an index that took <Nb>1 GB</Nb> is suddenly <Nb>4 GB</Nb>. [[L-0135]] Two honest adjustments: 16 bytes is 4× a 4-byte INT but only 2× an 8-byte BIGINT, which is the realistic comparison (Snowflake-style IDs are 8 bytes), and an index doesn’t grow exactly in step with its key, because each entry also holds the indexed column (a 4-byte `user_id` keeps an entry at 8 → 20 bytes, about 2.5×) plus pointers and page overhead <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html">dev.mysql.com</Cite>.
+
+Treat the 4× as a rough estimate, not a number to quote. The calculation isn’t exactly right, and the real figure depends on the values. The direction is what to remember. [[L-0154]]
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Indexes belong in RAM" crumb="4.3 Indexes in RAM"
+  dek="A query does its work on the indexes and touches the table last. Keep the indexes in memory and the whole plan runs there."
+  meta="About 6 min · class 01:12–01:15, 01:18–01:21">
+
+A bigger index would only be a disk-space problem if indexes lived on disk. For a fast database they mustn’t. To get the maximum performance out of a database, it should be able to fit all its indexes in RAM. If it can’t, no amount of other optimization will make it fast. [[L-0136]]
+
+<SourceNote href="https://dev.mysql.com/doc/refman/8.4/en/innodb-buffer-pool.html" k="L-0136">
+
+What has to fit is the part you use. For consistently fast queries, the frequently used part of your indexes (and the hot data) should fit in the database’s memory cache, such as InnoDB’s buffer pool. If hot index pages keep being read from disk, queries slow down sharply.
+
+</SourceNote>
+
+<RuleBox rule="Keep IDs small: the ==hot part of your indexes== has to fit in memory, and every index carries the ID." k="L-0136 L-0148">
+
+Every byte of the ID is paid again in every index, and indexes are what a database needs in RAM to stay fast. 4 or 8 bytes is fine. Past 8 bytes, start worrying at scale.
+
+<Desk><RuleSketch4 /></Desk>
+<Phone><RuleSketch4 layout="phone" /></Phone>
+
+</RuleBox>
+
+Why the indexes matter so much: whenever you send a query, to any database that has indexes, the first thing it does is build a query execution plan, and it does that work on the indexes, because they are tiny. If they fit in RAM, a join of two tables on indexed columns can be done entirely in memory. Only once it knows the result does it go to the disk and read the full rows. That is the last step. [[L-0137]] More precisely, a query skips the table only when the index holds every column it needs (an index-only scan, helped by a covering index); otherwise the database fetches each matching row from the table as it goes <Cite href="https://www.postgresql.org/docs/current/indexes-index-only-scans.html">postgresql.org</Cite>.
+
+<Figure id="fig-4b" no="Fig 4·b" k="L-0136 L-0137 L-0138 L-0141"
+  caption="a: both indexes fit in RAM, so the plan and the join run in memory and the disk is read once, for the result rows. b: one index has spilled to disk, and every lookup in it is now a disk read. What must fit is the hot part of the indexes. New figure.">
+  <Desk><QueryRuns /></Desk>
+  <Phone><QueryRuns layout="phone" /></Phone>
+</Figure>
+
+So if your indexes are in RAM, the entire query execution happens in RAM, and only the detailed rows that end up in the result are read from disk. That is what makes execution lightning fast. [[L-0138]]
+
+A database doesn’t keep indexes in RAM just because they exist. It loads them into RAM during boot-up, or when a query needs them, and keeps them there. [[L-0140]] In InnoDB that cache is the buffer pool: index and table pages are cached as they are read, and the least recently used pages are evicted when room is needed. By default MySQL also saves the most recently used 25% of buffer-pool pages at shutdown and reloads them at startup to shorten warm-up <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-buffer-pool.html">dev.mysql.com</Cite> <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-preload-buffer-pool.html">dev.mysql.com</Cite>.
+
+Hence the sizing rule: the RAM of your database server should be equal to or more than your total index size. Otherwise query execution is pathetically slow. [[L-0141]] In practice you size the memory cache (the buffer pool) to hold the hot indexes and data, and the machine’s RAM must be larger than that, since the cache usually gets at most about 80% of it <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-buffer-pool.html">dev.mysql.com</Cite>.
+
+<MarginNote title="The first thing to check" why="skip unless you debug databases" k="L-0139">
+
+From the lecture’s own practice: when a database is slow, check index size first. In most cases that is the problem: random indexes have been created on the database, and they have spilled to disk, so even reading an index means going to the disk. Always remember it: whenever a senior engineer, technical architect or principal engineer optimizes a database, the first thing to look at is index size.
+
+</MarginNote>
+
+Flickr’s official engineering blog says the same thing: if you can’t fit your indexes in memory, you can’t make your database fast. And it’s true. [[L-0155]]
+
+It also gives you a real-world way to provision a database. Interview questions aside: if someone asks what size a database server should be for it to perform, the bare minimum memory is the sum of the sizes of all the indexes it holds. Anything beyond that is good; that is the floor. [[L-0156]]
+
+All of this is why databases keep coming back in this course. The database is the most essential, and the most brutal, component of an infrastructure. API servers are easy to scale because they are mostly stateless, like nearly everything else. The database is where everything is stored and everything is queried; it handles the entire load. (Lecture 2 called it the most critical and most brittle component.) [[L-0157]] So understand whichever database you use, really well. [[L-0158]]
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="When a UUID is the right call" crumb="4.4 When to use one"
+  dek="Hard-to-guess IDs, and apps that will never reach the scale where index size bites."
+  meta="About 2 min · class 01:15–01:17">
+
+UUIDs do have a real strength. They look random, and you can’t predict the next one, so it is hard for anyone to guess other IDs or scrape your whole website. In that sense they are good for security. [[L-0143]]
+
+<SourceNote href="https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html" k="L-0143">
+
+Random (v4) UUIDs make IDs hard to enumerate, which slows scraping, but they are not a security control: RFC 9562 itself says implementations “SHOULD NOT assume that UUIDs are hard to guess” <Cite href="https://www.rfc-editor.org/rfc/rfc9562.html">rfc-editor.org</Cite>. OWASP recommends random identifiers over enumerable ones and stresses that “even with complex identifiers, access control checks are essential”: every request still needs an authorization check.
+
+</SourceNote>
+
+The opposite case makes the point. Build Facebook and expose plain database IDs, 1, 2, 3, 4, and anyone can fire REST requests in a loop, `for (i = 0; i < 1_000_000_000; i++)`, and scrape the entire site. [[L-0144]]
+
+So UUIDs are not forbidden. They work in some cases and not in others. If your application is small and will never hit that scale, a UUID is just fine. Don’t reach for the best solution out there by default; see what works best for you. [[L-0145]]
+
+</Section>
+
+<Section id="s4-5" no="4.5" title="MongoDB’s 12 bytes" crumb="4.5 MongoDB’s ObjectId"
+  dek="A UUID would have been easy. MongoDB chose 12 bytes with time first, and the pattern repeats in every scheme that follows."
+  meta="About 2 min · class 01:16–01:18">
+
+MongoDB is happy with 96 bits. Its IDs, ObjectIds, are 12 bytes: the first 4 bytes are epoch time, and time always comes first; then 5 random bytes; then a 3-byte counter. [[L-0146]] The time has one-second resolution, the random value is generated once per client process, and the counter starts at a random value. Time and counter are stored big-endian, so ObjectIds sort roughly by creation second <Cite href="https://www.mongodb.com/docs/manual/reference/method/ObjectId/">mongodb.com</Cite>.
+
+<Figure id="fig-4c" no="Fig 4·c" k="L-0146 L-0148 L-0149"
+  caption="A MongoDB ObjectId: 4 bytes of time (seconds), 5 random bytes, a 3-byte counter. Below, ID sizes on one scale. Redrawn from the class board at 01:11 (D-13). The blog post shown later in class lists the older layout, with a machine ID and a process ID where the random bytes are now; both are 12 bytes.">
+  <Desk><ObjectIdBar /></Desk>
+  <Phone><ObjectIdBar layout="phone" /></Phone>
+</Figure>
+
+Nothing stopped MongoDB from using 16-byte UUIDs. In the lecture’s reading, they went for 12 to save those four bytes. [[L-0147]]
+
+For comparison, MySQL’s auto-increment IDs are 4-byte integers, which makes for a very tiny index. Four bytes or eight is still fine; beyond eight bytes you should worry about performance at scale. [[L-0148]] In MySQL, INT is 4 bytes (unsigned maximum 4,294,967,295) and BIGINT is 8 bytes, and when an AUTO_INCREMENT column reaches the upper limit of its type, the next attempt to generate a value fails. Flickr’s ticket table in [chapter 5](#s5-5) uses `bigint unsigned` <Cite href="https://dev.mysql.com/doc/refman/8.4/en/integer-types.html">dev.mysql.com</Cite> <Cite href="https://dev.mysql.com/doc/refman/8.4/en/example-auto-increment.html">dev.mysql.com</Cite>.
+
+Notice the pattern, because you will see it in every scheme from here on: put time on the left, and keep the ID small. It is also why the ID getting longer was a cost back in [§2.5](#s2-5), when the boot counter added a third part: long IDs don’t index well. [[L-0149]]
+
+Every one of the case studies that follow mentions not going for UUIDs because they don’t index well. [[L-0150]] The next chapters show those designs one by one, built by people who skipped UUIDs because of exactly this index-size problem. [[L-0142]] Snowflake, for instance, is 64 bits, kept small on purpose ([§6.1](#s6-1)). [[L-0194]]
+
+<TradeoffTable caption="How big is the ID? Four common sizes and what each costs" k="L-0130 L-0135 L-0146 L-0148 L-0194"
+  columns={[{ label: 'MySQL INT' }, { label: 'BIGINT / Snowflake' }, { label: 'MongoDB ObjectId' }, { label: 'UUID' }]}
+  rows={[
+    { label: 'Bytes', cells: ['4', '8', '12', '16 (128 bits)'], k: 'L-0130 L-0146 L-0148 L-0194' },
+    { label: 'Ordered by time?', cells: ['Increasing on one database', 'Snowflake: roughly, time on the left', 'Roughly, by second: time first', { text: 'No, for random v4 (v7 is)', bad: true }], k: 'L-0146' },
+    { label: 'Made where?', cells: ['By the one database', 'BIGINT: the database. Snowflake: generator logic (chapter 6)', 'By the client driver, any process', 'Anywhere, no coordination'], k: 'L-0146 L-0194' },
+    { label: 'Index cost', cells: ['Very tiny', 'Small: 4 or 8 bytes is fine', 'Past 8 bytes: worry at scale', 'About 4× an INT, 2× a BIGINT; v4 inserts scatter'], k: 'L-0135 L-0148' },
+    { label: 'Good for', cells: ['One database; an unsigned INT stops at about 4.29 billion', 'Scale: where the companies in this lecture land', 'MongoDB documents', 'Apps that will never reach that scale; IDs nobody can guess'], k: 'L-0148' },
+  ]} />
+
+<h3 id="s4-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0134 L-0135" q="Why does the size of the primary key affect every index on a table?">
+
+Every index entry stores the ID of the row it points to (in InnoDB, every secondary-index record holds the primary key). So the ID’s size is paid again in every entry of every index: a 16-byte UUID instead of a 4-byte INT makes the ID part four times bigger, roughly 1 GB → 4 GB in the lecture’s rough estimate (about 2× against an 8-byte BIGINT).
+
+  </RecallItem>
+  <RecallItem k="L-0136 L-0141 L-0156" q="What must fit in RAM for a database to stay fast, more precisely than “all the indexes”?">
+
+The hot part of the indexes, and the hot data, must fit in the database’s memory cache (InnoDB’s buffer pool), and RAM must be larger than that cache. The lecture’s floor for provisioning: at least the sum of all index sizes. If hot index pages keep coming from disk, no other optimization saves you.
+
+  </RecallItem>
+  <RecallItem k="L-0143 L-0145" q="Give one honest reason to choose a UUID, and the scale at which the lecture says it’s fine.">
+
+They are hard to guess, so nobody can loop over 1, 2, 3 … and scrape your site (they slow enumeration; they don’t replace an authorization check on every request). And they are just fine for an application that is small and will never hit the scale where index size bites.
+
+  </RecallItem>
+</RecallQuestions>
+
+Small, unique, and made without a fight between servers: here is how Amazon and Flickr did it, with a plain database in the middle.
+
+<SectionEnd next={{ title: '5 · Central services: Amazon and Flickr', href: '#s5' }}
+  concepts={[{ label: 'UUID', href: '#s4-1' }, { label: 'dense index', href: '#s4-2' }, { label: 'secondary index', href: '#s4-2' }, { label: 'buffer pool', href: '#s4-3' }, { label: 'query plan', href: '#s4-3' }, { label: 'enumeration', href: '#s4-4' }, { label: 'ObjectId', href: '#s4-5' }]} />
+
+</Section>

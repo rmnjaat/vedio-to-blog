@@ -1,0 +1,242 @@
+# page gates lec07 2026-10-14 11:57:15
+## build
+build lec07 -> site/.builds/lec07
+build ok: 11 pages
+## coverage
+coverage lec07: 211/374 placed ids on the pages; ledger overall 211/381
+  ids per page: 1-etl-and-cdc 76, 2-one-node 69, 3-eviction-and-expiry 60, 4-protocol-and-concurrency 0, 5-routing 0, 6-consistent-hashing 0, 7-what-to-keep 13, overview 0
+  MISSING L-0001 [aside/admin_reference] placed in about: Week five, day one of the course: this week is about storage engines, which the teacher calls his personal fav
+  MISSING L-0002 [aside/war_story] placed in about: The teacher has a strong affinity for databases, distributed storage and query engines; database systems was h
+  MISSING L-0003 [supporting/admin_reference] placed in about: Today's agenda: designing a distributed cache, plus ETL and tiered storages; almost all papers the teacher rea
+  MISSING L-0007 [supporting/admin_reference] placed in about: So far in the course CDC was only mentioned (written) in designs; this session goes deeper into CDCs and into 
+  MISSING L-0008 [aside/war_story] placed in about: While at Amazon, the teacher built something on top of tiered storage, which gave him a deep understanding of 
+  MISSING L-0079 [aside/admin_reference] placed in about: The distributed cache is the teacher's personal favorite discussion: lots of brainstorming and critical questi
+  MISSING L-0082 [supporting/admin_reference] placed in about: The design has two brainstorms: first the low-level implementation, then (after the break) the high-level impl
+  MISSING L-0176 [core/concept] placed in 4.1: Communication: how other systems talk to your cache; which protocol should a single-node cache expose to other
+  MISSING L-0177 [supporting/claim] placed in 4.1: A student answered that the cache should be exposed over TCP.
+  MISSING L-0178 [aside/concept] placed in 4.1: A student suggested HTTP, arguing the server can stay stateless and need not remember anything (unlike WebSock
+  MISSING L-0179 [supporting/misconception] placed in 4.1: A student said HTTP's disadvantage is the huge payload size, because the value fetched from the cache is large
+  MISSING L-0180 [supporting/concept] placed in 4.1: Options for exposing the cache: HTTP, WebSockets, gRPC, or writing your own protocol.
+  MISSING L-0181 [core/concept] placed in 4.1: HTTP, gRPC and a custom protocol are all just TCP connections - nothing fancy; they differ only in the format 
+  MISSING L-0182 [core/concept] placed in 4.1: With stateless HTTP/1.1 each request establishes a TCP connection (three-way handshake), sends the data, gets 
+  MISSING L-0183 [supporting/war_story] placed in 4.2: Back in 2015, just after his master's, two friends building an IoT application asked the teacher for help: the
+  MISSING L-0184 [supporting/process] placed in 4.2: Experiment: using netcat to open a raw TCP connection from the client to the Flask server (netcat localhost 30
+  MISSING L-0185 [supporting/concept] placed in 4.2: Every HTTP request shows request headers going in and response headers coming out, which raises the question t
+  MISSING L-0186 [core/concept] placed in 4.2: After a client establishes a TCP connection it can send any data (e.g. the 5 bytes A-R-P-I-T); it is the serve
+  MISSING L-0187 [supporting/concept] placed in 4.2: An HTTP request is a very textual format sent over the TCP connection, e.g. 'GET /hello.html HTTP/1.1\r\n' fol
+  MISSING L-0188 [supporting/example] placed in 4.2: Sending the raw bytes 'This is a sample\r\n' to the Flask server over netcat returned error code 400, bad requ
+  MISSING L-0189 [aside/rule_of_thumb] placed in 4.2: Think from first principles: the teacher shares the naive fresher experiment to encourage everyone to reason f
+  MISSING L-0190 [core/example] placed in 4.2: Typing 'GET /hello HTTP/1.1\r\n' (format taken from the HTTP specification on Wikipedia) into the raw netcat c
+  MISSING L-0191 [supporting/claim] placed in 4.2: This solved the IoT problem: a device that can only create TCP connections can fire HTTP requests at a Python 
+  MISSING L-0192 [supporting/example] placed in 4.2: A raw POST also works: 'POST /login HTTP/1.1' with Content-Type and Content-Length headers and body 'username=
+  MISSING L-0193 [core/claim] placed in 4.3: HTTP adds a huge chunk of overhead to every message - to store just key=a, value=1 you send all the request-li
+  MISSING L-0194 [aside/example] placed in 4.2: In the raw-TCP netcat experiments the teacher also sent a request with query parameters, before moving on to a
+  MISSING L-0195 [core/concept] placed in 4.3: Define your own protocol: Redis implemented its own protocol specification called RESP; just as HTTP is a spec
+  MISSING L-0196 [supporting/claim] placed in 4.3: Memcache also has its own protocol that all its clients use.
+  MISSING L-0197 [supporting/concept] placed in 4.3: Underneath a custom protocol is just raw TCP: whatever bytes you send, the handler you wrote interprets them -
+  MISSING L-0198 [supporting/claim] placed in 4.3: Redis chose its own custom format because it puts the format in its own hands: data can be sent however they w
+  MISSING L-0199 [core/concept] placed in 4.3: gRPC works on HTTP/2: it keeps the connection alive instead of terminating it and compresses the objects it se
+  MISSING L-0200 [supporting/rule_of_thumb] placed in 4.3: Choose HTTP, gRPC or a custom format depending on how complex or simple your use case is and how you want clie
+  MISSING L-0204 [supporting/concept] placed in 4.4: Recap of the single-node cache: data lives in an in-memory hash table whose values are wrapper objects (struct
+  MISSING L-0205 [core/claim] placed in 4.1: The cache uses TCP rather than UDP because it needs statefulness, guaranteed delivery and acknowledgments; UDP
+  MISSING L-0206 [supporting/concept] placed in 4.3: Over TCP there are typically three options: completely stateless HTTP/1.1 (connect, query, response, disconnec
+  MISSING L-0207 [supporting/rule_of_thumb] placed in 4.3: If you are just starting out or prototyping, just use gRPC and get started without thinking too much about it.
+  MISSING L-0221 [supporting/claim] placed in 4.5: On a single node, scaling is easy: vertical scaling is the only option.
+  MISSING L-0223 [core/concept] placed in 4.5: Concurrency on a single node (two threads trying to update the same thing) can be handled three ways: pessimis
+  MISSING L-0224 [core/concept] placed in 4.5: Pessimistic locking wraps a critical operation in a lock that threads must take before proceeding: when two th
+  MISSING L-0225 [aside/admin_reference] placed in 4.5: Fun exercise: how would you use MySQL as a cache server with the same throughput as any other cache?
+  MISSING L-0226 [supporting/rule_of_thumb] placed in 4.5: If unfamiliar with mutexes, semaphores and atomic variables, read about them; a Java synchronized block is pes
+  MISSING L-0227 [core/concept] placed in 4.5: Optimistic locking assumes there is very little chance of concurrent access, so it does not proactively take l
+  MISSING L-0228 [core/example] placed in 4.5: Optimistic update semantics: instead of 'update a = 20' and 'update a = 30', fire 'update a = 20 where a = 10'
+  MISSING L-0229 [core/concept] placed in 4.5: Optimistic locking needs the conditional update to be atomic (nothing else runs while it runs); this is done w
+  MISSING L-0230 [supporting/claim] placed in 4.5: Compare-and-swap uses native CPU instructions; every language wraps it (Go's atomic library, C++ Boost), and i
+  MISSING L-0231 [supporting/claim] placed in 4.5: Compare-and-swap is the best way to implement an optimistic lock because the instruction is atomic: while it r
+  MISSING L-0232 [aside/rule_of_thumb] placed in 4.5: Exercise: write a simple optimistic-locking implementation yourself and play with compare-and-swap to understa
+  MISSING L-0233 [core/concept] placed in 4.5: Single threadedness: concurrency problems arise because multiple threads can be scheduled and run in parallel;
+  MISSING L-0234 [aside/admin_reference] placed in 4.5: For how single-threaded Redis works, the teacher points to his free YouTube Redis-internals video and the deta
+  MISSING L-0235 [supporting/claim] placed in 4.5: The engineers who built Redis challenged every decision: what if we take locks; what if we avoid locks using a
+  MISSING L-0239 [supporting/qa_insight] placed in 4.5: Asked whether a single-threaded cache underperforms when two servers update different keys, the teacher says n
+  MISSING L-0240 [aside/qa_insight] placed in 4.2: Asked whether the netcat trick can be used as a general hack, the teacher says it is just raw text that you se
+  MISSING L-0241 [core/concept] placed in 5.1: Make the cache distributed when one node cannot handle the load (or hold the data): the cache is spread across
+  MISSING L-0242 [supporting/admin_reference] placed in 5.1: The distributed-cache discussion covers five aspects: storage, routing, availability, reliability and scaling.
+  MISSING L-0243 [core/concept] placed in 5.1: Distributed storage: take the exact same single-node cache, run multiple instances, and give each a mutually e
+  MISSING L-0244 [core/concept] placed in 5.2: Splitting storage adds a routing problem: when a client wants to store or access a key, how does it know which
+  MISSING L-0245 [core/concept] placed in 5.2: A student proposed a central routing place exposed to clients that stores the key-range-to-node mapping (A-J -
+  MISSING L-0246 [supporting/qa_insight] placed in 5.2: Does the routing layer respond to the client with where to go, or forward the request itself? Both have pros a
+  MISSING L-0247 [supporting/claim] placed in 5.2: The routing challenge holds for any distributed storage system in general: storage is split across N mutually 
+  MISSING L-0248 [core/analogy] placed in 5.3: There are four ways to route (a fifth is welcome), explained with the analogy of visiting a bank.
+  MISSING L-0249 [core/concept] placed in 5.3: Routing way 1 - proxy: like the peon at the bank door who, for a commission/bribe, gets your work done; you ta
+  MISSING L-0250 [core/concept] placed in 5.3: Routing way 2 - smart client: like a long-time bank customer who goes directly to the right desk; the routing 
+  MISSING L-0251 [core/tradeoff] placed in 5.3: Smart client trade-off: if responsibilities move (topology changes), every client must be notified; but there 
+  MISSING L-0252 [core/concept] placed in 5.3: Routing way 3 - forwarding by any node: with no peon, you go to the nearest desk; that desk forwards your requ
+  MISSING L-0253 [supporting/example] placed in 5.3: IPFS (InterPlanetary File System) works this way, and BitTorrent works on the same kind of overlay network.
+  MISSING L-0254 [aside/admin_reference] placed in 5.3: The teacher has a large (video) series on IPFS / BitTorrent-style overlay networks where nodes forward request
+  MISSING L-0255 [core/concept] placed in 5.3: Routing way 4 - redirect: you go to the nearest desk and it says 'I'm busy, go to counter number 13'; you then
+  MISSING L-0256 [supporting/claim] placed in 5.3: A load balancer works the proxy way: one point of entry for everything that is responsible for getting the req
+  MISSING L-0258 [aside/claim] placed in 5.3: The internet itself works by forwarding: you connect to a machine, it forwards packets to another machine and 
+  MISSING L-0259 [supporting/claim] placed in 5.4: For a cache, a central proxy/router holding the routing table and forwarding requests (like a load balancer) w
+  MISSING L-0260 [supporting/claim] placed in 5.4: Routing way 3 (any node forwards, as in IPFS) is typically not used for a cache because it brings far too many
+  MISSING L-0261 [supporting/example] placed in 5.4: Redis uses the redirect approach: when you fire a write on a replica, it returns the master's IP address and a
+  MISSING L-0262 [supporting/rule_of_thumb] placed in 5.4: These four ways are a generalized lens: any distributed system's routing layer can be built on one of them, an
+  MISSING L-0263 [core/definition] placed in 5.1: A distributed cache is multiple single cache servers working together as a single coherent cache, e.g. behind 
+  MISSING L-0265 [core/concept] placed in 6.1: Availability/scaling question: with three nodes no longer able to handle the load, how do you add a fourth nod
+  MISSING L-0266 [supporting/claim] placed in 6.1: Consistent hashing is, quote unquote, the most famous algorithm of all time, and there are tons of misconcepti
+  MISSING L-0267 [core/concept] placed in 6.1: In hash based routing the router applies a simple hash function to every incoming key; the result tells it whi
+  MISSING L-0268 [core/concept] placed in 6.1: Routing a key to a node is how ownership of a key is defined; ownership of a key is the key concept.
+  MISSING L-0269 [supporting/comparison] placed in 6.1: In range based routing ownership comes from key ranges (keys A to J owned by cache 1, the next range by cache 
+  MISSING L-0270 [core/claim] placed in 6.1: Hash based routing is by far the most common strategy because a hash function distributes load almost uniforml
+  MISSING L-0271 [supporting/example] placed in 6.1: Six keys K1 to K6 on two caches (cache 0, cache 1) via the hash function: K1, K2, K6 go to cache 0 and K3, K4,
+  MISSING L-0272 [core/concept] placed in 6.1: With hash based routing, adding a cache node changes the hash function from mod 2 to mod 3, so data must move:
+  MISSING L-0273 [supporting/example] placed in 6.1: After going from 2 to 3 caches: K1 stays on cache 0, K3 and K4 stay on cache 1, but K2 moves from cache 0 to c
+  MISSING L-0274 [core/number] placed in 6.1: In the example the distribution stays equal, but adding one node forces moving three of the six keys (50% of t
+  MISSING L-0275 [core/misconception] placed in 6.2: Consistent hashing is not a service or a microservice, and it is not a magical solution that solves all your p
+  MISSING L-0278 [core/misconception] placed in 6.2: Consistent hashing does not do data movement or data migration for you, and it gives no uptime guarantees.
+  MISSING L-0279 [supporting/concept] placed in 6.2: Consistent hashing is a simple technique, not really a data structure: implemented as a simple array with bina
+  MISSING L-0280 [aside/admin_reference] placed in 6.2: The teacher has a detailed blog with Python source code on implementing your own consistent hashing, on his we
+  MISSING L-0281 [supporting/concept] placed in 6.2: Consistent hashing is usually drawn as a ring; that is the simplest visual representation; for the implementat
+  MISSING L-0282 [core/process] placed in 6.2: The things that own data (here the cache nodes) are placed on the ring by passing each node's identifier throu
+  MISSING L-0283 [supporting/number] placed in 6.2: The ring is the hash output range 0 to 2^n: the example uses 2^4 = 16 unique values; in reality it is as large
+  MISSING L-0284 [supporting/example] placed in 6.2: Ring example: cache 1 hashes to 3, cache 2 to 12, cache 3 to 5 and cache 4 to 10, and each node sits at that p
+  MISSING L-0285 [core/concept] placed in 6.2: The consistent hashing ring is implemented at whichever layer holds the routing: the client if the client rout
+  MISSING L-0286 [supporting/claim] placed in 6.2: The ring is just routing information: for four nodes you store an array of four elements, no linked list or an
+  MISSING L-0287 [core/concept] placed in 6.2: Consistent hashing effectively replaces the routing table (the mapping of who owns which key that the router o
+  MISSING L-0288 [core/process] placed in 6.2: To find a key's owner, the router hashes the key and picks the first node to the immediate right of that posit
+  MISSING L-0289 [supporting/example] placed in 6.2: Key K1 hashes to 0; the first node to the right of 0 is at 3, which is cache 1, so K1 is owned by cache 1.
+  MISSING L-0290 [supporting/claim] placed in 6.1: With plain hash based routing, adding a node means a lot of data must be rebalanced over the network, which is
+  MISSING L-0291 [supporting/example] placed in 6.3: Scaling from four to five nodes: cache 5 hashes to 1 and sits there on the ring, so key K1, previously owned b
+  MISSING L-0292 [core/concept] placed in 6.3: When a node is added, only the keys in the range now covered by the new node move (from cache 1 to cache 5); k
+  MISSING L-0293 [supporting/claim] placed in 6.3: Only the nodes right before and after the position where a new node is placed are affected; no other node is t
+  MISSING L-0294 [core/claim] placed in 6.3: The benefit of consistent hashing is that it ensures you do only minimal data transfer when you scale up or sc
+  MISSING L-0295 [supporting/concept] placed in 6.3: Removing a cache server (e.g. scaling down an over-provisioned cluster to save cost) has two cases: graceful t
+  MISSING L-0296 [supporting/example] placed in 6.3: When cache 1 is removed from the ring, key K1, which used to go to cache 1, is now owned by cache 3 (the next 
+  MISSING L-0297 [core/process] placed in 6.3: Graceful removal: take a snapshot of cache 1, copy its data to cache 3, and only then remove cache 1 from the 
+  MISSING L-0298 [supporting/concept] placed in 6.3: Abrupt removal (the server goes down): all the load for the range that went to cache 1 suddenly goes to cache 
+  MISSING L-0299 [supporting/claim] placed in 6.3: In removal too, all other keys remain unaffected, so the data transfer is minimal.
+  MISSING L-0300 [aside/war_story] placed in 6.2: The teacher has used consistent hashing in production, which is why he is confident about what it does and doe
+  MISSING L-0301 [supporting/rule_of_thumb] placed in 6.2: Stay away from the many consistent hashing misconceptions on the internet; understand the one problem it solve
+  MISSING L-0302 [core/claim] placed in 6.4: If you add a blank new cache server to the ring, the keys it now owns are not there, causing cache misses and 
+  MISSING L-0303 [core/process] placed in 6.4: Operationally, to add cache 5: take a snapshot of cache 1, create cache 5 from it, add cache 5 to the ring so 
+  MISSING L-0304 [core/concept] placed in 6.6: The distributed cache designed in class is nothing but a distributed hash table (DHT).
+  MISSING L-0305 [supporting/example] placed in 6.6: The entire internet, the BitTorrent network and the Bitcoin network are distributed hash tables.
+  MISSING L-0306 [supporting/concept] placed in 6.6: A DHT is a generic concept: store the underlying data in memory and it becomes a distributed cache, on storage
+  MISSING L-0307 [core/definition] placed in 6.6: The idea of a distributed hash table is that there is no central entity everyone talks to; a distributed cache
+  MISSING L-0308 [supporting/concept] placed in 6.6: At internet scale (e.g. BitTorrent) you talk to the nearest server: if it has the data it responds, otherwise 
+  MISSING L-0309 [core/claim] placed in 6.6: Adding or removing a node in a DHT must cause minimal data movement (even when a server goes down and another 
+  MISSING L-0310 [supporting/definition] placed in 6.6: A system with no central entity that must do minimal data transfer when nodes go up and down falls into the ca
+  MISSING L-0311 [supporting/example] placed in 6.6: DHTs are everywhere: distributed file systems (the teacher calls our distributed cache an example of one), DNS
+  MISSING L-0312 [aside/example] placed in 6.6: IPFS (InterPlanetary File System, ipfs.io) is a distributed file system/DHT where people store data such as bl
+  MISSING L-0313 [aside/admin_reference] placed in 6.6: Optional: the teacher has a 45-minute deep-dive video on the Kademlia paper in his YouTube BitTorrent series; 
+  MISSING L-0314 [supporting/concept] placed in 6.6: Kademlia solves DHT routing: no node knows about every other node, yet the request still gets routed and conve
+  MISSING L-0315 [core/concept] placed in 6.7: High availability, for a cache as for persistent storage in basic concept, is achieved by adding replicas: eve
+  MISSING L-0316 [supporting/concept] placed in 6.7: Alternatively, keep copies of a node's data on other nodes of the ring (cache 1's data also on cache 3, cache 
+  MISSING L-0317 [core/concept] placed in 6.7: The ring lets you set a replication factor: with replication factor 2 (as stated) the node that owns a key sto
+  MISSING L-0318 [core/claim] placed in 6.7: Data redundancy, across nodes or via a standby server/replica, is the way to get high availability: if a node 
+  MISSING L-0319 [supporting/concept] placed in 6.7: Redis has the AOF (append only file), Redis's write-ahead log: every write is appended to the file, and when t
+  MISSING L-0320 [supporting/claim] placed in 6.7: An append only file is the standard way to ensure durability (the teacher first said reliability, then correct
+  MISSING L-0321 [supporting/concept] placed in 6.7: Recap of making a cache distributed - storage: store data on separate nodes with logic to determine ownership;
+  MISSING L-0322 [supporting/admin_reference] placed in 6.7: This concludes the distributed cache: a lot of time on single-node implementation, then routing in depth, avai
+  MISSING L-0323 [supporting/qa_insight] placed in 5.4: Redis's DNS-like routing (redirecting the client) avoids putting a load balancer in front, to keep the infrast
+  MISSING L-0324 [supporting/qa_insight] placed in 5.4: For reads both ways exist in Redis: Redis Sentinel addresses it and Redis now also has a proxy that holds rout
+  MISSING L-0325 [supporting/qa_insight] placed in 5.4: A real system can mix two or more of the routing approaches for different operations.
+  MISSING L-0326 [supporting/claim] placed in 5.4: Returning the master node's IP address when a write hits a read replica is the most common approach; almost al
+  MISSING L-0327 [supporting/comparison] placed in 5.4: Alternatively a database can just discard a write on a replica and return an error telling the client to find 
+  MISSING L-0328 [supporting/qa_insight] placed in 6.5: Nodes can end up placed too close together on the ring; that is a disadvantage of consistent hashing because p
+  MISSING L-0329 [aside/concept] placed in 6.7: An orchestrator monitors uptime of cache servers via heartbeats and handles failovers, keeping metadata in a M
+  MISSING L-0330 [core/qa_insight] placed in 6.5: Consistent hashing also suffers from hot partitions (densely populated areas of the ring): you hand control to
+  MISSING L-0331 [supporting/claim] placed in 6.5: Companies still use consistent hashing despite these problems because it makes scaling up and down simple enou
+  MISSING L-0332 [core/qa_insight] placed in 6.5: Virtual nodes (dividing the ring into many small virtual parts mapped to physical nodes) work against consiste
+  MISSING L-0333 [supporting/concept] placed in 6.4: In a stateful system like this cache, adding cache 5 was operationally simple: take a quick snapshot of cache 
+  MISSING L-0334 [core/tradeoff] placed in 6.5: With virtual nodes a new node is placed at multiple places on the ring, so its data must be loaded from multip
+  MISSING L-0335 [core/rule_of_thumb] placed in 6.5: Adding virtual nodes is not a good idea to solve the hot partition problem in a stateful use case; companies s
+  MISSING L-0336 [supporting/claim] placed in 6.5: Virtual nodes bring back a lot of network transfer, copying from many places instead of one, which is exactly 
+  MISSING L-0337 [supporting/rule_of_thumb] placed in 6.5: Virtual nodes are not the worst, just bad enough: fine if you are operationally okay with the network transfer
+  MISSING L-0352 [supporting/qa_insight] placed in 6.4: With a replication factor (e.g. 2) you may keep the data on cache 1 anyway, because the data is copied to the 
+  MISSING L-0354 [core/qa_insight] placed in 4.5: A single-threaded cache wastes CPUs: Redis on a 32-core machine uses only one core while the other 31 sit idle
+  MISSING L-0355 [supporting/qa_insight] placed in 4.5: To improve hardware utilisation, people run multiple shards (e.g. eight) of a single-threaded cache on the sam
+  MISSING L-0356 [supporting/qa_insight] placed in 4.5: The single-node implementation shown in class (including the malloc implementation) works because the cache is
+  MISSING L-0357 [core/tradeoff] placed in 4.5: Single threading oversimplifies a lot of things without losing concurrency, but under-utilises the hardware; y
+  MISSING L-0361 [supporting/qa_insight] placed in 4.6: When a transaction holding a shared lock updates the row, the lock is elevated to an exclusive lock.
+  MISSING L-0362 [supporting/qa_insight] placed in 4.6: Several people getting the same seat with shared locks should not happen; the first thing to check is the isol
+  MISSING L-0363 [supporting/rule_of_thumb] placed in 4.6: To debug locking, use the MySQL administrative console (not the UI) to see which row holds which lock.
+  MISSING L-0364 [supporting/process] placed in 4.6: Teacher's guess at the bug, reduced to two transactions on one row: both take a shared lock; T2 writes first, 
+  MISSING L-0365 [supporting/claim] placed in 4.6: The overwrite happens because the waiting transaction does not re-evaluate its statement after the lock is rel
+  MISSING L-0366 [supporting/claim] placed in 4.6: Repeatable read is almost the most common isolation level out there; the teacher assumes it for his explanatio
+  MISSING L-0367 [supporting/rule_of_thumb] placed in 4.6: Use Percona, a MySQL plugin/utility, to visualise and manage locking state of databases (it has a lock viewer,
+  MISSING L-0368 [aside/claim] placed in 4.6: The odd behaviour could also be a bug; in most cases the deadlock file's data is, the teacher thinks, very har
+  MISSING L-0369 [core/claim] placed in 4.6: A deadlock does not crash the database or the program; it terminates the transaction.
+  MISSING L-0370 [core/qa_insight] placed in 4.3: Connection pooling is not a property of the programming language (the teacher first says it is a property of t
+  MISSING L-0371 [core/definition] placed in 4.3: A connection pool is just multiple TCP connections established with the database plus a queue to manage them; 
+  MISSING L-0372 [supporting/rule_of_thumb] placed in 4.3: You can write your own connection pool in a day; all you need is a blocking queue.
+  MISSING L-0373 [supporting/claim] placed in 4.3: The only requirement for building a connection pool is that the database keeps a connection open and does not 
+COVERAGE FAIL
+## links
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s4-5  (no #s4-5 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s4-3  (no #s4-3 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s4-5  (no #s4-5 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s5-1  (no #s5-1 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s5-4  (no #s5-4 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s6-3  (no #s6-3 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s6-7  (no #s6-7 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s4-3  (no #s4-3 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s5-4  (no #s5-4 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s6-2  (no #s6-2 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s6-5  (no #s6-5 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s4-1  (no #s4-1 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s5-1  (no #s5-1 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+  BROKEN /vedio-to-blog/lectures/lec07/7-what-to-keep/: #s6-1  (no #s6-1 on /vedio-to-blog/lectures/lec07/7-what-to-keep/)
+24 broken
+## figures
+== lectures/lec07/1-etl-and-cdc/ @ 360
+[dark] small label f1c-p: "3" 11.5px
+[dark] small label f1c-p: "delete" 11.5px
+[dark] small label f1c-p: "5" 11.5px
+[dark] small label f1c-p: "one event per changed row" 11.5px
+[dark] small label f1e-p: "reads" 11.5px
+[dark] small label f1e-p: "writes" 11.5px
+[dark] small label f1e-p: "search" 11.1px
+[dark] small label f1e-p: "analytics" 11.1px
+[dark] small label f1e-p: "the first two could be" 11.5px
+[dark] small label f1e-p: "one cdc, two sinks:" 11.5px
+[dark] small label f1e-p: "one transform per" 11.5px
+[dark] small label f1e-p: "sink, more memory" 11.5px
+[dark] small label f1e-p: "tiered storage: introduced here," 11.5px
+[dark] small label f1e-p: "built in a later week" 11.5px
+98 problem(s)
+== lectures/lec07/3-eviction-and-expiry/ @ 360
+[dark] small label f3e-p: "so sample again" 11.5px
+[dark] small label f3e-p: "0 of 4 expired: stop" 11.5px
+[dark] small label f3e-p: "k1" 11.1px
+[dark] small label f3e-p: "k2" 11.1px
+[dark] small label f3e-p: "k3" 11.1px
+[dark] small label f3e-p: "k4" 11.1px
+[dark] small label f3e-p: "k5" 11.1px
+[dark] small label f3e-p: "k6" 11.1px
+[dark] small label f3e-p: "k7" 11.1px
+[dark] small label f3e-p: "k8" 11.1px
+[dark] small label f3e-p: "k9" 11.1px
+[dark] small label f3e-p: "k10" 11.1px
+[dark] small label f3e-p: "k9 waits for a later read or sample:" 11.5px
+[dark] small label f3e-p: "the leak is temporary" 11.5px
+118 problem(s)
+== lectures/lec07/7-what-to-keep/ @ 360
+[light] small label f7a-p: "resp" 11.1px
+[dark] small label f7a-p: "resp" 11.1px
+2 problem(s)
+== lectures/lec07/7-what-to-keep/ @ 768
+[dark] small label f7a: "lru_bits : 28;" 10.5px
+[dark] small label f7a: "expires_at;" 10.5px
+[dark] small label f7a: "}" 10.5px
+[dark] small label f7a: "§2.3" 11.3px
+[dark] small label f7a: "maxmemory" 10.5px
+[dark] small label f7a: "zmalloc:" 10.5px
+[dark] small label f7a: "total_size" 10.5px
+[dark] small label f7a: "§2.6" 11.3px
+[dark] small label f7a: "1 thread" 10.5px
+[dark] small label f7a: "§4.5" 11.3px
+[dark] small label f7a: "evict: lru · lfu · random" 10.1px
+[dark] small label f7a: "§3.4" 10.5px
+[dark] small label f7a: "ttl: lazy + sample" 10.1px
+[dark] small label f7a: "§3.5" 10.5px
+74 problem(s)
+
+GATES FAIL

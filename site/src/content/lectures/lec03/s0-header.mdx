@@ -1,0 +1,33 @@
+import MarginNote from '../../../components/MarginNote.astro';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec03.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec03.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 06 · week 3, day 2 · running case: one getid() function"
+      title: Minting unique IDs
+      dek: "Rewrite one getid() function under ever harder constraints, then see how Amazon, Flickr, Twitter and Instagram answer the same question."
+      contents: 1 Why build your own IDs · 2 Building getid() · 3 Order, and why clocks break it · 4 How big should an ID be? ·
+                5 Central services: Amazon and Flickr · 6 Snowflake · 7 Instagram · 8 Pagination · 9 What to keep.
+    The outline gives the header no figure. "IDs so far" (the outline's "Before this lecture") teaches nothing new,
+    so it carries no ids. */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 2 of week 3, and the whole session is about one thing: distributed ID generators. [[L-0001]]
+
+The plan has two halves. The first is a journey through the basics: one ID function, built from scratch and rebuilt every time a new condition breaks it, until the foundational ideas are in place. The second is how real companies do it: Amazon, Flickr, Twitter and Instagram, plus a closer look at one interesting side effect. [[L-0006]]
+
+After the break, that second half covers Amazon’s central ID generation service, then Flickr, Twitter, Instagram, and finally pagination, which the lecture calls “a very interesting side effect of having a good ID generation system”. This page follows that announced order. Against the order actually taught it makes three moves: “why build your own IDs at all” (asked at 00:45) comes first, ID size (taught inside the Amazon case) gets its own chapter before the companies, and pagination, taught right after Twitter, comes after Instagram as announced. [[L-0100]]
+
+**How to use this page.** Implement every one of these approaches yourself. None of them is fancy. Reading the theory is fine, but past cohorts who built them came away understanding far more about why each one works, what it trades away, how logical partitions behave, and why dumping and loading data matters. [[L-0007]]
+
+</MarginNote>
+
+### IDs so far
+
+Until now, IDs have quietly been the database’s job. Lecture 2 grew Medium’s database with sharding and multi-master, called the database the most critical and most brittle component, and met `count++` as a race that needs an atomic increment. Lecture 3 locked airline seats with `SELECT … FOR UPDATE` inside a transaction, and built a key-value store on MySQL with `REPLACE INTO` and an upsert. Lecture 5 put load balancers and round robin in front of a fleet of servers and named the single point of failure.
+
+This lecture takes the numbering away from the database. It starts from one function, `getid()`, that must never return the same value twice, and every one of those earlier pieces comes back along the way, each named where it is used.
+
+</div>

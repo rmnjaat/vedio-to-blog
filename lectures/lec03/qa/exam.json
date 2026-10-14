@@ -1,0 +1,1029 @@
+{
+ "lecture": "lec03",
+ "title": "Lecture 03 - Distributed ID generators: epoch IDs, central ID service, Amazon, Flickr, Snowflake, pagination, Instagram",
+ "sources": [
+  "lectures/lec03/transcript/transcript.md",
+  "lectures/lec03/board/board_log.md",
+  "lectures/lec03/board/diagrams.md"
+ ],
+ "count": 127,
+ "skipped_windows": [],
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "What is the problem statement for ID generation as written on the board?",
+   "answer": "Assign a globally unique ID to \"anything\" (object, row, document, event): write a function that spits out something unique every time it is invoked.",
+   "source": "transcript 00:02:32; board S03 00:02:45",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q002",
+   "q": "At the start, is the ID-generating function a central service? Where does it run?",
+   "answer": "No. It is a function that is part of the application (business) logic, called locally when a request needs an ID; not a central ID service. The central service comes later in the evolution.",
+   "source": "transcript 00:03:29; board S03",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q003",
+   "q": "Why was the current epoch millisecond proposed as the first ID, and under what conditions does it work?",
+   "answer": "Time is unique and always moves forward, so each invocation seems to get a new value. It works only when there is one machine and the function is never invoked twice within the same millisecond (else go to micro/nanoseconds).",
+   "source": "transcript 00:04:29; board S05 00:03:30",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q004",
+   "q": "Two machines m1 and m2 both call get_id() at epoch ms 1729. What goes wrong with the epoch-ms ID and how is it fixed?",
+   "answer": "Both return 1729, a collision, so IDs are not globally unique. Fix: concatenate the machine ID with the epoch ms, giving m1-1729 and m2-1729.",
+   "source": "transcript 00:05:42-00:06:43; board S06 00:05:30",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q005",
+   "q": "What general strategy for resolving collisions did the teacher state when adding the machine ID?",
+   "answer": "Add (concatenate) the thing that led to the collision; since two machines caused it, add the machine ID. A very standard practice.",
+   "source": "transcript 00:06:43",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q006",
+   "q": "Why can machine_id + epoch ms still collide on a single machine?",
+   "answer": "If the program has multiple threads (on multiple cores), two threads can invoke the function within the same millisecond and both produce e.g. M1-1729.",
+   "source": "transcript 00:08:02; board S09 00:06:45",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q007",
+   "q": "What two approaches did the board list for handling collisions from threads, in order?",
+   "answer": "1. Add thread_id as a differentiator. 2. Add a counter that resets every few minutes (static counter).",
+   "source": "transcript 00:09:02; board S09 00:06:45",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q008",
+   "q": "With the thread-ID approach, what does get_id return and what do IDs look like?",
+   "answer": "concat(machine_id, thread_id, get_epoch_ms()), e.g. m1-t1-1729, m1-t2-1729, m2-t1-1729.",
+   "source": "transcript 00:09:02; board S11 00:08:15",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q009",
+   "q": "Why prefer a static counter over always appending the thing that caused the collision?",
+   "answer": "Always appending the cause (machine, thread, ...) leads to gigantic IDs; a single atomically incremented static counter handles any number of threads.",
+   "source": "transcript 00:09:55",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q010",
+   "q": "What is a static counter and what must be true of its increment?",
+   "answer": "A globally allocated variable (on the heap) that all threads can access; it is incremented with counter++ every time the function is invoked, and the increment must be atomic/thread-safe (locks, mutex or a native atomic library; it is not atomic by default).",
+   "source": "transcript 00:09:55-00:10:42; board S12",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q011",
+   "q": "With concat(machine_id, epoch_ms, counter++), what sample IDs did the board show for m1?",
+   "answer": "m1-1729-01, m1-1729-02, m1-1729-03 (and as the ms moves on, e.g. ...-1730-03).",
+   "source": "transcript 00:10:42; board S12 00:10:30",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q012",
+   "q": "Why did the teacher say time becomes redundant once a static counter is used, and what was the resulting ID?",
+   "answer": "Because the counter is atomically incremented on every call, it alone guarantees uniqueness per machine regardless of time; so time was struck out, giving shorter IDs concat(machine_id, counter): m1-01, m1-02, m1-03.",
+   "source": "transcript 00:11:51-00:12:58; board S13, S14 00:14:30",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q013",
+   "q": "What limit does the machine_id + counter approach have?",
+   "answer": "The counter can hit the integer limit (about 4 billion for 32-bit; 2^64 is massive and you may never hit it). The counter may be reset periodically as long as you don't exceed the limit.",
+   "source": "transcript 00:13:57; transcript 00:11:51",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q014",
+   "q": "What happens to the static counter when the machine or process reboots, and what is the root cause?",
+   "answer": "The counter resets to 0 and the machine regenerates the same IDs (m1-01, m1-02 ...) it already issued; root cause: the counter is stored in volatile memory with no persistence.",
+   "source": "transcript 00:14:41; board S15 00:14:42",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q015",
+   "q": "What was the first fix for the volatile counter, and how does the code change?",
+   "answer": "Store the counter to disk (non-volatile) for fault tolerance: counter = load() at startup; in get_id do counter++, save_counter() to disk every time, return concat(machine_id, counter).",
+   "source": "transcript 00:16:04; board S18 00:16:09",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q016",
+   "q": "What two problems does saving the counter to disk on every invocation cause?",
+   "answer": "1) Lots of pressure on the disk from many micro disk IOs at high invocation rate; 2) worse latency, since each ID now needs a disk IO instead of being served from memory. (One IO at startup is fine.)",
+   "source": "transcript 00:17:06; board S18",
+   "kind": "tradeoff",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q017",
+   "q": "A proposal was: at each server startup, read and increment a boot counter, persist it once, and add it as a third part of the ID while the static counter starts from 0. What did the teacher think of it and its downside?",
+   "answer": "He loved the approach (no per-ID disk writes; each startup gets a new prefix; the startup increment must be atomic), but its downside is a longer ID.",
+   "source": "transcript 00:18:06-00:20:01",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q018",
+   "q": "What is the 'bank of IDs' / periodic-write idea for reducing disk IO?",
+   "answer": "Instead of writing on every call, write at a certain frequency: e.g. reserve 1000 ahead and only write again after using them, so disk IOs drop by that factor.",
+   "source": "transcript 00:20:52-00:21:13",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q019",
+   "q": "Write the flush-frequency version of the counter code as on the board (flush frequency 1000).",
+   "answer": "counter = load() + 1000; get_id: counter++; if (counter % 1000 == 0) save_counter(); return concat(machine_id, counter).",
+   "source": "transcript 00:21:51; board S20 00:21:15",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q020",
+   "q": "Why must the counter be loaded as load() + flush frequency rather than just load()?",
+   "answer": "Because IDs generated after the last flush were already used but not persisted; starting from the last saved value would regenerate them (collision). Adding the flush frequency skips past any possibly used IDs.",
+   "source": "transcript 00:21:51; transcript 00:23:01",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q021",
+   "q": "By how much does flushing every 1000 IDs cut disk IO, and how should the periodic write be implemented?",
+   "answer": "By a factor of 1000. Use a simple mod check (counter % 1000 == 0), not a thread/timer.",
+   "source": "transcript 00:21:51; transcript 00:24:05",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q022",
+   "q": "Flush every 3 values: m1 generates 01..08, flushing at 03 and 06, then crashes after 08. What are the on-disk values and the safe restart value?",
+   "answer": "On disk: 03, then 06. Safe start = last flushed + flush frequency + 1 = 06 + 3 + 1 = m1-10. Starting at 07 would reissue 07 and 08.",
+   "source": "transcript 00:23:01-00:24:05; board S22 00:24:45",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q023",
+   "q": "In the flush-every-3 example, what is the cost of restarting at the safe value, and why is it acceptable?",
+   "answer": "Restarting at 10 means some integers (e.g. 09) are never issued — a couple of values are 'leaked'. Acceptable because correctness of the system matters more than utilizing every integer.",
+   "source": "transcript 00:24:05",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q024",
+   "q": "What two key takeaways/design constraints did the teacher draw from the counter-persistence discussion?",
+   "answer": "1) Don't do IO every time; add a periodicity factor (simple mod). 2) When the machine recovers, start from the safest value.",
+   "source": "transcript 00:24:05",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q025",
+   "q": "Why would anyone need monotonically increasing IDs? Give the teacher's example.",
+   "answer": "For ordering/conflict resolution: e.g. transactions T1 and T2 from the airline check-in week — the numbers tell which came first, so a 'newer write overrides older write' strategy can accept T2's write.",
+   "source": "transcript 00:26:40; board S24 00:25:30",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q026",
+   "q": "Does monotonically increasing mean strictly sequential? Explain.",
+   "answer": "No. 1 2 5 7 8 9 32 33 34 is monotonic: each new ID is guaranteed greater than all previous IDs; it needn't be consecutive like 1 2 3 4.",
+   "source": "transcript 00:27:51",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q027",
+   "q": "How does flipping the order to concat(time, machine_id) help, and what does the board say about time on the LHS?",
+   "answer": "Time becomes the most significant part, and since time moves forward, IDs are (almost) ordered: 17290001, 17290002, 17300001... Board: all ID generation algorithms have time on the LHS for 'sortability'; LHS decides the order, second half breaks ties.",
+   "source": "transcript 00:28:53; board S27 00:27:45, S28",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q028",
+   "q": "Why is time-first + machine ID not strictly monotonic even with perfect clocks?",
+   "answer": "Within the same millisecond, the first request might hit machine 2 and the next machine 1, giving 17290002 then 17290001; ordering is only correct across milliseconds.",
+   "source": "transcript 00:30:11; transcript 00:32:17",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q029",
+   "q": "What advantage does time-first ID generation keep despite being only roughly monotonic?",
+   "answer": "It stays stateless (a request can go to any machine, no central state), giving excellent throughput at minimal cost while being almost monotonic.",
+   "source": "transcript 00:30:11-00:31:06",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q030",
+   "q": "How do operations teams keep server clocks in sync?",
+   "answer": "A periodically running job/process syncs each machine's clock with NTP servers; servers commonly go out of sync and it runs more often than you'd think.",
+   "source": "transcript 00:32:52; transcript 00:35:37",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q031",
+   "q": "Why do computer clocks drift?",
+   "answer": "The clock is a hardware quartz crystal vibrating at a set frequency; heat (e.g. CPU-heavy work) makes it vibrate faster so the clock runs fast; extreme cold makes it slower.",
+   "source": "transcript 00:33:59-00:35:37",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q032",
+   "q": "Four machines 2, 4, 7, 9 have clocks 23, 24, 23, 23. Requests hit them in that order. What IDs result and what is wrong?",
+   "answer": "232, 244, 237, 239 — not monotonically increasing, because of clock skew (machine 4's clock is ahead).",
+   "source": "transcript 00:37:13; board S31, D-08",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q033",
+   "q": "What anecdote did the teacher cite about natural phenomena flipping bits?",
+   "answer": "The 'friendship that made Google special' article: Jeff Dean and Sanjay Ghemawat debugging a bit flipped by a natural phenomenon (solar storm) — you cannot run away from nature.",
+   "source": "transcript 00:36:10",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q034",
+   "q": "What conclusion did the teacher draw about strict monotonicity when ID logic is distributed?",
+   "answer": "Ensuring strict monotonicity across distributed systems is practically impossible; too many things (ordering within a ms, clock skew) break it.",
+   "source": "transcript 00:38:29",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q035",
+   "q": "What is the central ID generation service idea, as drawn?",
+   "answer": "One ID server; clients (client 1, client 2) make a network call to it, it runs the get_id function and sends the ID back — arrows go up from each client to the ID server and back down.",
+   "source": "transcript 00:39:26; board S35 00:39:30, D-09",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q036",
+   "q": "Why does clock skew not break monotonicity on a single machine? What happens when NTP finds the clock ahead?",
+   "answer": "The clock never goes back in time: if the machine is at 24 but NTP says 23, it slows its counting to let real time catch up rather than jumping back. So a single machine's clock always moves forward.",
+   "source": "transcript 00:40:05",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q037",
+   "q": "What is the problem with the single central ID server, and the first fix drawn?",
+   "answer": "It's a single point of failure (ID server or its disk could fail). Fix: multiple ID servers behind a load balancer.",
+   "source": "transcript 00:41:12; board S36, S39",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q038",
+   "q": "With two ID servers behind a load balancer needing monotonic IDs, what must they do and what is the cost?",
+   "answer": "They must constantly gossip to agree upon the last/next value (converge on an agreed value + buffer); this makes the process super complicated and loses throughput.",
+   "source": "transcript 00:41:12-00:42:09; board S39, D-10",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q039",
+   "q": "What lesson was boxed on the board after the evolutions?",
+   "answer": "There is no way to distribute and guarantee strict monotonicity (at high throughput); real solutions relax constraints: non-integer IDs and/or no monotonicity.",
+   "source": "transcript 00:42:09; board S40",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q040",
+   "q": "Why does a single MySQL server have monotonic auto-increment IDs, and what happens in multi-master mode?",
+   "answer": "It's a single machine with the ID logic in the DB engine. In multi-master mode, each master is its own brain and auto-increment produces conflicts.",
+   "source": "transcript 00:43:04",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q041",
+   "q": "What did the teacher advise when requirements say you need monotonic integer IDs?",
+   "answer": "Everything is a trade-off; ask critical questions and challenge whether you really need these constraints — can IDs be random (UUID/GUID), non-integer, non-monotonic? Often the requirement relaxes.",
+   "source": "transcript 00:44:03",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q042",
+   "q": "Why do we need custom ID generation at all, given databases have auto-increment?",
+   "answer": "With sharded / multi-master databases, writes go to any master; two MySQL masters with auto-increment don't talk to each other and both produce 1, 2, 3, 4 — duplicates. So a custom (distributed) ID generator is needed.",
+   "source": "transcript 00:45:11-00:46:54; board S41",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q043",
+   "q": "If instead of a central service you used a common database with locks to generate IDs, is that different?",
+   "answer": "No — that database itself is a shared service, a single machine; one and the same thing.",
+   "source": "transcript 00:47:34-00:48:05",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q044",
+   "q": "Why was the static counter (rather than random values) used in the early design, and when can UUID be used?",
+   "answer": "Because we wanted monotonicity, and random IDs give none. If you can relax monotonicity, use a random ID like UUID — you lose ordering.",
+   "source": "transcript 00:49:12-00:50:05",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q045",
+   "q": "A proposal: give each distributed ID server its own ID and append it to IDs it generates. Teacher's verdict?",
+   "answer": "Correct and works, but you lose monotonicity; it's a trade-off, there's no single right way.",
+   "source": "transcript 00:50:49-00:51:25",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q046",
+   "q": "A proposal: on restart, read the max message ID saved in the database and continue from it. Teacher's response?",
+   "answer": "That is what load() already does; but it assumes every ID is written back to the DB as a row and then takes max, which is an expensive call; the generator should not assume IDs are stored.",
+   "source": "transcript 00:52:12-00:53:35",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q047",
+   "q": "What problem does Amazon's ID generation solve and what is its core idea?",
+   "answer": "Assigning globally unique IDs (e.g. orders, plus other internal services) at high throughput; core idea is batching — instead of calling the remote service per ID, a server gets a batch (range) of IDs in one shot.",
+   "source": "transcript 01:00:14-01:01:26; board S45",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q048",
+   "q": "What are the components of Amazon's ID service, as drawn?",
+   "answer": "API servers exposing ID-generation endpoints ('APIs for ID Svc') behind a load balancer, backed by a plain relational database holding a counter per service; service servers (orders, payments) call it through the LB.",
+   "source": "transcript 01:01:26; board S45, D-12",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q049",
+   "q": "Do Amazon's orders/payments services need monotonic IDs?",
+   "answer": "No, they need only uniqueness.",
+   "source": "transcript 01:02:13",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q050",
+   "q": "Orders server 1 boots and asks for 500 IDs, then orders server 2 asks for 500. What ranges are returned and what is the orders counter?",
+   "answer": "Server 1 gets [0, 500), counter becomes 500; server 2 gets [500, 1000), counter becomes 1000. Only start and end are sent, not individual IDs.",
+   "source": "transcript 01:02:49-01:04:05; board S49, D-12",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q051",
+   "q": "How must the ID service update the counter to avoid two requests getting overlapping ranges?",
+   "answer": "In a transaction: SELECT ... FOR UPDATE (exclusive lock) then atomically add the requested count, returning old and new values as the range — like the airline check-in system; one tiny update per request.",
+   "source": "transcript 01:03:37; transcript 01:07:22",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q052",
+   "q": "What does Amazon's batching enable for the order service's own databases?",
+   "answer": "It decouples ID generation from storage: orders DB can be sharded and scaled horizontally, every shard accepting writes, since IDs are already unique from in-memory ranges.",
+   "source": "transcript 01:05:23",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q053",
+   "q": "What batch sizes are used in reality, and what is the trade-off in choosing the batch size?",
+   "answer": "10,000, 50,000, 100,000 depending on throughput (500 was just an example). Too small = too frequent network calls; too large = losing the whole range if the server crashes.",
+   "source": "transcript 01:05:23-01:06:01",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q054",
+   "q": "What does a service server do when its range is nearly exhausted?",
+   "answer": "It re-asks the ID service for another batch (e.g. after using 490 of 500 it fetches another 500, maybe 3000-3500) and uses it.",
+   "source": "transcript 01:06:32; board S50 01:07:24",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q055",
+   "q": "Does Amazon's batching give monotonic IDs across servers? Why does it scale easily?",
+   "answer": "No monotonicity across servers. It scales because the single DB is the single source of truth — no gossip, just one tiny atomic update per batch request.",
+   "source": "transcript 01:06:32-01:07:22",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q056",
+   "q": "Should you track exactly which IDs of a range a crashed server used so none are wasted?",
+   "answer": "No — the overhead of tracking every ID is massive and pointless; a 64-bit range (2^64) will never be exhausted. Think practically; we underestimate big numbers.",
+   "source": "transcript 01:08:50-01:09:52",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q057",
+   "q": "How big is the gap between a million and a billion, and how many orders fit in a 4-byte integer?",
+   "answer": "The difference between a million and a billion is almost a billion; a 4-byte integer holds about 4 billion; go to 64 bits if that might be exhausted.",
+   "source": "transcript 01:09:52",
+   "kind": "number",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q058",
+   "q": "What is a UUID's size and why do companies at scale avoid it?",
+   "answer": "128 bits = 16 bytes. Indexes store the row ID for every entry, so 16-byte IDs instead of 4-byte ints bloat the index ~4x (1 GB -> 4 GB); they don't index well.",
+   "source": "transcript 01:11:11-01:12:18; board S52",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q059",
+   "q": "Why does index size decide database performance?",
+   "answer": "Query planning and execution operate on indexes; if all indexes fit in RAM, execution happens in memory and only final rows are read from disk. If indexes spill to disk, the DB is slow no matter what.",
+   "source": "transcript 01:12:18-01:13:18; board S52, S56",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q060",
+   "q": "What is the first thing the teacher checks when asked to optimize a slow database, and how should DB RAM be provisioned?",
+   "answer": "Index sizes. RAM should be at least the sum of all index sizes (bare minimum).",
+   "source": "transcript 01:14:14; transcript 01:18:51",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q061",
+   "q": "What advantage do UUIDs have?",
+   "answer": "They are random and unpredictable, good for security: sequential IDs (1, 2, 3...) exposed in URLs let anyone loop over IDs and scrape the site.",
+   "source": "transcript 01:15:12; board S52",
+   "kind": "tradeoff",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q062",
+   "q": "Is UUID always wrong?",
+   "answer": "No. For small applications that will never hit that scale, UUID is fine; don't go for the 'best' solution unnecessarily.",
+   "source": "transcript 01:16:20",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q063",
+   "q": "Describe the MongoDB ObjectID layout as drawn on the board.",
+   "answer": "12 bytes (96 bits): epoch (4 bytes) | random (5 bytes) | counter (3 bytes); epoch on the LHS.",
+   "source": "transcript 01:16:38; board S52, D-13",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q064",
+   "q": "What ID sizes did the teacher consider fine vs worrying?",
+   "answer": "MySQL auto-increment 4 bytes is tiny; 8 bytes is still doable; beyond 8 bytes worry about performance at scale.",
+   "source": "transcript 01:16:38",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q065",
+   "q": "Why did Flickr need its own ID generation, and why not UUIDs?",
+   "answer": "Its database was sharded (multi-master, writes anywhere), so auto-increment everywhere would collide; it needed central generation to guarantee uniqueness. Not UUIDs because they index badly.",
+   "source": "transcript 01:17:56; board S54, S55",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q066",
+   "q": "Why is the database called the most brutal component of infrastructure?",
+   "answer": "API servers are mostly stateless and easy to scale; the database stores everything and handles the entire query load.",
+   "source": "transcript 01:20:09",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q067",
+   "q": "What is the schema of Flickr's tickets table?",
+   "answer": "id bigint unsigned not null auto_increment (primary key); stub char not null default '' with a UNIQUE KEY on stub.",
+   "source": "transcript 01:21:25; board S57, D-14",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q068",
+   "q": "What is the basic idea of using MySQL as Flickr's ID generator, and why is delete+insert not used?",
+   "answer": "Use auto-increment: delete and re-insert the row so the DB generates the next id. Delete then insert in a transaction is extremely costly, so use an upsert instead.",
+   "source": "transcript 01:22:26-01:22:53; board S57, S58",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q069",
+   "q": "What are MySQL's two ways of doing an upsert, and how do they differ?",
+   "answer": "INSERT ... ON DUPLICATE KEY UPDATE: tries insert, on unique-key failure runs the update clause. REPLACE INTO: on unique-key failure deletes the old row and inserts a new one — about 32x slower (teacher's own benchmark). Both atomic.",
+   "source": "transcript 01:23:40-01:24:28; board S59, S60",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q070",
+   "q": "What is the exact query Flickr fires to get a new ID?",
+   "answer": "INSERT INTO tickets (stub) VALUES ('a') ON DUPLICATE KEY UPDATE id = id + 1; — e.g. id 74 becomes 75 and is returned.",
+   "source": "transcript 01:25:17; board S61",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q071",
+   "q": "What is the stub column for?",
+   "answer": "Nothing but a hard-coded dummy value: inserting 'a' deliberately violates the unique key so that the atomic update (id = id + 1) triggers. No other reason.",
+   "source": "transcript 01:32:02-01:33:01; board D-14",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q072",
+   "q": "In Flickr's architecture diagram, what does the photos service talk to?",
+   "answer": "Photos service servers call the MySQL ticket server (ID generation) to get the ID, then store the photo in a separate, sharded Photos DB.",
+   "source": "transcript 01:26:29; board S62, D-15",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q073",
+   "q": "How did Flickr remove the single point of failure of the ticket server?",
+   "answer": "Two ticket servers behind a round-robin load balancer, one generating odd IDs and the other even: Server 1 auto_increment_increment = 2, offset = 1; Server 2 increment = 2, offset = 2.",
+   "source": "transcript 01:27:02-01:27:43; board S62, D-16",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q074",
+   "q": "What do auto_increment_increment and auto_increment_offset mean?",
+   "answer": "increment = how much to add each time; offset = the starting point.",
+   "source": "transcript 01:27:43",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q075",
+   "q": "What happens when Flickr's odd server goes down?",
+   "answer": "All requests go to the even server (2, 4, 6, ..., 202); ID generation continues without hiccup.",
+   "source": "transcript 01:29:01; board S62",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q076",
+   "q": "Odd server died at 5, even reached 202, then odd comes back. What happens if nothing is reset, and is it a correctness problem?",
+   "answer": "Odd resumes 7, 9, 11 interleaved with 204, 206 — a huge discrepancy, but IDs remain unique; it only looks bad (aesthetics), not correctness. Monotonicity was never enforced.",
+   "source": "transcript 01:29:01; transcript 01:35:16-01:35:43",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q077",
+   "q": "What optional reset was suggested when the odd server returns, with the board's example values?",
+   "answer": "Reset offsets on both DBs to MAX + BUFFER, e.g. max 202 -> 240 and 241 (then continue round robin) — starting from a safe value; purely for aesthetics.",
+   "source": "transcript 01:30:01; board S62, S66",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q078",
+   "q": "Who does the MAX+BUFFER reset, and how could it be automated?",
+   "answer": "An SRE/DevOps engineer, since a DB going down is a big event anyway. To automate: find the active server, get the max ID, add a buffer, set the values, do a quick process reboot on each server.",
+   "source": "transcript 01:30:49",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q079",
+   "q": "Does social media need monotonic IDs?",
+   "answer": "Not really — not everyone needs monotonicity; it's a nice byproduct.",
+   "source": "transcript 01:35:51",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q080",
+   "q": "What distinguishes Twitter's Snowflake from Amazon's and Flickr's approaches?",
+   "answer": "Amazon and Flickr are central ID services; Snowflake is decentralized ID logic — a native function/library running in app (API) servers, not a service.",
+   "source": "transcript 01:36:01; board S67",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q081",
+   "q": "Why is it called Snowflake, and who else adopted it?",
+   "answer": "Every snowflake is unique. Adopted by Discord and Instagram (also Sony).",
+   "source": "transcript 01:36:39-01:37:30; board S67",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q082",
+   "q": "Why are Snowflake IDs 64 bits rather than 128?",
+   "answer": "Storage/index efficiency at Twitter's scale: 128 bits would double the space needed.",
+   "source": "transcript 01:37:30",
+   "kind": "tradeoff",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q083",
+   "q": "Give Snowflake's bit layout, in order from the left.",
+   "answer": "41 bits epoch milliseconds | 10 bits machine ID | 12 bits per-machine counter (64 bits total).",
+   "source": "transcript 01:38:17-01:39:44; board D-17",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q084",
+   "q": "In the Snowflake diagram, where is the ID computed?",
+   "answer": "Inside each API server (tweet service) when it receives a tweet: it validates, computes the tweet ID with Snowflake, then stores it in the partitioned Tweets DB.",
+   "source": "transcript 01:38:57; board S68, D-18",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q085",
+   "q": "What limit does Snowflake's 10-bit machine ID impose?",
+   "answer": "At most 2^10 = 1024 machines (API servers) can generate IDs.",
+   "source": "transcript 01:39:44",
+   "kind": "number",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q086",
+   "q": "How many IDs can one Snowflake machine generate per millisecond, and when would a collision happen?",
+   "answer": "2^12 = 4096 per ms per machine; collision only if one machine handles more than 4096 requests in one ms (~400,000+ per second), which nobody does.",
+   "source": "transcript 01:40:20-01:41:17",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q087",
+   "q": "How is a Snowflake ID assembled in code?",
+   "answer": "Simple bit manipulation: take time, left-shift by 23, then bitwise-OR in the machine ID (shifted) and the atomically incremented counter — about three lines.",
+   "source": "transcript 01:42:21",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q088",
+   "q": "Why did Snowflake help Twitter scale?",
+   "answer": "No moving parts: no central service to call or scale, no network call; request comes, ID generated locally, stored. Tweeting is extremely high-throughput.",
+   "source": "transcript 01:42:21-01:43:08; board S79",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q089",
+   "q": "What does 'roughly sortable' mean for Snowflake, and what does it enable?",
+   "answer": "First 41 bits are epoch ms so IDs move forward each ms; within a ms order is by machine ID. You can get objects before/after a time or ID from the ID itself — great for pagination.",
+   "source": "transcript 01:43:36; board S70",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q090",
+   "q": "What are the two ways to paginate, with the SQL for limit-offset?",
+   "answer": "1) Limit-offset (skip-limit): SELECT * FROM tweets WHERE user_id = ? LIMIT 10 OFFSET 0, then OFFSET 10, 20... 2) ID-based: fetch rows with id > last seen id LIMIT 10 (Twitter uses since_id).",
+   "source": "transcript 01:44:43; board S70",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q091",
+   "q": "Why is limit-offset pagination slow at depth?",
+   "answer": "The DB must evaluate the result set up to the requested point, skip that many and then return the page, so cost grows linearly with depth.",
+   "source": "transcript 01:45:41; transcript 01:47:55",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q092",
+   "q": "Give a use case for deep pagination at Twitter beyond scrolling a profile.",
+   "answer": "Batch jobs, e.g. computing trending topics over the last hour of tweets — iterating over millions of rows.",
+   "source": "transcript 01:46:19",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q093",
+   "q": "Describe ID-limit pagination steps as shown in the MongoDB article.",
+   "answer": "1. Fetch a page; 2. take the id of the last document; 3. retrieve documents with _id greater than that id: db.students.find({_id: {$gt: last_id}}).limit(10).",
+   "source": "transcript 01:49:24; board S73",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q094",
+   "q": "When does ID-based pagination work?",
+   "answer": "When IDs are comparable — auto-increment, MongoDB ObjectIDs, Snowflake, anything with time on the left; and tables are physically stored ordered by primary key.",
+   "source": "transcript 01:49:24",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q095",
+   "q": "What did the benchmark graph show?",
+   "answer": "skip-limit (blue) time grows linearly with depth; id-limit (green) is constant. For small depth (up to ~500-600) they're comparable. A spike was due to disk throttling.",
+   "source": "transcript 01:50:37-01:51:48; board S74",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q096",
+   "q": "Why is ID-based pagination constant time?",
+   "answer": "Data is stored in a B+ tree ordered by primary key: log n to reach the ID, then a sequential scan — the same cost at any depth.",
+   "source": "transcript 01:52:28",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q097",
+   "q": "What is the limitation of ID-based pagination?",
+   "answer": "You can't apply complex/advanced WHERE clauses; so don't replace all pagination with it.",
+   "source": "transcript 01:52:28; transcript 01:53:37",
+   "kind": "tradeoff",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q098",
+   "q": "What did Discord change in Snowflake and why?",
+   "answer": "Same structure as Twitter, but a custom epoch starting at the first second of 2015 (when the company began) instead of 1 Jan 1970, to get a larger range for the 41-bit time.",
+   "source": "transcript 01:54:04-01:55:09; board S77",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q099",
+   "q": "What is Sony's Snowflake called and where is it?",
+   "answer": "Sonyflake, a Go implementation, open sourced on GitHub.",
+   "source": "transcript 01:55:09; board S77",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q100",
+   "q": "What benefits of Snowflake did the board list?",
+   "answer": "No moving part; no service; just a function call (library); no extra load on DB. Logic handled by API servers.",
+   "source": "transcript 01:55:09; board S78, S79",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q101",
+   "q": "What was the teacher's view on building a microservice for ID generation?",
+   "answer": "Good engineers don't reflexively build microservices; look for the most efficient solution — often an overkill. Keep things simple; make data-driven decisions.",
+   "source": "transcript 01:56:01",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q102",
+   "q": "How did the teacher know his disk throttled during the benchmark?",
+   "answer": "He had Prometheus node exporter running, exporting the disk IO utilization metric, which hit 100%.",
+   "source": "transcript 01:57:59",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q103",
+   "q": "Does ID-based pagination work for NoSQL databases?",
+   "answer": "Depends on the storage engine: works where data has locality / sequential scanning (MongoDB, DynamoDB); not with completely decentralized hash-based storage.",
+   "source": "transcript 01:59:03",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q104",
+   "q": "What limit does Elasticsearch place on limit-offset pagination?",
+   "answer": "A hard limit of 10,000 documents for offset pagination; beyond that it errors and tells you to use the cursor/scroll API.",
+   "source": "transcript 01:59:56",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q105",
+   "q": "What is the counter in Snowflake?",
+   "answer": "A per-server (per-machine) counter atomically incremented on each ID generation — the static counter from the start.",
+   "source": "transcript 02:01:02-02:01:12",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q106",
+   "q": "Epoch is just a number — how does a custom epoch save range?",
+   "answer": "The 41 bits hold milliseconds since the epoch; starting from 1970 wastes decades already elapsed. Subtracting a custom start time makes the counter start from zero, giving ~45 years of fresh range.",
+   "source": "transcript 02:01:37-02:03:13",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q107",
+   "q": "What were Instagram's requirements for IDs?",
+   "answer": "IDs sortable by time (filtering, batch processing, pagination), about 64 bits to be efficient on indexes, and no new service.",
+   "source": "transcript 02:03:51; board S81",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q108",
+   "q": "Where does Instagram generate Snowflake IDs, versus Twitter?",
+   "answer": "Twitter: in API servers. Instagram: in the database during INSERT.",
+   "source": "transcript 02:03:51; board S81",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q109",
+   "q": "Give Instagram's ID bit layout.",
+   "answer": "41 bits epoch ms since 1 Jan 2011 | 13 bits DB shard ID | 10 bits per-shard sequence number.",
+   "source": "transcript 02:05:03; board S81, D-20",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q110",
+   "q": "What are logical shards and physical servers at Instagram?",
+   "answer": "Physical DB servers are the actual DB machines (10-15); logical shards are databases created with CREATE DATABASE inside them (thousands, up to 2^13 = 8192), each with the same tables/schemas but different data.",
+   "source": "transcript 02:05:42-02:06:36; board S83, D-19",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q111",
+   "q": "What is the advantage of logical shards?",
+   "answer": "Rebalancing is easy: dump a hot logical database and load it onto another/new physical server; no row-by-row extraction. Horizontal scaling becomes easy.",
+   "source": "transcript 02:07:23-02:08:33",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q112",
+   "q": "What is the operational cost of many logical databases?",
+   "answer": "Migrations (e.g. adding a column) must run on every logical database on every physical server — thousands of times.",
+   "source": "transcript 02:07:23",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q113",
+   "q": "How is the photos table's id column defined at Instagram?",
+   "answer": "id bigint not null default insta5.next_id() — a stored procedure invoked when no ID is provided on insert.",
+   "source": "transcript 02:09:56; board S84",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q114",
+   "q": "What variables does insta5.next_id declare?",
+   "answer": "epoch = 1314220021721 (1 Jan 2011 in ms), seq_id, now_ms, shard_id = 5 (hard-coded per shard; a function per database).",
+   "source": "transcript 02:11:00; board S84",
+   "kind": "diagram",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q115",
+   "q": "How is the sequence part computed in next_id?",
+   "answer": "nextval('insta5.table_id_seq') % 1024 — an atomically incrementing DB sequence, limited to 10 bits.",
+   "source": "transcript 02:12:09; board S84",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q116",
+   "q": "Write the three lines that assemble Instagram's ID.",
+   "answer": "result := (now_ms - epoch) << 23; result := result | (shard_id << 10); result := result | seq_id;",
+   "source": "transcript 02:13:09; board S84",
+   "kind": "diagram",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q117",
+   "q": "Why is Instagram's in-DB approach efficient?",
+   "answer": "No ID logic on the API side; inserts are normal inserts without an ID, the default calls the function — all offloaded to the DB.",
+   "source": "transcript 02:14:07",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q118",
+   "q": "Is table_id_seq a column?",
+   "answer": "No — it is a sequencer (sequence) object; auto-increment columns create one implicitly, and you can create any named sequence explicitly.",
+   "source": "transcript 02:15:32-02:15:41",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q119",
+   "q": "What scaling limit does Instagram remove versus Twitter?",
+   "answer": "Twitter is limited to 2^10 API servers by the machine ID; Instagram's API servers are unlimited; limit is ~8192 logical databases.",
+   "source": "transcript 02:16:29-02:16:51",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q120",
+   "q": "How do machines get their machine IDs in Snowflake?",
+   "answer": "Assigned at startup, e.g. by ZooKeeper; within the same ms the smaller machine ID sorts first.",
+   "source": "transcript 02:17:17-02:17:24",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q121",
+   "q": "Does Snowflake guarantee strict monotonic inserts? When should you use auto-increment?",
+   "answer": "No. If you need strict monotonicity (e.g. a bank listing transactions), use auto-increment; social media doesn't care.",
+   "source": "transcript 02:18:48",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q122",
+   "q": "How do the distributed ID servers gossip?",
+   "answer": "Not specified; any gossip protocol or own: network calls to check the greatest IDs, agree on a value plus buffer — consensus is the key. Lamport clocks aren't for gossip.",
+   "source": "transcript 02:21:22-02:21:55",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q123",
+   "q": "Could Amazon's ID service push ID ranges onto a queue?",
+   "answer": "Yes — batches pushed to the queue; the queue's atomic reads replace the DB's atomicity. Any atomic system works (DynamoDB, Redis).",
+   "source": "transcript 02:23:10-02:23:24",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q124",
+   "q": "Why did the benchmark graph spike then drop?",
+   "answer": "Other processes on his local machine contended for resources.",
+   "source": "transcript 02:24:22",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q125",
+   "q": "Should the sequence be kept only in cache?",
+   "answer": "No — it must be persistent, else it restarts from zero after a DB reboot; the DB optimizes flushes itself.",
+   "source": "transcript 02:24:51",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q126",
+   "q": "Must pagination IDs be numeric?",
+   "answer": "No — string IDs are stored and compared lexicographically, still comparable.",
+   "source": "transcript 02:27:07-02:27:12",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q127",
+   "q": "Must Snowflake requests be round-robin? Can monotonicity be guaranteed?",
+   "answer": "Not necessary; monotonicity can't be guaranteed in a distributed setup (clocks drift) — accept rough sortability; strict needs lower throughput.",
+   "source": "transcript 02:28:34-02:29:26",
+   "kind": "qa",
+   "difficulty": "medium"
+  }
+ ]
+}

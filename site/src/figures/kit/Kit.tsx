@@ -41,6 +41,13 @@ export function Step({ n, children }: { n: number; children: React.ReactNode }) 
   return <g className="step" data-step={n}>{children}</g>;
 }
 
+/** Part of a StepThrough drawing shown only while the current step is in [from, to]: a picture that changes state
+ *  (a node leaves the ring) instead of accumulating. Not a Step: never dimmed, cropped or scrolled to. Without JS and
+ *  in print only the final state shows, so leave `to` off the state that lasts to the end. */
+export function StepState({ from, to, children }: { from: number; to?: number; children: React.ReactNode }) {
+  return <g className="state" data-from={from} data-to={to}>{children}</g>;
+}
+
 /* ------------------------------------------------------------------ text */
 
 export function Label({ x, y, children, size, kind = 'hand', tone, muted, anchor = 'middle', rotate, className }: {

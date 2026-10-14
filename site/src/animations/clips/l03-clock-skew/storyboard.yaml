@@ -1,0 +1,118 @@
+# Storyboard — clip l03-clock-skew (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l03-clock-skew
+title: Four clocks, four requests
+lecture: 3          # folder lec03, course position 06 ("Lecture 06")
+section: "3.5 Four machines, four clocks"
+status: reviewed    # draft | approved | built | reviewed
+why_motion: >
+  Ordering / interleaving: the lesson is the clash between two orders, the order the requests happen in (real time)
+  and the order their IDs sort in. The clip plays the requests one by one, so the ID list grows down the real-time
+  axis and the reader sees the ID go down at the moment it happens (237 after 244). A still shows four numbers and
+  leaves the reader to rebuild the arrival order.
+static_twin: "none on the page (the former StepThrough was removed by the design fix, C-04); the clip-as-text covers no-motion readers. Source: board D-08 (b_003700.jpg / b_003812.jpg): four laptops 2, 4, 7, 9 with 'time: 23 / 24 / 23 / 23' under them, and the list 'get_id on m2 -> 232' ... in call order"
+ledger:
+  taught:
+    - L-0071  # machines 2, 4, 7, 9 at 23, 24, 23, 23; requests in order to m2, m4, m7, m9 give 232, 244, 237, 239: not monotonically increasing
+    - L-0072  # where order is needed, clock skew must be handled: it affects correctness (final caption)
+  context_only:
+    - L-0062  # clocks are not perfectly synchronized (prose 3.4; B0's 'their clocks disagree' restates it)
+    - L-0070  # even with periodic NTP sync a clock can be off when an ID is made (prose 3.4)
+    - L-0073  # strict monotonicity across distributed generators is 'almost impossible' (prose after the clip)
+fidelity_notes:
+  - "Machines 2, 4, 7, 9, clocks 23, 24, 23, 23, the call order m2, m4, m7, m9 and the IDs 232, 244, 237, 239 are the class's numbers (L-0071, board D-08). The instructor said the times are small stand-ins for epoch milliseconds ('I'm just using smaller numbers'); the clip shows them as 'time: 23' like the board and claims no unit."
+  - "ID = time, then machine ID, concatenated (L-0071, building on L-0055). The time digits of each ID get a thin underline (the same cue as Fig 3·b's heavy underline under the time part). No bit layout or real millisecond values."
+  - "The board writes the machines' names as '2', '4', '7', '9' over the laptops and 'm2', 'm4' ... in the list; the clip writes 'm2' etc. in both places so the list row and its laptop read as the same machine."
+  - "Real time runs down the list (the board's list is in call order, top to bottom, and the board's red down-arrow beside it); the axis is labelled 'real time' and has no scale: the requests are one after another, nothing about how far apart."
+  - "Each request is a short blue arrow into its laptop (the get_id call) plus a blue re-ink of the laptop; the call's origin is not drawn (the lecture names no caller)."
+  - "The ring on 'time: 24' and the hand 'ahead' mark the cause; it states only what the numbers show (24 > 23). Not claimed: how far clocks drift, why (temperature: SN-01 lives in prose 3.4), or how NTP corrects them (SN-02, prose 3.6)."
+  - "'smaller than 244' and 'not monotonically increasing' are the board's words (D-08)."
+  - "The final caption is L-0072 in the lecture's terms ('it affects the correctness of a system'). The 'almost impossible' conclusion (L-0073, hedged) stays in prose, not in the clip."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1070, note: "portrait re-flow at <= 640 px: the four laptops in a 2x2 grid (m2 m4 / m7 m9), the get_id list in one column under them, 'smaller / than 244' right of the slots, 'not monotonically / increasing' under the list; 30 px lettering, 32 px captions"}
+duration_frames: 1065   # 35.5 s; 71 s at 0.5x
+start_frame_equals: "board D-08 before step 1: four laptops m2 m4 m7 m9 with 'time: 23 / 24 / 23 / 23' under them, the 'real time' axis running down, four empty dashed ID slots"
+poster_frame: 1064
+reduced_motion_stills: [100, 240, 375, 615, 750, 900, 1064]
+glyphs:
+  laptops: {shape: laptop (chamfered screen box + trapezoid base, as in l04-heartbeat-expiry), label: "mono m2 / m4 / m7 / m9 inside the screen", pos: "wide: cx 330, 550, 770, 990, screen y 86-178; phone: 2x2 grid cx 190 / 530, rows at y 66 and 302"}
+  clocks: {shape: hand label, text: "time: 23 / 24 / 23 / 23", pos: "under each laptop (wide y 254, phone y 212 / 448)"}
+  request_arrows: {route: "top margin -> laptop screen", solid: true, head: "laptop (the call lands on the machine)", colour: "blue while live, then graphite at 38%"}
+  axis: {shape: thin line with chevron, route: "down the left of the list", label: "real time (hand, ink2, above it)"}
+  list_rows: {shape: "step badge (blue) + mono 'get_id on m2' + short arrow + dashed slot box with the ID (mono)", rows: "wide y 360 / 428 / 496 / 564; phone y 576 / 652 / 728 / 804"}
+  time_underline: {shape: thin ink2 line under the first two digits of each ID}
+  ring_237: {shape: red dashed chamfered box around the 237 slot, label: "smaller than 244 (red hand, right of the slot; two lines on phone)"}
+  ring_24: {shape: red dashed box around 'time: 24', label: "ahead (red hand; wide under it, phone left of it)"}
+  bracket: {shape: red square bracket right of the slots spanning the four rows (pen, top -> bottom, chevron at the bottom = reading down), label: "not monotonically / increasing (red hand; wide right of it, phone under the list)"}
+beats:
+  - id: B0
+    from: 0
+    to: 105
+    caption: "Four machines. At the same instant, their clocks disagree."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0071]
+  - id: B1
+    step: 1
+    from: 105
+    to: 245
+    caption: "First request goes to m2: time 23, then machine 2. ID 232."
+    events:
+      - {at: 115, dur: 24, what: "request arrow pen-drawn into m2 with a packet", colour: blue}
+      - {at: 139, dur: 16, what: "m2's screen re-inked blue", colour: blue}
+      - {at: 151, dur: 22, what: "badge 1 + row 'get_id on m2' written; row arrow pen 12 f"}
+      - {at: 187, dur: 20, what: "232 written in slot 1; underline under '23' (8 f)"}
+    ledger: [L-0071]
+  - id: B2
+    step: 2
+    from: 245
+    to: 380
+    caption: "Second request: m4, whose clock reads 24. ID 244."
+    events:
+      - {at: 255, dur: 24, what: "request arrow into m4 (blue); arrow 1 settles to graphite 38%", colour: blue}
+      - {at: 279, dur: 16, what: "m4 re-inked blue", colour: blue}
+      - {at: 291, dur: 22, what: "badge 2 + 'get_id on m4'"}
+      - {at: 327, dur: 20, what: "244 written; underline '24'"}
+    ledger: [L-0071]
+  - id: B3
+    step: 3
+    from: 380
+    to: 620
+    caption: "Third: m7, clock 23. ID 237 is smaller than the ID before it."
+    events:
+      - {at: 390, dur: 24, what: "request arrow into m7 (blue)", colour: blue}
+      - {at: 414, dur: 16, what: "m7 re-inked blue", colour: blue}
+      - {at: 426, dur: 22, what: "badge 3 + 'get_id on m7'"}
+      - {at: 462, dur: 20, what: "237 written; underline '23'"}
+      - {at: 492, dur: 16, what: "red dashed ring around the 237 slot", colour: red}
+      - {at: 510, dur: 24, what: "'smaller than 244' written", colour: red}
+      - {at: 542, dur: 16, what: "red dashed ring around 'time: 24' (the cause)", colour: red}
+      - {at: 560, dur: 20, what: "'ahead' written", colour: red}
+    ledger: [L-0071]
+  - id: B4
+    step: 4
+    from: 620
+    to: 755
+    caption: "Fourth: m9, clock 23. ID 239."
+    events:
+      - {at: 630, dur: 24, what: "request arrow into m9 (blue)", colour: blue}
+      - {at: 654, dur: 16, what: "m9 re-inked blue", colour: blue}
+      - {at: 666, dur: 22, what: "badge 4 + 'get_id on m9'"}
+      - {at: 702, dur: 20, what: "239 written; underline '23'"}
+    ledger: [L-0071]
+  - id: B5
+    from: 755
+    to: 905
+    caption: "Arrival order and ID order no longer match."
+    events:
+      - {at: 767, dur: 30, what: "red bracket pen-drawn down the right of the four IDs, chevron at the bottom", colour: red}
+      - {at: 805, dur: 26, what: "'not monotonically' written", colour: red}
+      - {at: 833, dur: 20, what: "'increasing' written", colour: red}
+    ledger: [L-0071]
+  - id: B6
+    from: 905
+    to: 1065
+    caption: "Where you need order, clock skew affects correctness."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0072]

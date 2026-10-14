@@ -1,0 +1,273 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { WhichWriteFirst, IncreasingStrip, TimeFirst, DriftingClocks, OneIdServer, TwoIdServers, RelaxOrder } from '../../../figures/lec03/s3-order-and-clocks';
+
+{/* §3 Order, and why clocks break it (3.1–3.8). Writer w1. Chapter page /lectures/lec03/3-order-and-clocks/.
+    Figures are authored at 340–360 units, one layout each. SourceNotes SN-01..SN-04 sit right after the point they
+    qualify; the teacher's point stays as taught. */}
+
+<Section id="s3" no="3" title="Order, and why clocks break it" crumb="3 Order and clocks"
+  dek="Some systems need to know which ID came first. Putting time on the left almost does it. Real clocks, and the need for more than one server, are why “almost” is as good as it gets."
+  meta="About 22 min · class 00:25–00:45 and Q&A 00:47–00:52">
+
+The IDs from chapter 2, machine ID plus counter, are unique. They carry no order at all. With hundreds of thousands of machines, `m1` can be literally anything, and an ID from one machine says nothing about whether it came before or after an ID from another. [[L-0049]]
+
+This chapter adds the constraint that breaks that: IDs that increase with time, everywhere. Getting close is cheap. Getting all the way there runs into clocks, and then into the limits of distribution itself.
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Why order matters" crumb="3.1 Why order"
+  dek="When two writes collide, a bigger ID can say which one is newer."
+  meta="About 3 min · class 00:25–00:28 and Q&A 00:48">
+
+The new constraint: **globally monotonically increasing IDs**. However many machines generate IDs, and wherever a request goes, a later request always gets a larger ID: 1, 2, 5, 6 across ten machines, say, but never smaller than one handed out before. [[L-0050]]
+
+Why would you want that? Think back to the airline check-in in Lecture 3. How did we know transaction T1 came before transaction T2? By their numbers: 1 and 2 tell you which transaction came first. [[L-0051]]
+
+Now say two transactions write the same row. It holds `a = 10`; T1 sets it to 20 and T2 sets it to 30. One common conflict-resolution strategy is that the newer write overrides the older one. With ordered IDs the larger number, 2, marks the newer write, so you accept T2’s value. [[L-0052]]
+
+<Figure id="fig-3a" max={360} wide={false} no="Fig 3·a" k="L-0052" caption="Which write came first? With newer-write-wins, the transaction with the larger ID wins, so the row keeps a = 30. Redrawn from the class board at 00:25 (D-06); an unexplained doodle on the board is left out.">
+<WhichWriteFirst />
+</Figure>
+
+Monotonically increasing IDs play a very important role in conflict resolution. It is one of the places they are needed, not the only one. [[L-0053]]
+
+A harder version of the question came up in class: how do you resolve conflicts by ID when IDs from many machines might not even be unique? At that point the topic was only about 30 percent done, so it was deferred, and the class did not come back to it. [Section 9.1](#s9-1) sets out what the rest of the lecture does give you for it. [[L-0090]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Increasing is not the same as sequential" crumb="3.2 Not sequential"
+  dek="Bigger than everything before it. Not necessarily the next integer."
+  meta="About 1 min · class 00:27–00:29">
+
+Monotonically increasing doesn’t mean purely sequential. The lecture calls 1 2 3 4 5 6 *strictly* monotonically increasing, and 1 2 5 7 8 9 32 33 34 (just) monotonically increasing: each new ID is guaranteed to be greater than all the IDs generated before it. In standard terms, what is asked for here is a strictly increasing sequence with gaps allowed <Cite href="https://mathworld.wolfram.com/StrictlyIncreasingFunction.html">mathworld.wolfram.com</Cite>; gap-free 1, 2, 3, … is the stronger property usually called *sequential*. [[L-0054]]
+
+<Figure id="fig-3-2" max={340} wide={false} k="L-0054" caption="Both rows only ever go up. Only the top one has no gaps; the rest of this lecture asks for the bottom row’s property.">
+<IncreasingStrip />
+</Figure>
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="Put time on the left" crumb="3.3 Time on the left"
+  dek="Flip the concatenation and the clock does the ordering for you."
+  meta="About 4 min · class 00:28–00:33">
+
+What if we flip the order and concatenate time first, then the machine ID? Time always moves forward, and now it sits in the most significant digits, so the IDs get a natural order: `1729 0001`, `1729 0002`, `1730 0001`. It is pretty decent, though not strict. [[L-0055]]
+
+```js
+func get_id() {
+  return concat(get_time_ms(), machine_id);   // instead of machine–time, now time–machine
+}
+```
+
+The time part forms the most significant bits. The lower part can be the machine ID or, perfectly fine, a counter: the left half decides the order, and the right half only breaks ties. [[L-0056]]
+
+<Figure id="fig-3b" max={340} wide={false} no="Fig 3·b" k="L-0055 L-0056" caption="Time first decides the order. The heavy underline marks the time digits, the most significant part; the second half breaks ties within one millisecond. Redrawn from the class board at 00:29 (D-07).">
+<TimeFirst />
+</Figure>
+
+Within one millisecond the order can still flip. If the first request goes to machine 2 and the next one to machine 1, you get `17290002` first and then `17290001`. Once the millisecond passes, IDs are almost monotonically increasing across the whole system. [[L-0057]]
+
+And it costs almost nothing. The design is still stateless, so a request can go to any machine; there is no central state to maintain, and throughput stays excellent. In exchange you accept a little incorrectness. [[L-0058]] If the machine ID is an integer, the whole thing is just bits: time and machine ID concatenated into one number. [[L-0059]]
+
+This is why, whichever ID generator you pick, you will always see time sitting on its leftmost side: as time moves forward the number only gets bigger, so time-sortable ID schemes sort roughly by creation time <Cite href="https://www.rfc-editor.org/rfc/rfc9562.html">rfc-editor.org</Cite>. The class board put it as “all ID generation algorithms have time on LHS”, under the word *sortability*. [[L-0060]]
+
+It is a good solution, but it still doesn’t guarantee monotonicity. The flip within a millisecond is one reason; the clocks themselves are the other. [[L-0061]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="Clocks drift" crumb="3.4 Clocks drift"
+  dek="Time on the left assumes every machine reads the same time. None of them quite does."
+  meta="About 5 min · class 00:32–00:37">
+
+The design so far assumed something on the time side: that every machine’s clock is perfectly synchronized with every other. That is not the case. Clocks go out of sync. [[L-0062]]
+
+A little misordering within one millisecond can be let go. Misordering at the level of seconds should not happen, and that is exactly where unsynchronized clocks become a problem. [[L-0063]]
+
+Servers going out of sync is so common that SRE and DevOps teams run a process that keeps syncing the machines’ clocks with NTP servers. [[L-0064]]
+
+<MarginNote title="How clocks are actually synced" why="skip unless you run servers" k="L-0064">
+
+In practice the sync is a daemon (chronyd, ntpd, systemd-timesyncd) that runs all the time. Besides setting the clock, it can discipline it by running it slightly faster or slower. ntpd slews the clock when the offset is under 128 ms and steps it when the offset is larger, and kernel slewing is limited to 0.5 ms per second, so each second of correction takes about 2000 s to apply <Cite href="https://www.ntp.org/documentation/4.2.8-series/ntpd/">ntp.org</Cite>.
+
+</MarginNote>
+
+Why do clocks drift at all? Because a machine’s clock is a hardware clock. A quartz crystal vibrates at a particular frequency inside your laptop, your server, your CPU, and the machine counts those vibrations to tell that a second or a millisecond has passed. [[L-0065]]
+
+Physics nudges that count. Give energy to a thing and it vibrates faster: water over a fire heats up and boils. Take energy out and it slows down and freezes into ice. That holds for every element. [[L-0066]] So the lecture’s reasoning goes: heat the CPU, say with a high-intensity game, and the quartz crystal vibrates faster, so the clock runs fast; put the machine somewhere extremely cold, and the vibration slows, so the clock runs slow. [[L-0067]]
+
+<SourceNote href="https://ecsxtal.com/?p=1063" site="ecsxtal.com" k="L-0067">
+
+Quartz frequency does vary with temperature, which is why clocks drift and need syncing, but not in one direction. A common 32.768 kHz tuning-fork crystal is typically accurate to about ±20 ppm at room temperature, and its error follows a parabola of about 0.04 ppm/°C² around roughly 25 °C, so it loses accuracy at both high and low temperatures.
+
+</SourceNote>
+
+Because physical effects like these speed up or slow down a computer’s clock, a periodic job has to keep clocks in sync, and it runs more often than you think. [[L-0068]]
+
+<MarginNote title="You can’t run away from nature" why="skip unless you like war stories" k="L-0069">
+
+A story the lecture told: Google’s Jeff Dean and Sanjay Ghemawat once chased a bug that turned out to be a bit flipped by a natural phenomenon (the lecture said an explosion or a solar storm). The lecture recommended the article about the two of them, which it remembered as “the friendship that made Google special”; it is The New Yorker’s “The Friendship That Made Google Huge” (2018). The lecture’s point: you cannot run away from nature.
+
+</MarginNote>
+
+Even assuming every clock is synced with NTP periodically and eventually, in between there is always a chance that a clock is out of sync at the very moment an ID is generated. [[L-0070]]
+
+<Figure id="fig-3c" max={360} wide={false} no="Fig 3·c" k="L-0065 L-0067 L-0068 L-0070" caption="A clock that runs fast, a clock that runs slow. Each sync pulls a clock back toward true time, and it starts drifting again. What decides an ID is the gap at the moment it is made. The crystal’s rate shifts with temperature; per the note above, both hot and cold usually make a common crystal run slow.">
+<DriftingClocks />
+</Figure>
+
+</Section>
+
+<Section id="s3-5" no="3.5" title="Four machines, four clocks" crumb="3.5 Four clocks"
+  dek="One millisecond of skew is enough to put a later request before an earlier one."
+  meta="About 3 min · class 00:37–00:39">
+
+Here is what skew does to time-first IDs. Four machines, numbered 2, 4, 7 and 9, have clocks reading 23, 24, 23 and 23. Four requests arrive one after another, to M2, M4, M7 and M9 in that order.
+
+<PauseAndThink k="L-0071 L-0072 L-0073"
+  q="IDs are time, then machine number. Four machines read 23, 24, 23, 23 ms. Requests reach machines 2, 4, 7, 9 in that order. Do the IDs come out increasing?"
+  choices={[{ label: 'Yes: time is on the left' }, { label: 'No: the clocks disagree', correct: true }]}
+  right="Right. They come out 232, 244, 237, 239. Machine 4’s clock is ahead, so the request after it gets a smaller ID."
+  wrong="Time on the left only orders IDs if every machine reads the same time, and these clocks disagree by a millisecond.">
+
+Time-first IDs are only as ordered as the clocks behind them. Clock sync narrows the gap but can’t remove it at the moment an ID is made, so strict order across machines is “almost impossible”.
+
+</PauseAndThink>
+
+The IDs come out 232, 244, 237, 239. They are not monotonically increasing. [[L-0071]]
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l03-clock-skew" no="Clip 3·1" k="L-0071 L-0072"
+  lead="The same four requests, one after another. Watch where machine 4’s ID lands."
+  caption="Arrival order and ID order no longer match. Redrawn from the class board at 00:37 (D-08)." />
+</div>
+
+So wherever monotonicity is needed, clock skew is something you have to take care of, because it affects the correctness of the system. [[L-0072]]
+
+How far can you take care of it? Ensuring strict monotonicity across a distributed system, where the ID logic runs on many machines, is almost impossible. That is not a theoretical proof, and none was found, but in practice too many things can break it. [[L-0073]]
+
+</Section>
+
+<Section id="s3-6" no="3.6" title="One server, one clock" crumb="3.6 One server"
+  dek="Move ID generation onto one machine and the problem changes shape."
+  meta="About 3 min · class 00:39–00:41 and Q&A 00:47–00:48">
+
+Then let one machine hand out every ID. That is a **central ID generation service**: one machine, and whoever wants an ID makes a network call to it; the ID server generates one and sends it back. (Throughput is set aside for now.) The board’s motivation: instead of keeping ID generation inside the application logic, a central ID service should solve the clock-skew problem. [[L-0074]]
+
+<Figure id="fig-3d" max={360} wide={false} no="Fig 3·d" k="L-0074 L-0076 L-0077" caption="One ID server runs the same get_id() with one clock, and every client calls it. The bubble is the claim this section rests on; the note below the next paragraph says when it holds. Redrawn from the class board at 00:41 (D-09).">
+<OneIdServer />
+</Figure>
+
+At this point the problem stops being ID generation. It becomes clock synchronization. [[L-0075]]
+
+On a single machine, skew doesn’t break the order. When NTP sync finds the clock is ahead, reading 24 when it should read 23, the clock doesn’t jump back. It slows its counting until real time catches up, and then carries on from 24. Always remember: the clock never goes back in time. Never. [[L-0076]]
+
+<SourceNote href="https://man7.org/linux/man-pages/man2/clock_gettime.2.html" site="man7.org" k="L-0076">
+
+For small offsets NTP does slew the clock, slowing or speeding it rather than jumping (ntpd slews under 128 ms <Cite href="https://www.ntp.org/documentation/4.2.8-series/ntpd/">ntp.org</Cite>; chrony works the same way <Cite href="https://chrony-project.org/doc/4.6/chrony.conf.html">chrony-project.org</Cite>). But larger offsets are stepped, and the wall clock (`CLOCK_REALTIME`) can then jump backwards; `CLOCK_MONOTONIC` can’t, but it doesn’t tell wall time. So time-based ID generators detect a backward step and wait or refuse, as Twitter’s Snowflake does <Cite href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010">github.com</Cite>.
+
+</SourceNote>
+
+So if ID generation sticks to one server, whose clock always moves forward, it always produces monotonically increasing IDs, wherever the requests come from. It runs the same `get_id()` as before, just in one place. [[L-0077]]
+
+<SourceNote href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010" site="github.com (twitter-archive/snowflake)" k="L-0077">
+
+Only if the generator guards against the wall clock stepping backwards. Snowflake refuses to issue IDs until time passes the last ID it generated; alternatively, use a monotonic clock <Cite href="https://man7.org/linux/man-pages/man2/clock_gettime.2.html">man7.org</Cite>, or keep the last value in memory and never go below it.
+
+</SourceNote>
+
+What about a shared database with locks, instead of a shared ID service? It would be unique. But that database is still a single machine: it has itself become the shared service. One and the same thing. [[L-0089]]
+
+</Section>
+
+<Section id="s3-7" no="3.7" title="Two servers, gossip, and the impossibility" crumb="3.7 Two servers"
+  dek="Make the one server fault tolerant and the order guarantee falls apart."
+  meta="About 4 min · class 00:41–00:44 and Q&A 00:50–00:52">
+
+The one ID server is a single point of failure: the server could fail, or its disk could. So for fault tolerance you add one more machine behind a load balancer, as in Lecture 5. [[L-0078]]
+
+Now whichever server gets a request has to talk to the other ID server first, to see the last ID it generated, add some buffer on top, and only then generate a new ID. [[L-0079]] The two servers have to gossip constantly about the IDs they generate, so that each new one is larger than any ever generated. That turns a simple function into something super complex, and it loses throughput: continuous gossip at high throughput becomes very messy. On the class board: “we made the entire process super complicated”. [[L-0080]]
+
+<Figure id="fig-3e" max={360} wide={false} no="Fig 3·e" k="L-0079 L-0080" caption="Two ID servers must gossip. Removing the single point of failure means two servers that must agree on every ID before answering; the red mark is the cost. Redrawn from the class board at 00:41 (D-10), where the gossip was scribbled over in red.">
+<TwoIdServers />
+</Figure>
+
+The lesson the class board boxed: “There is no way to distribute and guarantee strict monotonicity.” That is the conclusion of this whole evolution: you cannot have an ID generation service that is distributed in nature and also guarantees strict monotonicity at high throughput. Systems that do hand out strictly increasing values across machines pay for it with coordination: TiDB routes every timestamp through one allocator, 46 bits of physical milliseconds plus an 18-bit logical counter, that always moves forward <Cite href="https://docs.pingcap.com/tidb/stable/tso/">docs.pingcap.com</Cite>, and Google Spanner uses its TrueTime clocks to assign increasing commit timestamps across all servers <Cite href="https://docs.cloud.google.com/spanner/docs/true-time-external-consistency">cloud.google.com</Cite>. That costs latency and availability; independent generators can only be roughly ordered. [[L-0081]]
+
+Every fix brings a new problem or a new constraint. So, as the board put it, the solutions we see out there have relaxed constraints, in two directions: **non-integer IDs**, and **no monotonicity**, because not everyone needs monotonicity. [[L-0082]]
+
+“But a MySQL server has monotonic IDs.” It does, because MySQL is a single machine, not a distributed one, and the ID logic is part of its database engine. That is why you see 1, 2, 3, 4, 5, 6. [[L-0083]] Even there the values are not gap-free: InnoDB never reuses auto-increment values after a rollback, so gaps are normal <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-auto-increment-handling.html">dev.mysql.com</Cite>. [[L-0083]]
+
+Make MySQL distributed and that ends. Put it in multi-master mode with an auto-increment ID and look at the number of conflicts you get: each master is its own brain. [[L-0084]] MySQL’s own fix is the one from [section 1.2](#s1-2): when Group Replication starts in multi-primary mode with the defaults untouched, it sets each server’s auto-increment increment to 7 and its offset to the server ID, so the primaries never collide <Cite href="https://dev.mysql.com/doc/refman/8.4/en/replication-options-source.html">dev.mysql.com</Cite>. You get uniqueness, not order. [[L-0084]]
+
+Another idea: a distributed set of ID servers, each appending its own server ID to the IDs it generates. That is also correct. It loses monotonicity, and that is fine. [[L-0095]]
+
+</Section>
+
+<Section id="s3-8" no="3.8" title="Relax the constraint" crumb="3.8 Relax it"
+  dek="If strict order is out of reach, ask whether you needed it in the first place."
+  meta="About 3 min · class 00:44–00:45 and Q&A 00:49–00:52">
+
+So how do people actually do it? Everything in computer science and software engineering is a trade-off: you get something, you lose something. Always. [[L-0085]]
+
+When you are handed requirements for ID generation, or anything like it, ask whether you really need each constraint. Challenge them with critical questions. Is it OK if IDs are not integers? If they are random, like UUIDs or GUIDs? If they are not monotonic? In most cases the requirements say monotonicity is needed, and after a couple of critical questions it often turns out otherwise, because not everyone thinks it through. [[L-0086]]
+
+<RuleBox rule="You cannot distribute ID generation and also guarantee strict order at high throughput, so ==ask whether you really need that order==." k="L-0081 L-0086">
+
+Integers? Random? Monotonic? Challenge each requirement with critical questions before you pay for it. Most of the designs in the rest of this lecture are what you get by relaxing one.
+
+<RelaxOrder />
+
+</RuleBox>
+
+Why a counter in chapter 2 and not a random suffix? The counter was there for monotonicity, which a random ID doesn’t give. You may think you need monotonicity; in reality you can often relax that constraint, and then a random ID like a UUID works. [[L-0092]]
+
+So why not use UUIDs instead of all this complexity? You can, if it is OK to relax the constraint, since not everyone needs strict monotonicity. The catch: with UUIDs you lose ordering. The answer: you get some, you lose some. [[L-0093]]
+
+<SourceNote label="Since the class" href="https://www.rfc-editor.org/rfc/rfc9562.html" site="rfc-editor.org (RFC 9562)" k="L-0093">
+
+Random UUIDs (version 4) lose ordering. Time-ordered UUIDv7, standardized in RFC 9562 (2024), keeps rough creation order at 128 bits by putting a millisecond Unix timestamp first. PostgreSQL 18 generates them with `uuidv7()`, alongside `gen_random_uuid()` for random ones <Cite href="https://www.postgresql.org/docs/18/functions-uuid.html">postgresql.org</Cite>.
+
+</SourceNote>
+
+Where UUIDs, MongoDB’s IDs and the like fit, what they cost, and how monotonicity helps in real situations, is the next chapter. [[L-0094]]
+
+There is no one right way to do ID generation. Each approach gains in some places and loses in others. Choose what you want and what you can give up, while getting the most throughput, performance and efficiency. [[L-0096]]
+
+<h3 id="s3-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Machines read 23, 24, 23, 23; IDs are time then machine. Requests go to machines 2, 4, 7, 9. Which IDs come out, and which pair breaks order?">
+
+232, 244, 237, 239. The pair 244 then 237 breaks it: machine 4’s clock is a millisecond ahead, so the request after it, on machine 7, gets a smaller ID.
+
+  </RecallItem>
+  <RecallItem q="Why does one ID server give ordered IDs, and what has to be true of its clock for that to hold?">
+
+One machine has one clock, so there is no skew between generators, and every request gets the next ID from the same place. It holds only if that clock never steps backwards from the generator’s point of view: NTP slews small offsets, but larger ones can step the wall clock back, so the generator must wait or refuse until time passes its last ID (or use a monotonic clock).
+
+  </RecallItem>
+  <RecallItem q="Name two questions to ask before accepting “IDs must be monotonic”.">
+
+Any two of: do they really need to be strictly ordered, or is roughly time-ordered enough? Can they be random, like UUIDs? Do they have to be integers? Every yes you can turn into a no removes coordination you would otherwise have to pay for.
+
+  </RecallItem>
+</RecallQuestions>
+
+If order is negotiable, the next question is size: a UUID is one call away. Chapter 4 asks why the companies that follow still stay away from it.
+
+<SectionEnd next={{ title: '4 · How big should an ID be?', href: '#s4' }}
+  concepts={[{ label: 'monotonic IDs', href: '#s3-1' }, { label: 'time on the left', href: '#s3-3' }, { label: 'clock drift', href: '#s3-4' }, { label: 'clock skew', href: '#s3-5' }, { label: 'central ID server', href: '#s3-6' }, { label: 'relax constraints', href: '#s3-8' }]} />
+
+</Section>

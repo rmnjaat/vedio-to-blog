@@ -181,6 +181,9 @@ figcaption .fig-no{color:var(--ink);font-weight:600;margin-right:.5em}
 .js .lag .step{transition:opacity .25s ease}
 .js .lag .step.past{opacity:.38}
 .js .lag .step.future{opacity:0;visibility:hidden}
+.js .lag .state{transition:opacity .25s ease}
+.js .lag .state.off{opacity:0;visibility:hidden}
+.no-js .lag .state[data-to]{display:none}
 .lag:focus-visible{outline:2px solid var(--focus);outline-offset:6px}
 @media (max-width:860px){
   .stepper{grid-template-columns:1fr;padding:var(--s4) var(--s3)}
@@ -315,6 +318,8 @@ footer.page{font-size:var(--step--1);color:var(--ink-2);padding:var(--s5) 0 var(
 @media print{
   .bar,.rail,.navsheet,.to-contents,.step-controls,.play,.chips,.kbd-hint,.think .choices{display:none!important}
   .js .lag .step{opacity:1!important;visibility:visible!important}
+  .lag .state[data-to]{display:none!important}
+  .js .lag .state:not([data-to]){opacity:1!important;visibility:visible!important}
   .js .steps li{display:grid!important;opacity:1!important}
   details>*{display:block}
 }
@@ -364,6 +369,10 @@ pre.astro-code{background:var(--code-bg)!important}
 .fwd .fwd-when{color:var(--ink)}
 p .fwd{margin-left:.25em} .fwd-line .fwd{margin-left:0}
 .fwd-line{margin:var(--s3) 0}
+/* a short list of chips under a figure ("back in · Lecture 2: …"), one per line, tight */
+.fwd-list{list-style:none;padding:0;margin:var(--s3) 0;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.fwd-list li{margin:0;padding:0}
+.fwd-list li::before{content:none}
 .clip-controls{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-top:var(--s3)}
 .clip-controls .btn{display:inline-flex;align-items:center;gap:8px}
 .clip-controls .btn svg{width:22px;height:22px}
