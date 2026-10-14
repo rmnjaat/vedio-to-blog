@@ -1,0 +1,1085 @@
+{
+ "lecture": "lec06",
+ "title": "Lecture 08 - How images are served, Gravatar, on-demand image optimization, tagging in photos, newly unread message indicator",
+ "sources": [
+  "lectures/lec06/transcript/transcript.md",
+  "lectures/lec06/board/board_log.md",
+  "lectures/lec06/board/diagrams.md"
+ ],
+ "count": 134,
+ "skipped_windows": [],
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "What four systems/topics were on the board's agenda for this session, in order?",
+   "answer": "Designing Gravatar; on-demand image optimization; tagging (people in) photos; designing the newly unread message indicator.",
+   "source": "transcript 00:00:02; board S01 00:00:00",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q002",
+   "q": "In the referenced notification-system design, why is Kafka alone a poor fit for sending a notification to millions of followers, and what pattern fixes it?",
+   "answer": "Kafka's parallelism is limited by its number of partitions, and adding a very large number of partitions is a problem, so fan-out is pathetically slow. The fix is to club a message stream (Kafka/Kinesis) with a message broker (SQS/RabbitMQ) to get a very high degree of fan-out.",
+   "source": "transcript 00:02:52",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q003",
+   "q": "What real fan-out requirement did the teacher say forced him to build the stream-plus-broker pattern?",
+   "answer": "Sending notifications to roughly 50,000-60,000 users within about five seconds (aggressive marketing), not even millions.",
+   "source": "transcript 00:04:16",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q004",
+   "q": "Does the browser know a URL is an image because it ends in .jpg/.png?",
+   "answer": "No. The browser is a dumb platform with fixed behaviour; the extension tells it nothing. Platforms (browsers, Android/iOS SDKs) must stay basic so they can be used with hundreds of other things.",
+   "source": "transcript 00:06:43",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q005",
+   "q": "What exactly does the browser do when it meets an <img src=...> tag while rendering HTML?",
+   "answer": "It makes an HTTP GET request to whatever URL is in src, without knowing what will come back, and tries to interpret the response bytes as an image.",
+   "source": "transcript 00:07:44",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q006",
+   "q": "How does the browser decide how to decode the bytes returned for an img tag?",
+   "answer": "On a 2xx response it reads the file-format header in the bytes (PNG, JPG, bitmap, TIFF all have headers) and invokes the matching decoder it ships with (browsers ship mostly decoders, not encoders), then renders the pixels.",
+   "source": "transcript 00:08:46",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q007",
+   "q": "When a web framework maps /static to a static folder, what happens for a request like /static/img/arpit.jpg?",
+   "answer": "Whatever comes after /static is treated as a relative file path; the server goes to the mapped folder on local disk, reads the file at that path and sends its bytes as the response, regardless of whether it is an image or text. Configurable in nginx, Spring Boot, Flask, Django, etc.",
+   "source": "transcript 00:09:58; board S04",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q008",
+   "q": "List, in the board's order, the three steps a server performs once the request hits it for a static file.",
+   "answer": "1) reads the URL, 2) reads the file from the server at the path, 3) sends the response.",
+   "source": "transcript 00:11:16; board S04 00:05:45",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q009",
+   "q": "On the board's folder tree, where does arpit.jpg live relative to the site root?",
+   "answer": "site/ -> static/ -> img/ -> arpit.jpg (alongside logo.jpg; js/ and css/ are sibling folders under site/).",
+   "source": "transcript 00:11:16; board S04 00:12:00",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q010",
+   "q": "What does the custom /raw/<path> handler on the board do, and what did the teacher say that builds?",
+   "answer": "It reads the path from the URL, reads the object with that key from an S3 bucket (S3.read(path, BUCKET)) and returns the raw bytes as the response. With three or four lines of code it is a proxy for S3: one generic route serves any file without configuring each file.",
+   "source": "transcript 00:12:45; board S06 00:12:30",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q011",
+   "q": "How does the board's second three-step list (the S3 variant) differ from the first?",
+   "answer": "The middle step changes from 'reads the file from the server at the path' to 'reads the file from S3'; 'reads the URL' and 'sends the response' stay the same.",
+   "source": "board S06 00:12:30",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q012",
+   "q": "What common belief about web-server responses did the teacher correct?",
+   "answer": "That web servers can only send JSON. A handler can return any bytes, including images, as a normal HTTP response.",
+   "source": "transcript 00:14:37",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q013",
+   "q": "Why does the handler idea mean an image does not need to already exist to be served?",
+   "answer": "The handler is our own code; what matters is only the bytes sent back. If the response is a properly structured, byte-serialized image, the browser renders it, so custom logic can produce the image.",
+   "source": "transcript 00:15:30",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q014",
+   "q": "How does a site tell social platforms which image to show in a shared-link card?",
+   "answer": "Via the Open Graph (OG) protocol: an og:image meta tag in the served HTML; the URL in og:image is rendered as the card image.",
+   "source": "transcript 00:18:09",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q015",
+   "q": "Why does GitHub generate its repository social (OG) image on the fly instead of pre-generating and storing one per repo?",
+   "answer": "The image shows recent repository stats (contributors, issues, stars, forks) that change; GitHub has millions of repos, so regenerating an image for each every day would waste compute. It generates on demand when requested.",
+   "source": "transcript 00:18:57",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q016",
+   "q": "Which host serves GitHub's OG images, and what is it?",
+   "answer": "opengraph.githubassets.com - a separate CDN GitHub configured specifically for Open Graph images (another one being githubusercontent.com for user assets).",
+   "source": "transcript 00:20:48; board S09",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q017",
+   "q": "Trace a request for a GitHub OG image when the CDN does not have it.",
+   "answer": "Browser IMG request -> CDN (opengraph.githubassets.com) -> cache miss -> origin (GitHub API server) generates the image from a template with an image library -> responds to the CDN -> CDN caches it with a TTL and serves the user; later requests are served from the CDN until it expires, then the next miss regenerates it.",
+   "source": "transcript 00:21:22",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q018",
+   "q": "Which libraries did the teacher name for generating images on the fly?",
+   "answer": "PIL (Python Imaging Library), which internally uses ImageMagick through C++ bindings, and ImageMagick itself; he recommended PIL for Python.",
+   "source": "transcript 00:22:16",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q019",
+   "q": "How could Twitter use the same technique as GitHub's OG images?",
+   "answer": "When a tweet URL is shared, the CDN misses and goes to Twitter's API server, which renders the tweet (with current likes, reposts, comments) into a templated image on the fly; it is cached on the CDN and served - a personalized, recent social image instead of people screenshotting tweets with external tools.",
+   "source": "transcript 00:23:42",
+   "kind": "example",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q020",
+   "q": "What prototype did the teacher recommend building in about an hour?",
+   "answer": "An API endpoint that fetches a GitHub repo's information and generates its social image on the fly with PIL, served from localhost.",
+   "source": "transcript 00:25:17",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q021",
+   "q": "What is Gravatar, as written on the board?",
+   "answer": "Your single embeddable URL for your profile picture: https://gravatar.com/{hash(email)}.",
+   "source": "transcript 00:27:22; board S11 00:27:15",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q022",
+   "q": "What hash does Gravatar use in the URL, and why is the URL constant for a user?",
+   "answer": "An MD5 hash of the email ID; hashing is deterministic, so the same email always produces the same hash.",
+   "source": "transcript 00:28:12",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q023",
+   "q": "What side note did the board attach (pink arrow) to the hash in https://gravatar.com/{hash(email)}?",
+   "answer": "'security PII' - the email (personal information) is not exposed in the URL; its hash is used.",
+   "source": "board S11 00:27:15",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q024",
+   "q": "If every site rendered profile photos via Gravatar, what happens when you change your photo?",
+   "answer": "You upload the new photo on gravatar.com and mark it active; the next request to the same URL goes to Gravatar's backend, which finds the new active photo and returns it, so your photo changes everywhere without any site doing anything.",
+   "source": "transcript 00:29:51",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q025",
+   "q": "What were the three Gravatar requirements, in the board's order?",
+   "answer": "1) user can upload multiple pictures, 2) user can mark one as active, 3) the active one should be returned as part of the response.",
+   "source": "transcript 00:31:17; board S12",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q026",
+   "q": "Why must Gravatar store the actual email, not just its hash?",
+   "answer": "Users log in/authenticate with their email and expect to see it on their profile page; and on a hash collision someone could end up logged into another person's account. It is always better to store the email.",
+   "source": "transcript 00:33:34",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q027",
+   "q": "What happened to the hash column on the users table during the first draft of the schema, and why?",
+   "answer": "It was written and then struck through, because the hash is derivable from the email (following the previous day's rule of not storing derivable attributes).",
+   "source": "transcript 00:34:02; board S13 00:31:45",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q028",
+   "q": "Why are a user's photos kept in a separate photos table rather than a column of users?",
+   "answer": "A relational column cannot hold multiple paths; each uploaded photo is a row (id, user_id, is_active), so a user with 10 photos has 10 rows, all of which must be rendered.",
+   "source": "transcript 00:34:37",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q029",
+   "q": "What query was written on the board to fetch all photos of a user, and why was a join needed?",
+   "answer": "Select * from photos join on users on photos.user_id = users.id where ...; the URL gives a hash of the email, not the user ID, so photos must be joined to users to filter for the user.",
+   "source": "transcript 00:36:59; board S14",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q030",
+   "q": "Can you recover the email from its hash inside the query (decrypt it)?",
+   "answer": "No. Hashing is not encryption; it is lossy, so the email cannot be obtained back.",
+   "source": "transcript 00:38:15",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q031",
+   "q": "How did the teacher treat possible hash collisions between two users' emails in this design?",
+   "answer": "Accepted: assume hashes are unique, since if two people had the same hash there would be no way to disambiguate them anyway.",
+   "source": "transcript 00:39:05",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q032",
+   "q": "Why is 'where HASH(email) = ?' very inefficient?",
+   "answer": "The where clause contains a computation, so indexes cannot be used: the database must compute the hash of every row's email and compare it, i.e. a full table scan on every request.",
+   "source": "transcript 00:41:32; board S15",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q033",
+   "q": "How was the hash-lookup problem fixed, and what rule from the previous day did it contradict?",
+   "answer": "Store the hash as its own column (computed when the user is created), index it (email and hash are both unique keys) and query 'where users.hash = ?', making it a near O(1) pointed lookup before the join. It contradicts 'don't store what is derivable': store the redundant value when deriving it slows down a very common query.",
+   "source": "transcript 00:42:24; board S16",
+   "kind": "tradeoff",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q034",
+   "q": "What did the users table on the board look like after the hash column was restored?",
+   "answer": "Starred columns * id, * email, * hash (a green * active_photo_id was added later).",
+   "source": "transcript 00:43:15; board S16 00:42:45",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q035",
+   "q": "What lesson did the teacher draw from the hash-column episode?",
+   "answer": "Drawing boxes is easy; the devil lies in the details. Unless you write the query and work out how it executes, you won't see that it is not performant.",
+   "source": "transcript 00:44:11",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q036",
+   "q": "What was the first query written to mark a photo active?",
+   "answer": "update photos set is_active = true where id = ?",
+   "source": "transcript 00:45:33; board S18 00:45:30",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q037",
+   "q": "Does adding user_id to 'where id = ?' make that update faster?",
+   "answer": "No; id is the primary key, so the lookup is already log n and efficient.",
+   "source": "transcript 00:46:58",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q038",
+   "q": "What was the first thing wrong with the single update, and what query was added?",
+   "answer": "It did not mark the previously active photo inactive. Added before it: update photos set is_active = False where user_id = ?",
+   "source": "transcript 00:47:37; board S19",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q039",
+   "q": "What refinement was made to the 'set all false' update?",
+   "answer": "Add 'and is_active = True' so it touches only the row that is currently active instead of every photo of the user.",
+   "source": "transcript 00:49:44; board S20",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q040",
+   "q": "Why must the two updates be wrapped in a transaction (the Tx markers on the board)?",
+   "answer": "If the first update runs and the process crashes before the second, no photo is active; e.g. Facebook rendering the profile photo gets a 404. People skip this because it seems obvious.",
+   "source": "transcript 00:50:57; board S21",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q041",
+   "q": "Why add 'and user_id = ?' to 'where id = ?' when id is the primary key?",
+   "answer": "Security and correctness: a user may only mark their own photo active. Without it, a random photo ID passed from the frontend would deactivate your photo and activate someone else's.",
+   "source": "transcript 00:53:33; board S22",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q042",
+   "q": "What code-review analogy did the teacher use for simple systems?",
+   "answer": "Write 5 lines of code and get 50 comments; write 500 lines and get 'looks good to me' - simple systems are where every detail should be nitpicked.",
+   "source": "transcript 00:55:57",
+   "kind": "heuristic",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q043",
+   "q": "What query fetches a user's active photo when the Gravatar URL is hit (with is_active in photos)?",
+   "answer": "Select * from photos join on users on photos.user_id = users.id where users.hash = ? and photos.is_active = True.",
+   "source": "transcript 00:56:55; board S24",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q044",
+   "q": "Is switching between inner and left join the 'minor optimization' for the active-photo query?",
+   "answer": "No; an inner join performs exactly the same as a left join here.",
+   "source": "transcript 00:58:23",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q045",
+   "q": "How does the database narrow down the active-photo query, and is filtering on is_active a cost?",
+   "answer": "Filter users by the unique hash (one row), join that user to photos (e.g. 10 rows), then keep the one with is_active true. Since it has already narrowed to an indexed lookup, the is_active filter is fast and not a problem.",
+   "source": "transcript 00:59:44",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q046",
+   "q": "What schema change did a student propose for this read-heavy system?",
+   "answer": "Store active_photo_id on the users table (the green column on the board), so the most frequent query avoids the join.",
+   "source": "transcript 01:01:22; board S25",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q047",
+   "q": "With is_active still in photos, does adding active_photo_id to users remove the need for a transaction?",
+   "answer": "No. You would still need the transaction, now also updating users.active_photo_id in the same transaction; only the read query avoids the join.",
+   "source": "transcript 01:01:43",
+   "kind": "misconception",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q048",
+   "q": "With active_photo_id on users, how is the active photo served?",
+   "answer": "Select * from users where id/hash = ? gives the user_id and active_photo_id, from which you build the S3 path, read the file and send it - a primary-key lookup with no join.",
+   "source": "transcript 01:02:29",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q049",
+   "q": "Compare the two designs: is_active in photos vs active_photo_id in users.",
+   "answer": "is_active in photos needs a join to read and two updates (unset old, set new) in a transaction to switch. active_photo_id in users makes the most frequent read a primary-key lookup and switching a single update (with the ownership checks). The board erased is_active and struck through both photos updates.",
+   "source": "transcript 01:03:48; board S27",
+   "kind": "tradeoff",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q050",
+   "q": "Why is putting the active flag on users counter-intuitive, and what lesson did the teacher draw?",
+   "answer": "We are trained (class/schema design) to model attributes as properties of the entity, and 'is active' feels like a property of a photo. Thinking out of the box simplifies the system; challenge your own beliefs, unlearn and relearn.",
+   "source": "transcript 01:04:20",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q051",
+   "q": "After moving to active_photo_id, how many queries does marking a photo active take, and why is no explicit transaction needed?",
+   "answer": "A single update (update users set active_photo_id = ? where ...); with autocommit a single query is a transaction in itself.",
+   "source": "transcript 01:05:18",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q052",
+   "q": "List the board's 'Prepare for upload' steps for a Gravatar photo, in order, and the upload step.",
+   "answer": "1) user requests the Photo Upload Service for a new upload, 2) the service generates a random id, 3) it generates a signed URL for S3://gravatar-images/{user_id}/{random photo id}, 4) it sends the signed URL to the user. Upload photo: the user uploads the photo directly to S3.",
+   "source": "transcript 01:07:29; board S28",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q053",
+   "q": "After the upload to S3, what is recorded in the database?",
+   "answer": "The client calls the API server, which adds a row to the photos table (id, user_id, is_active) in MySQL (or any database). The photo upload service from the previous day is reused unchanged.",
+   "source": "transcript 01:07:29; board S29",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q054",
+   "q": "Why should Gravatar photos be served via a CDN rather than from backend servers?",
+   "answer": "At Facebook/Instagram scale, millions of hits would reach backend servers and in turn S3, causing chaos and a shooting AWS bill; the CDN gives speed, scale and a better user experience.",
+   "source": "transcript 01:08:25",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q055",
+   "q": "List the board's steps for https://api.gravatar.com/photos/{hash} ('Render the active photo').",
+   "answer": "1) get the hash from the URL, 2) get the active photo id from the database (select ... join users where users.hash = {hash} and is_active = True), 3) read the file from S3 at S3://gravatar-images/{user_id}/{photo id}, 4) return the response.",
+   "source": "transcript 01:09:07; board S30 01:08:27",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q056",
+   "q": "How is the CDN configured so users can use https://gravatar.com/{hash}?",
+   "answer": "Create a CDN property for gravatar.com (the root domain itself) whose origin is api.gravatar.com/photos, so gravatar.com/hash maps to api.gravatar.com/photos/hash.",
+   "source": "transcript 01:09:48; board S31",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q057",
+   "q": "What two benefits did the board list for serving through the CDN?",
+   "answer": "The speed and scale of the CDN, and ease of use for the user (a simple URL).",
+   "source": "board S31 01:11:00",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q058",
+   "q": "What happens on a request to gravatar.com/{hash} when the CDN does and does not have the photo?",
+   "answer": "Hit: the CDN serves it. Miss: the CDN calls origin api.gravatar.com/photos/hash, which reads the DB for the active photo, reads it from S3 and returns it; the CDN caches it and serves later requests.",
+   "source": "transcript 01:10:34",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q059",
+   "q": "In the Gravatar architecture, what happens when a user updates their active photo, and how does the change reach the CDN?",
+   "answer": "The API updates MySQL and pushes an event to Kafka (queue); consumers (CDN invalidation workers) call the CDN's invalidation API for the path (e.g. /h1), deleting the cached file. The next request misses, goes to API -> DB -> S3, and the CDN caches the new photo.",
+   "source": "transcript 01:11:52; board S32",
+   "kind": "diagram",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q060",
+   "q": "Why invalidate the CDN instead of relying on the TTL for Gravatar photos?",
+   "answer": "Photos rarely change, so the TTL may be one or two days; but when a user changes their photo they want it updated everywhere immediately, for a good user experience.",
+   "source": "transcript 01:11:52",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q061",
+   "q": "Inside the mark-active transaction, what if a wrong photo ID matches no row - should you guard against it?",
+   "answer": "Yes. Something expected to update but nothing updated is an alarm (often a frontend bug); otherwise the old photo is deactivated and nothing is activated -> 404. If the rule is 'exactly one active', first select to check the photo exists for that user, and only then run the updates; always validate so data never goes inconsistent.",
+   "source": "transcript 01:15:28",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q062",
+   "q": "Why doesn't the Gravatar CDN point straight to S3 as its origin?",
+   "answer": "S3 is not public, and S3 does not know which photo is active; only the database (source of truth) knows. So the CDN falls back to api.gravatar.com, which reads the DB, finds the active photo, fetches it from S3 and returns it.",
+   "source": "transcript 01:18:26",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q063",
+   "q": "Why is hashing at query time ruled out?",
+   "answer": "'where hash(email) = ?' forces the DB to go through every row, compute the hash of the email and compare - a full table scan.",
+   "source": "transcript 01:19:28",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q064",
+   "q": "In the active-photo query, is user_id used for filtering?",
+   "answer": "No; user_id is only the join criterion (a foreign key). Filtering is on users.hash (and is_active).",
+   "source": "transcript 01:20:33",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q065",
+   "q": "What is predicate pushdown, as explained in class?",
+   "answer": "The query optimizer builds an evaluation tree that is evaluated bottom-up; filters such as the unique-key users.hash predicate are pushed to the leaf nodes so they run first, then the join, then the operations above - progressively narrowing rows.",
+   "source": "transcript 01:21:24",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q066",
+   "q": "How is the CDN cache invalidated when an image is updated?",
+   "answer": "By calling the CDN's invalidation API; CDNs such as Cloudflare and Akamai expose APIs to invalidate a path.",
+   "source": "transcript 01:22:26",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q067",
+   "q": "What 'possible optimization' did the pre-written board show for the users table?",
+   "answer": "Denormalize to avoid joins: users gets id | email | hash | active_photo_id (sample row 729 | arpit@gmailcom | 0eafd172 | cdae), with a note that it could be an active_S3_key.",
+   "source": "transcript 01:23:08; board S34 01:23:09",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q068",
+   "q": "What problem does on-demand image optimization solve?",
+   "answer": "Serving the same image at different sizes (a tiny 16x16 or 32x32 avatar, 256x256, 512x512 on other pages) from whatever resolution the user uploaded.",
+   "source": "transcript 01:23:23",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q069",
+   "q": "How is the desired transformation requested, and what is it not?",
+   "answer": "Through a query parameter like ?w=32 (resize to 32 width), as CDNs accept. It is not uploading and having servers pre-create multiple variants; the transformation is applied on demand when requested.",
+   "source": "transcript 01:24:10; board S35",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q070",
+   "q": "List, in the board's order, what a CDN does internally for a URL-driven image manipulation.",
+   "answer": "1) reads the URL, 2) if it has the file, return it, 3) if not, read the file from origin, 4) transform as per the given transformations, 5) cache the file locally, 6) return the response. (The transform step is the extra step added.)",
+   "source": "transcript 01:24:45; board S36",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q071",
+   "q": "Why can ImageMagick be used from almost any language?",
+   "answer": "It is written in C++, and almost every language has C++ bindings to invoke native code; it offers functions like resize that return the image as in-memory bytes to send.",
+   "source": "transcript 01:25:27",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q072",
+   "q": "How do you scale on-demand image processing?",
+   "answer": "Image processing (like encryption and video processing) is CPU-intensive; use large servers with many CPUs (size and numbers) to parallelize, and autoscale the fleet with incoming requests.",
+   "source": "transcript 01:27:05; board S36",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q073",
+   "q": "Why can on-demand image transformation not be made asynchronous?",
+   "answer": "It is a synchronous request: when the URL loads, the transformed image (e.g. 240px) must be produced right then and returned in the response.",
+   "source": "transcript 01:28:00; board S36",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q074",
+   "q": "What did the CDN company's blog (Cloudflare/Cloudinary) say about its on-demand image optimization?",
+   "answer": "They used the ImageMagick library on massive servers (32 or 64 cores) and scaled the fleet with incoming requests - nothing fancy.",
+   "source": "transcript 01:28:00",
+   "kind": "example",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q075",
+   "q": "After the active_photo_id change, what is the clean update to mark a photo active?",
+   "answer": "update users set active_photo_id = ? where hash = ?",
+   "source": "transcript 01:31:22; board S37",
+   "kind": "qa",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q076",
+   "q": "Should a status like is_active be a Boolean or an enum?",
+   "answer": "An integer-based enum stored as a tiny int is fine and gives flexibility to add a third state; a Boolean takes 8 bits anyway. Use a small integer, and don't store strings in the database.",
+   "source": "transcript 01:32:15",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q077",
+   "q": "Should the active_photo_id update also verify the photo belongs to the user?",
+   "answer": "Yes, 100%: do a get and check (the photo exists and belongs to this user), then update; securing one path but lapsing on another does not work.",
+   "source": "transcript 01:33:09",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q078",
+   "q": "Why did Slack's design use a membership table between users and channels, while Gravatar's photos just carry a user_id?",
+   "answer": "Gravatar is a simple one-to-many with no extra data. Slack's membership stored per-relationship details (last-read checkpoint, channel starred by a user), so it needed its own table.",
+   "source": "transcript 01:34:23",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q079",
+   "q": "What is the tagging-in-photos exercise about, as framed in class?",
+   "answer": "A CXO gives a one-line brief ('let people tag people in photos'); the senior engineer must think through requirements and how the feature affects and interacts with other systems - not design the system itself.",
+   "source": "transcript 01:40:40",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q080",
+   "q": "What three hats does a senior engineer always wear?",
+   "answer": "1) Product manager - requirements and things others have not thought about; 2) Architect - architect the system for future extensibility; 3) Engineer - low-level nitty-gritty details, optimal across all layers.",
+   "source": "transcript 01:41:39",
+   "kind": "recall",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q081",
+   "q": "When brainstorming the tagging brief, why was 'what is the schema for tags' rejected as a first question?",
+   "answer": "The exercise is to think on the product side about requirements, not engineering.",
+   "source": "transcript 01:43:19",
+   "kind": "misconception",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q082",
+   "q": "What does the 'who can tag (authorization)' question really mean for the system?",
+   "answer": "Whether other people may tag you in their photos must be in your control (a setting), which requires a separate authorization layer tracking who is allowed to tag whom (as on Instagram/Twitter).",
+   "source": "transcript 01:44:50; board S39",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q083",
+   "q": "Is concurrency a challenge when tagging people in your photo?",
+   "answer": "No; only the photo's owner tags people in their own photo, so others don't update it concurrently.",
+   "source": "transcript 01:47:32",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q084",
+   "q": "How does the max number of people taggable in a photo (5 vs 10,000) change the design?",
+   "answer": "5: keep tags in an array inside the photo's document. 10,000: the document grows too big, so store separate entries and serve them via paginated endpoints. The limit determines the storage schema.",
+   "source": "transcript 01:48:12; board S39",
+   "kind": "tradeoff",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q085",
+   "q": "If tagged people are notified, why must you interface with the notification team?",
+   "answer": "The feature causes a big spike in notification traffic; if their systems are not scaled up in advance they get overburdened and other critical notifications can be affected.",
+   "source": "transcript 01:49:32",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q086",
+   "q": "What kind of throttling does tagging notifications need?",
+   "answer": "Product-level throttling: don't notify for every photo someone is tagged in (good apps send about 3-5 notifications a week; daily notifications push users to uninstall); club them into a richer notification.",
+   "source": "transcript 01:50:40; board S39",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q087",
+   "q": "How does self-removal of a tag change authorization?",
+   "answer": "It becomes more granular: although the photo belongs to user 1, a tagged user must be allowed to remove themselves from it - requiring a robust authorization layer.",
+   "source": "transcript 01:53:02; board S39",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q088",
+   "q": "What does adding face-recognition tag suggestions imply?",
+   "answer": "A synchronous dependency on the ML team's API, which must meet a strict SLA (if slow, users sometimes see suggestions and sometimes don't), plus a fallback plan if it doesn't respond in time (allow manual tagging or not - a product call).",
+   "source": "transcript 01:54:36; board S39",
+   "kind": "tradeoff",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q089",
+   "q": "Why does showing tags in the user's profile/activity affect the database choice?",
+   "answer": "You must query 'in which photos is this user tagged', so tags cannot sit in an unindexable array; they must be stored in a database that supports that query efficiently.",
+   "source": "transcript 01:56:49; board S39",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q090",
+   "q": "What does pushing tag events into followers' feeds imply?",
+   "answer": "It is a product call; if yes, the feed team must gear up for the scale, since every tag pushes into feeds (possibly shown only to some users).",
+   "source": "transcript 01:57:46; board S39",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q091",
+   "q": "List the requirement questions on the board for tagging, in order.",
+   "answer": "who can tag (authorization); max limit of people tagged in a photo; notification & throttling; self-removal; face recognition & suggestion (SLA); profile/activity (DB); feed.",
+   "source": "transcript 01:43:30; board S39 01:43:30",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q092",
+   "q": "Why can't a tag's absolute pixel position (e.g. 320,120 in a 720x720 image) be stored?",
+   "answer": "Images are resized per device; on a low-end device rendering it at 360x360, the point (320,120) lands in the wrong place.",
+   "source": "transcript 01:58:42; board S40",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q093",
+   "q": "What is stored instead for a tag at (320,120) in a 720x720 image, and when does it stay correct?",
+   "answer": "The relative position (320/720, 120/720); it stays correct on any device size as long as the aspect ratio is maintained.",
+   "source": "transcript 01:59:44; board S40",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q094",
+   "q": "Why store a bounding box rather than a point, and in what two forms?",
+   "answer": "Hovering shows a tag over an area, not an exact point. Store LTRB (left-top and right-bottom relative coordinates) or x,y,w,h (a corner plus relative width and height) - whichever the frontend prefers.",
+   "source": "transcript 02:00:23; board S40",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q095",
+   "q": "What table schema was on the board for photo tags?",
+   "answer": "posts_tags with columns post_id | user_id | location.",
+   "source": "transcript 02:00:23; board S40 01:58:45",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q096",
+   "q": "What did the board call the key component for extensibility in tagging, and how is it used?",
+   "answer": "Kafka: a PHOTO_TAG event is published and consumed by many consumers (search, notification, analytics, profile, feed, activity).",
+   "source": "transcript 02:01:16; board S41",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q097",
+   "q": "Which services did the board list for tagging to interact with?",
+   "answer": "Search, Face detection, Location, Notification, RBAC (authorized to tag?).",
+   "source": "transcript 02:01:16; board S41 02:01:30",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q098",
+   "q": "What does the newly unread count on the messages icon mean, versus unread messages?",
+   "answer": "It indicates the presence of new messages since you last acknowledged; clicking the icon resets it to zero even if you read nothing, while the messages themselves stay unread.",
+   "source": "transcript 02:04:03",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q099",
+   "q": "What twist was added: what does the badge '3' count?",
+   "answer": "The number of unique people you received newly unread messages from - e.g. 300 messages from 3 people shows 3.",
+   "source": "transcript 02:05:58; board S42",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q100",
+   "q": "What requirements were written for the newly unread indicator?",
+   "answer": "Near-realtime; update upon new messages received from a user; # new unreads = # different people from which a message was received and is unread.",
+   "source": "transcript 02:05:58; board S44 02:05:57",
+   "kind": "recall",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q101",
+   "q": "What does 'newly' mean in the indicator?",
+   "answer": "Since the last time the user clicked the message icon.",
+   "source": "transcript 02:07:31",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q102",
+   "q": "Which tables made up the crude schema on the board?",
+   "answer": "user (id); user_activity (user_id, last_read_at), one row per user; messages (msg, from, to, ts).",
+   "source": "transcript 02:11:53; board S46 02:11:30",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q103",
+   "q": "What crude query computes the count?",
+   "answer": "Select count(uniq(from)) from messages where to = ? and ts > last_read_at (joined with user_activity).",
+   "source": "transcript 02:14:07; board S46",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q104",
+   "q": "What composite index did the class settle on for the count query, and why that order?",
+   "answer": "(to, ts, from): a recipient's entries are grouped together and ordered by timestamp, so the scan jumps to the recipient and cuts short at last_read_at. The teacher first said (to, from, ts) and agreed with a student's correction to (to, ts, from).",
+   "source": "transcript 02:16:15",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q105",
+   "q": "Why is the crude query still expensive even with a good index?",
+   "answer": "For a user with e.g. 10,000 messages you iterate 10,000 index entries and take the unique of them - maybe to learn the answer is 1 - on every page load, for millions of active users.",
+   "source": "transcript 02:15:39",
+   "kind": "number",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q106",
+   "q": "Was the crude approach called wrong?",
+   "answer": "No - it is correct (100%, because it queries the sources of truth: messages and the last-read time) but inefficient; marked CRUDE and INEFFICIENT on the board.",
+   "source": "transcript 02:18:14; board S47",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q107",
+   "q": "Why was the separate newly_unread_count field struck from the per-user structure?",
+   "answer": "The set of unique users already gives it: every set tracks its length, an O(1) operation, so a separate count is redundant.",
+   "source": "transcript 02:22:50; board S49",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q108",
+   "q": "What is the final per-user structure, and what happens when the user clicks the messages icon?",
+   "answer": "user_id: unique_users set<>; when the user clicks the icon, the set is deleted (O(1)).",
+   "source": "transcript 02:23:12; board S50",
+   "kind": "diagram",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q109",
+   "q": "What classic pattern did the teacher name with the crude vs set designs?",
+   "answer": "Either query the source of truth (when you need strong consistency) or keep data pre-computed / stored in a directly consumable form for efficiency; pre-computed data must then be kept updated by a separate flow.",
+   "source": "transcript 02:23:39",
+   "kind": "heuristic",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q110",
+   "q": "When would you choose the crude query vs the pre-computed set?",
+   "answer": "Neither is wrong; a startup can use the source-of-truth query; as millions of users become concurrently active, you move to the pre-computed approach.",
+   "source": "transcript 02:25:10",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q111",
+   "q": "What datastore was chosen for the per-user set, and what is the key requirement?",
+   "answer": "Redis, but any key-value store that offers a set as the value works, so you don't have to check-and-set yourself.",
+   "source": "transcript 02:26:20; board S51",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q112",
+   "q": "What are the read-path APIs and what does each do against Redis?",
+   "answer": "getStatus: counts the elements of the user's set and returns the count; clear: deletes the user's key when they click the icon.",
+   "source": "transcript 02:26:45; board S52",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q113",
+   "q": "Why must the client and backend be smart about when to count a message?",
+   "answer": "If the user is already on the messaging tab, a new message should not count as newly unread; Redis is updated only when the message cannot be delivered (e.g. the WebSocket is off).",
+   "source": "transcript 02:28:16",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q114",
+   "q": "Why is the messaging service the input to the unread system?",
+   "answer": "It knows whether a message was delivered, whether you are on that tab, whether your WebSocket is connected (its edge servers hold the persistent connections, or it asks an online/offline service) - it is the source of trust.",
+   "source": "transcript 02:30:36; board S53",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q115",
+   "q": "What is the ON_MSG_UNSENT event?",
+   "answer": "An umbrella event on Kafka, emitted by the messaging service whenever a message could not be delivered in real time (whatever the definition: offline, other tab...); it is the input to the unread system.",
+   "source": "transcript 02:31:10; board S53",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q116",
+   "q": "What does each ON_MSG_UNSENT event contain, and how is it stored per user?",
+   "answer": "{src: 'A', dest: 'B', msg: '...'}; stored as a set of unique senders per user, e.g. user_id: {u1, u2, u5}, B: {C, D}.",
+   "source": "transcript 02:31:34; board S54 02:31:42",
+   "kind": "diagram",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q117",
+   "q": "Describe the read path and write path on the board's final diagram.",
+   "answer": "Read: user -> get_status / clean_status -> Status check API -> Redis Cluster. Write: ON_MSG_UNSENT -> queue -> Status update workers -> Redis Cluster; the queue also feeds the Notification System.",
+   "source": "transcript 02:32:06; board S55",
+   "kind": "diagram",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q118",
+   "q": "What three loads hit the main Redis cluster?",
+   "answer": "A huge number of reads (get status on every page load), writes when users click the icon (clear), and writes for every message-unsent event.",
+   "source": "transcript 02:33:01",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q119",
+   "q": "What unnecessary work does the main Redis do on the write path?",
+   "answer": "Values are sets: of 10,000 messages from user B, only the first changes the set; the other n-1 writes cause no state change but still cost network I/O and DB work (read the set, check, discard).",
+   "source": "transcript 02:34:23",
+   "kind": "concept",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q120",
+   "q": "What high-level principle about databases did the teacher stress?",
+   "answer": "The database is the most brittle component of your infrastructure - if it is down everything is down - so protect it, and minimize operations that lead to no state change.",
+   "source": "transcript 02:36:33",
+   "kind": "heuristic",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q121",
+   "q": "How does the auxiliary Redis work on the write path?",
+   "answer": "Workers first check the auxiliary Redis whether the entry (e.g. B received from C) exists; if it exists, skip the main Redis; if not, write to the main Redis. The n-1 repeat checks hit the auxiliary store, protecting the main DB.",
+   "source": "transcript 02:38:02; board S55",
+   "kind": "diagram",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q122",
+   "q": "What is the trade-off of adding the auxiliary Redis?",
+   "answer": "One more network I/O per event, in exchange for reduced load that protects the main database from going down - worth it every time.",
+   "source": "transcript 02:37:16",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q123",
+   "q": "What happens if the auxiliary Redis goes down?",
+   "answer": "All writes go to the main Redis, which handles the n-1 writes it was handling before anyway; the auxiliary store only sheds load.",
+   "source": "transcript 02:39:07",
+   "kind": "concept",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q124",
+   "q": "When the status is cleared, what extra work does the auxiliary Redis add?",
+   "answer": "The clear API must delete the entries from both the main Redis and the auxiliary Redis.",
+   "source": "transcript 02:39:36",
+   "kind": "concept",
+   "difficulty": "easy"
+  },
+  {
+   "id": "Q125",
+   "q": "Why accept slight inconsistency between the two Redis stores?",
+   "answer": "It is not transactional or financial - just unread counts; a small glitch is not the end of the world for the product, but the whole system going down is. Pick your battles.",
+   "source": "transcript 02:40:07",
+   "kind": "tradeoff",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q126",
+   "q": "What threshold optimization was added in Q&A?",
+   "answer": "Once the unique set exceeds a threshold like 100, show '100+' and skip further writes - even a new unique sender's first write is saved.",
+   "source": "transcript 02:42:58",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q127",
+   "q": "How are entries keyed in the auxiliary Redis versus the main Redis cluster?",
+   "answer": "Main: a per-user set (B: {C, D, ...}). Auxiliary: separate keys like B_C: True, B_D: True - pure existence, no count; either model would work.",
+   "source": "transcript 02:43:41; board S55",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q128",
+   "q": "What inconsistency can occur between the two stores, and what is the worst-case effect?",
+   "answer": "One write succeeds and the other fails; the badge might show 2 when it should be 3. Acceptable - not worth the complexity of distributed transactions.",
+   "source": "transcript 02:45:50",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q129",
+   "q": "Should updates to both Redis stores be done in a transaction?",
+   "answer": "No; accept some inconsistency in favor of high throughput - the worst case is a slightly off count, and the user still sees all messages on opening.",
+   "source": "transcript 02:46:51",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q130",
+   "q": "Why not do a read-before-write on the main Redis instead of adding an auxiliary Redis?",
+   "answer": "Even reads consume CPU on the main DB; the goal is to not fire any unnecessary instruction on it at all - protect it like the rose in the glass jar.",
+   "source": "transcript 02:48:21",
+   "kind": "qa",
+   "difficulty": "hard"
+  },
+  {
+   "id": "Q131",
+   "q": "Why doesn't the Gravatar URL include the user ID?",
+   "answer": "The hash is a universal function (MD5 of the email); any site with your email can compute it and render your Gravatar without knowing your Gravatar user ID.",
+   "source": "transcript 02:49:20",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q132",
+   "q": "What exactly counts as 'message unsent'?",
+   "answer": "An umbrella for 'could not send the message to the user in real time'; whether being on another tab counts, or only being offline, is a product call. Whatever flows into it updates the count.",
+   "source": "transcript 02:50:28",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q133",
+   "q": "How did the teacher recommend getting good at SQL/query optimization?",
+   "answer": "Learn how relational databases work; run EXPLAIN on real queries, look up every term of the plan in the official documentation (not blogs), try changes on staging or a dumped copy, one query at a time.",
+   "source": "transcript 02:53:34",
+   "kind": "qa",
+   "difficulty": "medium"
+  },
+  {
+   "id": "Q134",
+   "q": "Is the auxiliary Redis a single node or a cluster?",
+   "answer": "A cluster - a single node cannot handle the load.",
+   "source": "transcript 02:55:35",
+   "kind": "qa",
+   "difficulty": "easy"
+  }
+ ]
+}

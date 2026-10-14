@@ -1,0 +1,199 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { RoseUnderGlass, LoadAudit, FirstVsRepeats, WhichFailure } from '../../../figures/lec06/s6-auxiliary';
+import { Paths } from '../../../figures/lec06/s5b-badge';
+
+{/* §6 Protect the database: the auxiliary database (6.1–6.4). Writer w4. The Q&A after 02:42 is folded into
+    6.2 (key model, existence only, cluster), 6.3 (clear both, one write fails) and 6.4 (read first, threshold).
+    Design fixer (critic C-07): the chapter opens with a § 6 opener like chapters 1–3. */}
+
+<Section id="s6" no="6" title="Protect the database: the auxiliary database" crumb="6 Auxiliary database"
+  dek="The design works, but the database is doing work that changes nothing. Put a cheap store in front of it to absorb that work, and decide what inconsistency you can live with."
+  meta="About 17 min · class 02:32–02:41, Q&A 02:42–02:55">
+
+The badge from the last chapter is correct and fast to read. This chapter asks what its database is doing that it doesn’t need to.
+
+It audits every path, puts a small second store in front of the main one, works out what happens when either store fails, and weighs two cheaper-looking alternatives.
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Audit every path" crumb="6.1 Audit every path"
+  dek="The design works. Now go path by path and ask what the database does that changes nothing."
+  meta="About 5 min · class 02:32–02:37">
+
+While B is offline, C sends 30 short messages. How many of those 30 writes change B’s set?
+
+Many people would stop designing at this stage. There is a read path and a write path, and the design looks converged. That isn’t good enough here. [[L-0279]] Look at the Redis cluster. It serves a huge number of reads: millions of users on the platform constantly refresh the page or move from one page to another, and each time the app calls the get API for the badge. On top of that come the writes whenever users tap the messages icon, and an update for every message-unsent event. This database is overburdened. [[L-0280]]
+
+The course’s standing heuristic applies: the database is the most brittle component of an infrastructure, so check whether you are doing unnecessary operations on it. [[L-0281]]
+
+<ForwardChip block label="from" when="Lecture 2" lec="lec01" sec="s3-2" k="L-0281">the database is the most brittle component: protect it</ForwardChip>
+
+Go path by path. Get status is already the bare minimum. You have to go to the database, because it is the source of truth, and a read replica isn’t needed: it is an in-memory database anyway. [[L-0282]] If read load ever grows beyond what the cluster’s primaries should carry, Redis replicas can serve these reads, since a slightly stale badge is acceptable: Redis replication is asynchronous and is documented for “multiple replicas for read-only queries”, and in a Redis Cluster clients send `READONLY` to read from replicas where possibly stale data is fine <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/replication/">redis.io</Cite> <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">redis.io</Cite>. Clear status has to go and delete the key, and you can’t do much about that either. There is no unnecessary operation on that path. [[L-0283]]
+
+<Figure id="fig-6a" no="Fig 6·a" k="L-0280 L-0282 L-0283 L-0284"
+  caption="Reads and clears are the bare minimum. The write path is where the waste is: one write in 30 changes anything. New figure.">
+  <Desk><LoadAudit /></Desk>
+  <Phone><LoadAudit layout="phone" /></Phone>
+</Figure>
+
+That leaves the write path. Every time a message-unsent event arrives, the worker updates the database, which looks like the bare minimum too. Now look at your own messages. When you are offline, friends don’t send you just one message. They send 5, 10, 15, 20, 30 short ones: “Hey, what are you doing?” “Come here.” “We are going for this.” [[L-0285]]
+
+<PauseAndThink k="L-0284 L-0285 L-0286 L-0287"
+  q="B is offline. C sends 30 short messages. Each one triggers a worker that adds C to B’s set in the main Redis. How many of those 30 writes change B’s set?"
+  choices={[{ label: 'All 30: each message is new' }, { label: 'Just 1: the other 29 change nothing', correct: true }]}
+  right="Right: one write changes the set; 29 are wasted work."
+  wrong="Not quite: just 1. Each message is new, but the set stores senders, and C is in it after the first.">
+
+Only the first. The value is a set of senders, so after the first message C is already in B’s set. The database still receives, reads, checks and discards each of the other 29, and all that load lands on the most brittle component for no change. That waste is what an auxiliary database removes: a cheap store answers “already recorded?”, so the main one is written once per sender.
+
+</PauseAndThink>
+
+Because the value in this Redis cluster is a set, it makes no difference whether C sends one message or 10,000: the state of the database changes only on the first, when C is added to the set. For the other 9,999 writes, nothing changes. Can that be reduced? [[L-0284]] For those N-1 repeats the worker still calls the database and tries to write to a set that already holds the sender. That wastes network I/O and, more importantly, makes the database handle every one of those requests. [[L-0286]] And handling one is real work. The database receives the request, reads the set, checks whether the entry exists, and discards the write if it does (adding it only if it doesn’t). That is a lot of work for nothing, N-1 times over. [[L-0287]] The return value even says so: Redis `SADD` returns 0 for a member that was already in the set <Cite href="https://redis.io/docs/latest/commands/sadd/">redis.io</Cite>.
+
+That is the pattern this chapter is about:
+
+<RuleBox rule="Whenever a database does a lot of operations that lead to ==no state change==, minimise them. ==Protect it== however you can: if the database is down, everything is down." k="L-0288 L-0309">
+
+Add an auxiliary database to absorb them. Treat the main store like the rose kept under glass: no matter what, it must not crumble.
+
+<Desk><RoseUnderGlass /></Desk>
+<Phone><RoseUnderGlass layout="phone" /></Phone>
+
+</RuleBox>
+
+The database is the most brittle component, and no matter which cloud provider you pick, if the database is down, everything is down. So whenever a database is doing a lot of unnecessary operations that lead to no state change, minimise them, and protect it however you can. [[L-0288]] The class reached for Harry Potter here (Voldemort, the Deathly Hallows): keep it protected no matter what, with all the magical charms you have. [[L-0289]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="The auxiliary database" crumb="6.2 The auxiliary database"
+  dek="A small second store answers one question: have we already recorded C for B? Only a no reaches the main database."
+  meta="About 5 min · class 02:37–02:39, Q&A 02:43–02:45 and 02:55">
+
+C’s second message is on its way. Something cheaper than the main cluster should be the one to notice that it changes nothing.
+
+The answer is a second store. It is an **auxiliary database**, and its job is to cut the unnecessary operations on the primary. Whenever a brittle component, typically the database, does many operations that change nothing, add an auxiliary database, reduce the load on the main one, and the service stays up. [[L-0290]] It costs one more network I/O per write, and network cost is not much in this case. Preventing your main database from going down by adding a bit of network cost is a good trade-off, and it is worth it every single time. It is all about trade-offs. [[L-0291]]
+
+The flow is short. Every write first goes to the auxiliary Redis, which checks whether the entry exists, that is, whether B already has an unread message from this sender. If the entry exists, nothing is written to the main database. If it doesn’t, the write goes on to the main database. [[L-0292]] Redis can do the check and the set in one atomic command: `SET key value NX` sets the key only if it doesn’t exist, and returns `OK` when it did (nil otherwise). Adding `EX seconds` gives the key a TTL, so stale entries eventually disappear <Cite href="https://redis.io/docs/latest/commands/set/">redis.io</Cite>.
+
+So for the N-1 repeats the main database isn’t even called, and its load drops. The auxiliary store takes the bulk of those queries, all the hitting, while one write per sender goes through and the main database stays protected. [[L-0286 L-0293]]
+
+<AnimationClip clip="l06-aux-redis" no="Clip 6·1" k="L-0286 L-0292 L-0293 L-0303"
+  lead="C sends 30 messages, then D sends 20. How many reach the main Redis, with and without the auxiliary?"
+  caption="C sends 30 messages, then D sends 20. Without help, all 50 reach the main store and 48 change nothing. With an auxiliary store, the repeats stop at a cheap existence check: 48 checks, and the main store gets 2 writes, one per sender. Shield the brittle database from work that changes nothing." />
+
+<p class="lead-in">The same flow, one message at a time. Step through with the buttons or the arrow keys:</p>
+
+<StepThrough id="fig-6b" no="Fig 6·b" label="First message versus repeats figure" k="L-0292 L-0293 L-0303 L-0304"
+  caption="Time runs down. Lanes are the status update worker, the auxiliary Redis and the main Redis cluster. The clear in step 5 comes from the status API, not the worker."
+  stepK={['L-0292', 'L-0292 L-0293', 'L-0293 L-0303', 'L-0303 L-0304', 'L-0295']}
+  steps={[
+    'First message from C: the auxiliary store has no <code>B_C</code> yet, so <code>SET B_C 1 NX</code> records it and answers <span class="term green">OK</span>.',
+    'Only then is the main store written: <code>SADD B C</code>, and C joins B’s set.',
+    'Second message: the auxiliary store already has <code>B_C</code> and answers nil, so main isn’t touched.',
+    'Thirty messages: one write to aux, one to main, and the rest are existence checks. Nothing is counted in aux.',
+    'B taps the icon: the clear deletes in both stores, <code>DEL B</code> on main and <code>B_C</code>, <code>B_D</code> on aux. The next message starts over.',
+  ]}>
+  <Desk><FirstVsRepeats /></Desk>
+  <Phone><FirstVsRepeats layout="phone" /></Phone>
+</StepThrough>
+
+Why separate keys like `B_C: true` (“B received a message from C”, value just true) rather than a set in the auxiliary store too? It removes the overhead of storing a set and comparing inside it, and it gives the two Redis instances clearly different key models. Storing a set there would work as well; either way is fine. [[L-0302]] A third option sits in between: one hash per receiver. `HSETNX B C 1` sets field C only if it is absent and returns 1 if it did, a single `DEL B` clears the user, and since Redis 7.4 `HEXPIRE` can give individual fields a TTL <Cite href="https://redis.io/docs/latest/commands/hsetnx/">redis.io</Cite> <Cite href="https://redis.io/docs/latest/commands/hexpire/">redis.io</Cite>.
+
+The auxiliary store is for checking, not for storing every message. If C sends B 10,000 messages, there is one write to the auxiliary Redis and one write to the main Redis, and every other message is only an existence check. [[L-0303]] It is easy to picture the auxiliary store incrementing a count for each repeat. It doesn’t: there is no count in it at all, only existence. [[L-0304]]
+
+And it is not one small box. The auxiliary Redis has to be a cluster too, because a single node won’t handle that load. [[L-0321]] In a Redis Cluster, keys are spread over hash slots, so `B_C` and `B_D` can land on different nodes. A hash tag such as `{B}_C` and `{B}_D` hashes only the part in braces, so all of a user’s keys share one slot and can be handled together <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">redis.io</Cite>.
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0292 L-0302"
+  caption="The final design: workers check the auxiliary Redis and write to the main cluster only for a new sender; a clear deletes in both. Redrawn from the class board at 02:40.">
+  <Desk><Paths aux /></Desk>
+  <Phone><Paths aux layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="When things go wrong" crumb="6.3 When things go wrong"
+  dek="Two stores mean two ways to fail, and writes that can drift apart. Decide which inconsistency you can live with."
+  meta="About 4 min · class 02:39–02:41, Q&A 02:45–02:48">
+
+Each store can fail. Which failure hurts?
+
+If the main database goes down, everything is down, but that was true before the auxiliary store existed. Now take the other case. If the auxiliary Redis goes down, no check happens there and all the writes go to the main database, which then handles the N-1 writes it was handling anyway. Adding the auxiliary database only sheds load from the main one. [[L-0294]]
+
+<Figure id="fig-6d" no="Fig 6·d" k="L-0294 L-0305"
+  caption="Losing main is losing the feature. Losing aux only puts the old load back on main. Below: if one store’s write succeeds and the other’s fails, they drift; at worst the badge undercounts until the next tap clears both. New figure.">
+  <Desk><WhichFailure /></Desk>
+  <Phone><WhichFailure layout="phone" /></Phone>
+</Figure>
+
+The clear changes a little. When the user taps the messages icon, the status check API has to delete from the main Redis and from the auxiliary Redis. After the tap, the next message from C creates both entries again. [[L-0295]]
+
+Two stores also mean two writes that can disagree. If the write to one Redis succeeds and the write to the other fails, they get out of sync, and that is a real problem, not to be denied. The worst that happens is the badge showing 2 while in reality there are 300 messages. [[L-0305]]
+
+Should the status update then be one transaction across the auxiliary Redis and the Redis cluster? It isn’t required. Take some inconsistency in favour of high throughput. At worst you see a count of two when it should be three. You will see every message once you tap and open the screen anyway, and if someone needed a reply and didn’t get one, they will send another message. Given how humans work, a bit of inconsistency is fine here. [[L-0306]]
+
+So accept it. This isn’t a financial system or anything critical, and bringing in distributed transactions to keep both writes consistent isn’t worth the complexity. A glitch in an unread badge is not the end of the world for your product; the whole system going down would be, because that is a very bad experience. [[L-0296]]
+
+As an engineer you may feel you are cheating, letting data go inconsistent instead of using a real transaction. In the real world it really doesn’t matter. Think from the user’s side: what is the worst that could happen to them, and would it be the end of the world? [[L-0307]] Pick your battles: decide what you are trading off, and for what. [[L-0297]]
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="Why not just read first, or stop counting?" crumb="6.4 Read first, or stop"
+  dek="Two cheaper-looking alternatives. One still touches the database you are protecting; the other is a genuine extra saving."
+  meta="About 3 min · class Q&A 02:42–02:43 and 02:47–02:49">
+
+Two alternatives sound cheaper than a second store.
+
+Why not do a read-before-write on the main Redis instead? Check whether C is already in B’s set, and write only if not. Because even reads on the main database are unwanted. Every instruction you fire at that database consumes some of its CPU, however slight, and the whole point is to protect it. [[L-0308]] Think of the rose in *Beauty and the Beast*, kept in a glass jar: no matter what, you don’t want it to crumble. [[L-0309]]
+
+The second idea was suggested in class as an extra optimization: a cap. When a user has a huge number of messages, say 10,000, the app doesn’t need the exact number; it can show “100+”, and past that point the workers stop writing to the Redis cluster at all, because it no longer matters. [[L-0300]] Applied to this design, it saves even more. If the set’s length is already above a threshold, say 100, don’t write even the first entry for a new sender, and that one extra write is saved too. [[L-0301]]
+
+<TradeoffTable caption="Handling repeat writes: four ways" k="L-0291 L-0300 L-0301 L-0308"
+  columns={[{ label: 'Write every time' }, { label: 'Read main, then write' }, { label: 'Auxiliary store' }, { label: 'Plus a threshold' }]}
+  rows={[
+    { label: 'Ops on the main DB per repeat', cells: [{ text: 'One full write that changes nothing', bad: true }, 'One read, still CPU on main', 'None: the check stops at aux', 'None, and none even for new senders past the cap'], k: 'L-0287 L-0308 L-0293 L-0301' },
+    { label: 'Extra hop', cells: ['No', 'A read before every write', 'One more network I/O, worth it', 'No'], k: 'L-0291' },
+    { label: 'Consistency risk', cells: ['None: one store', 'None: one store', 'Two stores can drift: 2 shown for 3', 'The badge stops at “100+” by design'], k: 'L-0305 L-0300' },
+    { label: 'If the extra piece fails', cells: ['Nothing extra to fail', 'Nothing extra to fail', 'Writes fall back to main: the old load', 'Nothing extra to fail'], k: 'L-0294' },
+  ]} />
+
+Four systems, one class. Here is what to carry out of the room.
+
+<h3 id="s6-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0284 L-0303" q="Of 30 messages from one friend, how many writes reach the main Redis with the auxiliary store, and how many without?">
+
+With it: one. The first message finds no `B_C` in the auxiliary store, records it, and writes C into B’s set on main; the other 29 stop at an existence check. Without it: all 30 reach main, and 29 of them change nothing, though main still receives, reads, checks and discards each one.
+
+  </RecallItem>
+  <RecallItem k="L-0294" q="The auxiliary Redis crashes. What happens to the badge, and why is that acceptable?">
+
+The badge keeps working. With no check available, the workers send every write straight to the main cluster, which is exactly the load it carried before the auxiliary store existed. The auxiliary store only sheds load, so losing it costs efficiency, not correctness. Losing main is the failure that takes everything down.
+
+  </RecallItem>
+  <RecallItem k="L-0296 L-0306" q="Why not wrap both writes in a distributed transaction, and what’s the worst-case user-visible error?">
+
+Because the badge isn’t financial or critical, and a distributed transaction adds complexity and costs throughput for no real gain. The worst case is a drifted count, such as 2 shown when there are 3 (or 2 while 300 messages wait). The user sees everything after a tap anyway, and someone who needs a reply will write again. Pick your battles.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '7 · What to keep', href: '#s7' }}
+  concepts={[{ label: 'no-op writes', href: '#s6-1' }, { label: 'protect the database', href: '#s6-1' }, { label: 'auxiliary database', href: '#s6-2' }, { label: 'SET NX', href: '#s6-2' }, { label: 'existence keys', href: '#s6-2' }, { label: 'shed load', href: '#s6-3' }, { label: 'accept inconsistency', href: '#s6-3' }, { label: 'pick your battles', href: '#s6-3' }, { label: 'threshold', href: '#s6-4' }]} />
+
+</Section>

@@ -1,0 +1,176 @@
+{
+ "lecture": "lec06",
+ "coverage": {
+  "s0-header": "7/7",
+  "s1-images": "51/51",
+  "s2a-gravatar": "43/43",
+  "s2b-gravatar": "67/67",
+  "s3-serving": "50/50",
+  "s4-tagging": "61/61",
+  "s5a-badge": "34/34",
+  "s5b-badge": "30/30",
+  "s6-auxiliary": "43/43",
+  "s7-keep": "14/14",
+  "figures": "34/34",
+  "clips": "4/4",
+  "source_notes": "8/8",
+  "inline_clarifications": "10/10",
+  "unverifiable_attributions": "13/13"
+ },
+ "issues": [
+  {
+   "id": "F-001",
+   "severity": "medium",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec06/s3-serving.mdx",
+   "line": 80,
+   "quote": "It is a common question why the CDN doesn’t point to S3 directly, and one reason often given is that S3 is not public.",
+   "problem": "The 'S3 is not public' reason was the teacher's own answer, not a reason 'often given' by other people. The page moves the imprecise half of the teacher's answer onto unnamed others. Together with the PauseAndThink at line 72, which marks 'the bucket is private' as the wrong choice before the teacher's point is stated, this makes it look as if the class never said it. The policy (SN-05) is to keep the teacher's point as taught and put the correction beside it.",
+   "evidence": "transcript 01:18:26 'One common question that ask is why CDN not pointing to S3 directly? Because S3 is not public. Only my database knows which photo is active.' / L-0139, L-0140",
+   "fix": "\"A common question is why the CDN doesn’t point to S3 directly. The class gave two reasons in one breath: S3 is not public, and only the database knows which photo is active. [[L-0139]]\" Keep SN-05 right after this sentence. Then change line 88 to start \"The second reason is the one that holds: S3 doesn’t know which photo is active…\" [[L-0140]]"
+  },
+  {
+   "id": "F-002",
+   "severity": "medium",
+   "kind": "figure",
+   "file": "site/src/content/lectures/lec06/s2a-gravatar.mdx",
+   "line": 92,
+   "quote": "The hash is crossed off as derivable, and so is the photo’s path. Redrawn from the class board at 01:08.",
+   "problem": "On the board at 01:08 (D-04, frame b_010800) the users table has a hash column holding the value 0eafd172. It is not crossed off. The hash was struck at 00:35:45 and restored by 00:44:15. So Fig 2·a puts the 00:35 strike-through onto the 01:08 sample rows and labels the mix as a board redraw. The board also never drew 'the photo’s path' as crossed off: the path was only said aloud (L-0070, L-0121).",
+   "evidence": "board/diagrams.md D-04 (users id|email|hash row 729|…|0eafd172), D-02 'hash struck … restored' / L-0067 detail 'hash struck through at 00:35:45 and restored by 00:44:15'",
+   "fix": "Caption: \"The schema after the first pass (about 00:36), with the sample rows the board used later (the email swapped for an example address). At this point the hash is crossed off as derivable, and the photo’s path isn’t stored. Built from the class board at 00:35 and 01:08.\""
+  },
+  {
+   "id": "F-003",
+   "severity": "medium",
+   "kind": "figure",
+   "file": "site/src/content/lectures/lec06/s2b-gravatar.mdx",
+   "line": 222,
+   "quote": "the two photos updates and the join are struck through, replaced by one update and one select on users. Redrawn from the class board at 01:32.",
+   "problem": "On the final board (D-02, b_013230) only the two `update photos` statements are struck through, and the only replacement written is `update users set active_photo_id = ? where hash = ?`. The join queries in the right-hand column are not struck. The only query written under them is a scrawled `Select * from photos where id = ?`, not `select * from users where hash = ?`. The figure (BoardQueries DESC: 'the join … is struck through and replaced by a select from users') presents a spoken step as board content.",
+   "evidence": "board/diagrams.md D-02 / L-0111 detail (the read query 'select * from users where hash' was spoken at 01:30:56; the board update was rewritten at 01:31)",
+   "fix": "Caption: \"The queries at the end of the discussion. On the board (01:32) the two photos updates are struck through and replaced by one update on users. The struck join and the select on users show what the class said at 01:02–01:05 and 01:31; the board left the join unstruck.\" Change the DESC in s2b-gravatar-fig2e.tsx to match, or draw the read column without the strike line."
+  },
+  {
+   "id": "F-004",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec06/s6-auxiliary.mdx",
+   "line": 161,
+   "quote": "Four systems, one afternoon. Here is what to carry out of the room.",
+   "problem": "The class was in the morning: the teacher refers to what was covered 'from 9 AM to 10 30 AM', and the recording is uploaded 'by about 3-4 o'clock'. 'One afternoon' is wrong. The same phrase appears in s7-keep.mdx:19 ('Four small systems in one afternoon') and in the title of Fig 7·a (s7-keep-four.tsx, 'Four systems, one afternoon').",
+   "evidence": "transcript 01:29:36 'from 9 AM to 10 30 AM' / L-0166, L-0298",
+   "fix": "\"Four systems, one morning.\" in all three places, or \"Four systems, one class.\""
+  },
+  {
+   "id": "F-005",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec06/s3-serving.mdx",
+   "line": 215,
+   "quote": "After the break comes a feature that one line from a CXO turns into work for six teams.",
+   "problem": "The class never counted 'six teams'. It listed search, face detection, location, notification and RBAC, plus analytics, profile, feed and activity (L-0218). The figure OneLineManyTeams (s4-tagging-rule.tsx DESC) says 'fans out to six teams: authorization, notifications, machine learning, search, feed and profile'. That is the page's own selection, presented as a count.",
+   "evidence": "L-0218 / board D-07 'Services to interact with: Search, Face detection, Location, Notification, RBAC'",
+   "fix": "\"…a feature that one line from a CXO turns into work for many teams.\" In the figure DESC: \"fans out to many teams, among them authorization, notifications, machine learning, search, feed and profile\"."
+  },
+  {
+   "id": "F-006",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/figures/lec06/s4-tagging-events.tsx",
+   "line": 1,
+   "quote": "allowed to tag? (sync check)",
+   "problem": "Fig 4·c labels the authorization check 'sync check', and its caption says 'A synchronous authorization check'. The class's synchronous dependency was the ML suggestion API (L-0205). The board lists RBAC '[Authorized to tag?]' as one of the services tagging interacts with. It never calls it synchronous.",
+   "evidence": "board/diagrams.md D-07 / L-0205, L-0218",
+   "fix": "Drop '(sync check)' and change the caption (s4-tagging.mdx:201) to: \"An authorization check (who may tag whom), then one PHOTO_TAG event that every interested team pulls. Redrawn from the class board at 02:01.\""
+  },
+  {
+   "id": "F-007",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec06/s6-auxiliary.mdx",
+   "line": 66,
+   "quote": "Treat it like Voldemort guarding his Deathly Hallows",
+   "problem": "The teacher only said 'It's like Voldemort and it's basically Deathly Hallows. Keep it protected no matter what… by all the magical charms'. 'Guarding his Deathly Hallows' adds a relationship the class never stated, and it is wrong by the books' own story, so it could read as the teacher's error.",
+   "evidence": "transcript 02:36:33 / L-0289",
+   "fix": "\"The class reached for Harry Potter here (Voldemort, the Deathly Hallows): keep it protected no matter what, with every magical charm you have. [[L-0289]]\""
+  },
+  {
+   "id": "F-008",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec06/s4-tagging.mdx",
+   "line": 100,
+   "quote": "As a rule of thumb, good apps send only about three to five notifications a week.",
+   "problem": "L-0196 is unverifiable/low, and factcheck_applied.md asks for the light hedge 'the instructor's rule of thumb'. The page says 'as a rule of thumb' without saying whose, so it reads as an industry norm.",
+   "evidence": "factcheck_applied.md §4 L-0196 / transcript 01:50:40 'good apps only send three notifications a week or five'",
+   "fix": "\"By the instructor’s rule of thumb, good apps send only about three to five notifications a week. [[L-0196]]\""
+  },
+  {
+   "id": "F-009",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec06/s7-keep.mdx",
+   "line": 45,
+   "quote": "You don’t need to read that whole textbook.",
+   "problem": "This advice is not in the ledger or the transcript, and it points the opposite way from the teacher's own account: he is 'literally going through my college textbooks, three of them' for his series.",
+   "evidence": "transcript 02:53:07 / L-0313, L-0314",
+   "fix": "Delete the sentence. Keep: \"Understand how relational databases work and how data is structured, and go really deep into that. [[L-0313]]\""
+  },
+  {
+   "id": "F-010",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec06/s1-images.mdx",
+   "line": 90,
+   "quote": "nginx does this for its static files by mapping extensions to MIME types. [[L-0029]]",
+   "problem": "The ledger tag sits on content from the fact-check addition (Content-Type, nginx MIME types). That is not what L-0029 says (the /raw handler reads the S3 key and returns it). The tag claims class backing for added material.",
+   "evidence": "L-0029 / factcheck_applied.md §3 L-0025 (checker's note on Content-Type)",
+   "fix": "Drop the [[L-0029]] tag at the end of the paragraph (the paragraph's first sentence already carries [[L-0030]]), or move it so it follows only the class's claim."
+  },
+  {
+   "id": "F-011",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec06/s1-images.mdx",
+   "line": 122,
+   "quote": "right=\"Yes. The card URL is a route handler, like /raw, behind a CDN.\"",
+   "problem": "The correct choice is 'No: the card is made when someone asks for it', but the feedback for picking it starts with 'Yes.', which reads as agreeing with the pre-generation option. The class's point (L-0040: 'they are not pre-generated') gets muddied.",
+   "evidence": "L-0040 / transcript 00:19:54 'A lot of people think everything is pre-generated. No, it is not.'",
+   "fix": "right=\"Right: it is made on demand. The card URL is a route handler, like /raw, behind a CDN.\""
+  },
+  {
+   "id": "F-012",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec06/s5b-badge.mdx",
+   "line": 88,
+   "quote": "the if-and-else logic of where the user is and what they are doing is implemented there, once.",
+   "problem": "The teacher said the if/else is implemented 'from the front end'. The ledger keeps that wording because it is ambiguous. The page settles it silently (in the event/messaging service) and adds 'once', which the class didn't say.",
+   "evidence": "L-0275 detail '(the teacher said \"from the front end\")' / transcript ~02:31:10",
+   "fix": "\"…and the if-and-else logic of where the user is and what they are doing feeds that one event (the class said this logic comes 'from the front end', i.e. from what the client and its connection report). [[L-0275]]\""
+  },
+  {
+   "id": "F-013",
+   "severity": "low",
+   "kind": "figure",
+   "file": "site/src/content/lectures/lec06/s5b-badge.mdx",
+   "line": 96,
+   "quote": "A board note, partly cut off, adds that writes can be batched at the workers if the stream is partitioned by recipient id.",
+   "problem": "On the board (D-13) the note `can batch here` / `{ if part = recv id` is pink and sits under the Status check API, not at the workers. Its second line is 'uncertain', not 'cut off'. The page and Fig 5·g ('can batch if partitioned by recipient', next to the workers) state a reading the board doesn't settle. The ledger (L-0277) does say workers, so the page follows the ledger. Even so, it should keep the doubt.",
+   "evidence": "board/diagrams.md D-13 'Pink note under the API: can batch here / { if part = recv id (second line uncertain)' / L-0277",
+   "fix": "\"A board note, hard to read, adds that writes can be batched if the stream is partitioned by recipient id; it most likely means batching at the workers. [[L-0277]]\""
+  },
+  {
+   "id": "F-014",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec06/s5b-badge.mdx",
+   "line": 37,
+   "quote": "You have made this move twice already today. The stored hash of §2.3 and active_photo_id in §2.5 were both values kept ready because the frequent read needed them.",
+   "problem": "This link between the hash, active_photo_id and pre-compute vs source of truth is the page's own synthesis. The class didn't make it, and the paragraph has no tag. It is a reasonable reading, but it shouldn't read as something taught.",
+   "evidence": "L-0258–L-0262 (no back-reference to Gravatar); L-0082 (the hash is stored for index speed)",
+   "fix": "Mark it as the page's connection: \"Looking back, the same move appeared twice in Gravatar: the stored hash of §2.3 and active_photo_id in §2.5 were both kept ready because the frequent read needed them.\" Or cut it."
+  }
+ ]
+}

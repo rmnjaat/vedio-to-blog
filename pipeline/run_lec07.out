@@ -324,3 +324,79 @@ calls: 1 ok, 0 failed
 [15:21:15] qa_fix_design: already done (sentinel), skipped
 calls: 1 ok, 0 failed
 [15:21:15] lec07: qa: animation fixer (3 issues)
+[15:49:48] qa_fix_animation attempt 1: OK (1667s)
+calls: 1 ok, 0 failed
+wrote public/clips/l07-events-vs-cdc/poster-paper.png
+wrote public/clips/l07-events-vs-cdc/poster-blackboard.png
+wrote public/clips/l07-events-vs-cdc/poster-paper-phone.png
+wrote public/clips/l07-events-vs-cdc/poster-blackboard-phone.png
+wrote public/clips/l07-lru-vs-lfu/poster-paper.png
+wrote public/clips/l07-lru-vs-lfu/poster-blackboard.png
+wrote public/clips/l07-lru-vs-lfu/poster-paper-phone.png
+wrote public/clips/l07-lru-vs-lfu/poster-blackboard-phone.png
+wrote public/clips/l07-four-routes/poster-paper.png
+wrote public/clips/l07-four-routes/poster-blackboard.png
+wrote public/clips/l07-four-routes/poster-paper-phone.png
+wrote public/clips/l07-four-routes/poster-blackboard-phone.png
+wrote public/clips/l07-mod-vs-ring/poster-paper.png
+wrote public/clips/l07-mod-vs-ring/poster-blackboard.png
+wrote public/clips/l07-mod-vs-ring/poster-paper-phone.png
+wrote public/clips/l07-mod-vs-ring/poster-blackboard-phone.png
+posters written to site/public/clips/; rebuild so the pages pick them up
+[15:51:42] lec07: validation qa_gates: GATES PASS
+wrote lectures/lec07/qa/page_text_r2.md: 8 pages, 34458 words
+pages: overview, 1-etl-and-cdc, 2-one-node, 3-eviction-and-expiry, 4-protocol-and-concurrency, 5-routing, 6-consistent-hashing, 7-what-to-keep
+ok: no failures
+[15:57:10] lec07: qa: round 2 (blind reader, faithfulness re-check, critic final look)
+[15:58:20] qa_faith_verify attempt 1: OK (70s)
+[16:00:59] qa_blind2 attempt 1: OK (228s)
+[16:01:03] qa_critic_final attempt 1: OK (232s)
+calls: 3 ok, 0 failed
+[16:02:37] qa_grade2 attempt 1: OK (94s)
+calls: 1 ok, 0 failed
+# Lecture 09 (lec07) QA report - 2026-10-14 16:02:38
+
+Result: **FAIL** - 1 gate(s) failed after one fix round; see below
+
+| gate | result | detail |
+|---|---|---|
+| page_gates | PASS |  |
+| coverage | PASS | COVERAGE PASS |
+| exam_r2 | PASS | grade: OK score 100.0% (120/120 correct, 0 partial, 0 wrong, 0 missing; half-credit 100.0%) |
+| faithfulness | PASS | faith-verify: OK 12 re-checked |
+| critic | **FAIL** | critic: FAILED (2 errors) verdict pass_with_fixes, 23 issues |
+
+- Coverage: coverage lec07: 374/374 placed ids on the pages; ledger overall 374/381
+- Blind exam: round 1 ; after fixes  (gate: correct/total >= 0.95)
+- Critic: first verdict pass_with_fixes, final verdict pass_with_fixes
+- Faithfulness: 12 issues found, 12 resolved, 0 unresolved, len(v.get('new_issues' new - Faithfulness: 12 issues found, 12 resolved, 0 unresolved, [])) new
+- qa stage time: 41 min (this run)
+
+Files: exam.json, exam_grade.md, exam_grade_r2.md, faithfulness.md, faithfulness_verify.md, critic.md, critic_final.md, fixes_*.md, gates_final.txt, final_shots/.
+
+## What failed
+
+### gate.coverage
+```
+coverage lec07: 374/374 placed ids on the pages; ledger overall 374/381
+  ids per page: 1-etl-and-cdc 76, 2-one-node 69, 3-eviction-and-expiry 60, 4-protocol-and-concurrency 64, 5-routing 30, 6-consistent-hashing 71, 7-what-to-keep 13, overview 9
+COVERAGE PASS
+```
+
+### gate.critic
+```
+ERROR critic verdict is pass_with_fixes, not pass
+ERROR open blocker/high/medium issues: ['C-07']
+critic: FAILED (2 errors) verdict pass_with_fixes, 23 issues
+```
+
+### gate.exam_r2
+```
+grade: OK score 100.0% (120/120 correct, 0 partial, 0 wrong, 0 missing; half-credit 100.0%)
+```
+
+### gate.faithfulness
+```
+faith-verify: OK 12 re-checked
+```
+[16:02:38] lec07: qa: re-check found open issues; follow-up fixer, then one more re-check

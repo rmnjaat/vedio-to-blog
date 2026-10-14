@@ -1,0 +1,37 @@
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec06.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec06.mdx's frontmatter (LectureHeader). Values for it, per
+    outline.md and chapters.json:
+      kicker: "Lecture 08 · week 4, day 2 · running case: Gravatar, photo tags, the unread badge"
+      title: Gravatar to unread badges
+      contents: 1 Images are just responses (#s1), 2 Gravatar: the query decides the design, 3 Serving Gravatar at
+        every size, 4 Tagging: wear the product hat, 5 The newly unread badge, 6 Protect the database: the
+        auxiliary database, 7 What to keep.
+    About this class carries the ids placed in `about` (L-0001 … L-0005). The outline gives no "so far" figure:
+    the running cases of this lecture are new, and the picture they build on is Lecture 7's (lec09), told in prose. */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is week 4, day 2. After it, about half of the course is done, and the discussion of social networks carries on from the day before. [[L-0001]]
+
+From this point the course puts you in the situations senior engineers face: wearing several hats, taking part in several discussions and handling many things at once, thinking about extensibility, and working across teams. That starts in Chapter 4, with tagging people in photos. [[L-0004]]
+
+The day covers four systems. On the board the agenda read, in order: designing Gravatar, on-demand image optimization, tagging photos, and designing the newly unread message indicator. This page opens with how images are served, because Gravatar and on-demand optimization both build on it. The class builds on-demand image optimization itself, which the instructor expected to be hardly a ten-minute discussion that shows how simple it is: the day before, the point was only that a CDN gives you image optimization. [[L-0003]] The last system is a small feature everyone uses every day on social media, and it is surprisingly complex. It is used to teach a high-level pattern that many companies run in production to prevent major outages: the auxiliary database of Chapter 6. [[L-0005]]
+
+**One open thread.** The previous lecture left a question for this one: Instagram’s private images aren’t really private, so how would you build a purely private image-sharing platform? This lecture does not design the private platform, and this page doesn’t invent one; the question stays open (see [§7](#s7)). [[L-0002]]
+
+<ForwardChip block label="from" when="Lecture 7" lec="lec09">Instagram photos and hashtags: CDN properties, image transformations, the pre-signed upload</ForwardChip>
+
+</MarginNote>
+
+### The social network so far
+
+In Lecture 7 (coming soon), Instagram got a working photo pipeline. A photo goes from the user’s phone straight to S3 with a pre-signed URL, never through the API servers. The post that shares it is stored apart from the image, and whatever can be derived, such as the image’s path, is not stored. Photos are served through a CDN on its own subdomain, which pulls from an origin on a miss, keeps a copy with a TTL, and can resize or convert an image from the query parameters in its URL. Counting hashtags runs on Kafka.
+
+This lecture keeps that toolbox and builds four smaller features on top of it. Chapter 1 opens the CDN’s black box and writes the image handler behind it yourself. Chapters 2 and 3 use that handler for Gravatar, reuse the upload service unchanged, and make the CDN’s resizing your own code. Chapter 4 tags people in those photos, and Chapters 5 and 6 build the badge on the messages icon, which ends at the auxiliary-database pattern.
+
+</div>

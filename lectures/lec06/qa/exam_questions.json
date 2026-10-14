@@ -1,0 +1,542 @@
+{
+ "lecture": "lec06",
+ "count": 134,
+ "questions": [
+  {
+   "id": "Q001",
+   "q": "What four systems/topics were on the board's agenda for this session, in order?"
+  },
+  {
+   "id": "Q002",
+   "q": "In the referenced notification-system design, why is Kafka alone a poor fit for sending a notification to millions of followers, and what pattern fixes it?"
+  },
+  {
+   "id": "Q003",
+   "q": "What real fan-out requirement did the teacher say forced him to build the stream-plus-broker pattern?"
+  },
+  {
+   "id": "Q004",
+   "q": "Does the browser know a URL is an image because it ends in .jpg/.png?"
+  },
+  {
+   "id": "Q005",
+   "q": "What exactly does the browser do when it meets an <img src=...> tag while rendering HTML?"
+  },
+  {
+   "id": "Q006",
+   "q": "How does the browser decide how to decode the bytes returned for an img tag?"
+  },
+  {
+   "id": "Q007",
+   "q": "When a web framework maps /static to a static folder, what happens for a request like /static/img/arpit.jpg?"
+  },
+  {
+   "id": "Q008",
+   "q": "List, in the board's order, the three steps a server performs once the request hits it for a static file."
+  },
+  {
+   "id": "Q009",
+   "q": "On the board's folder tree, where does arpit.jpg live relative to the site root?"
+  },
+  {
+   "id": "Q010",
+   "q": "What does the custom /raw/<path> handler on the board do, and what did the teacher say that builds?"
+  },
+  {
+   "id": "Q011",
+   "q": "How does the board's second three-step list (the S3 variant) differ from the first?"
+  },
+  {
+   "id": "Q012",
+   "q": "What common belief about web-server responses did the teacher correct?"
+  },
+  {
+   "id": "Q013",
+   "q": "Why does the handler idea mean an image does not need to already exist to be served?"
+  },
+  {
+   "id": "Q014",
+   "q": "How does a site tell social platforms which image to show in a shared-link card?"
+  },
+  {
+   "id": "Q015",
+   "q": "Why does GitHub generate its repository social (OG) image on the fly instead of pre-generating and storing one per repo?"
+  },
+  {
+   "id": "Q016",
+   "q": "Which host serves GitHub's OG images, and what is it?"
+  },
+  {
+   "id": "Q017",
+   "q": "Trace a request for a GitHub OG image when the CDN does not have it."
+  },
+  {
+   "id": "Q018",
+   "q": "Which libraries did the teacher name for generating images on the fly?"
+  },
+  {
+   "id": "Q019",
+   "q": "How could Twitter use the same technique as GitHub's OG images?"
+  },
+  {
+   "id": "Q020",
+   "q": "What prototype did the teacher recommend building in about an hour?"
+  },
+  {
+   "id": "Q021",
+   "q": "What is Gravatar, as written on the board?"
+  },
+  {
+   "id": "Q022",
+   "q": "What hash does Gravatar use in the URL, and why is the URL constant for a user?"
+  },
+  {
+   "id": "Q023",
+   "q": "What side note did the board attach (pink arrow) to the hash in https://gravatar.com/{hash(email)}?"
+  },
+  {
+   "id": "Q024",
+   "q": "If every site rendered profile photos via Gravatar, what happens when you change your photo?"
+  },
+  {
+   "id": "Q025",
+   "q": "What were the three Gravatar requirements, in the board's order?"
+  },
+  {
+   "id": "Q026",
+   "q": "Why must Gravatar store the actual email, not just its hash?"
+  },
+  {
+   "id": "Q027",
+   "q": "What happened to the hash column on the users table during the first draft of the schema, and why?"
+  },
+  {
+   "id": "Q028",
+   "q": "Why are a user's photos kept in a separate photos table rather than a column of users?"
+  },
+  {
+   "id": "Q029",
+   "q": "What query was written on the board to fetch all photos of a user, and why was a join needed?"
+  },
+  {
+   "id": "Q030",
+   "q": "Can you recover the email from its hash inside the query (decrypt it)?"
+  },
+  {
+   "id": "Q031",
+   "q": "How did the teacher treat possible hash collisions between two users' emails in this design?"
+  },
+  {
+   "id": "Q032",
+   "q": "Why is 'where HASH(email) = ?' very inefficient?"
+  },
+  {
+   "id": "Q033",
+   "q": "How was the hash-lookup problem fixed, and what rule from the previous day did it contradict?"
+  },
+  {
+   "id": "Q034",
+   "q": "What did the users table on the board look like after the hash column was restored?"
+  },
+  {
+   "id": "Q035",
+   "q": "What lesson did the teacher draw from the hash-column episode?"
+  },
+  {
+   "id": "Q036",
+   "q": "What was the first query written to mark a photo active?"
+  },
+  {
+   "id": "Q037",
+   "q": "Does adding user_id to 'where id = ?' make that update faster?"
+  },
+  {
+   "id": "Q038",
+   "q": "What was the first thing wrong with the single update, and what query was added?"
+  },
+  {
+   "id": "Q039",
+   "q": "What refinement was made to the 'set all false' update?"
+  },
+  {
+   "id": "Q040",
+   "q": "Why must the two updates be wrapped in a transaction (the Tx markers on the board)?"
+  },
+  {
+   "id": "Q041",
+   "q": "Why add 'and user_id = ?' to 'where id = ?' when id is the primary key?"
+  },
+  {
+   "id": "Q042",
+   "q": "What code-review analogy did the teacher use for simple systems?"
+  },
+  {
+   "id": "Q043",
+   "q": "What query fetches a user's active photo when the Gravatar URL is hit (with is_active in photos)?"
+  },
+  {
+   "id": "Q044",
+   "q": "Is switching between inner and left join the 'minor optimization' for the active-photo query?"
+  },
+  {
+   "id": "Q045",
+   "q": "How does the database narrow down the active-photo query, and is filtering on is_active a cost?"
+  },
+  {
+   "id": "Q046",
+   "q": "What schema change did a student propose for this read-heavy system?"
+  },
+  {
+   "id": "Q047",
+   "q": "With is_active still in photos, does adding active_photo_id to users remove the need for a transaction?"
+  },
+  {
+   "id": "Q048",
+   "q": "With active_photo_id on users, how is the active photo served?"
+  },
+  {
+   "id": "Q049",
+   "q": "Compare the two designs: is_active in photos vs active_photo_id in users."
+  },
+  {
+   "id": "Q050",
+   "q": "Why is putting the active flag on users counter-intuitive, and what lesson did the teacher draw?"
+  },
+  {
+   "id": "Q051",
+   "q": "After moving to active_photo_id, how many queries does marking a photo active take, and why is no explicit transaction needed?"
+  },
+  {
+   "id": "Q052",
+   "q": "List the board's 'Prepare for upload' steps for a Gravatar photo, in order, and the upload step."
+  },
+  {
+   "id": "Q053",
+   "q": "After the upload to S3, what is recorded in the database?"
+  },
+  {
+   "id": "Q054",
+   "q": "Why should Gravatar photos be served via a CDN rather than from backend servers?"
+  },
+  {
+   "id": "Q055",
+   "q": "List the board's steps for https://api.gravatar.com/photos/{hash} ('Render the active photo')."
+  },
+  {
+   "id": "Q056",
+   "q": "How is the CDN configured so users can use https://gravatar.com/{hash}?"
+  },
+  {
+   "id": "Q057",
+   "q": "What two benefits did the board list for serving through the CDN?"
+  },
+  {
+   "id": "Q058",
+   "q": "What happens on a request to gravatar.com/{hash} when the CDN does and does not have the photo?"
+  },
+  {
+   "id": "Q059",
+   "q": "In the Gravatar architecture, what happens when a user updates their active photo, and how does the change reach the CDN?"
+  },
+  {
+   "id": "Q060",
+   "q": "Why invalidate the CDN instead of relying on the TTL for Gravatar photos?"
+  },
+  {
+   "id": "Q061",
+   "q": "Inside the mark-active transaction, what if a wrong photo ID matches no row - should you guard against it?"
+  },
+  {
+   "id": "Q062",
+   "q": "Why doesn't the Gravatar CDN point straight to S3 as its origin?"
+  },
+  {
+   "id": "Q063",
+   "q": "Why is hashing at query time ruled out?"
+  },
+  {
+   "id": "Q064",
+   "q": "In the active-photo query, is user_id used for filtering?"
+  },
+  {
+   "id": "Q065",
+   "q": "What is predicate pushdown, as explained in class?"
+  },
+  {
+   "id": "Q066",
+   "q": "How is the CDN cache invalidated when an image is updated?"
+  },
+  {
+   "id": "Q067",
+   "q": "What 'possible optimization' did the pre-written board show for the users table?"
+  },
+  {
+   "id": "Q068",
+   "q": "What problem does on-demand image optimization solve?"
+  },
+  {
+   "id": "Q069",
+   "q": "How is the desired transformation requested, and what is it not?"
+  },
+  {
+   "id": "Q070",
+   "q": "List, in the board's order, what a CDN does internally for a URL-driven image manipulation."
+  },
+  {
+   "id": "Q071",
+   "q": "Why can ImageMagick be used from almost any language?"
+  },
+  {
+   "id": "Q072",
+   "q": "How do you scale on-demand image processing?"
+  },
+  {
+   "id": "Q073",
+   "q": "Why can on-demand image transformation not be made asynchronous?"
+  },
+  {
+   "id": "Q074",
+   "q": "What did the CDN company's blog (Cloudflare/Cloudinary) say about its on-demand image optimization?"
+  },
+  {
+   "id": "Q075",
+   "q": "After the active_photo_id change, what is the clean update to mark a photo active?"
+  },
+  {
+   "id": "Q076",
+   "q": "Should a status like is_active be a Boolean or an enum?"
+  },
+  {
+   "id": "Q077",
+   "q": "Should the active_photo_id update also verify the photo belongs to the user?"
+  },
+  {
+   "id": "Q078",
+   "q": "Why did Slack's design use a membership table between users and channels, while Gravatar's photos just carry a user_id?"
+  },
+  {
+   "id": "Q079",
+   "q": "What is the tagging-in-photos exercise about, as framed in class?"
+  },
+  {
+   "id": "Q080",
+   "q": "What three hats does a senior engineer always wear?"
+  },
+  {
+   "id": "Q081",
+   "q": "When brainstorming the tagging brief, why was 'what is the schema for tags' rejected as a first question?"
+  },
+  {
+   "id": "Q082",
+   "q": "What does the 'who can tag (authorization)' question really mean for the system?"
+  },
+  {
+   "id": "Q083",
+   "q": "Is concurrency a challenge when tagging people in your photo?"
+  },
+  {
+   "id": "Q084",
+   "q": "How does the max number of people taggable in a photo (5 vs 10,000) change the design?"
+  },
+  {
+   "id": "Q085",
+   "q": "If tagged people are notified, why must you interface with the notification team?"
+  },
+  {
+   "id": "Q086",
+   "q": "What kind of throttling does tagging notifications need?"
+  },
+  {
+   "id": "Q087",
+   "q": "How does self-removal of a tag change authorization?"
+  },
+  {
+   "id": "Q088",
+   "q": "What does adding face-recognition tag suggestions imply?"
+  },
+  {
+   "id": "Q089",
+   "q": "Why does showing tags in the user's profile/activity affect the database choice?"
+  },
+  {
+   "id": "Q090",
+   "q": "What does pushing tag events into followers' feeds imply?"
+  },
+  {
+   "id": "Q091",
+   "q": "List the requirement questions on the board for tagging, in order."
+  },
+  {
+   "id": "Q092",
+   "q": "Why can't a tag's absolute pixel position (e.g. 320,120 in a 720x720 image) be stored?"
+  },
+  {
+   "id": "Q093",
+   "q": "What is stored instead for a tag at (320,120) in a 720x720 image, and when does it stay correct?"
+  },
+  {
+   "id": "Q094",
+   "q": "Why store a bounding box rather than a point, and in what two forms?"
+  },
+  {
+   "id": "Q095",
+   "q": "What table schema was on the board for photo tags?"
+  },
+  {
+   "id": "Q096",
+   "q": "What did the board call the key component for extensibility in tagging, and how is it used?"
+  },
+  {
+   "id": "Q097",
+   "q": "Which services did the board list for tagging to interact with?"
+  },
+  {
+   "id": "Q098",
+   "q": "What does the newly unread count on the messages icon mean, versus unread messages?"
+  },
+  {
+   "id": "Q099",
+   "q": "What twist was added: what does the badge '3' count?"
+  },
+  {
+   "id": "Q100",
+   "q": "What requirements were written for the newly unread indicator?"
+  },
+  {
+   "id": "Q101",
+   "q": "What does 'newly' mean in the indicator?"
+  },
+  {
+   "id": "Q102",
+   "q": "Which tables made up the crude schema on the board?"
+  },
+  {
+   "id": "Q103",
+   "q": "What crude query computes the count?"
+  },
+  {
+   "id": "Q104",
+   "q": "What composite index did the class settle on for the count query, and why that order?"
+  },
+  {
+   "id": "Q105",
+   "q": "Why is the crude query still expensive even with a good index?"
+  },
+  {
+   "id": "Q106",
+   "q": "Was the crude approach called wrong?"
+  },
+  {
+   "id": "Q107",
+   "q": "Why was the separate newly_unread_count field struck from the per-user structure?"
+  },
+  {
+   "id": "Q108",
+   "q": "What is the final per-user structure, and what happens when the user clicks the messages icon?"
+  },
+  {
+   "id": "Q109",
+   "q": "What classic pattern did the teacher name with the crude vs set designs?"
+  },
+  {
+   "id": "Q110",
+   "q": "When would you choose the crude query vs the pre-computed set?"
+  },
+  {
+   "id": "Q111",
+   "q": "What datastore was chosen for the per-user set, and what is the key requirement?"
+  },
+  {
+   "id": "Q112",
+   "q": "What are the read-path APIs and what does each do against Redis?"
+  },
+  {
+   "id": "Q113",
+   "q": "Why must the client and backend be smart about when to count a message?"
+  },
+  {
+   "id": "Q114",
+   "q": "Why is the messaging service the input to the unread system?"
+  },
+  {
+   "id": "Q115",
+   "q": "What is the ON_MSG_UNSENT event?"
+  },
+  {
+   "id": "Q116",
+   "q": "What does each ON_MSG_UNSENT event contain, and how is it stored per user?"
+  },
+  {
+   "id": "Q117",
+   "q": "Describe the read path and write path on the board's final diagram."
+  },
+  {
+   "id": "Q118",
+   "q": "What three loads hit the main Redis cluster?"
+  },
+  {
+   "id": "Q119",
+   "q": "What unnecessary work does the main Redis do on the write path?"
+  },
+  {
+   "id": "Q120",
+   "q": "What high-level principle about databases did the teacher stress?"
+  },
+  {
+   "id": "Q121",
+   "q": "How does the auxiliary Redis work on the write path?"
+  },
+  {
+   "id": "Q122",
+   "q": "What is the trade-off of adding the auxiliary Redis?"
+  },
+  {
+   "id": "Q123",
+   "q": "What happens if the auxiliary Redis goes down?"
+  },
+  {
+   "id": "Q124",
+   "q": "When the status is cleared, what extra work does the auxiliary Redis add?"
+  },
+  {
+   "id": "Q125",
+   "q": "Why accept slight inconsistency between the two Redis stores?"
+  },
+  {
+   "id": "Q126",
+   "q": "What threshold optimization was added in Q&A?"
+  },
+  {
+   "id": "Q127",
+   "q": "How are entries keyed in the auxiliary Redis versus the main Redis cluster?"
+  },
+  {
+   "id": "Q128",
+   "q": "What inconsistency can occur between the two stores, and what is the worst-case effect?"
+  },
+  {
+   "id": "Q129",
+   "q": "Should updates to both Redis stores be done in a transaction?"
+  },
+  {
+   "id": "Q130",
+   "q": "Why not do a read-before-write on the main Redis instead of adding an auxiliary Redis?"
+  },
+  {
+   "id": "Q131",
+   "q": "Why doesn't the Gravatar URL include the user ID?"
+  },
+  {
+   "id": "Q132",
+   "q": "What exactly counts as 'message unsent'?"
+  },
+  {
+   "id": "Q133",
+   "q": "How did the teacher recommend getting good at SQL/query optimization?"
+  },
+  {
+   "id": "Q134",
+   "q": "Is the auxiliary Redis a single node or a cluster?"
+  }
+ ]
+}

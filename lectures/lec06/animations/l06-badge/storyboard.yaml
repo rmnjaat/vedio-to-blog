@@ -1,0 +1,115 @@
+# Storyboard — clip l06-badge (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l06-badge
+title: Three people, not three hundred
+lecture: 8
+section: "5.1 What the 3 means"
+status: reviewed  # draft | approved | built | reviewed
+why_motion: >
+  Accumulation plus a reset. Two numbers grow at different rates while B is offline: the unread messages climb with
+  every message, the badge moves only when a new sender appears. Then one tap resets one of them and not the other.
+  Two stills show "3" beside "300"; only motion shows which event moves which number, and that the tap acknowledges
+  without reading.
+static_twin: "Fig 5·a 'Three people, not three messages' (D-08, b_020345.jpg: paper-plane icon with a circled 3) and Fig 5·d 'One set per user' (D-09 left side, b_022348.jpg: 'user_id: unique_users set<>', 'delete set when user clicks [icon]')"
+ledger:
+  taught:
+    - L-0231  # twist: badge = number of unique people with new messages; 300 messages from 3 people shows 3
+    - L-0256  # whenever a user messages this user, the sender is put into the recipient's set
+    - L-0227  # clicking the icon drops the count to zero; it does not mean the messages were read
+    - L-0257  # when the user clicks the icon, the set is deleted (no O(1) claim: fact-check A-PTU-13)
+    - L-0233  # "newly" means since the last click on the message icon
+  context_only:
+    - L-0224  # scenario: offline, messages arrive, you see a counter (B0 "B · offline")
+    - L-0226  # newly unread, not unread (prose + PauseAndThink)
+    - L-0230  # requirement wording: presence of new messages (prose)
+    - L-0254  # keep only the set, show its length on the badge ("badge = unique senders" header + dashed link)
+    - L-0255  # set size is tracked by the set (prose, A-PTU-11)
+fidelity_notes:
+  - "The badge counting unique senders is the class's deliberate twist (a 'pseudo constraint', L-0231), labelled on screen as 'this design: badge = unique senders'. The clip claims nothing about how Instagram or any real app counts (L-0226, L-0228 are unverifiable)."
+  - "300 messages from three people is the teacher's own example (L-0231, 02:06:30). The split between A, C and D, and the four messages of beat 1, are illustrative; the counter runs linearly 5 -> 300 during the sped-up stretch, labelled 'sped up'."
+  - "The set is drawn generically as mono 'B: { A, C, D }' (the board's 'user_id: unique_users set<>'). Redis, SADD and DEL are not named: Redis comes in §5.5 and the commands in Fig 5·e."
+  - "Deleting the set carries no complexity claim. The class said O(1); the fact-check (L-0257, imprecise/low, A-PTU-13) says DEL is O(number of members), cheap for small sets. The clip says only 'set deleted on tap'."
+  - "When the set is empty (frame 0 and after the tap) the badge is drawn as a dashed grey circle with 0 (Fig 5·d: 'badge gone'); the clip does not claim whether a real app hides it or shows 0."
+  - "The unread counter is the inbox's own count (messages B has not opened), shown grey inside the phone; the clip does not say how it is stored. It goes 300 -> 301 when D's message arrives after the tap: nothing was read, so it never drops (L-0227 'the unread messages are still there')."
+  - "How the sender reaches the set (messaging service, ON_MSG_UNSENT, workers) is §5.6 and §6. Here a message's arrival and the set update are one event."
+  - "'B · offline' is the lecture's scenario (L-0224); the tap is B opening the app and tapping the messages icon. Reading a conversation is never shown."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 930, note: "portrait re-flow: phone glyph top-left with the header (three lines) and set to its right; the message track runs right->left under the phone then up into it (L-shaped); the badge strip at the bottom; 30 px lettering, 32 px captions"}
+duration_frames: 1070   # 35.7 s; 71.3 s at 0.5x (was 1010: +60 f for the before/after summary, critic C-12)
+start_frame_equals: "Fig 5·a/5·d before any message: B's phone with the paper-plane messages icon and a dashed 0 badge, unread 0 inside the phone, 'B · offline'; the set box 'B: { }' under 'this design: badge = unique senders' with a dashed link to the badge; the empty message track 'messages to B' into the phone; 'badge:' strip empty"
+poster_frame: 1069
+reduced_motion_stills: [70, 390, 600, 770, 890, 1069]
+glyphs:
+  phone: {shape: tall box with chamfered corners, pos: "wide [50, 36, 300, 440]; phone [30, 30, 290, 420]"}
+  messages_icon: {shape: paper plane (board D-08 glyph), label: "messages", pos: "wide centre [188, 150]"}
+  badge: {shape: circle r 30, number in num font, pos: "top-right of the icon [272, 82]", colour: "ink; dashed ink2 with 0 when the set is empty"}
+  unread_counter: {shape: "mono number under hand 'unread'", colour: ink2, pos: "inside the phone, wide y 328/390"}
+  offline_label: {text: "B · offline", grey dot, pos: "under the phone [84, 534]"}
+  set_box: {shape: chamfered box, mono "B: {  }" with member slots (green), pos: "wide [494, 150, 566, 96]", header: "this design: (ink2) / badge = unique senders (ink), y 74/122", note: "close brace at x 944 until the set is deleted, then rewritten tight at 742 (phone 668 -> 522) so 'B: { D }' has no gap"}
+  set_link: {route: "badge -> set box", dashed, ink2, no head}
+  track: {route: "right edge -> phone", solid, ink2 thin, head: "at the phone (the sender initiates)", label: "messages to B"}
+  chips: {shape: small chamfered box, mono sender letter, colour: blue (data path), travel along the track}
+  notes: {"A: already in set": "under the set, right, ink2", "set deleted on tap": "under the set, left, ink", "nothing read": "inside the phone, ink", "sped up": "under the track, right, ink2"}
+  strip: {label: "badge:", y: 584, stamps: "1 2 3 (300 messages) | tap 0 1", note: "the running record during B1-B4; replaced in place by the summary rows in B5"}
+  summary_rows: {pos: "wide y 562/618, columns x 60/400/730/930; phone y 680/734, columns x 30/216/398/530", row1: "before the tap (ink2) | B: {A, C, D} (mono) | badge 3 | unread 300 (ink2)", row2: "since the tap (blue) | B: {D} | badge 1 | unread 301", note: "phone labels 'before tap'/'since tap' and sets 'B:{A,C,D}'/'B:{D}' to fit 720"}
+beats:
+  - id: B0
+    from: 0
+    to: 80
+    caption: "B is offline. Messages to B start arriving."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0224]
+  - id: B1
+    step: 1
+    from: 80
+    to: 400
+    caption: "Three messages from A count once. C makes it two."
+    events:
+      - {at: 90, dur: 44, what: "chip A rides the track into the phone; unread 1; 'A' written green in the set (138); badge 1 (154); strip 1 (162)", colour: blue}
+      - {at: 180, dur: 36, what: "chip A again; unread 2; set unchanged; 'A: already in set' written (220)", colour: blue}
+      - {at: 250, dur: 32, what: "chip A again; unread 3", colour: blue}
+      - {at: 290, dur: 34, what: "chip C; unread 4; ', C' written green (328); badge 2 (344); strip 2 (352)", colour: blue}
+    ledger: [L-0256, L-0231]
+  - id: B2
+    step: 2
+    from: 400
+    to: 610
+    caption: "Three hundred messages, three people: the badge says 3."
+    events:
+      - {at: 408, dur: 20, what: "'sped up' written under the track"}
+      - {at: 430, dur: 110, what: "a stream of 11 A/C/D chips (linear: the speed is the rate); unread climbs 5 -> 300; D's first arrival (484) writes ', D' green, badge 3 (504), strip 3 (512)", colour: blue}
+      - {at: 548, dur: 24, what: "strip: '(300 messages)' written after the 3"}
+    ledger: [L-0231]
+  - id: B3
+    step: 3
+    from: 610
+    to: 780
+    caption: "A tap clears the badge and deletes the set. Nothing was read."
+    events:
+      - {at: 620, dur: 22, what: "blue tap ring drawn round the icon; 'offline' ghosts", colour: blue}
+      - {at: 640, dur: 16, what: "badge 3 replaced by a dashed 0"}
+      - {at: 650, dur: 20, what: "strip: blue separator, 'tap', 0; the pre-tap stamps ghost"}
+      - {at: 664, dur: 8, what: "graphite ✕ stamped on the set members"}
+      - {at: 676, dur: 24, what: "'set deleted on tap' written; members removed at 704 (10 f), leaving B: { }"}
+      - {at: 716, dur: 22, what: "the far '}' fades (8 f) and is rewritten tight next to the opening brace: 'B: {   }' with room for one member"}
+      - {at: 720, dur: 22, what: "'nothing read' written under unread 300 (unchanged)"}
+    ledger: [L-0227, L-0257]
+  - id: B4
+    step: 4
+    from: 780
+    to: 900
+    caption: "Newly means since that tap: one message from D, badge 1."
+    events:
+      - {at: 790, dur: 36, what: "chip D rides the track; unread 301; 'D' written green in the empty set (830); badge 1 (846); strip 1 (854)", colour: blue}
+    ledger: [L-0233, L-0256]
+  - id: B5
+    from: 900
+    to: 1070
+    caption: "The badge counts new senders since your last tap."
+    on_screen: [end state = poster]
+    events:
+      - {at: 902, dur: 10, what: "the ghosted notes ('A: already in set', 'sped up', 'B · offline') and the running strip fade out: the summary replaces them in place"}
+      - {at: 914, dur: 34, what: "row 1 written segment by segment (8 f apart): 'before the tap' | B: {A, C, D} | badge 3 | unread 300"}
+      - {at: 954, dur: 34, what: "row 2 written the same way: 'since the tap' (blue) | B: {D} | badge 1 | unread 301; hold 988 -> 1070 (2.7 s)", colour: blue}
+    ledger: [L-0231, L-0233]

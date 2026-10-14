@@ -1,0 +1,75 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { FourSystems } from '../../../figures/lec06/s7-keep-four';
+
+{/* §7 What to keep. Writer w3. The habits list restates ids placed in earlier chapters (their `also` placements
+    in §7) and links back to each; the two MarginNotes and the chips carry the ids placed here. */}
+
+<Section id="s7" no="7" title="What to keep" crumb="7 What to keep"
+  dek="The habits that tie four small systems together, how to get good at query tuning, and where the course goes next."
+  meta="About 4 min · class 02:40–02:42 and 02:51–02:55">
+
+Four small systems in one class: an image URL, Gravatar, photo tags and the unread badge. None of them needed a fleet of machines to explain, and each one left a habit behind.
+
+<Figure id="fig-7a" no="Fig 7·a" k="L-0033 L-0082 L-0191 L-0259 L-0288"
+  caption="Four systems, each a smaller copy of its chapter’s figure, with the habit it teaches. The list below links back to every chapter.">
+  <Desk><FourSystems /></Desk>
+  <Phone><FourSystems layout="phone" /></Phone>
+</Figure>
+
+### Eleven lines to keep [[rail: Heuristics]]
+
+The same few ideas kept coming back, whatever was on the board:
+
+1. All that matters is the bytes you send. A handler can return an image that didn’t exist until someone asked ([§1.3](#s1-3)). [[L-0033]]
+2. Drawing boxes is easy; the devil lies in the details. Write the exact query and see how it runs ([§2.3](#s2-3)). [[L-0085]]
+3. Don’t store what’s derivable, unless not storing it slows things down. Then store it, as Gravatar stores the email’s hash ([§2.3](#s2-3)). [[L-0082]]
+4. Check first, then write, so no change can leave the data inconsistent. And keep security at every step: careful in one place and lax in another doesn’t work ([§2.4](#s2-4)). [[L-0136 L-0172]]
+5. The source of truth decides what gets served. S3 doesn’t know which photo is active; only the database does ([§3.2](#s3-2)). [[L-0140]]
+6. Every requirement question should change the design, or positively influence it ([§4.3](#s4-3)). [[L-0191]]
+7. Query the source of truth when you need strong consistency. For efficiency, pre-compute, or store the data in a form that is directly consumable ([§5.4](#s5-4)). [[L-0259]]
+8. Crude is not incorrect. Counting over the messages table isn’t efficient, but it is correct ([§5.2](#s5-2)). [[L-0250]]
+9. Protect the database from work that changes no state. It is the most brittle component: whichever cloud you pick, if the database is down, everything is down ([§6.1](#s6-1)). [[L-0288]]
+10. Pick your battles: decide what you are trading off for what ([§6.3](#s6-3)). [[L-0297]]
+11. Build it. Everything here is used in production somewhere and can be prototyped on your own laptop, without 50,000 servers ([§1.4](#s1-4)). [[L-0053]]
+
+<MarginNote title="Getting good at query optimization" why="skip unless you want to get better at SQL" k="L-0312 L-0313 L-0314 L-0315 L-0316 L-0317 L-0318 L-0319 L-0320">
+
+Every chapter here turned on a query. Getting good at reading them is a skill you can train, and it rests on depth in the database subject itself; that is where the instructor’s own foundation came from, in college. [[L-0312]] Understand how relational databases work and how data is structured, and go really deep into that. [[L-0313]]
+
+The practical route: log into your production database console (MySQL, say, or your favourite database) and start firing `EXPLAIN` statements. Each one gives you the query plan. Look up every word in it: what it does, and how the plan was created. [[L-0316]] In MySQL, plain `EXPLAIN` shows how the optimizer would process the statement, while `EXPLAIN ANALYZE` actually runs it and reports real timings. On a production console, use `EXPLAIN ANALYZE` with care: heavy queries really execute, and data-changing statements really change data <Cite href="https://dev.mysql.com/doc/refman/8.4/en/explain.html">dev.mysql.com</Cite>.
+
+Look the terms up in the database’s official documentation, not in blogs or videos. The documentation is dense, and it gives you the nitty-gritty details that videos and blogs typically overlook. [[L-0317]] Pick one query at a time, run `EXPLAIN`, look up the terms and iterate. Over three or four months you will be well-versed. [[L-0318]]
+
+When you spot an optimization, try it on staging and see whether it improves anything. Or dump the data into another table and fire the exact same query with your change, and measure the improvement. Your company is a very good playground: the organization gets the improvement, and you learn. [[L-0320]] That loop is how the instructor built the skill: `EXPLAIN` on one real query at a time, every term looked up in the official docs, experiments on staging or a dumped copy. [[L-0319]]
+
+Further study: the instructor’s members-only YouTube series on database internals, distilled from three college textbooks and courses. It focuses on what you use in day-to-day work rather than page structures, and doesn’t claim to cover everything. [[L-0314]] Planned parts, in order: phantom reads, SQL query optimization, index evaluation. [[L-0315]]
+
+</MarginNote>
+
+<MarginNote title="Why next week matters" why="skip unless you want the motivation" k="L-0299">
+
+Knowing storage-engine internals builds intuition for how systems like Kafka work. The instructor didn’t know Kafka’s internals, guessed them, and the guess turned out to be exactly how Kafka is implemented. Once that intuition is built, by the same account, 99% of such guesses are correct. [[L-0299]]
+
+</MarginNote>
+
+### Where this lecture stops [[rail: Stops here]]
+
+Each of these was deferred on purpose, or left open:
+
+- <ForwardChip label="next week" lec="lec07" k="L-0298" /> Storage engines. You build three of your own, two of them in very granular detail, to learn database internals and build the intuition for writing your own database: <LectureLink lec="lec07">Lecture 9</LectureLink> and <LectureLink lec="lec10">Lecture 10</LectureLink>. [[L-0298]]
+- <ForwardChip label="later" when="about six weeks on" k="L-0165" /> Asynchronous processing, together with video streaming ([§3.5](#s3-5)). [[L-0165]]
+- Open thread: a truly private image-sharing platform. Instagram’s private images aren’t really private; the previous lecture left the question for this one. This lecture does not design the private platform, so the question stays open. [[L-0002]]
+- Open thread: the scale of the `messages` table behind the crude badge query ([§5.2](#s5-2)) was deferred. [[L-0239]]
+
+<SectionEnd
+  concepts={[{ label: 'images as responses', href: '#s1-1' }, { label: 'the exact query', href: '#s2-3' }, { label: 'source of truth', href: '#s3-2' }, { label: 'the product hat', href: '#s4-1' }, { label: 'pre-computed badge', href: '#s5-4' }, { label: 'auxiliary database', href: '#s6-2' }]} />
+
+</Section>

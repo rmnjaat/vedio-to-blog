@@ -1,0 +1,146 @@
+{"id": "L-0053", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0061", "verdict": "unverifiable", "severity": "none", "note": "Personal time estimate for prototyping a Gravatar-like service; reasonable advice but no public source can confirm the 3-4 hour figure.", "sources": []}
+{"id": "L-0166", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0175", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0176", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0177", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0178", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0179", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0180", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0181", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0182", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0183", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0184", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0185", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0186", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0187", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0188", "verdict": "simplified", "severity": "low", "note": "Owner-only tagging removes concurrent edits by other taggers, but not all concurrency: once tagged users can remove themselves (L-0201) they also modify the photo's tag list, and the owner can edit from two devices at once. These are still easy to handle because single-document updates are atomic in MongoDB (e.g. $addToSet / $pull), or with row-per-tag inserts/deletes in SQL.", "precise_version": "Owner-only tagging avoids most write contention; the remaining concurrent edits (self-removal, multiple devices) are handled by atomic single-record updates.", "sources": ["https://www.mongodb.com/docs/manual/core/write-operations-atomicity/", "https://www.mongodb.com/docs/manual/reference/operator/update/addToSet/"]}
+{"id": "L-0189", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0190", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0191", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0192", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0193", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0194", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0195", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0196", "verdict": "unverifiable", "severity": "low", "note": "The '3-5 notifications a week' figure is the teacher's rule of thumb; no primary source gives such a number. The point (over-notifying drives users away; batch notifications) is sound.", "sources": []}
+{"id": "L-0197", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0198", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0199", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0200", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0201", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0202", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0203", "verdict": "outdated", "severity": "low", "note": "Face-recognition tag suggestions are no longer something Facebook does: on 2 Nov 2021 Meta announced it was shutting down the Face Recognition system on Facebook and deleting more than a billion face templates; 'People will no longer be able to turn on face recognition for suggested tagging.' The design point (suggestions need an ML service) still holds for products that offer them. Checked 2026-10-13.", "precise_version": "Some products suggest tags using face recognition (Facebook did until it shut the feature down in November 2021); this needs face-recognition and recommendation ML services.", "sources": ["https://about.fb.com/news/2021/11/update-on-use-of-face-recognition/"]}
+{"id": "L-0204", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0205", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0206", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0207", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0208", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0209", "verdict": "imprecise", "severity": "medium", "note": "Arrays are not unindexable. MongoDB automatically builds a multikey index on an array field, with one index entry per element pointing back to the document, so 'which photos is user X tagged in' can be answered with an index on the tags array. PostgreSQL indexes arrays with GIN (built-in array_ops supports @>, &&). The teacher's conclusion is still reasonable for large or unbounded tag lists: PostgreSQL's own docs advise that searching for array elements can be a sign of misdesign and that a separate table with one row per element is easier to search and scales better.", "precise_version": "Tags must support the query 'which photos is this user tagged in'; arrays can be indexed (MongoDB multikey, PostgreSQL GIN), but for large tag lists a separate row-per-tag table indexed on user_id is simpler and scales better.", "sources": ["https://www.mongodb.com/docs/manual/core/indexes/index-types/index-multikey/", "https://www.postgresql.org/docs/current/gin.html", "https://www.postgresql.org/docs/current/arrays.html"]}
+{"id": "L-0210", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0211", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0212", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0213", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0214", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0215", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0216", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0217", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0218", "verdict": "imprecise", "severity": "low", "note": "'Role-based access control' is the wrong term for the 'who can tag me' control. In RBAC (NIST) permissions are attached to roles and users get them through role membership. 'Allow tags from everyone / people I follow / nobody' is a per-user preference evaluated against the relationship between tagger and taggee, i.e. relationship-based access control as in Google's Zanzibar ACL system (used for Drive, Photos, YouTube).", "precise_version": "Tagging interfaces with an authorization check ('is this user allowed to tag that user?'), which is a per-user, relationship-based permission rather than classic role-based access control.", "sources": ["https://csrc.nist.gov/projects/role-based-access-control", "https://research.google/pubs/zanzibar-googles-consistent-global-authorization-system/"]}
+{"id": "L-0219", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0220", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0221", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0222", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0223", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0224", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0225", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0226", "verdict": "unverifiable", "severity": "none", "note": "Describes Instagram's badge as observed in the live demo; Instagram does not publicly document what the DM badge number counts. Correct as the definition used for this design exercise.", "sources": []}
+{"id": "L-0227", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0228", "verdict": "unverifiable", "severity": "none", "note": "Observation from the live Instagram demo; the exact badge behaviour is not publicly documented. Harmless as framing for the requirement.", "sources": []}
+{"id": "L-0229", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0230", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0231", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0232", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0233", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0234", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0235", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0236", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0237", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0238", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0239", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0240", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0241", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0242", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0243", "verdict": "imprecise", "severity": "low", "note": "Standard SQL (and MySQL) spell it COUNT(DISTINCT col); there is no UNIQUE() aggregate. Also FROM and TO are reserved words in MySQL, so columns with those names must be quoted (e.g. `from`, `to`) or, better, renamed (sender_id, recipient_id). The logic of the board query is right.", "precise_version": "SELECT COUNT(DISTINCT sender_id) FROM messages WHERE recipient_id = ? AND ts > ?last_read_at;", "sources": ["https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html", "https://dev.mysql.com/doc/refman/8.4/en/keywords.html"]}
+{"id": "L-0244", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0245", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0246", "verdict": "simplified", "severity": "low", "note": "With an index on (to, from, timestamp) and the condition to = ? AND timestamp > ?, only the equality on 'to' narrows the scanned part of the index; because 'from' has no condition, the timestamp range cannot cut the scan short and every index entry of that recipient is read (the timestamp check happens inside the index). PostgreSQL's rule: equality on leading columns plus an inequality on the first column without an equality limit the portion scanned. That is why the (to, timestamp, from) order in L-0247 is better.", "precise_version": "A (to, from, timestamp) index lets the query jump to the recipient's entries, but it still reads all of them; (to, timestamp, from) lets the timestamp range limit the scan too.", "sources": ["https://www.postgresql.org/docs/current/indexes-multicolumn.html", "https://dev.mysql.com/doc/refman/8.4/en/multiple-column-indexes.html"]}
+{"id": "L-0247", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0248", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0249", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0250", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0251", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0252", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0253", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0254", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0255", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0256", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0257", "verdict": "imprecise", "severity": "low", "note": "Deleting a Redis set is not O(1) in general: DEL is O(M) where M is the number of elements of a set (O(1) only for strings). UNLINK removes the key in O(1) and reclaims memory in a background thread. For this design the sets are small (a handful of senders, capped by the threshold in L-0301), so the cost is negligible in practice.", "precise_version": "When the user clicks the icon the set is deleted; this is cheap because the sets are small (DEL is O(number of members); UNLINK frees the memory in the background).", "sources": ["https://redis.io/docs/latest/commands/del/", "https://redis.io/docs/latest/commands/unlink/"]}
+{"id": "L-0258", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0259", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0260", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0261", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0262", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0263", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0264", "verdict": "simplified", "severity": "low", "note": "The ledger detail says any key-value store is 'partitionable by default (all of them are)'. A standalone Redis server is a single node; partitioning across nodes needs Redis Cluster, which spreads keys over 16384 hash slots. The core point - use the store's native set so duplicates are ignored (SADD ignores members already present) - is right.", "sources": ["https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/", "https://redis.io/docs/latest/commands/sadd/"]}
+{"id": "L-0265", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0266", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0267", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0268", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0269", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0270", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0271", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0272", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0273", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0274", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0275", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0276", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0277", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0278", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0279", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0280", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0281", "verdict": "unverifiable", "severity": "none", "note": "A widely held rule of thumb rather than a checkable fact; stateful stores are typically the hardest tier to scale and recover, which is the spirit of the advice.", "sources": []}
+{"id": "L-0282", "verdict": "imprecise", "severity": "low", "note": "Being in-memory does not make read scaling unnecessary: a single Redis primary still has finite CPU and network. Redis documents replication 'for scalability, to have multiple replicas for read-only queries', and Redis Cluster clients can read from replicas with READONLY where slightly stale data is acceptable (it is here). The teacher's main point - get status must hit the store and does no wasted work - stands.", "precise_version": "Get status must read the store and cannot be reduced; if read load grows, Redis replicas can serve these reads because a slightly stale badge is acceptable.", "sources": ["https://redis.io/docs/latest/operate/oss_and_stack/management/replication/", "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/"]}
+{"id": "L-0283", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0284", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0285", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0286", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0287", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0288", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0289", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0290", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0291", "verdict": "simplified", "severity": "low", "note": "The auxiliary check is itself one O(1) Redis command per incoming message, the same order of work as an SADD of an existing member on the main Redis. Total operations do not fall; the repeated writes are moved off the main cluster that serves the badge reads. That isolation is the real gain, and it costs a second cluster plus a consistency gap (L-0305), so 'worth it every single time' overstates it.", "precise_version": "Adding the auxiliary store costs one more network hop and moves the repeated duplicate writes to a separate cluster, protecting the cluster that serves reads; it does not reduce total operations.", "sources": ["https://redis.io/docs/latest/commands/sadd/", "https://redis.io/docs/latest/commands/set/"]}
+{"id": "L-0292", "verdict": "simplified", "severity": "low", "note": "As described ('check if the entry exists, then write'), two workers handling messages from the same sender can both see 'missing' and both write. Redis can do the check and the write atomically: SET key value NX only sets the key if it does not already exist and returns OK when it set it (nil otherwise), so the worker writes to the main Redis only on OK. Adding EX gives the key a TTL. Duplicates are harmless here (SADD is idempotent), so this is a precision point.", "precise_version": "The worker does an atomic set-if-absent on the auxiliary Redis (SET B_C 1 NX); only when the key was newly created does it add the sender to the main Redis set.", "sources": ["https://redis.io/docs/latest/commands/set/", "https://redis.io/docs/latest/commands/sadd/"]}
+{"id": "L-0293", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0294", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0295", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0296", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0297", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0299", "verdict": "unverifiable", "severity": "none", "note": "Personal anecdote; the '99% of guesses are correct' figure is not checkable.", "sources": []}
+{"id": "L-0300", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0301", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0302", "verdict": "simplified", "severity": "low", "note": "Separate per-pair keys (B_C: true) make the clear path harder than the lecture suggests: Redis cannot delete keys by prefix without KEYS (documented as dangerous in production) or SCAN, so the clear API must know every sender (e.g. read the main set first). In Redis Cluster B_C and B_D also hash to different slots unless a hash tag such as {B} is used. One hash per user (key B, field C, HSETNX) keeps existence checks O(1) and lets a single DEL clear everything.", "precise_version": "The auxiliary store can keep per-pair existence flags; storing them as fields of one hash per user (HSETNX) keeps the check O(1) and makes clearing a single delete.", "sources": ["https://redis.io/docs/latest/commands/keys/", "https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/", "https://redis.io/docs/latest/commands/hsetnx/"]}
+{"id": "L-0303", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0304", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0305", "verdict": "simplified", "severity": "low", "note": "The worst case depends on write order and can be persistent, not only a lower count. If the auxiliary key is written but the main-Redis write fails, every later message from that sender is skipped and the sender never appears until the next clear. If clear deletes the main set but the auxiliary delete fails, new messages from those senders are suppressed and the badge can stay at 0. Writing the main Redis first and then the auxiliary key (a failure then only causes a harmless duplicate SADD), plus a TTL on auxiliary keys (SET ... NX EX), bounds the damage.", "precise_version": "If the two writes get out of sync the badge can under-count, possibly until the next clear; writing the main store first and giving auxiliary keys a TTL limits this.", "sources": ["https://redis.io/docs/latest/commands/set/", "https://redis.io/docs/latest/commands/sadd/"]}
+{"id": "L-0306", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0307", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0308", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0309", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0311", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0312", "verdict": "unverifiable", "severity": "none", "note": "Personal account of how the teacher learned; not checkable and harmless.", "sources": []}
+{"id": "L-0313", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0316", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0317", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0318", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0319", "verdict": "unverifiable", "severity": "none", "note": "Personal account of how the teacher learned query optimisation; the method itself (EXPLAIN plus official docs) is sound.", "sources": []}
+{"id": "L-0320", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}
+{"id": "L-0321", "verdict": "accurate", "note": "Correct as stated for this context.", "sources": [], "severity": "none"}

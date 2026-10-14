@@ -1,0 +1,103 @@
+# Storyboard — clip l06-hash-scan (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l06-hash-scan
+title: Rows touched per query
+lecture: 8
+section: "2.3 The query that reads every row"
+status: reviewed  # draft | approved | built | reviewed
+why_motion: >
+  Accumulation. The lesson is that the cost of `WHERE HASH(email) = ?` grows with every row of the table and again
+  with every request, while the indexed lookup stays at one row. Two stills show "many rows" against "one row";
+  only the counter climbing row by row (and climbing again on each new request, while the other side ticks by one)
+  shows why the "derivable, so don't store it" design falls over.
+static_twin: "Fig 2·b 'Two WHERE clauses' (panel a: users table, every row hashed, red bracket; panel b: index tree, one row, green tick); board D-02 (b_013230.jpg) for the query text"
+ledger:
+  taught:
+    - L-0080  # the database must read every row, hash each email and compare: a whole-table scan
+    - L-0081  # a computation in the WHERE clause can't use the index -> full table scan every single time
+    - L-0082  # not always true that derivable values shouldn't be stored: if it slows things down, store it
+    - L-0083  # store a hash column, index it, WHERE users.hash = ? -> very pointy, one row
+  context_only:
+    - L-0074  # the request carries the hash, not the user id (B0 caption)
+    - L-0077  # WHERE HASH(email) = ? works functionally (prose + CodeBlock)
+    - L-0079  # extra hash computation per query (prose)
+    - L-0084  # email and hash both unique, indexed keys (prose)
+fidelity_notes:
+  - "10,000 rows is the teacher's own example ('Let's say I have 10,000 rows', 00:39:45). 20,000 and 30,000 are only 10,000 x the number of requests shown; no rate (queries per second) is claimed, so the plan's 'ten a second' was dropped: the lecture gives no rate."
+  - "The match is drawn at row 3 of the 5 visible rows; its position is illustrative. The cursor does not stop at the match: with only HASH(email) to go on, the database can't know where (or whether another) match is without hashing every row, which is what L-0081 says ('unless it goes through every single email')."
+  - "Emails are placeholders (a@…, b@…); no real addresses. The board's sample hash 0eafd172 is not shown: the query keeps the board's '?'."
+  - "The query text follows the board: 'where HASH(email) = ?' and 'where users.hash = ?' (shortened on screen to 'WHERE hash = ?'). HASH() is the board's name; MD5 (named elsewhere in class) is not drawn."
+  - "The index is drawn as a small three-level tree (B-tree outline) on hash; the lecture says 'index it', 'very pointy', 'almost order one'. The clip says 'one lookup' and shows one row read; it does not claim O(1) (fact-check: an indexed B-tree lookup is O(log n))."
+  - "Not claimed: that an index can never help a computed predicate. The expression-index exception (SN-03, A-GD-04/05) stays in prose right after the clip. The clip shows the class's schema: a plain index on email, no expression index."
+  - "The join with photos (L-0080 'before it can do the join') is left to prose and the CodeBlock: the clip counts only rows of users read to find the user."
+  - "Re-sweeps in B3 are drawn faster than B1 (sped up); durations carry no meaning, only the counts do."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 980, note: "portrait re-flow at <= 640 px: the two panels stack (scan on top, index below); counters sit right of each drawing; 30 px lettering, 32 px captions"}
+duration_frames: 880   # 29.3 s; 58.7 s at 0.5x
+start_frame_equals: "Fig 2·b without its annotations: left panel 'WHERE HASH(email) = ?' over a users table (email | HASH(email)) of 5 rows plus '⋮ 10,000 rows', 'rows read' 0; right panel 'WHERE hash = ?' over a 3-level index tree on hash and one users row, 'rows read' 0"
+poster_frame: 879
+reduced_motion_stills: [80, 350, 530, 750, 879]
+glyphs:
+  left_query: {shape: mono text, label: "WHERE HASH(email) = ?", pos: [50, 56]}
+  users_table: {shape: table box (chamfered), cols: ["email", "HASH(email)"], rows: ["a@…", "b@…", "c@…", "d@…", "e@…"], more: "⋮ 10,000 users", pos: [70, 96, 470, 336]}
+  scan_cursor: {shape: blue outline bar over one row, colour: blue, meaning: "the query reading this row"}
+  row_marks: {in: HASH(email) column, non_match: red ✕, match: green ✓ (row 3)}
+  scan_bracket: {shape: red bracket left of the rows, label: "full table scan (red, under the counter)"}
+  right_query: {shape: mono text, label: "WHERE hash = ?", pos: [640, 56]}
+  index_tree: {shape: 1 root + 2 inner + 4 leaf boxes, edges graphite thin, label: "index on hash", pos: [650, 96, 500, 212]}
+  users_row: {shape: one table row, label: "users row", pos: [740, 356, 340, 48]}
+  lookup_path: {route: "root -> inner -> leaf -> users row", solid, colour: blue, head: users row}
+  counters: {left: "rows read 0 -> 10,000 (red)", right: "rows read 0 -> 1 (green)", y: 500}
+  requests_tally: {both panels, "requests: 1 -> 3", y: 605, colour: ink2}
+  poster_note: {text: "store it, index it", colour: green, pos: "under the users row"}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "The URL gives us a hash. Which user has it?"
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0074]
+  - id: B1
+    step: 1
+    from: 90
+    to: 360
+    caption: "HASH() in the WHERE clause: every email is hashed and compared."
+    events:
+      - {at: 100, dur: 74, what: "blue cursor steps row 1..5 (14 f a row); at each row a red ✕ (row 3: green ✓) stamps in the HASH(email) column; counter 1..5", colour: blue}
+      - {at: 174, dur: 96, what: "cursor on '⋮ 10,000 users'; counter runs linearly 5 -> 10,000"}
+      - {at: 272, dur: 24, what: "counter turns red; red bracket inked down the rows", colour: red}
+      - {at: 298, dur: 24, what: "'full table scan' written in red under the counter", colour: red}
+    ledger: [L-0080, L-0081]
+  - id: B2
+    step: 2
+    from: 360
+    to: 540
+    caption: "With a stored, indexed hash column: one lookup, one row."
+    events:
+      - {at: 360, dur: 12, what: "left panel ghosts to 38%"}
+      - {at: 368, dur: 6, what: "index root re-inked blue", colour: blue}
+      - {at: 374, dur: 76, what: "blue pen + packet: root -> inner -> leaf -> users row (three 20 f hops, 8 f pauses)", colour: blue}
+      - {at: 452, dur: 16, what: "green ✓ on the users row; counter 0 -> 1 green", colour: green}
+      - {at: 466, dur: 24, what: "'one lookup' written in green under the counter", colour: green}
+    ledger: [L-0083]
+  - id: B3
+    step: 3
+    from: 540
+    to: 760
+    caption: "This query runs on every request. The full scan repeats every time."
+    events:
+      - {at: 540, dur: 12, what: "left panel back to full ink"}
+      - {at: 550, dur: 20, what: "'requests: 1' written under both counters"}
+      - {at: 580, dur: 60, what: "request 2: left cursor re-sweeps the table (sped up), counter 10,000 -> 20,000; right packet rides the lookup path, counter 1 -> 2", colour: blue}
+      - {at: 650, dur: 60, what: "request 3: same; 30,000 vs 3", colour: blue}
+    ledger: [L-0081, L-0083]
+  - id: B4
+    from: 760
+    to: 880
+    caption: "Not storing a derivable value cost a full scan, so store it."
+    events:
+      - {at: 770, dur: 30, what: "'store it, index it' written in green under the users row", colour: green}
+    on_screen: [end state = poster]
+    ledger: [L-0082, L-0083]
+chapters: [{label: "one query", frame: 100}, {label: "with an index", frame: 370}, {label: "every request", frame: 550}]

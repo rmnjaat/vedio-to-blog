@@ -1,0 +1,104 @@
+# Storyboard — clip l06-aux-redis (format: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l06-aux-redis
+title: Thirty messages, one write
+lecture: 8
+section: "6.2 The auxiliary database"
+status: reviewed     # draft | approved | built | reviewed
+why_motion: >
+  Accumulation and rate: the lesson is wasted writes piling onto the one component the class says you cannot
+  afford to lose. A still can state "29 of 30 writes change nothing" (Fig 6·a does); only motion shows the main
+  store's tray filling with red no-change hits, message after message, in one setup, while in the other the same
+  burst piles up as checks on the auxiliary store and the main store gets a single write per sender.
+static_twin: "Fig 6·a (where the load goes) and StepThrough Fig 6·b (first message vs repeats); board D-13 (b_024045.jpg): status update workers with lines to the Redis cluster and to a pink 'Auxiliary Redis' holding 'B_C : True / B_D : True', 'B : {C, D}' beside the cluster"
+ledger:
+  taught:
+    - L-0286  # the N-1 repeats still call the DB although the set already holds the sender (top lane, red x per repeat)
+    - L-0292  # aux write flow: check aux first; exists -> no write to main; new -> write to main (bottom lane)
+    - L-0293  # with aux, main is not even called for the n-1 repeats; aux takes the hitting (bottom lane, B3/B4)
+    - L-0303  # aux is for checking, not storing: one write to aux, one to main per sender, the rest existence checks
+  context_only:
+    - L-0284  # set semantics: only the first message from a sender changes the set (B1 caption, green dot)
+    - L-0285  # friends send 5, 10, ... 30 short messages while you are offline (B0 caption; C x30, D x20)
+    - L-0288  # minimise no-change operations, the DB is the most brittle component (B5 caption)
+    - L-0290  # use an auxiliary database to absorb them (lane title "with aux")
+    - L-0302  # aux key model B_C : True (the B_C / B_D entries)
+fidelity_notes:
+  - "Recipient B, senders C and D, and the entries 'B : {C, D}' / 'B_C', 'B_D' follow the board (D-13, b_024045.jpg). The main store's set is written 'B:{C}' then 'B:{C,D}'; the aux entries are shown as keys only ('B_C'), the board's ': True' value is dropped for space."
+  - "30 messages from C is the top of the teacher's '5, 10, 15, 20, 30' (L-0285); 20 from D is another value from the same list. Every dot in a tray is one message; the counts on screen (29, 48 no change; 29, 48 checks; 1, 2 writes) are arithmetic on those two bursts, not measured numbers."
+  - "No load gauge and no ops/s: the plan's qualitative gauge is replaced by one mark per message that reaches a store (green dot = the set changed, red x = reached main and changed nothing, graphite ring = an existence check on aux). Nothing claims main fails at some threshold."
+  - "The aux step is labelled only as a check; the fact-check's atomic set-if-absent (A-PTU-14, SET B_C 1 NX) is left to Fig 6·b and prose. The aux store's reply ('new' / 'exists') is not drawn as a packet: the worker writing main only after the first check stands for it."
+  - "The work is moved, not removed: the bottom lane shows every repeat landing on aux (fact-check L-0291: total operations are not reduced, the duplicates go to a separate store). The extra hop's cost (L-0291), failure of either store (L-0294) and inconsistency (L-0296, L-0305) stay in 6.3 prose and figures."
+  - "The repeats are sped up (one every 4 frames); the queue (ON_MSG_UNSENT) between sender and worker is folded into the 'C xN' sender box. The worker is drawn once per lane, not a fleet."
+  - "B4 runs the same D burst in both lanes at once (the repeats only), after each lane's first message has been shown on its own: the caption is about the contrast, and both streams are one event (the same burst)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1020, note: "portrait re-flow at <= 640 px: the two lanes stack, each tray sits under its store, the aux store sits under the worker, 30 px lettering (15 px at 358 px), captions 32"}
+duration_frames: 1165   # 38.8 s; 77.7 s at 0.5x
+start_frame_equals: "two lanes: 'without aux' (C x0 -> worker -> main redis B:{ }) and 'with aux' (the same, plus aux redis under the worker); empty trays"
+poster_frame: 1164
+reduced_motion_stills: [80, 285, 490, 715, 1050, 1164]
+glyphs:
+  sender_box: {shape: server-box, label: ["C xN (mono)", "D xN (mono, from B4)"], pos: [40, 108, 190, 104], lanes: both}
+  worker: {shape: server-box, label: "worker (mono)", pos: [300, 122, 180, 76]}
+  main: {shape: cylinder-solid, label: "main redis (mono, above)", content: "B:{ } -> B:{C} -> B:{C,D}", pos: [cx 800, top 120, rx 94]}
+  aux: {shape: cylinder-solid (small), label: "aux redis (mono, left)", content: "B_C, B_D written beside it", pos: [cx 390, top 540, rx 56], lane: bottom}
+  trays: {main: "10x5 marks right of each main store", aux: "10x5 marks right of aux", marks: "green dot = change, red x = no change, graphite ring = check"}
+  arrows:
+    - {route: "sender -> worker", solid, head: worker}
+    - {route: "worker -> main", solid, head: main}
+    - {route: "worker -> aux", solid, head: aux, lane: bottom}
+  notes: {top: "29 no change -> 48 no change (red, under the tray)", aux: "29 checks -> 48 checks (ink-2, right of the aux tray)", bottom_main: "1 write -> 2 writes (green, beside the tray)"}
+  divider: {dashed thin rule between the lanes, y 296}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "While B is offline, C sends thirty short messages."
+    on_screen: [static figure]
+    motion: none
+    ledger: [L-0285]
+  - id: B1
+    from: 90
+    to: 290
+    caption: "The first message adds C to B's set: a real change."
+    events:
+      - {at: 98, dur: 36, what: "top: blue re-ink + packet sender -> worker -> main; green dot in the top tray; B:{ } -> B:{C}", colour: blue}
+      - {at: 161, dur: 34, what: "bottom: packet sender -> worker -> aux; green dot in the aux tray; 'B_C' written", colour: blue}
+      - {at: 215, dur: 26, what: "bottom: packet worker -> main; green dot in the bottom main tray; B:{ } -> B:{C}", colour: green}
+    ledger: [L-0284, L-0292]
+  - id: B2
+    from: 290
+    to: 495
+    caption: "Without help, the other 29 still hit the main store and change nothing."
+    events:
+      - {at: 298, dur: 142, what: "top: 29 packets sender -> main (linear, one every 4 f); each lands as a red x in the tray; counter C x2..30", colour: red}
+      - {at: 444, dur: 20, what: "red 'no change' note: 29 no change", colour: red}
+    ledger: [L-0286]
+  - id: B3
+    from: 495
+    to: 720
+    caption: "With an auxiliary store, the repeats stop at a cheap existence check."
+    events:
+      - {at: 503, dur: 142, what: "bottom: 29 packets sender -> worker -> aux; each lands as a graphite ring in the aux tray; main's tray stays at one"}
+      - {at: 649, dur: 20, what: "'29 checks' beside the aux tray"}
+      - {at: 671, dur: 16, what: "'1 write' beside the bottom main tray", colour: green}
+    ledger: [L-0292, L-0293, L-0303]
+  - id: B4
+    from: 720
+    to: 1055
+    caption: "D sends twenty. Of all 50, 48 change nothing; with aux, main gets 2."  # critic C-04: totals match the poster notes and the page caption
+    events:
+      - {at: 720, dur: 12, what: "C rows ghost to 38%; 'D x0' written under them"}
+      - {at: 736, dur: 46, what: "top: first D -> main, green dot, B:{C,D}", colour: green}
+      - {at: 786, dur: 86, what: "bottom: first D -> aux (green dot, 'B_D'), then worker -> main (green dot, B:{C,D})", colour: green}
+      - {at: 878, dur: 98, what: "both lanes: the 19 repeats (same burst); red x on top main, graphite rings on aux", colour: red}
+      - {at: 980, dur: 44, what: "notes rewritten in place: 48 no change, 48 checks, 2 writes"}
+    ledger: [L-0293, L-0303]
+  - id: B5
+    from: 1055
+    to: 1165
+    caption: "Shield the brittle database from work that changes nothing."
+    on_screen: [end state = poster]
+    motion: none
+    ledger: [L-0288, L-0293]
+chapters: [{label: "a burst", frame: 10}, {label: "first message", frame: 100}, {label: "without aux", frame: 300}, {label: "with aux", frame: 505}, {label: "another friend", frame: 730}]

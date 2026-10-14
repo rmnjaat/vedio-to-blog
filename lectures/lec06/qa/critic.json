@@ -1,0 +1,186 @@
+{
+ "lecture": "lec06",
+ "verdict": "pass_with_fixes",
+ "issues": [
+  {
+   "id": "C-01",
+   "severity": "high",
+   "owner": "content",
+   "where": "1-images pause-and-think #1 (fig/1440-light-1-images-think1-after.png); also 3-serving think1, 2-gravatar think3",
+   "problem": "The verdict contradicts the pick. The reader chooses the correct option 'No: the card is made when someone asks for it' and the verdict opens 'Yes. The card URL is a route handler…'. On 3-serving ('Why does the CDN fetch from the API…?') and 2-gravatar think3 (flag on photo or column on user?), the verdict also opens 'Yes.', which answers neither a why-question nor an A-or-B choice.",
+   "fix": "Start every verdict with words that agree with the option picked: 'Right: nothing is stored…' on 1-images, 'Right: S3 can't know which photo is active…' on 3-serving, 'Right: a column on the user…' on 2-gravatar think3. Check the wrong-pick verdict on all 11 cards the same way, and make each one name the correct option.",
+   "status": "open"
+  },
+  {
+   "id": "C-02",
+   "severity": "high",
+   "owner": "design",
+   "where": "4-tagging §4.2–§4.4 (sweep/1440-light/4-tagging/002–008.png; 390 sweep about 004–014)",
+   "problem": "Figure desert. Between Fig 4·a (three hats) and Fig 4·b (§4.5) there are about 7 desktop screens and about 10 phone screens with no figure. They hold prose, one pause card and two 'More precisely' boxes, and cover four design decisions: the who-can-tag-me ACL, 5 vs 10,000 tags, notification load and clubbing, and the synchronous ML suggestion dependency. This breaks the sample's paragraph–figure–paragraph rhythm.",
+   "fix": "Add 2–3 small sheets. (a) §4.2: move the authz half of Fig 4·c here, as tagger → tagging service → authz with a per-user ACL row 'can X tag me?' and a self-removal arrow. (b) §4.3: '5 vs 10,000', side by side: an array inside the photo record vs a posts_tags row-per-tag table plus a paginated endpoint, and under it one photo fanning out to N notifications vs one clubbed notification. (c) §4.4: tagging → ML suggestions as a synchronous call, with an SLA/timeout tick and a 'fallback: tag manually' branch.",
+   "status": "open"
+  },
+  {
+   "id": "C-03",
+   "severity": "high",
+   "owner": "design",
+   "where": "fig-6b step 5 (step/1440-light-fig-6b-s5.png, step/390-light-fig-6b-s5.png)",
+   "problem": "In step 5 the clear starts in the worker lane. The 'a tap: clear' arrow and both DEL arrows leave the status-update worker. A tap goes through the status API (Fig 5·e, 6·c), not the worker, so the initiator is wrong. The labels are also misplaced: 'DEL B_C B_D' sits over the arrow to main, while the arrow to aux carries only 'a tap: clear'.",
+   "fix": "Add a 'status api' lane, or draw step 5's arrows from a small api box at the top. Put 'DEL B_C B_D' on the arrow into aux and 'DEL B' on the arrow into main, and keep the label 'a tap' at the source.",
+   "status": "open"
+  },
+  {
+   "id": "C-04",
+   "severity": "medium",
+   "owner": "animation",
+   "where": "Clip 6·1 l06-aux-redis (clip/1440-light-l06-aux-redis-fig-poster.png)",
+   "problem": "The poster disagrees with the caption. The poster shows C ×30 + D ×20, '48 no change', '2 writes' and '48 checks'. The caption and the page say 'all 30 writes hit the main store and 29 change nothing'. A reader comparing the two sees different numbers.",
+   "fix": "Either rewrite the caption and the clip-as-text to cover the full story ('50 messages from two senders: 48 change nothing; with aux, 2 writes and 48 cheap checks'), or end the poster on the C-only beat (30 / 29 / 1). Keep the numbers in the chips, beat captions and caption in agreement.",
+   "status": "open"
+  },
+  {
+   "id": "C-05",
+   "severity": "medium",
+   "owner": "design",
+   "where": "fig-2c, fig-2d, fig-6b at both widths (step/1440-light-fig-2c-s5.png, step/1440-light-fig-2d-s5.png, step/1440-light-fig-6b-s5.png, step/390-light-fig-2d-s5.png)",
+   "problem": "Lifelines run through the lettering: 'make c|1d0', '7abe in|active', 'where i|d = 9f00', '812: 9f00| active', 'SADD B |C', 'still 1| write'. At 390, the step-1 label 'make 9f00 mine' in 2d runs into '729: 7abe active' on the next lane.",
+   "fix": "Interrupt the lifeline behind each label (paper-coloured knockout rect), or offset lane-state text to one side of the lifeline. On phone, widen the 2d lane gap or wrap the lane state onto two short lines.",
+   "status": "open"
+  },
+  {
+   "id": "C-06",
+   "severity": "medium",
+   "owner": "design",
+   "where": "fig-5e, 5g, 6a, 6b, 6c, 6d and clips l06-badge and l06-aux-redis vs the notation key (1440-light-1-images-top.png)",
+   "problem": "The notation key defines 'remote cache (redis)' as the cube glyph. Every Redis in chapters 5–6 is drawn as the database cylinder, and in 6a it is about 5× the size of any other glyph. The key and the figures disagree.",
+   "fix": "This lecture uses Redis as the store of record, so add a key line, 'redis used as the store (cylinder, labelled redis)', and label every such cylinder 'redis'. Or switch to the cube. Also bring 6a's cylinder down to the standard glyph size and let the arrow bundle carry the emphasis.",
+   "status": "open"
+  },
+  {
+   "id": "C-07",
+   "severity": "medium",
+   "owner": "design",
+   "where": "chapter pages 4-tagging, 5-badge, 6-auxiliary (1440-light-4-tagging-top.png, 1440-light-5-badge-top.png, 1440-light-6-auxiliary-top.png) vs 1-images and 2-gravatar",
+   "problem": "Chapter openings are inconsistent. Chapters 1–3 open with '§ N' and the chapter title plus a dek. Chapters 4–6 open straight into '§ N.1' with the first section's title as the page title, so the chapter name ('Tagging: wear the product hat', 'The newly unread badge', 'Protect the database…') appears only in the sidebar. The breadcrumb shows the section instead of the chapter.",
+   "fix": "Give chapters 4–6 the same opening as chapters 1–3: '§ N' kicker, chapter title, chapter dek and time, then '§ N.1' as an h2 below.",
+   "status": "open"
+  },
+  {
+   "id": "C-08",
+   "severity": "medium",
+   "owner": "design",
+   "where": "fig-6c and fig-5g phone redraws (fig/390-light-fig-6c.png, fig/390-light-fig-5g.png)",
+   "problem": "In the phone layouts, labels drift away from what they label. 'B : {C, D}' sits at the far left, away from the redis cluster. 'can batch if partitioned by recipient' sits under the notification system instead of the workers. In 6c, 'clear deletes here too' and 'checks here, writes there' are stacked under aux redis, away from their arrows, and the api → aux line runs down the right page edge.",
+   "fix": "Put the set contents next to the cluster, the batching note beside the worker stack, and each of the two aux notes on its own arrow. Route api → aux down the left of the workers, or drop it and say 'clear deletes in both' in the caption.",
+   "status": "open"
+  },
+  {
+   "id": "C-09",
+   "severity": "medium",
+   "owner": "content",
+   "where": "2-gravatar §2.3 (sweep/1440-light/2-gravatar/006.png) and 5-badge §5.3→§5.4 (sweep/1440-light/5-badge/009.png)",
+   "problem": "Repetition at hand-offs. In §2.3, the pause card asks how many rows a query reads, then the next paragraph asks it again ('The table has 10,000 users. How many rows does each query read?'), and the clip poster below answers it. In §5.3→5.4, the hand-off ('Two designs now give the same badge…'), the §5.4 dek ('Both designs give the right badge…') and the first paragraph ('Two designs now give the same, correct badge…') say the same thing three times in a row.",
+   "fix": "Drop the repeated italic question in §2.3. In §5.3→5.4, keep the dek and cut the hand-off sentence, or start the first paragraph from the new idea ('This is a classic way to build almost any system…').",
+   "status": "open"
+  },
+  {
+   "id": "C-10",
+   "severity": "medium",
+   "owner": "content",
+   "where": "page_text.md: 'the class' ×27, 'the instructor' ×9 (e.g. 4-tagging 'first-ever YouTube video (sort the channel by oldest)', 7-what-to-keep 'By the instructor's own account', 3-serving end 'After the break', 2-gravatar §2.5 'offered in class… left without a verdict')",
+   "problem": "In places the copy reads as a summary of a recording: teacher biography, the class schedule and 'raised and left without a verdict', where the sample states claims directly. Lecture 1's critic flagged the same voice.",
+   "fix": "Keep provenance only in the meta lines and the 'Redrawn from the class board' captions. Cut the YouTube and biography asides. Rewrite 'offered in class / left without a verdict' as plain claims with their answers (the note below already gives one). Use 'Next chapter' instead of 'After the break'.",
+   "status": "open"
+  },
+  {
+   "id": "C-11",
+   "severity": "medium",
+   "owner": "content",
+   "where": "4-tagging §4.4 (sweep/1440-light/4-tagging/007.png); 2-gravatar §2.5 (sweep/1440-light/2-gravatar/019.png)",
+   "problem": "The prose states something the next box contradicts. §4.4 says tags 'can't just sit in an array, which is unindexable', and the 'More precisely' box right below says arrays can be indexed (MongoDB multikey, PostgreSQL GIN). §2.5's prose says 'update users set active_photo_id = ? where user_id = ?', while the code block and Fig 2·f use 'where hash = ?'.",
+   "fix": "§4.4: 'an array is awkward to query the other way round at scale' (then the box refines it). §2.5: use one WHERE clause in the prose, the code and Fig 2·f.",
+   "status": "open"
+  },
+  {
+   "id": "C-12",
+   "severity": "medium",
+   "owner": "animation",
+   "where": "Clip 5·1 l06-badge poster (clip/1440-light-l06-badge-fig-poster.png, clip/390-light-l06-badge-fig-poster.png)",
+   "problem": "The poster doesn't tell the story the caption tells. The caption says '300 messages from three people show 3'. The poster shows badge 1, unread 301 and 'B: { D }' with a wide empty gap, plus pale ghost labels ('A: already in set', 'sped up', 'B · offline') at low contrast. A reader sees a mixed after-the-tap state rather than the lesson.",
+   "fix": "Make the poster a clear two-state end frame: 'before tap: B:{A,C,D} → 3, unread 300' and 'after tap + one message from D: B:{D} → 1, unread 301'. Or end on the 3-people beat. Remove the ghost labels from the final frame and close the gap in the set box.",
+   "status": "open"
+  },
+  {
+   "id": "C-13",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-2c step 4 (step/1440-light-fig-2c-s4.png)",
+   "problem": "'GET /0eafd172' goes from facebook.com straight to the photos table lane, and the 404 comes back from the database. That skips the Gravatar API the chapter just built.",
+   "fix": "Point the GET at the app lane (the Gravatar API), draw a short app → photos read showing 'none active', and send the 404 from the app.",
+   "status": "open"
+  },
+  {
+   "id": "C-14",
+   "severity": "low",
+   "owner": "design",
+   "where": "2-gravatar §2.5 aside 'How the database runs the join' (sweep/1440-light/2-gravatar/018.png)",
+   "problem": "Fig 2·e sits inside a collapsed aside. In the main flow the numbering jumps from Fig 2·d to Fig 2·f. The QA capture also skipped it.",
+   "fix": "Leave figures inside collapsed asides unnumbered, or number them A2·1. Renumber 2·f as 2·e.",
+   "status": "open"
+  },
+  {
+   "id": "C-15",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-1a, fig-2a, fig-3b, fig-5a (fig/1440-light-fig-*.png)",
+   "problem": "There are four speech bubbles ('.jpg? no idea', 'derivable, so don't store me?', 'why not straight to S3?', '3 unread? no: 3 people'). NOTES allows at most one per section, and only for the misconception. 2a's bubble lettering is also smaller than the figure's labels.",
+   "fix": "Keep the two that carry the misconception (2a and 5a). Turn 1a's and 3b's into plain hand annotations, and bring 2a's bubble text up to the label size.",
+   "status": "open"
+  },
+  {
+   "id": "C-16",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-1b, fig-5f, fig-6c desktop (fig/1440-light-fig-1b.png, fig-5f.png, fig-6c.png)",
+   "problem": "Small collisions. 1b's ellipse around '/static' cuts through 'com/'. 5f's 'knows if B is connected' overlaps B's legs and the ws line. In 6c, the status api → auxiliary redis line crosses the SADD B C route.",
+   "fix": "Enlarge the 1b ellipse or pad the URL. Move 5f's note below B and clear of the line. Route 6c's api → aux line left of the worker stack.",
+   "status": "open"
+  },
+  {
+   "id": "C-17",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-3a (fig/1440-light-fig-3a.png)",
+   "problem": "A stray small square floats beside the user's head. Step ② is drawn above step ①, so the numbered steps read out of order from top to bottom.",
+   "fix": "Remove the square, or label it 'photo'. Reorder the rows to ① prepare, ② upload to S3, ③ register.",
+   "status": "open"
+  },
+  {
+   "id": "C-18",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-6d (fig/1440-light-fig-6d.png)",
+   "problem": "In 'aux down', the overloaded main is ringed in green (ack/success) beside red writes. The bottom line, 'out of sync → badge shows 2 while 300 messages wait', has no drawing behind it.",
+   "fix": "Ring main in neutral ink or amber with 'old load', and keep green for successful acks only. Either draw the out-of-sync case as a third small panel or move that sentence to the caption.",
+   "status": "open"
+  },
+  {
+   "id": "C-19",
+   "severity": "low",
+   "owner": "design",
+   "where": "fig-5g, fig-6c (notification system to ON_MSG_UNSENT)",
+   "problem": "The notification system connects to the stream with a plain line, with no direction. Fig 4·c and 3·b show consumers pulling with an arrow.",
+   "fix": "Draw an arrow from the notification system to the stream, labelled 'pulls', as in 4·c.",
+   "status": "open"
+  },
+  {
+   "id": "C-20",
+   "severity": "low",
+   "owner": "content",
+   "where": "overview 'The social network so far' (1440-light-overview-end.png)",
+   "problem": "The overview opens with 'Lecture 7 left Instagram with…', but the sidebar marks 07 'coming soon', so the reader cannot follow the reference. The last sentence, '…ends at the pattern the day was promised', is opaque.",
+   "fix": "Say 'In Lecture 7 (coming soon), Instagram got…', or summarise without the pointer. Name the pattern: '…ends at the auxiliary-database pattern'.",
+   "status": "open"
+  }
+ ]
+}

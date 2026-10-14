@@ -1,0 +1,145 @@
+import Section from '../../../components/Section.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { ThreePeople, Crude, IndexOrder, OneSet } from '../../../figures/lec06/s5a-badge';
+
+{/* §5 The newly unread badge, part a (5.1–5.3). Writer w4. The class built this design from proposals the instructor
+    probed; they stay as staged steps (first try, what it costs, the fix). The RuleBox for §5 sits in 5.4 (s5b).
+    Design fixer (critic C-07): the chapter opens with a § 5 opener like chapters 1–3. */}
+
+<Section id="s5" no="5" title="The newly unread badge" crumb="5 Unread badge"
+  dek="The small number on the messages icon. Pin down what it counts, build the correct but crude query, then replace it with a set kept up to date by the messaging service."
+  meta="About 31 min · class 02:02–02:32, Q&A 02:49–02:51">
+
+Tagging is specified. The last feature is the smallest thing on the screen.
+
+The chapter defines what that number counts, writes a query that is always right and reads far too much, swaps it for a small pre-computed set in Redis, and traces where the set’s updates come from.
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="What the 3 means" crumb="5.1 What 3 means"
+  dek="A 3 on the badge, hundreds unread. Before any table, pin down what is counted, and what a tap does to it."
+  meta="About 5 min · class 02:02–02:07">
+
+Your messages icon shows **3**. You have hundreds of unread messages. What is 3, and why does one tap make it 0 without reading anything?
+
+The last system of the day is the newly unread indicator: the small number on the messages icon that you see day in and day out on LinkedIn, Twitter, Facebook and Instagram. [[L-0223]] The scenario is simple. You are offline, messages arrive, and the next time you log in you see a counter of them. [[L-0224]] It is worth watching closely precisely because everyone sees it every day and takes it for granted; the class looked at it live on Instagram (LinkedIn and Twitter had nothing new to show that day). [[L-0225]]
+
+<PauseAndThink k="L-0226 L-0227 L-0230 L-0231 L-0233"
+  q="The messages icon shows <strong>3</strong>. You have about 300 unread messages. In the design built here, what does 3 count?"
+  choices={[{ label: 'Three unread messages, the newest ones' }, { label: 'Three people who wrote since your last tap on the icon', correct: true }]}
+  right="Right: three people, counted since your last tap."
+  wrong="Not quite: it counts people who wrote since your last tap. You have hundreds unread, so the badge isn’t a count of unread messages.">
+
+“Newly” means since you last tapped the icon, and the number counts unique senders, not messages: 300 messages from three people show 3. Tapping the icon clears it without reading anything. Pin the definition down before designing, because “unread”, “unacknowledged” and “new since the last tap” lead to three different systems.
+
+</PauseAndThink>
+
+<AnimationClip clip="l06-badge" no="Clip 5·1" k="L-0227 L-0231 L-0233 L-0256 L-0257"
+  lead="300 messages from 3 friends arrive while you're offline. What does the badge show, and what does one tap change?"
+  caption="In this design the badge counts unique senders since your last tap: 300 messages from three people show 3. A tap clears the set and the badge, but nothing was read." />
+
+Look at what the badge is not. A 3 on the icon doesn’t mean three unread messages. It means three **newly** unread ones. [[L-0226]] This is the definition the exercise works with, read off the live demo; it is not a claim about how Instagram itself counts. Tap the icon and the count drops to zero. That doesn’t mean you have read anything: it only means you acknowledge that messages are there, and the unread ones are still unread. [[L-0227]] In the demo, opening the icon made the badge disappear while hundreds of messages stayed unread, and the badge never shows a total such as 99, 10,000 or 50,000. [[L-0228]] You can choose never to read those messages at all. The badge only tells you that something new has arrived. [[L-0229]]
+
+So the requirement is worded carefully: inform the user about the **presence of new messages**. Not unread messages, and not unacknowledged ones. [[L-0230]]
+
+Then a twist, a constraint added on purpose for this exercise. The number isn’t a count of newly unread messages at all. It is the count of unique people you have new messages from. If 300 messages came from three people, the badge shows 3. [[L-0231]]
+
+<Figure id="fig-5a" no="Fig 5·a" k="L-0226 L-0227 L-0231"
+  caption="300 messages from three people show 3. One tap clears the badge and reads nothing. Redrawn from the class board at 02:03–02:06.">
+  <Desk><ThreePeople /></Desk>
+  <Phone><ThreePeople layout="phone" /></Phone>
+</Figure>
+
+Written down as the board has them, the requirements are three: a near real-time update; an update whenever a message is received; and the number of newly unread equals the number of different people from whom a message was received and is unread. [[L-0232]] “Newly” needs one more definition. A reading like “in the last 24 hours” came up and was set aside: newly means since the last time the user clicked the messages icon. [[L-0233]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="The crude, correct query" crumb="5.2 The crude query"
+  dek="Store the messages, remember when the user last looked, and count. It is always right, and it reads far too much."
+  meta="About 12 min · class 02:07–02:19">
+
+The most direct design stores the messages and remembers when the user last looked.
+
+One first approach puts it in three steps: know whether each message has been read; know the last time the user tapped the messages icon; and filter the messages by that time to count the unique users who wrote, which populates the badge. [[L-0234]] It is tempting to jump straight from there to infrastructure: a message queue the user subscribes to, partitioned on the sending user. Step back first. What is the input to the system, and what does the messages table actually store? [[L-0237]]
+
+Start with the data model. Each message has its text, who it is from, who it is to, and a timestamp, and the timestamp is critical here: `messages(msg, from, to, ts)`. [[L-0235]] A second store keeps each user’s last read time, because the count can’t be computed without it. [[L-0236]]
+
+Does `messages` hold every message a user has ever received? The first instinct is that storing them all does no harm but would not be a scalable solution. [[L-0238]] Yet the table has to hold either all of the messages or a part of them, and there is no obvious “part”. So it holds all messages sent to the user: the text, from, to and time. Its scale is pretty huge, and that problem is put aside for later. [[L-0239]]
+
+The last read time deserves more than a one-field “latest message” record, because you will want to store more about the user’s activity. Call it `user_activity(user_id, last_read_at)`: a one-to-one mapping with the user, one row per user, holding `last_read_at` and whatever else comes later. [[L-0240]]
+
+Now the query. A first draft selects the messages with a timestamp after `last_read_at` and orders them. Why order? You don’t send the messages anywhere. You only render a count. [[L-0241]] Without the ordering, the query selects every message to you since your last read (assume the join with `user_activity` is there):
+
+```sql
+SELECT * FROM messages
+WHERE to = ? AND ts > last_read_at;
+```
+
+That returns one row per message. Three messages from one sender give three rows, while the requirement is the number of unique senders: one. [[L-0242]] So count the unique senders directly. This is the crude query, as the board has it: [[L-0243]]
+
+```sql
+SELECT COUNT(UNIQUE(from)) FROM messages
+WHERE to = <your id> AND ts > last_read_at;
+```
+
+In real SQL the aggregate is `COUNT(DISTINCT expr)`, which counts distinct non-NULL values, and `FROM` and `TO` are reserved words in MySQL, so columns with those names must be quoted; names like `sender_id` and `recipient_id` avoid the problem <Cite href="https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html">dev.mysql.com</Cite> <Cite href="https://dev.mysql.com/doc/refman/8.4/en/keywords.html">dev.mysql.com</Cite>.
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0235 L-0240 L-0243 L-0250"
+  caption="The first design: three tables and one counting query. Crude, inefficient, and correct every time. Redrawn from the class board at 02:08–02:19.">
+  <Desk><Crude /></Desk>
+  <Phone><Crude layout="phone" /></Phone>
+</Figure>
+
+What is wrong with it? The first answer is usually indexing, and the tempting index is on the timestamp alone, since you want all messages after a time. But an index on `ts` alone sorts all the data of all users by timestamp. [[L-0244]] Lead with the recipient instead. A composite index on `(to, from, ts)` keeps all entries for one recipient together, grouped by sender and ordered by time within each sender, so filtering goes straight to where your recipient’s entries start. [[L-0246]]
+
+Better still is `(to, ts, from)`, with the timestamp second: then the scan can very easily be cut short. [[L-0247]] PostgreSQL states the rule behind this choice: equality conditions on the leading index columns, plus an inequality on the first column that has no equality, limit the part of the index that is scanned. With `to = ? AND ts > ?`, an index on `(to, ts, …)` reads only the recent entries, while `(to, from, ts)` reads all of the recipient’s entries <Cite href="https://www.postgresql.org/docs/current/indexes-multicolumn.html">postgresql.org</Cite> <Cite href="https://dev.mysql.com/doc/refman/8.4/en/multiple-column-indexes.html">dev.mysql.com</Cite>.
+
+<Figure id="fig-5c" no="Fig 5·c" wide={false} k="L-0246 L-0247 L-0248"
+  caption="Grouped by sender, the scan reads every entry for B. Ordered by time, it starts at last_read_at. Neither removes the cost of one prolific sender. New figure.">
+  <Desk><IndexOrder /></Desk>
+  <Phone><IndexOrder layout="phone" /></Phone>
+</Figure>
+
+It is still an expensive query. If a user has received 10,000 messages, you go through 10,000 rows and then take the unique senders, and you do that every time the page loads. The system would work: nothing here doubts its correctness. But with millions of users active on the platform at any moment, firing this query is super expensive. [[L-0245]] And the best field order can’t save the worst case. Say one person sent you 10,000 messages. You walk 10,000 index entries only to find out that the unique count is one, or two, or three. Squeezing performance out of the query by rearranging index fields doesn’t remove that cost. [[L-0248]]
+
+```sql
+-- the board's query, with names that aren't reserved words
+SELECT COUNT(DISTINCT sender_id)
+FROM messages
+WHERE recipient_id = ?
+  AND ts > ?;               -- the user's last_read_at
+
+CREATE INDEX ix_unread
+  ON messages (recipient_id, ts, sender_id);
+```
+
+So this is a crude way of building it, not an incorrect one. It is not very efficient, but it is very correct. [[L-0250]] `messages` is the source of truth for messages, and `user_activity` is the source of truth for when the user last tapped the icon, so the count is 100% right no matter what. Its only problem is inefficiency: it iterates over all of a user’s new messages to find the few unique senders. Do we really need to go through every message to know who wrote? [[L-0251]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Keep a set instead" crumb="5.3 Keep a set"
+  dek="Stop counting messages. Keep, per user, the set of people who wrote, and the badge is its size."
+  meta="About 4 min · class 02:18–02:23">
+
+Do we need the messages at all to know who wrote?
+
+One proposal: keep a separate record with just a count, instead of scanning messages. What matters is that messages are being sent to the user, not what they say. That is the turn toward a more efficient implementation. [[L-0249]] Push it further and drop the relational query: in a non-relational store, keep one record per user key holding a count. Is that record even a hash map, if all it holds is one number? “Count” turns out to be just the field’s name, and a better one is `newly_unread_count`. [[L-0252]]
+
+Next to the count, a set of unique senders was added, `unique_users`. Now there are two fields. What is the difference between them? The set already identifies the unique senders; that is what a set is for. [[L-0253]] So keep only the set, and show its length on the badge. Do you really need the separate count? No, and it is struck off. [[L-0254]] Every set keeps track of its own length, so getting its size is O(1), and a separate count adds nothing. [[L-0255]] In Redis, which this design uses from §5.5 on, `SCARD` returns the number of members of a set in O(1), and returns 0 if the key doesn’t exist, so a cleared badge needs no special case <Cite href="https://redis.io/docs/latest/commands/scard/">redis.io</Cite>.
+
+The two operations are just as small. Whenever someone messages this user, put the sender into the user’s set. [[L-0256]] Redis `SADD` ignores members that are already in the set and returns how many new members were added, 0 for a repeat sender. So the write is idempotent, and the worker can tell whether the sender was new <Cite href="https://redis.io/docs/latest/commands/sadd/">redis.io</Cite>. When the user taps the messages icon, delete the set. The deletion is O(1), which makes this design far more efficient than counting. [[L-0257]] Strictly, Redis `DEL` on a set is O(M) in the number of members (O(1) only for string values), and `UNLINK` removes the key in O(1) and reclaims the memory in a background thread. For small per-user sets either is cheap <Cite href="https://redis.io/docs/latest/commands/del/">redis.io</Cite> <Cite href="https://redis.io/docs/latest/commands/unlink/">redis.io</Cite>.
+
+<Figure id="fig-5d" no="Fig 5·d" k="L-0254 L-0256 L-0257"
+  caption="A sender joins the set once; repeats change nothing. The badge is the set’s size, and a tap deletes the set. New layout of the class board at 02:20–02:23.">
+  <Desk><OneSet /></Desk>
+  <Phone><OneSet layout="phone" /></Phone>
+</Figure>
+
+Two designs now give the same, correct badge: the crude count over `messages`, and the set per user. One asks the messages table every time; the other keeps the answer ready. Which should you build?
+
+</Section>

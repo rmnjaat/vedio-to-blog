@@ -28,7 +28,7 @@ Env: PIPE_MODEL (default opus), PIPE_EFFORT (optional), PIPE_MAX_TURNS (default 
 import argparse
 import concurrent.futures as cf
 import json
-import os
+import os, shutil
 import re
 import signal
 import subprocess
@@ -150,15 +150,25 @@ def run_job(job, root, logdir):
         while True:
             try:
                 os.mkdir(lock)
+                open(os.path.join(lock, "owner"), "w").write("%d\n" % os.getpid())
                 break
             except FileExistsError:
+                try:  # a holder that died (killed run) never releases: take the lock over
+                    pid = int(open(os.path.join(lock, "owner")).read().split()[0])
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    print("[%s] %s: lock %s held by dead pid %d, removed" % (time.strftime("%T"), name, job["lock"], pid))
+                    shutil.rmtree(lock, ignore_errors=True)
+                    continue
+                except (OSError, ValueError, IndexError):
+                    pass
                 print("[%s] %s: waiting for lock %s" % (time.strftime("%T"), name, job["lock"]))
                 time.sleep(30)
     try:
         ok = _run_job(job, root, logdir)
     finally:
         if lock:
-            os.rmdir(lock)
+            shutil.rmtree(lock, ignore_errors=True)
     if ok and sentinel and not os.environ.get("PIPE_DRY_RUN"):
         os.makedirs(os.path.dirname(sentinel), exist_ok=True)
         open(sentinel, "w").write(time.strftime("%F %T") + "\n")

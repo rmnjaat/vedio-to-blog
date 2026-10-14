@@ -1,0 +1,3085 @@
+{
+ "lecture": "lec06",
+ "ledger": "lectures/lec06/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1.1": "What the browser actually does with an image URL",
+  "1.2": "The static folder is code, and you can write your own",
+  "1.3": "An image that doesn't exist yet",
+  "1.4": "On demand, behind a CDN",
+  "2.1": "One URL for your face",
+  "2.2": "Question every column",
+  "2.3": "The query that reads every row",
+  "2.4": "Mark a photo active: a bug hunt",
+  "2.5": "Where does \"active\" live?",
+  "3.1": "Upload, reused",
+  "3.2": "A CDN in front, the API as origin",
+  "3.3": "When the photo changes",
+  "3.4": "Every size, on demand",
+  "3.5": "Why it needs big machines",
+  "4.1": "One line of brief, three hats",
+  "4.2": "Who can tag me?",
+  "4.3": "How many tags, and who gets told",
+  "4.4": "Suggestions, activity and the feed",
+  "4.5": "Where exactly is the tag?",
+  "4.6": "Everyone else hears about it through Kafka",
+  "5.1": "What the 3 means",
+  "5.2": "The crude, correct query",
+  "5.3": "Keep a set instead",
+  "5.4": "Source of truth or pre-computed",
+  "5.5": "Redis: the read path and the clear",
+  "5.6": "The write path starts at the messaging service",
+  "6.1": "Audit every path",
+  "6.2": "The auxiliary database",
+  "6.3": "When things go wrong",
+  "6.4": "Why not just read first, or stop counting?",
+  "7": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "BackChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Week 4, day 2; about half the course done; social networks continue."
+  },
+  "L-0002": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Private image platform raised in Lecture 7 was meant for today but not designed; stated as an open thread, no invented design."
+  },
+  "L-0003": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "On-demand image optimization built in class; framed as a short discussion that shows how simple it is."
+  },
+  "L-0004": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Senior-engineer situations from here on: many hats, many discussions, extensibility, cross-team work."
+  },
+  "L-0005": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Four systems; the badge teaches a high-level pattern used in production to prevent outages (pays off in section 6)."
+  },
+  "L-0006": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Pointer to the instructor's first YouTube video for the full notification design, inside 'How notification systems fan out'."
+  },
+  "L-0007": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Kafka parallelism capped by partitions; simplified-low left, A-ID-01 share groups woven in as a separate sentence."
+  },
+  "L-0008": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Celebrity fan-out example (10-15M followers as taught); simplified-low left."
+  },
+  "L-0009": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Kafka alone too slow for huge fan-out; inline clarification: the cap is on delivery parallelism, hand per-user work to a queue."
+  },
+  "L-0010": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Core pattern: stream + broker for high fan-out; A-ID-02 SNS->SQS managed form; BackChip Lecture 2 section 3.6."
+  },
+  "L-0011": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "One broadcasting broker is not how scale is handled."
+  },
+  "L-0012": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's story: 50-60k notifications in 5 s via stream + broker; unverifiable, attributed."
+  },
+  "L-0013": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Opening: look at how images are actually served before Gravatar."
+  },
+  "L-0014": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'Images are served' hides code someone wrote."
+  },
+  "L-0015": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: the extension does not tell the browser anything."
+  },
+  "L-0016": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Browser and apps are deliberately dumb with fixed behaviour."
+  },
+  "L-0017": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Platforms must stay basic building blocks; unverifiable opinion, attributed as the lecture's view."
+  },
+  "L-0018": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "img src triggers an HTTP GET while rendering; Fig 1-a step 1."
+  },
+  "L-0019": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Browser expects an image and reads whatever bytes come back."
+  },
+  "L-0020": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Every format has a header; BackChip Lecture 7 GitHub-issues upload."
+  },
+  "L-0021": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "2xx -> header -> decoder -> pixels; simplified-low left; A-ID-03 and A-ID-04 as separate sentences."
+  },
+  "L-0022": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Browsers ship decoders; inline clarification of the real web set (TIFF only in Safari)."
+  },
+  "L-0023": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "GET reaches the web server, which looks up the handler."
+  },
+  "L-0024": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Static folder mapping in every framework; simplified-low left; A-ID-07 Django dev-only as a separate sentence."
+  },
+  "L-0025": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Path after /static read from disk and sent as bytes; simplified-low left; A-ID-05 path traversal woven in."
+  },
+  "L-0026": {
+   "section": "1.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Board example /static/img/arpit.jpg -> site/static/img/arpit.jpg (Fig 1-b)."
+  },
+  "L-0027": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Static serving is code built into the server, not magic."
+  },
+  "L-0028": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Write your own handler reading S3 instead of disk."
+  },
+  "L-0029": {
+   "section": "1.2",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "The board's /raw/<path> Flask handler."
+  },
+  "L-0030": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Three or four lines make the server an S3 proxy."
+  },
+  "L-0031": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Not a feature or a CDN, just a demonstration."
+  },
+  "L-0032": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Misconception: servers only send JSON."
+  },
+  "L-0033": {
+   "section": "1.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 1 rule: the image need not exist; all that matters is the bytes."
+  },
+  "L-0034": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "GitHub repo link renders a social card."
+  },
+  "L-0035": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Card is repository-specific with live counts."
+  },
+  "L-0036": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Open Graph og:image; A-ID-12 required properties."
+  },
+  "L-0037": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "og:image URL has no image extension."
+  },
+  "L-0038": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "A valid image response does not mean it is stored on S3."
+  },
+  "L-0039": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Card reflects current state; 'a day or two' is the instructor's estimate (unverifiable-low, light hedge)."
+  },
+  "L-0040": {
+   "section": "1.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "P1 reveal: not pre-generated, generated on demand."
+  },
+  "L-0041": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "og:image URL = a /raw-style handler behind a CDN."
+  },
+  "L-0042": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "opengraph.githubassets.com vs githubusercontent.com; BackChip Lecture 7 edge.arpitbhayani.me."
+  },
+  "L-0043": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Flow: URL to frontend, img tag, CDN serves cached copy."
+  },
+  "L-0044": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "CDN miss -> origin generates; simplified-low left."
+  },
+  "L-0045": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "The image is a fixed template."
+  },
+  "L-0046": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "CDN caches with TTL, regenerates after expiry; A-ID-11 s-maxage."
+  },
+  "L-0047": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Library choice as taught (PIL via ImageMagick); SN-01 with A-ID-10.",
+   "source_note": "SN-01"
+  },
+  "L-0048": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Bannerbear and hundreds of products."
+  },
+  "L-0049": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Hypothetical Twitter tweet card, labelled hypothetical."
+  },
+  "L-0050": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Dynamic cards are powerful UX."
+  },
+  "L-0051": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Build it in an hour' box."
+  },
+  "L-0052": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Old GitHub share showed a poor big avatar."
+  },
+  "L-0053": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Nothing is theoretical; prototype locally; echoed on the recap card."
+  },
+  "L-0054": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Hash for PII; simplified-medium -> inline clarification with A-GD-03 (unsalted hash only hides from casual view)."
+  },
+  "L-0055": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "What Gravatar is: one embeddable URL."
+  },
+  "L-0056": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Log in, upload several, mark one active."
+  },
+  "L-0057": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.1",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "MD5 URL as taught; SN-02 (SHA-256 now) with A-GD-01.",
+   "source_note": "SN-02"
+  },
+  "L-0058": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "img src returns bytes, not a redirect; inline clarification (default image) + A-GD-02."
+  },
+  "L-0059": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Change once, visible everywhere."
+  },
+  "L-0060": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Not universally adopted, but novel."
+  },
+  "L-0061": {
+   "section": "2.1",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Build it' in three or four hours; instructor's estimate (unverifiable, attributed)."
+  },
+  "L-0062": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Three requirements."
+  },
+  "L-0063": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Start with tables and schema."
+  },
+  "L-0064": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "First proposal: store the hash in users."
+  },
+  "L-0065": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting: store only the hash; corrected."
+  },
+  "L-0066": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Always store the real email: login, profile, collisions."
+  },
+  "L-0067": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "users(id, email); hash crossed off as derivable (BackChip Lecture 7)."
+  },
+  "L-0068": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Multiple paths need a separate photos table; simplified-low left."
+  },
+  "L-0069": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "photos(id, user_id), one row per photo."
+  },
+  "L-0070": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Storing the path rejected: derivable."
+  },
+  "L-0071": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "is_active boolean on photos."
+  },
+  "L-0072": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "All-photos query, no is_active filter."
+  },
+  "L-0073": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Select only needed columns; noted, no clear verdict (open)."
+  },
+  "L-0074": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Input is a hash, so join users."
+  },
+  "L-0075": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Hashing is not encryption; lossy."
+  },
+  "L-0076": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal to store the hash because it can't be reversed; open, the class went to HASH() in WHERE instead."
+  },
+  "L-0077": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "WHERE HASH(email) = ? works functionally."
+  },
+  "L-0078": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Collisions accepted; assume unique."
+  },
+  "L-0079": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Extra hash computation per query."
+  },
+  "L-0080": {
+   "section": "2.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    },
+    {
+     "section": "2.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "P2 reveal: full table scan."
+  },
+  "L-0081": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "SourceNote"
+    },
+    {
+     "section": "2.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Computation in WHERE defeats the index; SN-03 expression indexes with A-GD-04, A-GD-05.",
+   "source_note": "SN-03"
+  },
+  "L-0082": {
+   "section": "2.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 2 rule: store derivable when not storing slows things down; contradicts Lecture 7."
+  },
+  "L-0083": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "CodeBlock"
+    },
+    {
+     "section": "2.3",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Indexed hash column, pointy lookup."
+  },
+  "L-0084": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Store email and hash as unique indexed keys at signup."
+  },
+  "L-0085": {
+   "section": "2.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Rule body: devil in the details; write the query."
+  },
+  "L-0086": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "First mark-active query."
+  },
+  "L-0087": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "'Almost hello world' query with a classic bug."
+  },
+  "L-0088": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "user_id does not shrink a PK lookup."
+  },
+  "L-0089": {
+   "section": "2.4",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Bug 1: old active photo stays active."
+  },
+  "L-0090": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Fix: two updates (after three-query and counter attempts)."
+  },
+  "L-0091": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Only touch the active row."
+  },
+  "L-0092": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Make the two updates one transaction."
+  },
+  "L-0093": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    },
+    {
+     "section": "2.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Bug 2: crash between updates -> no active photo -> 404 (Fig 2-c)."
+  },
+  "L-0094": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "People skip the explicit transaction; focus on details."
+  },
+  "L-0095": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'Concurrency taken care of' as taught; SN-04 atomicity vs isolation with A-GD-06.",
+   "source_note": "SN-04"
+  },
+  "L-0096": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Print-statement analogy (hint text in P3)."
+  },
+  "L-0097": {
+   "section": "2.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Prose"
+    },
+    {
+     "section": "2.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Bug 3: ownership check on the second update (Fig 2-d)."
+  },
+  "L-0098": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Hidden intricacies make better engineers."
+  },
+  "L-0099": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Efficient and correct with tx + ownership + stored hash."
+  },
+  "L-0100": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Code-review analogy."
+  },
+  "L-0101": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "One minor optimization; extreme nitpicking."
+  },
+  "L-0102": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Active-photo read query with join."
+  },
+  "L-0103": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Inner vs left join is not it; A-GD-10 (optional) used."
+  },
+  "L-0104": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Evaluation-order reading; open, no verdict."
+  },
+  "L-0105": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "is_active filter is cheap; simplified-low left; A-GD-09 (index on photos.user_id) woven in."
+  },
+  "L-0106": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Skip update if already active; open, no verdict."
+  },
+  "L-0107": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "2.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "active_photo_id on users for a read-heavy system."
+  },
+  "L-0108": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "First version of the users update inside a transaction."
+  },
+  "L-0109": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "No join on the most frequent read; inline clarification: where hash = ?."
+  },
+  "L-0110": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Why keep is_active: rare question answered via users."
+  },
+  "L-0111": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Single auto-committed update; A-GD-20; board's clean version."
+  },
+  "L-0112": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Counterintuitive: we think in entity attributes."
+  },
+  "L-0113": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "No one way; challenge things."
+  },
+  "L-0114": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Every cohort starts with is_active; instructor's experience (unverifiable, attributed)."
+  },
+  "L-0115": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Not hugely better; challenge your beliefs."
+  },
+  "L-0117": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Reuse Lecture 7's upload service unchanged; BackChip Lecture 7."
+  },
+  "L-0118": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Sample rows after publish."
+  },
+  "L-0119": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Serve via CDN at Facebook scale."
+  },
+  "L-0120": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "api.gravatar.com/photo/<hash> origin endpoint."
+  },
+  "L-0121": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "S3 path derived from user id + photo id."
+  },
+  "L-0122": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "CDN property gravatar.com with the API as origin."
+  },
+  "L-0123": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Root domain as CDN property vs Lecture 7's subdomain; A-GD-12."
+  },
+  "L-0124": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Hit/miss request flow."
+  },
+  "L-0125": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Update -> DB + Kafka event."
+  },
+  "L-0126": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Event exists to invalidate the CDN."
+  },
+  "L-0127": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "TTL one or two days."
+  },
+  "L-0128": {
+   "section": "3.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "Prose"
+    },
+    {
+     "section": "3.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Rule body: invalidate right away; direct-call variant noted."
+  },
+  "L-0129": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Invalidation workers call the CDN API; next request refills."
+  },
+  "L-0130": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Every CDN exposes invalidation APIs; A-GD-13."
+  },
+  "L-0131": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Gravatar is simple; the details make it interesting."
+  },
+  "L-0132": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Wrong photo id: no row updated."
+  },
+  "L-0133": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Zero rows changed is an alarm."
+  },
+  "L-0134": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "But the first update already cleared everything -> 404."
+  },
+  "L-0135": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Check first, then update; simplified-low left; A-GD-07 FOR UPDATE woven in."
+  },
+  "L-0136": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Validate before writing."
+  },
+  "L-0137": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal: app reports zero rows, tx rolls back by itself; inline clarification + A-GD-08 (ROW_COUNT, explicit ROLLBACK)."
+  },
+  "L-0138": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Mapping read backwards; the CDN calls the API."
+  },
+  "L-0139": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "SourceNote"
+    },
+    {
+     "section": "3.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "'S3 is not public' as taught; SN-05 with A-GD-11.",
+   "source_note": "SN-05"
+  },
+  "L-0140": {
+   "section": "3.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Prose"
+    },
+    {
+     "section": "3.2",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 3 rule: only the DB knows which photo is active."
+  },
+  "L-0141": {
+   "section": "2.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Join criterion vs filter."
+  },
+  "L-0142": {
+   "section": "2.5",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Step-by-step narrowing."
+  },
+  "L-0143": {
+   "section": "2.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Optimizer evaluates the unique hash key first."
+  },
+  "L-0144": {
+   "section": "2.5",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Predicate pushdown definition (Fig 2-f)."
+  },
+  "L-0145": {
+   "section": "2.5",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Evaluation tree is bottom-up."
+  },
+  "L-0147": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board note: denormalize to avoid joins, active S3 key."
+  },
+  "L-0148": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "A piece of cake after CDN + Gravatar."
+  },
+  "L-0149": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Same image at many sizes."
+  },
+  "L-0150": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "On demand vs pre-created variants."
+  },
+  "L-0151": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "?w=32 query parameter."
+  },
+  "L-0152": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "CDN -> origin -> S3 -> transform -> return."
+  },
+  "L-0153": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "'World's most popular' kept, attributed; simplified-low left."
+  },
+  "L-0154": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "PIL's two bindings as taught; SN-06.",
+   "source_note": "SN-06"
+  },
+  "L-0155": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "ImageMagick 'purely C++' as taught; SN-06 with A-GD-15.",
+   "source_note": "SN-06"
+  },
+  "L-0156": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Resize call, bytes in memory, send."
+  },
+  "L-0157": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Any transformation from query params."
+  },
+  "L-0158": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Re-implements what CDNs offer (Lecture 7); A-GD-16."
+  },
+  "L-0159": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "CPU-heavy workloads need bulky machines."
+  },
+  "L-0160": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "On-demand needs many cores; autoscaled fleet."
+  },
+  "L-0161": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Cannot be async."
+  },
+  "L-0162": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Half-remembered Cloudflare/Cloudinary blog; unverifiable-low, attributed with the hedge; A-GD-17 optional used."
+  },
+  "L-0163": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "This is how you'd build the CDN feature."
+  },
+  "L-0164": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "No-brainer: large servers."
+  },
+  "L-0165": {
+   "section": "3.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Async processing with video streaming, about six weeks on."
+  },
+  "L-0166": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Build it in two days' box."
+  },
+  "L-0167": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Cloud providers abstract this away."
+  },
+  "L-0168": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Tiny-int enum instead of boolean."
+  },
+  "L-0169": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Boolean is 8 bits (self-corrected from bytes)."
+  },
+  "L-0170": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Tiny int, never strings; A-GD-18, A-GD-19."
+  },
+  "L-0171": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Get, then update: ownership check 100%."
+  },
+  "L-0172": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Security at every step."
+  },
+  "L-0173": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Slack membership table vs one-to-many FK; BackChip Lecture 4."
+  },
+  "L-0174": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Chapter purpose: a simple feature touching many systems."
+  },
+  "L-0175": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Senior engineers see cross-system effects."
+  },
+  "L-0176": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The CXO's one-line brief (opening problem)."
+  },
+  "L-0177": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Think of what management hasn't."
+  },
+  "L-0178": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirements only, PM hat."
+  },
+  "L-0179": {
+   "section": "4.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    },
+    {
+     "section": "4.1",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Three hats (Fig 4-a; rule-box sketch)."
+  },
+  "L-0180": {
+   "section": "4.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "PM hat."
+  },
+  "L-0181": {
+   "section": "4.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Architect hat."
+  },
+  "L-0182": {
+   "section": "4.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Engineer hat."
+  },
+  "L-0183": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Brainstorm questions to yourself and team, one at a time."
+  },
+  "L-0184": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Schema is the wrong first question."
+  },
+  "L-0185": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Owner-only tagging accepted as obvious; who can tag me matters more."
+  },
+  "L-0186": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Separate authorization layer."
+  },
+  "L-0187": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Max tags per photo, photo level."
+  },
+  "L-0188": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Concurrency is not the challenge; simplified-low left."
+  },
+  "L-0189": {
+   "section": "4.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "5 -> array in the document."
+  },
+  "L-0190": {
+   "section": "4.3",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "10,000 -> separate entries + pagination; A-PTU-01."
+  },
+  "L-0191": {
+   "section": "4.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 4 rule."
+  },
+  "L-0192": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Notify tagged people."
+  },
+  "L-0193": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Talk to the notification team before rollout."
+  },
+  "L-0194": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Unscaled notifications hurt critical ones."
+  },
+  "L-0195": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Product-level throttling."
+  },
+  "L-0196": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "3-5 notifications a week; instructor's rule of thumb (unverifiable-low, light hedge)."
+  },
+  "L-0197": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Club notifications; A-PTU-08."
+  },
+  "L-0198": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Celebrity tagged by many."
+  },
+  "L-0199": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Dissect the one-liner; it's your job."
+  },
+  "L-0200": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "'Can anyone tag me' setting = same point."
+  },
+  "L-0201": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Self-removal."
+  },
+  "L-0202": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Granular authorization."
+  },
+  "L-0203": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Face-recognition suggestions as proposed; SN-07 (Facebook shut it down in 2021) with A-PTU-05.",
+   "source_note": "SN-07"
+  },
+  "L-0204": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Fast suggestion service; ML team SLA."
+  },
+  "L-0205": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Synchronous dependency needs a strict SLA."
+  },
+  "L-0206": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Fallback plan; A-PTU-07."
+  },
+  "L-0207": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Fallback is a product call."
+  },
+  "L-0208": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Activity page updated asynchronously."
+  },
+  "L-0209": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Tags must be queryable, not an unindexable array; SN-08 with A-PTU-02.",
+   "source_note": "SN-08"
+  },
+  "L-0210": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Simple features touch many systems."
+  },
+  "L-0211": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Feed team impact."
+  },
+  "L-0212": {
+   "section": "4.5",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    },
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "P7: absolute pixels land wrong."
+  },
+  "L-0213": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    },
+    {
+     "section": "4.5",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Relative position; A-PTU-03."
+  },
+  "L-0214": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "posts_tags(post_id, user_id, location)."
+  },
+  "L-0215": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Bounding box, not a point."
+  },
+  "L-0216": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "LTRB vs x,y,w,h."
+  },
+  "L-0217": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Works across devices and on-demand transformations."
+  },
+  "L-0218": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Integrations list; inline clarification (RBAC vs per-user ACL) + A-PTU-06."
+  },
+  "L-0219": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Kafka no matter what: PHOTO_TAG."
+  },
+  "L-0220": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Devil in the details on management's behalf."
+  },
+  "L-0221": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Engineers can pitch product ideas."
+  },
+  "L-0222": {
+   "section": "4.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Think as an end user; career."
+  },
+  "L-0223": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The final system: newly unread indicator."
+  },
+  "L-0224": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Offline, message arrives, counter on login."
+  },
+  "L-0225": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Live Instagram demo, without names."
+  },
+  "L-0226": {
+   "section": "5.1",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    },
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Newly unread, not unread; unverifiable, stated as the exercise's definition from the demo."
+  },
+  "L-0227": {
+   "section": "5.1",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    },
+    {
+     "section": "5.1",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Tap clears without reading."
+  },
+  "L-0228": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Demo observation; unverifiable, attributed."
+  },
+  "L-0229": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "May never read; badge signals new."
+  },
+  "L-0230": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirement wording: presence of new messages."
+  },
+  "L-0231": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Twist: unique senders."
+  },
+  "L-0232": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirements list."
+  },
+  "L-0233": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Newly = since last tap."
+  },
+  "L-0234": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "First approach outline."
+  },
+  "L-0235": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "messages(msg, from, to, ts)."
+  },
+  "L-0236": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Last-read store."
+  },
+  "L-0237": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Jump to a queue set aside: what is the input? (open)."
+  },
+  "L-0238": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "'No harm, not scalable' remark (open)."
+  },
+  "L-0239": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "messages stores everything; scale deferred (open thread)."
+  },
+  "L-0240": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "user_activity(user_id, last_read_at)."
+  },
+  "L-0241": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Ordering is pointless for a count."
+  },
+  "L-0242": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "SELECT * returns one row per message."
+  },
+  "L-0243": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    },
+    {
+     "section": "5.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "Crude query; inline clarification COUNT(DISTINCT) + A-PTU-10."
+  },
+  "L-0244": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Timestamp-only index corrected."
+  },
+  "L-0245": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Still expensive at scale."
+  },
+  "L-0246": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "(to, from, ts) index; simplified-low left."
+  },
+  "L-0247": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    },
+    {
+     "section": "5.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "(to, ts, from) cuts the scan; A-PTU-09."
+  },
+  "L-0248": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "10,000 entries to learn '1'."
+  },
+  "L-0249": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Keep a count instead of scanning."
+  },
+  "L-0250": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Crude, not incorrect."
+  },
+  "L-0251": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Source of truth gives an exact count; only inefficient."
+  },
+  "L-0252": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Per-user record with a count."
+  },
+  "L-0253": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Count and set both added; what's the difference?"
+  },
+  "L-0254": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Keep only the set."
+  },
+  "L-0255": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Set length O(1); A-PTU-11."
+  },
+  "L-0256": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    },
+    {
+     "section": "5.1",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Add sender on message; A-PTU-12."
+  },
+  "L-0257": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    },
+    {
+     "section": "5.1",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Delete on tap; inline clarification + A-PTU-13."
+  },
+  "L-0258": {
+   "section": "5.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    }
+   ],
+   "note": "Rule body: source of truth or pre-computed."
+  },
+  "L-0259": {
+   "section": "5.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Prose"
+    },
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 5 rule."
+  },
+  "L-0260": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Set length vs expensive query."
+  },
+  "L-0261": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Cost of pre-computing: you keep it updated."
+  },
+  "L-0262": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Neither wrong; depends on scale."
+  },
+  "L-0263": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "NoSQL key -> set; A-PTU-22."
+  },
+  "L-0264": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis as simplification; reuse native set; simplified-low left."
+  },
+  "L-0265": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Get-status read path."
+  },
+  "L-0266": {
+   "section": "5.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Clear path."
+  },
+  "L-0267": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Write path is the interesting part."
+  },
+  "L-0268": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Smart client: on the tab, no update."
+  },
+  "L-0269": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Backend checks the WebSocket; A-PTU-19."
+  },
+  "L-0270": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "A few more databases needed."
+  },
+  "L-0271": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Input = messaging service."
+  },
+  "L-0272": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Offline-only simplification."
+  },
+  "L-0273": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Messaging service is the source of truth for delivery."
+  },
+  "L-0274": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Online/offline service or edge servers; BackChips Lecture 1 and 4."
+  },
+  "L-0275": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "ON_MSG_UNSENT umbrella event."
+  },
+  "L-0276": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Events -> Kafka -> consumers add sender to set."
+  },
+  "L-0277": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Batch at workers when partitioned by recipient (board note, uncertain); A-PTU-17, A-PTU-18."
+  },
+  "L-0278": {
+   "section": "5.6",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "5.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Full design so far (Fig 5-g)."
+  },
+  "L-0279": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Many would stop here."
+  },
+  "L-0280": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Redis is overburdened on three paths."
+  },
+  "L-0281": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "DB most brittle; heuristic, attributed; BackChip Lecture 2."
+  },
+  "L-0282": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Get status is minimal; inline clarification + A-PTU-20 (replicas can serve reads)."
+  },
+  "L-0283": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Clear can't be reduced."
+  },
+  "L-0284": {
+   "section": "6.1",
+   "component": "PauseAndThink",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    },
+    {
+     "section": "6.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "N-1 writes change nothing."
+  },
+  "L-0285": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Friends send many short messages (opening problem)."
+  },
+  "L-0286": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "N-1 writes still hit the DB."
+  },
+  "L-0287": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Receive, read set, check, discard."
+  },
+  "L-0288": {
+   "section": "6.1",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Section 6 rule."
+  },
+  "L-0289": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Deathly Hallows analogy, one line."
+  },
+  "L-0290": {
+   "section": "6.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Rule body: add an auxiliary database."
+  },
+  "L-0291": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "One more hop is worth it; simplified-low left."
+  },
+  "L-0292": {
+   "section": "6.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    },
+    {
+     "section": "6.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Aux check then main write (Fig 6-b); simplified-low left; A-PTU-14 woven in."
+  },
+  "L-0293": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Main not called for repeats."
+  },
+  "L-0294": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Failure analysis: aux down = old behaviour."
+  },
+  "L-0295": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Clear deletes both stores."
+  },
+  "L-0296": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Accept inconsistency; not financial."
+  },
+  "L-0297": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Pick your battles."
+  },
+  "L-0298": {
+   "section": "7",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Storage engines next week (Lecture 9, Lecture 10)."
+  },
+  "L-0299": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Guessed Kafka internals; unverifiable, attributed."
+  },
+  "L-0300": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "'100+' threshold proposal."
+  },
+  "L-0301": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Skip even the first write above the threshold."
+  },
+  "L-0302": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "B_C: True key model; simplified-low left; A-PTU-15."
+  },
+  "L-0303": {
+   "section": "6.2",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Check, not store: one write each, rest are checks."
+  },
+  "L-0304": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "No count in aux, only existence."
+  },
+  "L-0305": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Sync failure: badge shows 2; simplified-low left."
+  },
+  "L-0306": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "No distributed transaction; worst case is small."
+  },
+  "L-0307": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Feels like cheating; think of the user's worst case."
+  },
+  "L-0308": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Why not read-before-write: even reads cost the main DB."
+  },
+  "L-0309": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "RuleBox"
+    }
+   ],
+   "note": "Rose under glass analogy (also the rule-box sketch)."
+  },
+  "L-0310": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "No user id in the hash: universal function."
+  },
+  "L-0311": {
+   "section": "5.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Another tab counts? product call."
+  },
+  "L-0312": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Learned in college; attributed."
+  },
+  "L-0313": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Understand relational internals."
+  },
+  "L-0314": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Members-only database-internals series (resource pointer)."
+  },
+  "L-0315": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Upcoming topics in that series."
+  },
+  "L-0316": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "EXPLAIN in your console; A-PTU-21."
+  },
+  "L-0317": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Official docs over blogs."
+  },
+  "L-0318": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "One query at a time, 3-4 months."
+  },
+  "L-0319": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "How he got good; attributed."
+  },
+  "L-0320": {
+   "section": "7",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Try optimizations on staging or a copy."
+  },
+  "L-0321": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Aux must be a cluster; A-PTU-16."
+  }
+ },
+ "dropped": [
+  {
+   "id": "L-0116",
+   "reason": "Pure logistics: at 1h10 the Gravatar architecture is still pending and a student's question is deferred. The architecture is placed in 3.1-3.3; the deferred question was never asked on record."
+  },
+  {
+   "id": "L-0146",
+   "reason": "Pure logistics: agenda checkpoint (active_photo_id done; image optimization next, then questions, then break). The content it lists is placed in 2.5 and 3.4."
+  }
+ ],
+ "source_notes": {
+  "SN-01": [
+   "L-0047"
+  ],
+  "SN-02": [
+   "L-0057"
+  ],
+  "SN-03": [
+   "L-0081"
+  ],
+  "SN-04": [
+   "L-0095"
+  ],
+  "SN-05": [
+   "L-0139"
+  ],
+  "SN-06": [
+   "L-0154",
+   "L-0155"
+  ],
+  "SN-07": [
+   "L-0203"
+  ],
+  "SN-08": [
+   "L-0209"
+  ]
+ },
+ "additions": {
+  "A-ID-01": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "note": "Kafka 4.2 share groups lift the partition cap; separate sentence after L-0007."
+  },
+  "A-ID-02": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "note": "SNS -> SQS as AWS's managed stream+broker fan-out (L-0010)."
+  },
+  "A-ID-03": {
+   "section": "1.1",
+   "component": "Prose",
+   "note": "MIME sniffing recognises raster signatures; SVG needs image/svg+xml (after L-0021)."
+  },
+  "A-ID-04": {
+   "section": "1.1",
+   "component": "Figure",
+   "note": "Signature bytes PNG/JPEG/BMP/GIF as labels in Fig 1-a."
+  },
+  "A-ID-05": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "Path traversal and safe_join (L-0025)."
+  },
+  "A-ID-06": {
+   "section": "1.2",
+   "component": "CodeBlock",
+   "note": "Set Content-Type yourself in a custom handler (comment line on the /raw code)."
+  },
+  "A-ID-07": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "Django static files: development only (L-0024)."
+  },
+  "A-ID-08": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "GitHub's numbers: 280 ms, ~2M images/day, 40% cached."
+  },
+  "A-ID-09": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "GitHub renders an HTML template in a headless browser."
+  },
+  "A-ID-10": {
+   "section": "1.4",
+   "component": "SourceNote",
+   "note": "SN-01: Pillow has its own C core; ImageMagick via Wand."
+  },
+  "A-ID-11": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "CDN TTL via Cache-Control s-maxage (L-0046)."
+  },
+  "A-ID-12": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Four required OG properties (L-0036)."
+  },
+  "A-GD-01": {
+   "section": "2.1",
+   "component": "SourceNote",
+   "note": "SN-02: trim, lowercase, SHA-256."
+  },
+  "A-GD-02": {
+   "section": "2.1",
+   "component": "Prose",
+   "note": "s= and d= parameters; default image (L-0058); cross-referenced in 3.4."
+  },
+  "A-GD-03": {
+   "section": "2.1",
+   "component": "Prose",
+   "note": "Unsalted fast hash allows email confirmation (L-0054 inline)."
+  },
+  "A-GD-04": {
+   "section": "2.3",
+   "component": "SourceNote",
+   "note": "SN-03: PostgreSQL expression index."
+  },
+  "A-GD-05": {
+   "section": "2.3",
+   "component": "SourceNote",
+   "note": "SN-03: MySQL functional key parts, same expression required."
+  },
+  "A-GD-06": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "note": "SN-04: Read Committed race leaves two active photos."
+  },
+  "A-GD-07": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "SELECT ... FOR UPDATE for the check (L-0135); BackChip Lecture 3."
+  },
+  "A-GD-08": {
+   "section": "2.4",
+   "component": "Prose",
+   "note": "Zero-row UPDATE is not an error; ROW_COUNT + ROLLBACK (L-0137 inline)."
+  },
+  "A-GD-09": {
+   "section": "2.5",
+   "component": "Prose",
+   "note": "Index on photos.user_id: InnoDB auto, PostgreSQL not (L-0105)."
+  },
+  "A-GD-10": {
+   "section": "2.5",
+   "component": "Prose",
+   "note": "Optional, used: MySQL turns the null-rejecting LEFT JOIN into an inner join (L-0103)."
+  },
+  "A-GD-11": {
+   "section": "3.2",
+   "component": "SourceNote",
+   "note": "SN-05: CloudFront OAC reads private buckets."
+  },
+  "A-GD-12": {
+   "section": "3.2",
+   "component": "Prose",
+   "note": "CNAME at the zone apex needs flattening (L-0123)."
+  },
+  "A-GD-13": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Invalidation clears only edges; versioned file names (L-0130)."
+  },
+  "A-GD-15": {
+   "section": "3.4",
+   "component": "SourceNote",
+   "note": "Optional, used in SN-06: Pillow Image.resize; Wand needs MagickWand (L-0156)."
+  },
+  "A-GD-16": {
+   "section": "3.4",
+   "component": "Prose",
+   "note": "Cloudflare Images transforms via URL parameters (L-0158)."
+  },
+  "A-GD-17": {
+   "section": "3.5",
+   "component": "MarginNote",
+   "note": "Optional, used: Cloudflare's resizing is in Rust, context for the half-remembered blog (L-0162)."
+  },
+  "A-GD-18": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "note": "MySQL BOOL = TINYINT(1)."
+  },
+  "A-GD-19": {
+   "section": "2.2",
+   "component": "MarginNote",
+   "note": "PostgreSQL has no TINYINT."
+  },
+  "A-GD-20": {
+   "section": "2.5",
+   "component": "Prose",
+   "note": "MySQL autocommit default (L-0111)."
+  },
+  "A-PTU-01": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "MongoDB 16 MiB cap; real reasons are rewrite cost and pagination (L-0190)."
+  },
+  "A-PTU-02": {
+   "section": "4.4",
+   "component": "SourceNote",
+   "note": "SN-08: arrays can be indexed; separate table still advised."
+  },
+  "A-PTU-03": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "Facebook Graph API stores tag x/y as percentages (L-0213)."
+  },
+  "A-PTU-05": {
+   "section": "4.4",
+   "component": "SourceNote",
+   "note": "SN-07: Facebook face recognition shut down Nov 2021."
+  },
+  "A-PTU-06": {
+   "section": "4.6",
+   "component": "Prose",
+   "note": "RBAC vs per-user ACL, Zanzibar (L-0218 inline)."
+  },
+  "A-PTU-07": {
+   "section": "4.4",
+   "component": "Prose",
+   "note": "Builders' Library on fallbacks (L-0206)."
+  },
+  "A-PTU-08": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "Android notification groups (L-0197)."
+  },
+  "A-PTU-09": {
+   "section": "5.2",
+   "component": "Prose",
+   "note": "PostgreSQL multicolumn index rule (L-0247)."
+  },
+  "A-PTU-10": {
+   "section": "5.2",
+   "component": "CodeBlock",
+   "note": "COUNT(DISTINCT); from/to reserved words (L-0243 inline)."
+  },
+  "A-PTU-11": {
+   "section": "5.3",
+   "component": "Prose",
+   "note": "SCARD O(1), 0 for missing key (L-0255)."
+  },
+  "A-PTU-12": {
+   "section": "5.3",
+   "component": "Prose",
+   "note": "SADD ignores existing members (L-0256); reused in 6.1."
+  },
+  "A-PTU-13": {
+   "section": "5.3",
+   "component": "Prose",
+   "note": "DEL O(M), UNLINK (L-0257 inline)."
+  },
+  "A-PTU-14": {
+   "section": "6.2",
+   "component": "Prose",
+   "note": "SET key NX EX for the aux check (L-0292)."
+  },
+  "A-PTU-15": {
+   "section": "6.2",
+   "component": "Prose",
+   "note": "HSETNX hash per receiver (L-0302)."
+  },
+  "A-PTU-16": {
+   "section": "6.2",
+   "component": "Prose",
+   "note": "Cluster hash tags {B} (L-0321)."
+  },
+  "A-PTU-17": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "Key events by recipient id (L-0277)."
+  },
+  "A-PTU-18": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "Redis pipelining for batched writes (L-0277)."
+  },
+  "A-PTU-19": {
+   "section": "5.6",
+   "component": "Prose",
+   "note": "WebSocket Ping/Pong to detect dead clients (L-0269)."
+  },
+  "A-PTU-20": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "Redis replicas for reads (L-0282 inline)."
+  },
+  "A-PTU-21": {
+   "section": "7",
+   "component": "MarginNote",
+   "note": "EXPLAIN vs EXPLAIN ANALYZE caution (L-0316)."
+  },
+  "A-PTU-22": {
+   "section": "5.5",
+   "component": "Prose",
+   "note": "MongoDB $addToSet (L-0263)."
+  }
+ },
+ "additions_not_used": {
+  "A-GD-14": "optional; Cloudflare purge-by-URL rate limits add nothing that L-0130 and A-GD-13 don't already say.",
+  "A-PTU-04": "optional; YOLO's normalized box format is an ML-dataset detail. L-0216 and A-PTU-03 already show the relative x,y,w,h form."
+ }
+}

@@ -1,0 +1,38 @@
+[
+ {
+  "id": "l06-hash-scan",
+  "section": "2.3",
+  "title": "How many rows does the query touch?",
+  "seconds": 24,
+  "ledger": ["L-0080", "L-0081", "L-0083"],
+  "predict": "The table has 10,000 users. How many rows does each query read?",
+  "caption": "Hashing in the WHERE clause makes the database hash every email to find the match, on every request. A stored, indexed hash is one lookup. Not storing a derivable value cost a full scan, so store it."
+ },
+ {
+  "id": "l06-invalidate",
+  "section": "3.3",
+  "title": "The old face, and how long it lingers",
+  "seconds": 30,
+  "ledger": ["L-0126", "L-0127", "L-0128", "L-0129"],
+  "predict": "User 1 changes their photo. With a two-day TTL and no invalidation, how long might user 2 see the old face?",
+  "caption": "With only a 1–2 day TTL, the CDN can keep serving the old photo until it expires. An event on Kafka lets a worker call the CDN's purge API (or the API calls it directly), and the next request gets the new photo. Long TTL for speed, explicit invalidation for correctness."
+ },
+ {
+  "id": "l06-badge",
+  "section": "5.1",
+  "title": "Three people, not three hundred messages",
+  "seconds": 28,
+  "ledger": ["L-0227", "L-0231", "L-0233", "L-0256", "L-0257"],
+  "predict": "300 messages from 3 friends arrive while you're offline. What does the badge show, and what does one tap change?",
+  "caption": "In this design the badge counts unique senders since your last tap: 300 messages from three people show 3. A tap clears the set and the badge, but nothing was read."
+ },
+ {
+  "id": "l06-aux-redis",
+  "section": "6.2",
+  "title": "Thirty messages, one write",
+  "seconds": 30,
+  "ledger": ["L-0286", "L-0292", "L-0293", "L-0303"],
+  "predict": "C sends 30 messages. How many reach the main Redis, with and without the auxiliary?",
+  "caption": "Without help, all 30 writes hit the main store and 29 change nothing. With an auxiliary store, the repeats stop at a cheap existence check and the main store gets one write per sender. Shield the brittle database from work that changes nothing."
+ }
+]

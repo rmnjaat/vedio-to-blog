@@ -1,0 +1,106 @@
+---
+title: "Gravatar to unread badges"
+kicker: "Lecture 08 · week 4, day 2 · running case: Gravatar, photo tags, the unread badge"
+dek: "Four small systems, each teaching one habit: images as route handlers, the query decides the design, the product hat, and pre-compute versus source of truth, ending with the auxiliary-database pattern."
+description: "Lecture 08: four small social-network systems, each teaching one habit: images as route handlers, the query decides the design, the product hat, and pre-compute versus source of truth."
+reviewed: 14 Oct 2026
+status: published
+ledger: lectures/lec06/ledger/ledger.jsonl
+contents:
+  - no: "1"
+    title: "Images are just responses"
+    href: "#s1"
+    children:
+      - { no: "1.1", title: "What the browser actually does with an image URL", href: "#s1-1" }
+      - { no: "1.2", title: "The static folder is code, and you can write your own", href: "#s1-2" }
+      - { no: "1.3", title: "An image that doesn’t exist yet", href: "#s1-3" }
+      - { no: "1.4", title: "On demand, behind a CDN", href: "#s1-4" }
+  - no: "2"
+    title: "Gravatar: the query decides the design"
+    href: "#s2"
+    children:
+      - { no: "2.1", title: "One URL for your face", href: "#s2-1" }
+      - { no: "2.2", title: "Question every column", href: "#s2-2" }
+      - { no: "2.3", title: "The query that reads every row", href: "#s2-3" }
+      - { no: "2.4", title: "Mark a photo active: a bug hunt", href: "#s2-4" }
+      - { no: "2.5", title: "Where does “active” live?", href: "#s2-5" }
+  - no: "3"
+    title: "Serving Gravatar at every size"
+    href: "#s3"
+    children:
+      - { no: "3.1", title: "Upload, reused", href: "#s3-1" }
+      - { no: "3.2", title: "A CDN in front, the API as origin", href: "#s3-2" }
+      - { no: "3.3", title: "When the photo changes", href: "#s3-3" }
+      - { no: "3.4", title: "Every size, on demand", href: "#s3-4" }
+      - { no: "3.5", title: "Why it needs big machines", href: "#s3-5" }
+  - no: "4"
+    title: "Tagging: wear the product hat"
+    href: "#s4"
+    children:
+      - { no: "4.1", title: "One line of brief, three hats", href: "#s4-1" }
+      - { no: "4.2", title: "Who can tag me?", href: "#s4-2" }
+      - { no: "4.3", title: "How many tags, and who gets told", href: "#s4-3" }
+      - { no: "4.4", title: "Suggestions, activity and the feed", href: "#s4-4" }
+      - { no: "4.5", title: "Where exactly is the tag?", href: "#s4-5" }
+      - { no: "4.6", title: "Everyone else hears about it through Kafka", href: "#s4-6" }
+  - no: "5"
+    title: "The newly unread badge"
+    href: "#s5"
+    children:
+      - { no: "5.1", title: "What the 3 means", href: "#s5-1" }
+      - { no: "5.2", title: "The crude, correct query", href: "#s5-2" }
+      - { no: "5.3", title: "Keep a set instead", href: "#s5-3" }
+      - { no: "5.4", title: "Source of truth or pre-computed", href: "#s5-4" }
+      - { no: "5.5", title: "Redis: the read path and the clear", href: "#s5-5" }
+      - { no: "5.6", title: "The write path starts at the messaging service", href: "#s5-6" }
+  - no: "6"
+    title: "Protect the database: the auxiliary database"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "Audit every path", href: "#s6-1" }
+      - { no: "6.2", title: "The auxiliary database", href: "#s6-2" }
+      - { no: "6.3", title: "When things go wrong", href: "#s6-3" }
+      - { no: "6.4", title: "Why not just read first, or stop counting?", href: "#s6-4" }
+  - no: "7"
+    title: "What to keep"
+    href: "#s7"
+chapters:
+  - no: "1"
+    slug: 1-images
+    parts: [s1-images]
+    summary: "“The image is served” hides a piece of code you could write yourself. Once you see the code, a URL can return an image that never existed until someone asked."
+  - no: "2"
+    slug: 2-gravatar
+    parts: [s2a-gravatar, s2b-gravatar]
+    summary: "A system so simple you’d draw two boxes and stop. Write the exact queries and it changes three times: a stored hash, a transaction with an ownership check, and “active” moving to the user."
+  - no: "3"
+    slug: 3-serving
+    parts: [s3-serving]
+    summary: "Reuse the upload service, put a CDN in front of the API, tell the CDN when a photo changes, then let the same origin hand out any size on request."
+  - no: "4"
+    slug: 4-tagging
+    parts: [s4-tagging]
+    summary: "“Let’s allow people to tag people in photos.” One line from a CXO. Before any schema, ask the questions that decide who builds what."
+  - no: "5"
+    slug: 5-badge
+    parts: [s5a-badge, s5b-badge]
+    summary: "The small number on the messages icon. Pin down what it counts, build the correct but crude query, then replace it with a set kept up to date by the messaging service."
+  - no: "6"
+    slug: 6-auxiliary
+    parts: [s6-auxiliary]
+    summary: "The design works, but the database is doing work that changes nothing. Put a cheap store in front of it to absorb that work, and decide what inconsistency you can live with."
+  - no: "7"
+    slug: 7-what-to-keep
+    parts: [s7-keep]
+    summary: "The habits that tie four small systems together, how to get good at query tuning, and where the course goes next."
+---
+import Header from './lec06/s0-header.mdx';
+
+{/* Lecture 08 (lec06). This body is the lecture overview page (/lectures/lec06/): the header block (About this
+    class, the social network so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec06/<slug>/),
+    built from the parts listed under `chapters`, in outline order. Section ids: #s1 … #s7, subsections #s<n>-<m>.
+    Chapters 4, 5 and 6 have no opener Section of their own, so the chapter page adds #s4, #s5 and #s6 as anchors
+    before their first subsection. A link to a section on another chapter page is a plain #id: the page template
+    sends it to the right chapter. */}
+
+<Header />

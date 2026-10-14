@@ -1,0 +1,806 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Designing Gravatar; on-demand image optimization; tagging photos; designing the newly unread message indicator.",
+  "evidence": "Overview, About this class: 'On the board the agenda read, in order: designing Gravatar, on-demand image optimization, tagging photos, and designing the newly unread message indicator.'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Kafka's parallelism is limited by its number of partitions; for a fan-out to millions (e.g. Justin Bieber's 10-15 million followers) Kafka alone is painfully slow with a limited number of partitions, and adding a large number of partitions becomes a problem of its own. Fix: club a message stream (Kafka or Kinesis) with a message broker (SQS or RabbitMQ) to get a very high degree of fan-out; per-user delivery work goes to a queue many workers can drain (AWS: SNS topic pushing to subscribed SQS queues). One broker that broadcasts is not what happens at scale.",
+  "evidence": "Ch4 §4.3 'How notification systems fan out': 'Kafka's parallelism is limited by its number of partitions... Kafka alone is painfully slow when you have a limited number of partitions... club a message stream (Kafka or Kinesis) with a message broker (SQS or RabbitMQ)'",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "He had to notify about 50,000-60,000 users within five seconds, for an aggressive marketing push; stitching a message stream to a message broker was the way to pull it off.",
+  "evidence": "Ch4 §4.3: 'the instructor once had to notify about 50,000–60,000 users within five seconds, for an aggressive marketing push... stitch a message stream to a message broker.'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "No. The browser doesn't have a clue; the extension plays no part. It sends a GET and reads the bytes, recognising the format from the header (first bytes); browsers go by MIME type, not extension.",
+  "evidence": "Ch1 §1.1: 'It is tempting to think the browser knows a URL points at an image because it ends in .jpg. It doesn't have a clue.' Fig 1a: 'The file extension plays no part.'",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "While rendering the HTML it reaches the tag and makes an HTTP GET request to whatever URL is in src (any URL). It has no idea what the GET will return; because it is an img tag it expects an image and tries to interpret whatever comes back in the response as one.",
+  "evidence": "Ch1 §1.1: 'the browser reaches that tag and makes an HTTP GET request to whatever URL is in src... It has no idea what the GET will return. It is expecting an image, so it tries to interpret whatever comes back'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "On a 2xx response it checks the header (first bytes) of the returned bytes, decides the format (e.g. 'this is a PNG'), invokes the matching decoder and renders the decoded image as pixels. Every format starts with an identifying header (PNG 89 50 4E 47 0D 0A 1A 0A, JPEG FF D8 FF, GIF GIF87a/GIF89a, BMP 'BM'); the check follows WHATWG MIME Sniffing. SVG is not sniffed and needs Content-Type image/svg+xml.",
+  "evidence": "Ch1 §1.1: 'On a 2xx response the browser checks the header of the bytes it got back, decides the format... invokes the matching decoder and renders the decoded image as pixels'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "The /static prefix is tied to a folder on local disk; whatever follows /static is treated as a relative file path. The server goes to the static folder, reads img/arpit.jpg there (site/static/img/arpit.jpg), and sends its bytes as the response, not caring whether it is an image or text. The path is untrusted input and must not escape the folder (e.g. /static/../../etc/passwd; Flask uses Werkzeug's safe_join).",
+  "evidence": "Ch1 §1.2: 'whatever follows /static in the URL is treated as a relative file path... So /static/img/arpit.jpg makes the server look for img/arpit.jpg inside the folder mapped to /static, here site/static/img/arpit.jpg.'",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "1. Reads the URL; 2. reads the file at that path; 3. sends the bytes.",
+  "evidence": "Ch1 Fig 1b labels: 'once the request hits the server, it… 1 reads the URL 2 reads the file at that path 3 sends the bytes'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "In site/static/img/arpit.jpg, i.e. under the static folder's img subfolder (site/ -> static/ -> img/).",
+  "evidence": "Ch1 §1.2: 'here site/static/img/arpit.jpg'; Fig 1b tree: site/ · static/ · img/",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Route /raw/<path>: whatever follows /raw is used as the key of an object in a configured S3 bucket; the handler reads that object from S3 and returns the bytes (e.g. /raw/users/logo.jpg on localhost:5000 returns users/logo.jpg). One generic route, no per-file config, 3-4 lines of code: it makes the server a proxy for S3. (Real code should set Content-Type and not trust the path.) Not a feature or a new CDN; it shows an image can come back as a normal HTTP response.",
+  "evidence": "Ch1 §1.2: 'One generic route... three or four lines of code: the server is now a proxy for S3.'",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Same three steps, different source: step 2 reads the file from S3 instead of from the server's local disk (reads the URL; reads the file from S3; sends the bytes).",
+  "evidence": "Ch1 Fig 1b: '1 reads the URL 2 reads the file from S3 3 sends the bytes'; caption 'Same three steps, different source.'",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "Many people assume a web server can only send JSON responses. It can send any bytes; an HTTP handler can send images as easily as anything else.",
+  "evidence": "Ch1 §1.2: 'Many people assume a web server can only send JSON responses. It can send any bytes'",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "Because the handler is in your control it can run any custom logic; all that matters is the bytes it sends. If they are a properly structured, byte-serialized image the browser renders it, whether read from storage or drawn a moment ago.",
+  "evidence": "Ch1 §1.3: 'Because the handler is in your control, the image doesn't need to exist before someone asks for it... All that matters is the bytes you send.'",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Via the Open Graph protocol: the HTML names an og:image, and whatever URL is given there is drawn as the snippet image. (OG requires og:title, og:type, og:image, og:url.)",
+  "evidence": "Ch1 §1.3: 'The snippet comes from the Open Graph protocol (OG). The HTML you serve names an og:image'",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "GitHub has millions of repositories; generating one image per repository every day would waste compute (on cards nobody shares), and the card carries recent information (current stars, forks, contributors), so it couldn't be generated once and stored anyway. It is generated on demand when requested, and cached by a CDN with a TTL.",
+  "evidence": "Ch1 §1.3: 'why would it spend compute generating one image per repository every single day? The image is generated on demand... because it carries recent information it couldn't be generated once and stored anyway.'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "opengraph.githubassets.com, a separate CDN GitHub runs for these images (alongside githubusercontent.com, the CDN for user assets).",
+  "evidence": "Ch1 §1.3: 'GitHub even runs a separate CDN for these images, opengraph.githubassets.com, alongside githubusercontent.com'",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Frontend puts the og:image URL in an img tag; request goes to the CDN at opengraph.githubassets.com; on a miss the CDN calls the origin, GitHub's API server, which generates the image on the fly by filling a template with the repo's current stats; it sends the image back to the CDN, which caches it with a TTL (about a day, set via Cache-Control s-maxage) and serves following requests; after the TTL the next request misses and the image is regenerated. GitHub's figures: ~280 ms per render, ~40% of requests served cached.",
+  "evidence": "Ch1 §1.4: 'If the CDN doesn't have it, the CDN calls the origin, GitHub's API server, which handles the request by generating the image on the fly... The CDN caches it with some TTL'",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "ImageMagick and PIL (Python Image Library), 'and there are tons of others'; Bannerbear was named as a company specializing in this. (Page note: Pillow does not actually use ImageMagick; GitHub itself uses a Node.js app with Puppeteer.)",
+  "evidence": "Ch1 §1.4: 'you need an image library, such as ImageMagick or PIL'",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "When a tweet's URL is shared, its og:image would be a nicely formatted image of the tweet: on a CDN miss Twitter's API server fills a template with the tweet, formats it and responds, and the CDN caches it, showing current likes, shares, comments and reposts, instead of people screenshotting tweets with tools like poet.so. (Hypothetical.)",
+  "evidence": "Ch1 §1.4: 'Twitter could make that native... On a CDN miss, Twitter's API server would fill a template with the tweet, format it and respond, and the CDN would cache it.'",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "A local prototype of on-the-fly social images: install Python (or any language with such libraries), pick an image-generating library, expose one API endpoint that fetches a GitHub repo's info, creates the card on the fly and serves it on localhost; works for any repository.",
+  "evidence": "Ch1 §1.4 'Build it in an hour'",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "A service that creates a single embeddable URL for your profile picture (built from a hash of your email), so sites can show your photo even if you never signed up there with Twitter/Gmail/etc.",
+  "evidence": "Ch2 §2.1: 'What it does is create a single embeddable URL for your profile picture.'",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "The MD5 hash of the email (as taught; page note: Gravatar now uses SHA-256, MD5 was the original; email trimmed and lowercased first). The URL is constant because a hash function always gives the same output for the same input: same email, same hash, same URL.",
+  "evidence": "Ch2 §2.1: 'The URL is gravatar.com/ followed by the MD5 hash of your email. It is constant, because a hash function given the same input always gives the same output'",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "The page says the email is PII, so the URL carries a hash of it for security (keeps the address out of plain sight; unsalted hashes don't protect much more). The page does not explicitly describe a pink-arrow note.",
+  "evidence": "Ch2 §2.1: 'The email is personal data (PII), so the URL carries a hash of it, for security.'",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "You upload a new one on gravatar.com and mark it active; the next request on every site picks it up without any social network doing anything.",
+  "evidence": "Ch2 §2.1: 'the next request, on every site, picks it up without any social network doing anything.'",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "1. A user can upload several pictures; 2. a user can mark one of them as active; 3. when the URL is requested, the active one comes back in the response.",
+  "evidence": "Ch2 §2.1: 'So the requirements are three'",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Users log in and are authenticated with it, they expect to see it on their own profile page, and relying on the hash alone risks a collision that logs someone into another person's account; also you can't get the email back from a hash.",
+  "evidence": "Ch2 §2.2: 'Always store the actual email. Users log in and are authenticated with it...'",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "It was written on the board and crossed off on purpose because it is derivable from the email (the previous lecture's rule: don't store what you can derive). Later (§2.3) it came back as an indexed column because the query needed it.",
+  "evidence": "Ch2 §2.2: 'The hash column was written on the board and then crossed off on purpose, because it is derivable'",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "A user has several photos and a single column of a relational database can't hold several image paths, so photos(id, user_id) has one row per uploaded photo (10 photos = 10 rows).",
+  "evidence": "Ch2 §2.2: 'a single column of a relational database can't hold several image paths, so photos get a table of their own.'",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "First draft: select * from photos where user_id = ? (no is_active filter needed). A join was needed because a Gravatar request carries the hash of an email, not a user id, so photos must be joined with users on photos.user_id = users.id and filtered on the user the hash identifies.",
+  "evidence": "Ch2 §2.3: 'A first draft is select * from photos where user_id = ?... But a Gravatar request doesn't carry a user id. What you get is the hash of an email.'",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "No. Hashing is not encryption; it is lossy, so you cannot get the email back from its hash.",
+  "evidence": "Ch2 §2.3: 'You cannot get an email from its hash: this is hashing, not encryption, and hashing is lossy.'",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "Set aside: assume hashes are unique, since two people with the same hash couldn't be told apart anyway.",
+  "evidence": "Ch2 §2.3: 'Collisions are set aside: assume hashes are unique...'",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "A computation in the WHERE clause means the database can't use its (plain) index on email: it must read every row, hash each email and compare it, a full table scan (all 10,000 rows of 10,000 users), before even doing the join, and on every request. It also adds a hash computation per query. (An expression index would avoid it.)",
+  "evidence": "Ch2 §2.3: 'the database has to read every row, compute each email's hash and compare it, a whole-table scan'",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Add a hash column to users, index it, compute/store the hash when the user is created, and query WHERE users.hash = ? (one index lookup, almost O(1)). It contradicted the previous lecture's rule 'don't store what you can derive': store it if not storing it slows things down.",
+  "evidence": "Ch2 §2.3: 'This openly contradicts the previous lecture... The fix: give users a hash column, index it, and query WHERE users.hash = ?'",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "users(id, email, hash) with all three marked * : email is a unique key, hash is a unique key, both indexed.",
+  "evidence": "Ch2 §2.3: 'Email is a unique key, hash is a unique key, and both are indexed; the board marks id, email and hash with a *.'",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Drawing boxes is easy; the devil lies in the details. Only by writing the exact query and working out how it executes do you find a column you thought unnecessary is needed for performance. It's not always true you shouldn't store what's derivable; if not storing it slows things down, store it.",
+  "evidence": "Ch2 §2.3 rule box",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "update photos set is_active = true where id = ?;",
+  "evidence": "Ch2 §2.4: 'The first draft: update photos set is_active = true where id = ?;'",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "No. id is the primary key, so the lookup is log n anyway, already very efficient. (A different reason to add user_id, security, comes later.)",
+  "evidence": "Ch2 §2.4: 'That doesn't help: id is the primary key, so the lookup is log n anyway'",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "It didn't mark the previously active photo inactive (two active photos). Fix: first mark all of the user's photos inactive, then the chosen one active: update photos set is_active = false where user_id = ?; then update photos set is_active = true where id = ?. (A three-query version and a counter-based hack were considered and dropped.)",
+  "evidence": "Ch2 §2.4 Bug 1: 'Simplified, it is two: mark all of the user's photos inactive, then mark the chosen one active.'",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "Don't touch every photo: add 'and is_active = true' to the first update's WHERE, so it changes only the currently active row: update photos set is_active = false where user_id = ? and is_active = true.",
+  "evidence": "Ch2 §2.4 Bug 1: 'Add and is_active = true to the first update's WHERE clause'",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "The second depends on the first; if the process crashes after the first update, the user has no active photo and sites (e.g. Facebook) rendering the photo get a 404. In a transaction the crash rolls back the first update and the old photo stays active. It must be explicit, not just 'can be'.",
+  "evidence": "Ch2 §2.4 Bug 2 and Fig 2c",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "The photo id comes from the front end, so anyone can pass a random photo id; without the user_id check the second update would mark somebody else's photo active (and leave the caller with none). It's for security and correctness, not speed. Better still, check first with a locking select.",
+  "evidence": "Ch2 §2.4 Bug 3: 'The second update must also check user_id = ?, so a user can only mark their own photos active. That check is there for security and for the correctness of the system.'",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Write five lines of code and you get 50 comments; write 500 and you get 'looks good to me'. With a simple system people nitpick every single thing.",
+  "evidence": "Ch2 §2.4: 'It is exactly like code review...'",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "select * from photos join users on photos.user_id = users.id where users.hash = ? and photos.is_active = true;",
+  "evidence": "Ch2 §2.5",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "No. Inner vs left join perform exactly the same here (MySQL even rewrites such a LEFT JOIN to inner).",
+  "evidence": "Ch2 §2.5: 'Swapping it for an inner join, or a left join, isn't the optimization: here they perform exactly the same.'",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Filter on hash gives one user row and its id; the id joins to that user's photos (several, e.g. 10); is_active filters to the active one. The optimizer picks this order (predicate pushdown). Filtering on is_active is not a problem: by then you've narrowed to a few indexed rows, an index lookup, very fast (relies on an index on photos.user_id; InnoDB creates one automatically, PostgreSQL doesn't).",
+  "evidence": "Ch2 §2.5: 'It is tempting to see the is_active = true filter as the extra work. It isn't a problem'",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Store active_photo_id in the users table (since Gravatar is read-heavy).",
+  "evidence": "Ch2 §2.5: 'Store active_photo_id in the users table. Gravatar is a read-heavy system'",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "No, not at first: marking active still sat in a transaction, now updating users (select the photo from photos, then update users set active_photo_id). Only once is_active is dropped from photos does it become a single UPDATE that, under auto-commit, is a transaction in itself.",
+  "evidence": "Ch2 §2.5: 'At first, marking a photo active still sits in a transaction, now updating users...' and 'Why keep is_active on photos at all, then?... So it goes.'",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "No join: one row from users (select * from users where hash = ?) gives the active photo id and user id; from those build the S3 path, read the file and serve it.",
+  "evidence": "Ch2 §2.5: 'One row from users gives you the active photo id and the user id; from those you build the S3 path, read the file and serve it.'",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "is_active on photos: read = join users and photos filtered on hash and is_active; mark active = two updates that must share an explicit transaction (else crash leaves none active); 'is this photo active?' = read the flag; feels natural. active_photo_id on users: read = one row from users by hash, no join; mark active = one UPDATE on users, no explicit transaction (auto-commit); 'is this photo active?' = join with users (rare); counterintuitive at first. Gain is small (extreme nitpicking) but removes the bug-prone two-update dance.",
+  "evidence": "Ch2 §2.5 comparison table",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Because you think of 'active' as a property of the photo; class design, LLD and schema design train us to think in attributes of an entity, so every cohort (this was the fifteenth) starts with is_active on photos. Lesson: there's no one way to build a system; a somewhat more optimized solution can exist; keep challenging your beliefs: unlearn, relearn, become better.",
+  "evidence": "Ch2 §2.5: 'It is counterintuitive...' and 'So keep challenging your own beliefs'",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "One query: a single UPDATE on users (set active_photo_id), since only one column on one row changes, nothing else to keep in step; under auto-commit a single statement is a transaction in itself. It must still carry the ownership check.",
+  "evidence": "Ch2 §2.5: 'It is a single UPDATE, still carrying its checks, and with auto-commit a single query is a transaction in itself'",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "1. User asks the photo upload service to prepare an upload; it picks a random photo id and returns a signed (pre-signed) URL. 2. Upload: the user uploads the file straight to S3 with that URL. 3. The user calls the API to register the photo, making an entry in the photos table. S3 key: s3://gravatar-images/{user_id}/{random photo id}. (Lecture 7's upload service reused unchanged.)",
+  "evidence": "Ch3 §3.1 and Fig 3a",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "A photos row with photo id, user id and is_active = true (e.g. 7abe, 729, true); users holds the email and its hash (729, <email>, 0eafd172). The S3 path is not stored; it's derived from user id + photo id. Board used MySQL.",
+  "evidence": "Ch3 §3.1: 'After publishing, the photos row holds the photo's id, the user id and is_active = true...'",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "At Facebook/Instagram scale, millions of hits coming to the API servers and on to S3 would create chaos and the AWS bill would shoot up; the CDN also gives users a better experience (speed and scale, ease of use).",
+  "evidence": "Ch3 §3.2: 'millions of hits coming to the API servers and on to S3 would create chaos, and the AWS bill would shoot up.'",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Take the hash from the URL; get the active photo from the database; read the file from S3 at its derived path; return the bytes.",
+  "evidence": "Ch3 §3.2: 'take the hash from the URL, get the active photo from the database, read the file from S3 at its derived path and return the bytes.'",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "Create a CDN property gravatar.com whose origin is api.gravatar.com/photos. The root domain is itself the CDN property, which needs DNS support such as Cloudflare's CNAME flattening (a plain CNAME can't sit at the zone apex).",
+  "evidence": "Ch3 §3.2: 'Create a CDN property gravatar.com whose origin is that endpoint, api.gravatar.com/photos.'",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "The speed and scale of a CDN, and ease of use for the user.",
+  "evidence": "Ch3 §3.2: 'The board summed up the gain as the speed and scale of a CDN, and ease of use for the user.'",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "It goes to the CDN. If the CDN has the photo, it serves it. If not, the CDN goes to the origin api.gravatar.com, which asks the DB which photo is active, reads it from S3 and returns it; the CDN caches it (TTL 1-2 days) and serves the user, and following requests are served from the CDN.",
+  "evidence": "Ch3 §3.2",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "The API server updates the database and pushes a photo_updated event to Kafka (board labels it 'queue'). Consumers (invalidation workers) whose only job is invalidation call the CDN's API to invalidate the path (e.g. /h1), deleting the file from the CDN. The next request misses, goes to the API, which gets the path from the DB, reads S3 and sends to the CDN, which caches and serves. Calling the CDN directly/synchronously from the API was also accepted. (Purge clears only CDN edges, not browser/proxy caches.)",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Because the user wants to see the new photo everywhere immediately (user experience); with TTL only, the CDN could keep serving the old photo for up to 1-2 days. Long TTL for speed, explicit invalidation for correctness.",
+  "evidence": "Ch3 §3.3: 'Gravatar doesn't rely on the TTL, because the user wants to see the new photo everywhere immediately'",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "The second update matches nothing (user_id protects others' photos), but the first already ran, so all the user's photos are inactive and nothing active: a 404. An update changing nothing is an alarm (often a front-end bug). Yes, guard: if the invariant is exactly one active photo, first select the photo row by id and user_id with a locking read (SELECT ... FOR UPDATE); if it exists run both updates, else stop/ROLLBACK and report not found. An UPDATE matching no rows isn't an error, so nothing rolls back on its own (check ROW_COUNT() in MySQL). Check first, then write; 100% you should check ownership.",
+  "evidence": "Ch2 §2.4 'Keep exactly one active'",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "S3 doesn't know which photo is active; only the database (source of truth) does, so the origin must be the API. The instructor also said S3 is not public (page notes a CDN can read a private bucket, e.g. CloudFront OAC, so the second reason is the one that holds).",
+  "evidence": "Ch3 §3.2: 'S3 is not public, and only the database knows which photo is active.'",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "Applying HASH(email) in the WHERE clause prevents index use: the DB must hash and compare every row, a full table scan on every request. So the hash is stored and indexed instead.",
+  "evidence": "Ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "No. The input from the URL is the hash; the join on user_id is only a join criterion (foreign key), not a filter.",
+  "evidence": "Ch2 §2.5 summary: 'The join on user id is only a join criterion, since it is the foreign key, not a filter.'",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "SQL engines push filters to the bottom of the evaluation tree (the leaf nodes) so they are applied first, then the join, then the rest going up; the tree is evaluated bottom to top. E.g. hash = ? at the users leaf (1 row), join on user_id (10 photos), is_active filter on top (1 row). The optimizer picks the order.",
+  "evidence": "Ch2 §2.5 'How the database runs the join'",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "On update, the API writes the DB and puts an event on Kafka; workers call the CDN's purge/invalidation API for that path (or the API calls the CDN directly), so the next request misses and fetches the new photo from the origin.",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Denormalize users to avoid joins: store active_photo_id, or even the active photo's S3 key directly.",
+  "evidence": "Ch2 §2.5: 'The board kept it as a note under possible optimizations: denormalize users to avoid joins, storing active_photo_id, or even the active photo's S3 key directly.'",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "One image is needed at many sizes (e.g. 16x16 or 32x32 dot, 256x256, 512x512) while the user uploads at any resolution; whatever size is requested should be served, from one stored original.",
+  "evidence": "Ch3 §3.4: 'The problem: one image is needed at many sizes...'",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Through query parameters in the URL, e.g. https://gravatar.com/h1?w=32 (transform to 32 px wide). It is not 'upload, post a message, and have servers pre-create every variant': the image is transformed when requested.",
+  "evidence": "Ch3 §3.4: 'On-demand optimization is not upload the image, post a message, and have a bunch of servers pre-create every variant.'",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "1. Reads the URL; 2. if it has the file, returns it; 3. if not, reads the file from the origin; 4. transforms it as per the given transformations; 5. caches the file locally; 6. returns the response.",
+  "evidence": "Ch3 §3.4 list",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Per the lecture, ImageMagick is written in C++ and almost every language has C++ bindings, so it can be invoked natively from your preferred language. (Page note: it's actually written in C with C APIs and a C++ API, so most languages call it through bindings.)",
+  "evidence": "Ch3 §3.4",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Use bulky machines with many CPUs/cores (to parallelize and finish quickly), autoscaled on incoming requests: 'large servers (size & numbers)'. Nothing fancy.",
+  "evidence": "Ch3 §3.5: 'bulky servers, autoscaled on the incoming requests.'",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Because the request is synchronous: when the URL loads, the requested-size image must be produced right then and sent back; it can't be deferred to a queue. Board: 'CPU intensive! Cannot be ASYNC; large servers (size & numbers)'.",
+  "evidence": "Ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Roughly: they use the ImageMagick library, run it on massive servers with 32 or 64 cores, and scale the fleet with incoming requests. The instructor wasn't sure if it was Cloudflare or Cloudinary and read it 6-7 years ago. (Page note: Cloudflare's 2021 post says Image Resizing is built in Rust.)",
+  "evidence": "Ch3 §3.5 'The shortest blog post'",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "update users set active_photo_id = ? where hash = ?; (one statement, after the ownership check that the photo belongs to the user).",
+  "evidence": "Ch2 §2.5 code block and Fig 2e",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "An integer-based enum is fine and leaves room for a third state, as long as it's stored as a tiny int (not big integer); a boolean takes 8 bits/one byte; never store a state as a string. (MySQL BOOL = TINYINT(1); PostgreSQL has no TINYINT.)",
+  "evidence": "Ch2 §2.2 'Bool, tiny int or string?'",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Yes. The photo must still be checked as this user's before it runs (get, then update); otherwise anyone could point their Gravatar at somebody else's photo.",
+  "evidence": "Ch2 §2.5 Check yourself and 'the photo must still be checked as this user's before it runs.'",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Both are one-to-many, so that isn't the difference: Slack's membership row carried per-user details of its own (last-read checkpoint, whether starred). Gravatar has nothing like that to keep, so a foreign key (user_id) on photos is enough.",
+  "evidence": "Ch2 §2.2 'Why no join table, like Slack's?'",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "A CXO's one-line brief 'Let's allow people to tag people in photos.' The tagging system itself is easy and isn't designed; it's used to show how one simple system affects many others: wear the product hat, brainstorm requirement questions (no solution) and see which teams/design choices each pulls in.",
+  "evidence": "Ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Product manager (requirements, what others haven't thought of, clarity), architect (design with future extensibility), engineer (low-level details, optimal across every layer). Worn all at once.",
+  "evidence": "Ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Because all you have is one line: the first pass is requirements only, no solution and nothing about engineering yet; think on the product side.",
+  "evidence": "Ch4 §4.1: 'The first instinct, what should the schema for tags be?, is the wrong first question. Nothing about engineering yet'",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Beyond 'only the owner tags their photo' (an obvious check), the question that matters is 'who can tag me?', which should be in my control. That requires a separate authorization layer tracking who is allowed to tag whom (like Instagram/Twitter; a profile 'can anyone tag me?' setting is a switch in it).",
+  "evidence": "Ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "No. Only the owner tags people in their own photo; nobody else can add tags to it, so concurrency isn't the challenge.",
+  "evidence": "Ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "It picks the storage schema and API: with 5, keep tagged people in an array in the photo's document; with 10,000, separate entries (a row per tag, e.g. posts_tags) because one ever-growing document is costly to rewrite/read, and serve them via paginated endpoints since nobody reads 10,000 names at once. (MongoDB 16 MiB cap isn't the binding limit.)",
+  "evidence": "Ch4 §4.3 and Fig 4c",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "At launch people will tag each other a lot, so the notification team will see a huge traffic spike and must scale up beforehand; otherwise their system gets overburdened and other critical notifications can be affected.",
+  "evidence": "Ch4 §4.3 'Who gets told'",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "Product-level throttling: don't over-notify (rule of thumb: good apps send ~3-5 notifications a week). Ask the notification team if they throttle, add it if not; club tag notifications into one rich notification (e.g. a celebrity tagged by many in one photo) rather than one per tag. Android supports grouping.",
+  "evidence": "Ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Makes it more granular: you, not the photo's owner, may change user 1's photo by removing your own tag, so rules must be finer than 'only the owner'; needs a really robust authorization layer.",
+  "evidence": "Ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Needs face-recognition and recommendation ML systems (another team); front end must change to show suggestions; a synchronous dependency on the ML team's API with a very strict SLA; and a fallback plan if it doesn't respond in time (block tagging or allow manual tagging, a product call). (Facebook shut its face recognition down in Nov 2021.)",
+  "evidence": "Ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "Tags are pushed asynchronously to the profile service's activity; you then need the reverse query 'in which photos is this user tagged?', so storage must be indexed for it; tags can't just sit in an array inside the photo (awkward at scale), they go in a database that supports that query efficiently; you can't pick any random database.",
+  "evidence": "Ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "It's a product call; if yes, the feed team must gear up for the scale because every tag pushes into feeds; the feed may also decide to show such posts to only a few users.",
+  "evidence": "Ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Who can tag (authorization); max limit of people tagged in a photo; notification & throttling; self-removal; face recognition & suggestion (SLA); profile/activity (DB); feed.",
+  "evidence": "Ch4 §4.1: 'On the class board the questions went up in this order...'",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Images get resized (devices, on-demand transformations); e.g. on a 360x360 copy, (320,120) lands near the right edge, nowhere near the face (which is at about (160,60)).",
+  "evidence": "Ch4 §4.5",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Relative position: (320/720, 120/720) ≈ (0.44, 0.17). Stays correct at any size as long as the aspect ratio is maintained.",
+  "evidence": "Ch4 §4.5",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "A tag shows on hover over a region, not one exact pixel, so store a bounding box: LTRB (relative left-top and right-bottom corners), or x, y of one corner plus relative width and height; pick whichever the front end prefers.",
+  "evidence": "Ch4 §4.5",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "posts_tags(post_id, user_id, location)",
+  "evidence": "Ch4 §4.5",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "Kafka is the key component for extensibility: the tagging service publishes one PHOTO_TAG event and every interested team (search, notification, analytics, profile, feed, activity, face detection) consumes it; a new consumer needs no change in the tagging service.",
+  "evidence": "Ch4 §4.6",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Search, face detection, location, notification, RBAC (authorization), plus analytics, profile, feed and activity.",
+  "evidence": "Ch4 §4.6: 'Tagging interfaces with search, face detection, location, notification and role-based access control...'",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "'Newly unread' informs the user about the presence of new messages since the last tap on the icon; tapping clears it without reading anything (acknowledges), while unread messages stay unread (e.g. hundreds unread, badge 0 after tap). Not an unread or unacknowledged count.",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "The count of unique people you have new messages from, not messages: 300 messages from 3 people show 3.",
+  "evidence": "Ch5 §5.1: 'It is the count of unique people you have new messages from.'",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Near real-time update; an update whenever a message is received; number of newly unread = number of different people from whom a message was received and is unread.",
+  "evidence": "Ch5 §5.1 last paragraph",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "Since the last time the user clicked the messages icon (the 'last 24 hours' reading was set aside).",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "user(id), user_activity(user_id, last_read_at), messages(msg, from, to, ts).",
+  "evidence": "Ch5 Fig 5b",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "SELECT COUNT(UNIQUE(from)) FROM messages WHERE to = <your id> AND ts > last_read_at; (real SQL: COUNT(DISTINCT ...); quote or rename from/to).",
+  "evidence": "Ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "(to, ts, from): recipient first keeps one recipient's entries together (ts alone sorts all users' data), and timestamp second lets the scan start at last_read_at and be cut short, reading only recent entries; (to, from, ts) would read all the recipient's entries.",
+  "evidence": "Ch5 §5.2: 'Better still is (to, ts, from), with the timestamp second: then the scan can very easily be cut short.'",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "It still walks every new message (e.g. 10,000 rows) to find a few unique senders, on every page load, with millions of users active; one sender with 10,000 messages costs 10,000 index entries to learn the answer is 1. No index order removes that.",
+  "evidence": "Ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "No: crude, not incorrect. Inefficient but 100% correct, since messages and user_activity are the source of truth.",
+  "evidence": "Ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "The set of unique senders already identifies them and keeps track of its own length (size O(1), Redis SCARD), so a separate count adds nothing.",
+  "evidence": "Ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Per user key, a set of unique senders (e.g. B: {C, D}); badge = size of the set. When the user taps the messages icon, the set is deleted (badge gone).",
+  "evidence": "Ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Query the source of truth vs keep things pre-computed.",
+  "evidence": "Ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Source of truth when you need strong consistency, or as a startup with modest traffic; pre-compute (or store in a directly consumable form) for efficiency, when millions are concurrently active, at the price of keeping it updated yourself with extra write flows.",
+  "evidence": "Ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Redis (as a simplification; any key-value store whose value can be a set works, e.g. MongoDB). Key is the user id, value a set of user ids; the key highlight is reusing the set the database gives you so you don't check-and-set yourself.",
+  "evidence": "Ch5 §5.5",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Get status API: talks to Redis, counts the elements of the user's set (SCARD) and returns the count for the badge. Clear API: on tapping the icon, deletes the user's key in Redis (DEL).",
+  "evidence": "Ch5 §5.5",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "If the user is already on the messaging tab, an arriving message (even in another conversation) isn't newly unread and needs no badge update; with WebSockets the backend can check whether the client's socket is off (e.g. watching reels) and only then update Redis.",
+  "evidence": "Ch5 §5.6",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "It knows when a message could not be delivered to the user: it's the source of truth for delivery (delivered?, which tab, WebSocket up?), since persistent connections end at its edge servers (or it asks an online/offline service).",
+  "evidence": "Ch5 §5.6",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "An event the messaging service publishes, an umbrella for every case in which the badge should bump: any message that couldn't be delivered to the user in real time; the where-is-the-user if/else logic lives there.",
+  "evidence": "Ch5 §5.6",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "Which user sent which message to whom: { src, dest, msg }. Consumers (status update workers) add the sender to the recipient's set in Redis, e.g. B: {C, D} (SADD B C).",
+  "evidence": "Ch5 §5.6",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Read path: app calls get_status / clean_status on a status check API, which reads (counts) or deletes the user's set in a Redis cluster. Write path: messaging service's ON_MSG_UNSENT events via Kafka, pulled by status update workers that add the sender to the recipient's set (SADD); the stream also feeds the notification system; a note says writes can be batched if partitioned by recipient. Final version: workers first check an auxiliary Redis and write to main only for new senders; a clear deletes in both.",
+  "evidence": "Ch5 §5.6 Fig 5g; Ch6 Fig 6c",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "Get-status reads (millions of refreshes/page moves), writes/deletes when users tap the icon (clear), and an update for every message-unsent event.",
+  "evidence": "Ch6 §6.1",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "For repeat messages from the same sender (N-1 of N), the worker still writes; the DB receives the request, reads the set, checks if the entry exists and discards the write, causing no state change (also wasted network I/O).",
+  "evidence": "Ch6 §6.1",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "The database is the most brittle component; if it's down, everything is down (whatever cloud). Minimise operations that lead to no state change; protect it however you can.",
+  "evidence": "Ch6 §6.1 rule",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Every write first goes to the auxiliary Redis, which checks if the entry exists (B already has unread from this sender, key B_C); if it exists, nothing is written to main; if not, it's recorded in aux and the write goes on to main (SET key value NX, optionally EX TTL). One write per sender reaches main.",
+  "evidence": "Ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "One more network I/O per write (small cost, worth it), plus two stores that can get out of sync.",
+  "evidence": "Ch6 §6.2: 'It costs one more network I/O per write...'",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "No check happens; all writes go to the main database, which handles the N-1 writes it handled before; it stays up. Costs efficiency, not correctness.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "The status check API must delete from both the main Redis and the auxiliary Redis (e.g. DEL B on main, DEL B_C B_D on aux).",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "Not a financial/critical system; distributed transactions aren't worth the complexity and cost throughput; worst case the badge shows 2 for 3 (or 2 while 300 wait); user sees everything after tapping, and someone needing a reply will resend. Pick your battles; system down is worse.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "A cap: app can show '100+' for huge counts; if the set's length is already above a threshold (say 100), don't write even the first entry for a new sender, stopping writes to the cluster.",
+  "evidence": "Ch6 §6.4",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Aux: separate existence keys per pair like B_C: true (no count, no set; a set or hash per receiver also works). Main: key per user with a set of senders, B: {C, D}.",
+  "evidence": "Ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "If the write to one Redis succeeds and the other fails, they get out of sync; worst case the badge shows 2 while really there are 300 messages (2 instead of 3), until the next tap clears both.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "No, not required; accept some inconsistency in favour of high throughput.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "Even reads on the main database are unwanted: every instruction consumes some of its CPU, and the point is to protect it (the rose in a glass jar).",
+  "evidence": "Ch6 §6.4",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "The hash must be a universal function: a site like Facebook integrating Gravatar doesn't know your Gravatar user id, only your email, and must compute the hash from the email alone.",
+  "evidence": "Ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "Any message that couldn't be delivered to the user in real time (not only users with no socket). The design simplifies to offline; whether 'on another tab' counts is a product call; the definition comes from the messaging service.",
+  "evidence": "Ch5 §5.6",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "Go deep in database fundamentals; on a production DB console fire EXPLAIN, look up every term in the plan in the official documentation (not blogs/videos), one query at a time, iterating; in 3-4 months you'll be well-versed. Try optimizations on staging or a dumped copy and measure. (Use EXPLAIN ANALYZE with care in production.)",
+  "evidence": "Ch7 'Getting good at query optimization'",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "A cluster; a single node won't handle the load.",
+  "evidence": "Ch6 §6.2: 'The auxiliary Redis has to be a cluster too, because a single node won't handle that load.'",
+  "found": true
+ }
+]
