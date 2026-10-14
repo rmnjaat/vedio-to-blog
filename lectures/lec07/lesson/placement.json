@@ -1,0 +1,3536 @@
+{
+ "lecture": "lec07",
+ "ledger": "lectures/lec07/ledger/ledger.jsonl",
+ "sections": {
+  "about": "Lecture header: About this class",
+  "1.1": "Day zero: dashboards on the production database",
+  "1.2": "The obvious pipeline: API events through Kafka",
+  "1.3": "Change data capture: read the source of truth",
+  "1.4": "How a CDC tool reads, and where to point it",
+  "1.5": "CDC or events? Raw data, and many tiers",
+  "1.6": "From practice: sixty machines down to two",
+  "1.7": "What CDC is not",
+  "2.1": "What we're building",
+  "2.2": "Storage is a hash table",
+  "2.3": "Values of many types",
+  "2.4": "What happens when the heap runs out",
+  "2.5": "Knowing how much memory you use",
+  "2.6": "zmalloc: one wrapper, one counter, one cap",
+  "3.1": "LRU, LFU, and where their bookkeeping lives",
+  "3.2": "The textbook LRU, priced in bytes",
+  "3.3": "Random eviction",
+  "3.4": "LRU or LFU? Follow the key's life",
+  "3.5": "Expiry without extra structures",
+  "4.1": "Which protocol? It's all TCP",
+  "4.2": "From practice: HTTP typed by hand",
+  "4.3": "Your own protocol, or gRPC",
+  "4.4": "The single node so far",
+  "4.5": "Concurrency: lock, compare-and-swap, or one thread",
+  "4.6": "From class: the double-booked seats",
+  "5.1": "Why distribute, and splitting the keys",
+  "5.2": "The routing problem",
+  "5.3": "Four ways to route: a visit to the bank",
+  "5.4": "Which way for a cache?",
+  "6.1": "Who owns a key?",
+  "6.2": "What consistent hashing is, and isn't",
+  "6.3": "Adding and removing nodes",
+  "6.4": "Never add a blank node",
+  "6.5": "Where the ring hurts: close nodes, hot spots, virtual nodes",
+  "6.6": "The general idea: distributed hash tables",
+  "6.7": "Staying up: replicas, copies on the ring, and the AOF",
+  "7": "What to keep"
+ },
+ "components": [
+  "Prose",
+  "Figure",
+  "StepThrough",
+  "AnimationClip",
+  "RuleBox",
+  "PauseAndThink",
+  "TradeoffTable",
+  "MarginNote",
+  "SourceNote",
+  "CodeBlock",
+  "ForwardChip",
+  "RecallQuestions",
+  "AboutThisClass",
+  "NotationKey"
+ ],
+ "placements": {
+  "L-0001": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Opening line: week 5 day 1, storage-engines week, the instructor's favourite topic."
+  },
+  "L-0002": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "One line: databases were his favourite subject despite a C grade; motivation only."
+  },
+  "L-0003": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Agenda (distributed cache, ETL, tiered storage) becomes the TOC; the note says tiered storage appears only as D-04."
+  },
+  "L-0004": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "about",
+     "component": "AboutThisClass"
+    }
+   ],
+   "note": "Attributed: the cache design follows how Redis made its decisions (instructor's source reading). Unverifiable background, stated as his."
+  },
+  "L-0005": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Why build a cache: decisions are reusable Lego blocks ('control C, control V')."
+  },
+  "L-0006": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Few ways to achieve anything; patterns recur across the four weeks of systems."
+  },
+  "L-0007": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "CDC was only written into earlier designs; this session goes deeper (and the honest tiered-storage note)."
+  },
+  "L-0008": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Instructor built on tiered storage at Amazon; one clause, attributed."
+  },
+  "L-0009": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "ETL first 'to form the dots', like Lecture 2's Kafka essentials; practical use with Amazon's order system later."
+  },
+  "L-0010": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Amazon order system as one detailed pipeline example, a later week."
+  },
+  "L-0012": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Day-zero blog app: user, API, DB; API abstracts the DB. Fig 1·a."
+  },
+  "L-0013": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Attributed as the lecture's generalisation: early companies add metrics (DAU/MAU/GA) only once people use the product."
+  },
+  "L-0014": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Metrics examples: blogs published, active users, likes in the first hour."
+  },
+  "L-0015": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "BI tools straight on prod, no warehouse; A-E-01 woven (read replica as the usual first step). Fig 1·a panel."
+  },
+  "L-0016": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Attributed rule of thumb (Series A, 10k-50k users); hedge: real limit is query cost and headroom."
+  },
+  "L-0017": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "CEO wants detailed reporting; insights team hired."
+  },
+  "L-0018": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Risky even read-only (PII). Left as taught; A-E-02 GDPR minimisation woven as a separate sentence."
+  },
+  "L-0019": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Prod may be MongoDB, chosen because it sounded good or fit."
+  },
+  "L-0020": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Analysts know SQL well."
+  },
+  "L-0021": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'Hard truth': warehouses and lakes speak SQL. Left as taught; A-E-03 and A-E-04 woven."
+  },
+  "L-0022": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "SQL analysts and MongoDB. Left as taught; A-E-05 (MongoDB SQL Interface) woven, PII/load reasons stand."
+  },
+  "L-0023": {
+   "section": "1.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Pipeline MongoDB -> MySQL; hand-off question 'how does the data move?'."
+  },
+  "L-0024": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "The natural pipeline: API -> Kafka -> consumer -> MySQL; back-chip to Lecture 2. Fig 1·b."
+  },
+  "L-0025": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "The bar: no misses, eventually consistent; decisions depend on it. Sets up P1."
+  },
+  "L-0026": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Gap 1: not everything has an event (views++). Red mark on Fig 1·b."
+  },
+  "L-0027": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Gap 2: thin events force callbacks to the DB; A-E-06 and A-E-07 woven."
+  },
+  "L-0028": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Gap 3 and verdict: sounds obvious, isn't. Left as taught; A-E-08 (dual write, outbox) woven."
+  },
+  "L-0029": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition of CDC."
+  },
+  "L-0030": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Airbyte and Debezium; install one locally ('easiest' is the instructor's pick). Left as taught; A-CDP-15 woven."
+  },
+  "L-0031": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "RuleBox"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Thesis: rely on the source of truth. Part of RuleBox §1; heuristics card."
+  },
+  "L-0032": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Source, transform, sink. Fig 1·c."
+  },
+  "L-0033": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Changes with no application event are still captured; beat in l07-events-vs-cdc."
+  },
+  "L-0034": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "API crash loses nothing: 'the highlight of CDC'; clip beat."
+  },
+  "L-0035": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Tracks how far it has read; A-CDP-05 (initial snapshot then log) woven."
+  },
+  "L-0036": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Row-by-row reading. Left as taught; A-CDP-01 woven. Fig 1·d panel a."
+  },
+  "L-0037": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Log/WAL reading. Left as taught; A-CDP-14 woven. Fig 1·d panel b."
+  },
+  "L-0038": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Depends on what the DB exposes; SN-01 with A-CDP-02.",
+   "source_note": "SN-01"
+  },
+  "L-0039": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "For the user it doesn't matter how: configure source, sink, transform."
+  },
+  "L-0040": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Resumes after source downtime. Left as taught; A-CDP-03, A-CDP-04 woven."
+  },
+  "L-0041": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board example: one CDC event per changed row on Blogs."
+  },
+  "L-0042": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Sinks need not be databases."
+  },
+  "L-0043": {
+   "section": "1.3",
+   "component": "Prose",
+   "also": [],
+   "note": "CDC = replication across databases with light transformation."
+  },
+  "L-0044": {
+   "section": "1.7",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Spark and data-engineering basics, a later week."
+  },
+  "L-0045": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Earlier event designs could use CDC; neither is better; start with what works."
+  },
+  "L-0046": {
+   "section": "1.5",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Prose"
+    },
+    {
+     "section": "1.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "The bifurcation rule; RuleBox §1 body. A-CDP-06 (outbox) woven in prose."
+  },
+  "L-0047": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "MySQL -> Elasticsearch, Kafka way or CDC. Fig 1·e."
+  },
+  "L-0048": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "MySQL -> Redshift via CDC. Fig 1·e."
+  },
+  "L-0049": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Gap 4: a warehouse fed from events means remembering every event per table."
+  },
+  "L-0050": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Bulk fetch/ingest vs one event at a time; T1 batching row."
+  },
+  "L-0051": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Redshift -> S3 via plugin; A-CDP-13 (UNLOAD) woven."
+  },
+  "L-0052": {
+   "section": "1.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "CDC in data-engineering and multi-tier designs, a later week."
+  },
+  "L-0053": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Consulting story, attributed and marked not independently verifiable. Fig 1·f."
+  },
+  "L-0054": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Q&A: basic setup reads via the DB client; some plugins read WAL files."
+  },
+  "L-0055": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "A CDC tool = what it reads, where it writes, its checkpoint."
+  },
+  "L-0056": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Client beats raw log parsing when formats change."
+  },
+  "L-0057": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Sequential read, light load. Left as taught (simplified/low)."
+  },
+  "L-0058": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Point CDC at a replica. Left as taught; A-CDP-07, A-CDP-08 woven."
+  },
+  "L-0059": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "80% was that subsystem only; attributed."
+  },
+  "L-0060": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "One event per update, no batching; attributed."
+  },
+  "L-0061": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "60+ consumers on 32 GB machines; attributed number on Fig 1·f."
+  },
+  "L-0062": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "60 machines + Kafka -> 2 EC2; attributed."
+  },
+  "L-0063": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Lag dropped; light hedge; A-CDP-11 (scheduled syncs) woven."
+  },
+  "L-0064": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Silent data loss in the old pipeline; attributed."
+  },
+  "L-0065": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Checkpointing in order prevents loss; A-CDP-09 (not duplicates; idempotent sinks) woven."
+  },
+  "L-0066": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Batching would have helped; legacy, never changed."
+  },
+  "L-0067": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "'Always one service nobody touches'; aside, attributed."
+  },
+  "L-0068": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "CDC is eventually consistent; fine with NoSQL."
+  },
+  "L-0069": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Strong consistency needs synchronous processing."
+  },
+  "L-0070": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "CDC is not SSE; back-chip to Lecture 2. Left as taught (simplified/low)."
+  },
+  "L-0071": {
+   "section": "1.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Why Kafka not SQS: decision inertia, similar cost at their load; attributed."
+  },
+  "L-0072": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Transactions land in the log at commit. Left as taught; A-CDP-10 woven."
+  },
+  "L-0073": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Commit order preserved into the sink. Left as taught (simplified/low)."
+  },
+  "L-0074": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Complex joins/aggregations -> Spark, not CDC."
+  },
+  "L-0075": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "'King of big-data tools' as the lecture's view."
+  },
+  "L-0076": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "CDC is for simple extract-and-put cases."
+  },
+  "L-0077": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.7",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "PG sync as a CDC; SN-02 (now also MySQL/MariaDB, as of Oct 2026).",
+   "source_note": "SN-02"
+  },
+  "L-0078": {
+   "section": "1.7",
+   "component": "Prose",
+   "also": [],
+   "note": "PG sync replaceable by Airbyte/Debezium."
+  },
+  "L-0079": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "The cache is his favourite discussion; sets the tone of §2."
+  },
+  "L-0080": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Requirements: throughput, latency, distributed; 'very greedy'."
+  },
+  "L-0081": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Four functions: get, put, delete, TTL."
+  },
+  "L-0082": {
+   "section": "about",
+   "component": "AboutThisClass",
+   "also": [],
+   "note": "Two brainstorms: low-level, then distributed after the break."
+  },
+  "L-0083": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Explicitly a distributed in-memory cache."
+  },
+  "L-0084": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The low-level topic list; maps to §2-§4 headings."
+  },
+  "L-0085": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Single node first."
+  },
+  "L-0086": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Class proposal summed up as a hash table."
+  },
+  "L-0087": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Storage = hash map. Fig 2·a panel 1."
+  },
+  "L-0088": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea (rebuild open addressing/chaining) then the correction: use the existing hash map."
+  },
+  "L-0089": {
+   "section": "2.2",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "The multi-machine question is parked and picked up in 5.1."
+  },
+  "L-0090": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Changed requirement: many value types."
+  },
+  "L-0091": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Pointer to a heap object or primitives in place."
+  },
+  "L-0092": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Commands depend on type; check before executing."
+  },
+  "L-0093": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Tempting idea: type with the key. Wrong choice in P2."
+  },
+  "L-0094": {
+   "section": "2.3",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "Prose"
+    },
+    {
+     "section": "2.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "MyValue {value*, type}; type codes 0-3. Fig 2·a stage 1."
+  },
+  "L-0095": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Typed command execution: read type, check, cast, run."
+  },
+  "L-0096": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "The bit-budget argument (4 bits = 16 types); P2 reveal."
+  },
+  "L-0097": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Redis uses 4 type bits."
+  },
+  "L-0098": {
+   "section": "2.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §2: count every byte and bit; heuristics card."
+  },
+  "L-0099": {
+   "section": "2.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.3",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Wrapper is an extensible C struct; other Redis fields come with other features (chip)."
+  },
+  "L-0100": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Allocations live on the heap."
+  },
+  "L-0101": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Tempting answer 'eviction runs'; the heap is separate from the cache's policy."
+  },
+  "L-0102": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "1 MB x 1024 thought experiment; Fig 2·b panel a."
+  },
+  "L-0103": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Swap guess; light inline clarification (closer than it sounds; outcome follows)."
+  },
+  "L-0104": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    },
+    {
+     "section": "2.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Teacher's 'segfault' claim kept; SN-03 with A-DCL-25. Fig 2·b panel b shows the actual outcomes.",
+   "source_note": "SN-03"
+  },
+  "L-0105": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "First-year C segfaults. Left as taught (simplified/low)."
+  },
+  "L-0106": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Crashing is why you never exceed your memory."
+  },
+  "L-0107": {
+   "section": "2.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Must never crash -> cap memory -> know usage. Hand-off to 2.5."
+  },
+  "L-0108": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Tempting idea: ask the OS. P3 wrong choice."
+  },
+  "L-0109": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Syscall cost. Left as taught (simplified/low)."
+  },
+  "L-0110": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Own size function."
+  },
+  "L-0111": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Running counter size += n."
+  },
+  "L-0112": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "sizeof fixed, pointee not. Left as taught (simplified/low). Fig 2·c."
+  },
+  "L-0113": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Every cache keeps its own counter."
+  },
+  "L-0114": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Hint: look at allocation; any language."
+  },
+  "L-0115": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "malloc basics; light inline clarification (heap first, OS only when low)."
+  },
+  "L-0116": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "free basics; light inline clarification (back to allocator, OS only sometimes)."
+  },
+  "L-0117": {
+   "section": "2.5",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "o = (MyValue *) malloc(sizeof(MyValue))."
+  },
+  "L-0118": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal: sizeof + 4 + 4; misses the pointee."
+  },
+  "L-0119": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Proposal: pointee not on the heap; corrected by L-0120."
+  },
+  "L-0120": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Everything comes through malloc; counter on every malloc. P3 reveal."
+  },
+  "L-0121": {
+   "section": "2.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.5",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Class punchline: wrap malloc (and free)."
+  },
+  "L-0122": {
+   "section": "2.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Prose"
+    },
+    {
+     "section": "2.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "zmalloc as on the board. Left as taught (simplified/low); CodeBlock comment frames eviction-inside-zmalloc as the class's design. Fig 2·d."
+  },
+  "L-0123": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Global total always known."
+  },
+  "L-0124": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis still checks the OS figure occasionally."
+  },
+  "L-0125": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "One wrapper vs 50,000 call sites."
+  },
+  "L-0126": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Never malloc in Redis code, only zmalloc."
+  },
+  "L-0127": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "maxmemory 1 GB on 32 GB; A-DCL-04 woven. Cap line on Fig 2·d gauge."
+  },
+  "L-0128": {
+   "section": "2.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Cap check returns an error."
+  },
+  "L-0129": {
+   "section": "2.6",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "2.6",
+     "component": "Prose"
+    }
+   ],
+   "note": "Or evict, then allocate: where eviction plugs in. Left as taught, labelled 'our design'."
+  },
+  "L-0130": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Big systems on simple solutions; heuristics card."
+  },
+  "L-0131": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis code easy to skim: the instructor's view."
+  },
+  "L-0132": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Think simple in any system."
+  },
+  "L-0133": {
+   "section": "2.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Prose"
+    }
+   ],
+   "note": "Full -> evict; hand-off into §3's opening problem."
+  },
+  "L-0134": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "LRU definition."
+  },
+  "L-0135": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "LFU definition."
+  },
+  "L-0136": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Decide where the per-key info lives first."
+  },
+  "L-0137": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea: a separate priority queue (open in class; answered by L-0138)."
+  },
+  "L-0138": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "LRU bits in the wrapper. Fig 3·a stage 2."
+  },
+  "L-0139": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "4 + 28 = 32 bits; light inline clarification + A-DCL-01 (4+4+24). Fig 3·a bit bar shows both."
+  },
+  "L-0140": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Every database has something similar."
+  },
+  "L-0141": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Wrapper = one place for all metadata."
+  },
+  "L-0142": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Bits updated on every access."
+  },
+  "L-0143": {
+   "section": "3.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Same field for either policy. Left as taught; A-DCL-03 woven."
+  },
+  "L-0144": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "How to implement; priority queue?"
+  },
+  "L-0145": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Map + doubly linked list, O(1). Fig 3·b."
+  },
+  "L-0146": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Move to head on access."
+  },
+  "L-0147": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "12 B per node; light inline clarification (24 B on 64-bit). P4."
+  },
+  "L-0148": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "3.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "5 B data vs 12 B overhead. P4 reveal."
+  },
+  "L-0149": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.2",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Textbook vs real caches; SN-05 with A-DCL-20.",
+   "source_note": "SN-05"
+  },
+  "L-0150": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Lists fine where memory isn't tight. Left as taught (simplified/low)."
+  },
+  "L-0151": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Linux 52,000 lists: attributed to a friend, hedged (unverifiable/low)."
+  },
+  "L-0152": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis skips the list; memory goes to user data."
+  },
+  "L-0153": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Many DBs skip lists; light inline clarification (Memcached, InnoDB use them)."
+  },
+  "L-0154": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis supports LRU, LFU, random. Left as taught; A-DCL-05 woven."
+  },
+  "L-0155": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Random eviction. Left as taught (simplified/low)."
+  },
+  "L-0156": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "A needed key misses once and returns."
+  },
+  "L-0157": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "More keys fit. Left as taught (simplified/low)."
+  },
+  "L-0158": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor's eight-month war story; attributed."
+  },
+  "L-0159": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Luck, but millions of keys."
+  },
+  "L-0160": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Fast, not optimal."
+  },
+  "L-0161": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Correctness vs performance trade-off."
+  },
+  "L-0162": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "The question: when LRU, when LFU."
+  },
+  "L-0163": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "A first, confused answer from class."
+  },
+  "L-0164": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Everyone confuses them; instructor learned by writing both."
+  },
+  "L-0165": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "3.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Scan answer; A-DCL-21 woven. Core of l07-lru-vs-lfu and P5."
+  },
+  "L-0166": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Stock-market analogy; caption on Fig 3·c right panel."
+  },
+  "L-0167": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "LFU when past popularity predicts future."
+  },
+  "L-0168": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Wikipedia (LFU). Fig 3·c."
+  },
+  "L-0169": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "AnimationClip"
+    },
+    {
+     "section": "3.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "FIFA World Cup spike; clip and P5."
+  },
+  "L-0170": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "LRU access pattern: spike then slump."
+  },
+  "L-0171": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Reel song trend (LRU)."
+  },
+  "L-0172": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Google News (LRU). Fig 3·c left panel."
+  },
+  "L-0173": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Neither always wins; extremes differ."
+  },
+  "L-0174": {
+   "section": "3.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §3: understand a key's life cycle."
+  },
+  "L-0175": {
+   "section": "3.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "'Go deeper': Redis-internals course for the bit algorithm; optional."
+  },
+  "L-0176": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "The question: how do others talk to the cache?"
+  },
+  "L-0177": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Answer: TCP."
+  },
+  "L-0178": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Answer: HTTP for statelessness."
+  },
+  "L-0179": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Tempting idea: payload size; corrected (value size is protocol-independent)."
+  },
+  "L-0180": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Options list."
+  },
+  "L-0181": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "All just TCP, only the format differs. Fig 4·a."
+  },
+  "L-0182": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.1",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Per-request handshake claim kept; SN-08 with A-DCL-08.",
+   "source_note": "SN-08"
+  },
+  "L-0183": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "IoT story, attributed."
+  },
+  "L-0184": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "netcat experiment."
+  },
+  "L-0185": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "How does a server know it's HTTP?"
+  },
+  "L-0186": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Any bytes; server interprets."
+  },
+  "L-0187": {
+   "section": "4.2",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "HTTP request as text."
+  },
+  "L-0188": {
+   "section": "4.2",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "'This is a sample' -> 400."
+  },
+  "L-0189": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Think from first principles."
+  },
+  "L-0190": {
+   "section": "4.2",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Hand-typed GET works. Left as taught; A-DCL-09 (Host header) woven."
+  },
+  "L-0191": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "TCP-only device can call the backend."
+  },
+  "L-0192": {
+   "section": "4.2",
+   "component": "CodeBlock",
+   "also": [
+    {
+     "section": "4.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Raw POST /login works."
+  },
+  "L-0193": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    },
+    {
+     "section": "4.3",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "HTTP overhead per message; Fig 4·b; P6."
+  },
+  "L-0194": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Query-string GET was also sent."
+  },
+  "L-0195": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "RESP; A-DCL-10 woven. Fig 4·b right side."
+  },
+  "L-0196": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Memcache protocol."
+  },
+  "L-0197": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Underneath, raw TCP; your handler decides."
+  },
+  "L-0198": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Format in Redis's own hands."
+  },
+  "L-0199": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "gRPC on HTTP/2. Left as taught; A-DCL-11 woven."
+  },
+  "L-0200": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Choose by use case; expose all three. Fig 4·c."
+  },
+  "L-0201": {
+   "section": "4.3",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §4: keep the connection open; gRPC or custom."
+  },
+  "L-0203": {
+   "section": "2.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Terminology: 'low-level implementation details', not LLD."
+  },
+  "L-0204": {
+   "section": "4.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Recap: hash table of wrapper structs. Fig 4·d."
+  },
+  "L-0205": {
+   "section": "4.1",
+   "component": "Prose",
+   "also": [],
+   "note": "TCP not UDP. Left as taught (simplified/low)."
+  },
+  "L-0206": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Recap's three options; SN-09.",
+   "source_note": "SN-09"
+  },
+  "L-0207": {
+   "section": "4.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Prototyping: use gRPC."
+  },
+  "L-0208": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board recap of eviction and cache-full; restated on the 4·d recap figure."
+  },
+  "L-0209": {
+   "section": "3.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Board reading pointer: constant-time LRU/LFU; listed as 'Go deeper'."
+  },
+  "L-0210": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Byte budget applied to TTL."
+  },
+  "L-0211": {
+   "section": "3.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Back in Lecture 3: key expiry for the KV store."
+  },
+  "L-0212": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Cleanup frees expired keys; light inline clarification (no GC in C; event loop)."
+  },
+  "L-0213": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Absolute expiry in the struct. Fig 3·d stage 3."
+  },
+  "L-0214": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "No priority queue (pointers). Fig 3·d rejected panel."
+  },
+  "L-0215": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "Lazy deletion. Fig 3·e steps."
+  },
+  "L-0216": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "zfree decrements the counter."
+  },
+  "L-0217": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Most keys go lazily. Left as taught (simplified/low)."
+  },
+  "L-0218": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.5",
+     "component": "SourceNote"
+    },
+    {
+     "section": "3.5",
+     "component": "StepThrough"
+    }
+   ],
+   "note": "20 keys / 25% kept as taught; SN-07 with A-DCL-06 (since Redis 6: ~10%).",
+   "source_note": "SN-07"
+  },
+  "L-0219": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Leaks, but not forever."
+  },
+  "L-0220": {
+   "section": "3.5",
+   "component": "Prose",
+   "also": [],
+   "note": "No extra structure; light inline clarification + A-DCL-07 (db->expires)."
+  },
+  "L-0221": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "One node scales vertically only."
+  },
+  "L-0222": {
+   "section": "2.1",
+   "component": "CodeBlock",
+   "also": [],
+   "note": "Board ops: GET/PUT/DEL against the hash table."
+  },
+  "L-0223": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Three ways to handle concurrency."
+  },
+  "L-0224": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Pessimistic locking; back-chip to Lecture 3. Fig 4·e."
+  },
+  "L-0225": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Board exercise: MySQL as a cache at cache throughput."
+  },
+  "L-0226": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Read up on mutex/semaphore; Java synchronized."
+  },
+  "L-0227": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Optimistic locking."
+  },
+  "L-0228": {
+   "section": "4.5",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "Conditional updates; Fig 4·f steps."
+  },
+  "L-0229": {
+   "section": "4.5",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Prose"
+    }
+   ],
+   "note": "CAS(a, 20, 10); Fig 4·f."
+  },
+  "L-0230": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "CAS is a CPU instruction; language wrappers."
+  },
+  "L-0231": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "CAS atomic. Left as taught (simplified/low)."
+  },
+  "L-0232": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Exercise: write it yourself."
+  },
+  "L-0233": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Single-threaded Redis. Left as taught; A-DCL-12 woven."
+  },
+  "L-0234": {
+   "section": "4.5",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Instructor's free videos on single-threaded Redis."
+  },
+  "L-0235": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Challenged every decision': attributed narrative."
+  },
+  "L-0236": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Bit algorithm 'too deep'; light inline clarification (sampling, a few paragraphs in the docs)."
+  },
+  "L-0237": {
+   "section": "3.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "3.3",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'You cannot, go random' kept; SN-06 with A-DCL-02.",
+   "source_note": "SN-06"
+  },
+  "L-0238": {
+   "section": "3.2",
+   "component": "Prose",
+   "also": [],
+   "note": "O(1) LFU costs memory: time vs space."
+  },
+  "L-0239": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Single thread is not blocked."
+  },
+  "L-0240": {
+   "section": "4.2",
+   "component": "Prose",
+   "also": [],
+   "note": "netcat trick usable anywhere: raw text."
+  },
+  "L-0241": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Distribute when one node can't cope."
+  },
+  "L-0242": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Five aspects of the distributed design."
+  },
+  "L-0243": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.1",
+     "component": "Figure"
+    }
+   ],
+   "note": "Same node x N with ranges; back-chip Lecture 3. Fig 5·a panel a."
+  },
+  "L-0244": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "The routing problem."
+  },
+  "L-0245": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Central routing table proposal. Fig 5·a panel b."
+  },
+  "L-0246": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.2",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Respond or forward? P7."
+  },
+  "L-0247": {
+   "section": "5.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Holds for any distributed storage."
+  },
+  "L-0248": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Four ways, bank analogy. Fig 5·b."
+  },
+  "L-0249": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    },
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Proxy = peon."
+  },
+  "L-0250": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    },
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Smart client = regular customer."
+  },
+  "L-0251": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Smart-client trade-off; bribe = latency."
+  },
+  "L-0252": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    },
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Forwarding by any node."
+  },
+  "L-0253": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "IPFS/BitTorrent; light inline clarification (iterative lookups, closer to redirect)."
+  },
+  "L-0254": {
+   "section": "5.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's overlay-network video series; 'Go deeper'."
+  },
+  "L-0255": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    },
+    {
+     "section": "5.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Redirect, like DNS; back-chip Lecture 5."
+  },
+  "L-0256": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "LB as proxy; back-chip Lecture 5."
+  },
+  "L-0257": {
+   "section": "5.4",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    },
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §5: pick your battles."
+  },
+  "L-0258": {
+   "section": "5.3",
+   "component": "Prose",
+   "also": [],
+   "note": "The internet forwards."
+  },
+  "L-0259": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Proxy or smart client both work for a cache."
+  },
+  "L-0260": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Forwarding not for a cache: red ✕ cell in T5."
+  },
+  "L-0261": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Redis redirect on replica write; SN-12 with A-DCL-13.",
+   "source_note": "SN-12"
+  },
+  "L-0262": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Four ways as a general lens."
+  },
+  "L-0263": {
+   "section": "5.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.3",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board definition of a distributed cache (behind a proxy)."
+  },
+  "L-0264": {
+   "section": "6.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Hot partitions, with S3, a later week."
+  },
+  "L-0265": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Add a fourth node: opening problem of §6."
+  },
+  "L-0266": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "'Most famous algorithm', misconceptions."
+  },
+  "L-0267": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Hash-based routing."
+  },
+  "L-0268": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Ownership as the key concept."
+  },
+  "L-0269": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "Figure"
+    }
+   ],
+   "note": "Range vs hash ownership; also on Fig 5·c."
+  },
+  "L-0270": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Hash routing most common; A-DCL-14 (Redis Cluster hash slots) woven."
+  },
+  "L-0271": {
+   "section": "6.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Prose"
+    },
+    {
+     "section": "6.1",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "K1-K6 on two caches. Fig 6·a table 1."
+  },
+  "L-0272": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "mod 2 -> mod 3; recheck every key."
+  },
+  "L-0273": {
+   "section": "6.1",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "PauseAndThink"
+    },
+    {
+     "section": "6.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Which keys move. Fig 6·a table 2; P8; clip."
+  },
+  "L-0274": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.1",
+     "component": "Figure"
+    },
+    {
+     "section": "6.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "3 of 6 = 50%; arithmetic checked (N/(N+1) on average)."
+  },
+  "L-0275": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Not a service, not magic."
+  },
+  "L-0276": {
+   "section": "6.5",
+   "component": "ForwardChip",
+   "also": [
+    {
+     "section": "7",
+     "component": "ForwardChip"
+    }
+   ],
+   "note": "Where consistent hashing fails, a later week."
+  },
+  "L-0277": {
+   "section": "6.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "RuleBox §6: ownership only."
+  },
+  "L-0278": {
+   "section": "6.2",
+   "component": "RuleBox",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "No data movement, no uptime guarantee; RuleBox §6 body."
+  },
+  "L-0279": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Sorted array + binary search. Fig 6·c."
+  },
+  "L-0280": {
+   "section": "6.2",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's consistent-hashing blog with Python code (pre-read); 'See it yourself'."
+  },
+  "L-0281": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Ring is a visual."
+  },
+  "L-0282": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Nodes placed by hashing their ids."
+  },
+  "L-0283": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Ring 0..2^n. Left as taught (simplified/low)."
+  },
+  "L-0284": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "Positions 3/12/5/10. Fig 6·b."
+  },
+  "L-0285": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Ring lives where routing lives."
+  },
+  "L-0286": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Figure"
+    }
+   ],
+   "note": "Array of four. Fig 6·c."
+  },
+  "L-0287": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Replaces the routing table."
+  },
+  "L-0288": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "CodeBlock"
+    }
+   ],
+   "note": "First node clockwise; CodeBlock lookup."
+  },
+  "L-0289": {
+   "section": "6.2",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.2",
+     "component": "Prose"
+    }
+   ],
+   "note": "K1 at 0 -> cache 1. Fig 6·b."
+  },
+  "L-0290": {
+   "section": "6.1",
+   "component": "Prose",
+   "also": [],
+   "note": "Rebalancing over the network is slow."
+  },
+  "L-0291": {
+   "section": "6.3",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    },
+    {
+     "section": "6.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "cache 5 at 1 takes K1. Fig 6·d."
+  },
+  "L-0292": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Only the new slice moves: minimal transfer."
+  },
+  "L-0293": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Only neighbours affected. Left as taught (simplified/low)."
+  },
+  "L-0294": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Benefit: minimal data transfer."
+  },
+  "L-0295": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Removal has two cases."
+  },
+  "L-0296": {
+   "section": "6.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "K1 -> cache 3 on removal. Fig 6·e."
+  },
+  "L-0297": {
+   "section": "6.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Graceful removal steps. Fig 6·e."
+  },
+  "L-0298": {
+   "section": "6.3",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.3",
+     "component": "Prose"
+    }
+   ],
+   "note": "Abrupt removal. Fig 6·e."
+  },
+  "L-0299": {
+   "section": "6.3",
+   "component": "Prose",
+   "also": [],
+   "note": "Others unaffected."
+  },
+  "L-0300": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Instructor used it in production; attributed."
+  },
+  "L-0301": {
+   "section": "6.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Avoid internet myths."
+  },
+  "L-0302": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Blank node -> misses, backend load. P9."
+  },
+  "L-0303": {
+   "section": "6.4",
+   "component": "StepThrough",
+   "also": [
+    {
+     "section": "6.4",
+     "component": "Prose"
+    },
+    {
+     "section": "6.4",
+     "component": "PauseAndThink"
+    }
+   ],
+   "note": "Snapshot runbook. Fig 6·f."
+  },
+  "L-0304": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Our cache is a DHT. Left as taught (simplified/low)."
+  },
+  "L-0305": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Internet/BitTorrent/Bitcoin as DHTs kept; SN-16.",
+   "source_note": "SN-16"
+  },
+  "L-0306": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "DHT is generic: memory -> cache, disk -> storage."
+  },
+  "L-0307": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "No central entity. Fig 6·h 'No load balancer!!'."
+  },
+  "L-0308": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Nearest node answers, forwards or redirects; converges. Fig 6·h bottom."
+  },
+  "L-0309": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Minimal movement -> consistent-hashing-like techniques."
+  },
+  "L-0310": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Definition by category."
+  },
+  "L-0311": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.6",
+     "component": "SourceNote"
+    },
+    {
+     "section": "6.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Board/spoken examples kept; SN-17.",
+   "source_note": "SN-17"
+  },
+  "L-0312": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "IPFS stores blockchain/NFT data."
+  },
+  "L-0313": {
+   "section": "6.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Kademlia video, 'Go deeper'."
+  },
+  "L-0314": {
+   "section": "6.6",
+   "component": "Prose",
+   "also": [],
+   "note": "Kademlia routing converges; A-DCL-19 woven."
+  },
+  "L-0315": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Replica per node. Fig 6·i panel a."
+  },
+  "L-0316": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "Copies on next ring nodes. Fig 6·i panel b."
+  },
+  "L-0317": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.7",
+     "component": "Figure"
+    }
+   ],
+   "note": "'RF 2' as stated; light inline clarification + A-DCL-17 (RF counts all copies = 3)."
+  },
+  "L-0318": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Redundancy = HA, even for a cache."
+  },
+  "L-0319": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "AOF. Left as taught; A-DCL-18 woven."
+  },
+  "L-0320": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "AOF = durability (self-correction kept)."
+  },
+  "L-0321": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Recap: storage and ownership."
+  },
+  "L-0322": {
+   "section": "6.7",
+   "component": "Prose",
+   "also": [],
+   "note": "Recap of the distributed part."
+  },
+  "L-0323": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Redis redirect avoids an LB."
+  },
+  "L-0324": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Sentinel/proxy, instructor unsure (hedge kept); light inline clarification."
+  },
+  "L-0325": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Mix approaches."
+  },
+  "L-0326": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "5.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "'Most common' claim kept; SN-13.",
+   "source_note": "SN-13"
+  },
+  "L-0327": {
+   "section": "5.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Reject vs redirect, human analogy."
+  },
+  "L-0328": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Nodes too close on the ring."
+  },
+  "L-0329": {
+   "section": "6.7",
+   "component": "Figure",
+   "also": [
+    {
+     "section": "6.7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Orchestrator page, glimpsed only. Fig 6·j."
+  },
+  "L-0330": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Hot partitions."
+  },
+  "L-0331": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Playing by the odds; light inline clarification (few points, not range size)."
+  },
+  "L-0332": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "SourceNote"
+    },
+    {
+     "section": "6.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Virtual-node concern kept; SN-14. Fig 6·g.",
+   "source_note": "SN-14"
+  },
+  "L-0333": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Snapshot add is simple for a stateful cache."
+  },
+  "L-0334": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Many sources, slowest wins. Left as taught; A-DCL-16 woven."
+  },
+  "L-0335": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "Lecture's verdict kept; SN-15 with A-DCL-15.",
+   "source_note": "SN-15"
+  },
+  "L-0336": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "6.5",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "More network transfer claim kept; SN-14 (shared with L-0332).",
+   "source_note": "SN-14"
+  },
+  "L-0337": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [],
+   "note": "'Just bad enough'; instructor's preference, attributed."
+  },
+  "L-0338": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "malloc returns NULL (class correction)."
+  },
+  "L-0339": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Virtual vs physical pages. Left as taught (simplified/low)."
+  },
+  "L-0340": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor's crash experiment; attributed."
+  },
+  "L-0341": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Touching pages crashes; hedge kept; light inline clarification (OOM killer SIGKILL)."
+  },
+  "L-0342": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [],
+   "note": "One replica is enough."
+  },
+  "L-0343": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "Active-standby or all active; light inline clarification + A-CDP-12."
+  },
+  "L-0344": {
+   "section": "1.4",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.4",
+     "component": "MarginNote"
+    }
+   ],
+   "note": "Position store and remote locks; back-chip Lecture 5. Left as taught (simplified/low)."
+  },
+  "L-0345": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Correction: Kafka never reads MySQL; workers do."
+  },
+  "L-0346": {
+   "section": "1.2",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.3",
+     "component": "AnimationClip"
+    }
+   ],
+   "note": "Async like-aggregation has no event; also a clip beat."
+  },
+  "L-0347": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Instructor concedes NULL; simulation still crashed."
+  },
+  "L-0348": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Crash on touching memory you shouldn't."
+  },
+  "L-0349": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Paging not his deep area; attributed."
+  },
+  "L-0350": {
+   "section": "2.2",
+   "component": "Prose",
+   "also": [],
+   "note": "Growing a set: double and reallocate."
+  },
+  "L-0351": {
+   "section": "3.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Asymmetric popularity -> LFU."
+  },
+  "L-0352": {
+   "section": "6.4",
+   "component": "Prose",
+   "also": [],
+   "note": "Replication factor lets you keep data on cache 1."
+  },
+  "L-0353": {
+   "section": "6.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "7",
+     "component": "Prose"
+    }
+   ],
+   "note": "Think operationally (homework). Left as taught (simplified/low); heuristics card."
+  },
+  "L-0354": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "1 of 32 cores. Left as taught (simplified/low). Fig 4·g."
+  },
+  "L-0355": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "Several shards per machine. Fig 4·g."
+  },
+  "L-0356": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Design works because single-threaded."
+  },
+  "L-0357": {
+   "section": "4.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "4.5",
+     "component": "TradeoffTable"
+    }
+   ],
+   "note": "Trade-offs everywhere."
+  },
+  "L-0358": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "ulimits and allocator limits; light inline clarification (ENOMEM; glibc default, Redis jemalloc)."
+  },
+  "L-0359": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "2.4",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "SIGABRT claim kept; SN-04.",
+   "source_note": "SN-04"
+  },
+  "L-0360": {
+   "section": "2.4",
+   "component": "MarginNote",
+   "also": [],
+   "note": "SIGABRT handling; light inline clarification."
+  },
+  "L-0361": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Shared lock elevated on update."
+  },
+  "L-0362": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Check isolation level."
+  },
+  "L-0363": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "MySQL console for lock state."
+  },
+  "L-0364": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "SourceNote"
+    },
+    {
+     "section": "4.6",
+     "component": "Figure"
+    }
+   ],
+   "note": "Instructor's guess kept; SN-10 with A-DCL-22. Fig 4·h.",
+   "source_note": "SN-10"
+  },
+  "L-0365": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [
+    {
+     "section": "4.6",
+     "component": "SourceNote"
+    }
+   ],
+   "note": "No re-evaluation claim kept; SN-11 with A-DCL-23.",
+   "source_note": "SN-11"
+  },
+  "L-0366": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Repeatable read 'most common', a guess; light inline clarification."
+  },
+  "L-0367": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Percona tooling. Left as taught (simplified/low)."
+  },
+  "L-0368": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Could be a bug; deadlock logs hard: attributed opinion."
+  },
+  "L-0369": {
+   "section": "4.6",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Deadlock ends a transaction, not the program."
+  },
+  "L-0370": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Pooling isn't a language property."
+  },
+  "L-0371": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Pool = TCP connections + queue."
+  },
+  "L-0372": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Write one in a day with a blocking queue."
+  },
+  "L-0373": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "also": [],
+   "note": "Server keeps connections open. Left as taught; A-DCL-24 woven."
+  },
+  "L-0374": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [
+    {
+     "section": "1.5",
+     "component": "Figure"
+    }
+   ],
+   "note": "One CDC, many sinks. Left as taught; A-CDP-16 woven."
+  },
+  "L-0375": {
+   "section": "1.5",
+   "component": "Prose",
+   "also": [],
+   "note": "Fan-out CDC needs memory; scale up."
+  },
+  "L-0376": {
+   "section": "7",
+   "component": "ForwardChip",
+   "also": [],
+   "note": "Next session: two storage engines (Lecture 10). Recording logistics dropped."
+  }
+ },
+ "dropped": [
+  {
+   "id": "L-0011",
+   "reason": "Pure logistics: running order for the day (tiered storage, questions, cache, break). The agenda itself is carried by L-0003, L-0009 and L-0082."
+  },
+  {
+   "id": "L-0202",
+   "reason": "Pure logistics: 'about ten more minutes of low-level detail before the high-level part'."
+  },
+  {
+   "id": "L-0377",
+   "reason": "Pure logistics: Zoom recording folder has no chat; how to save the chat."
+  },
+  {
+   "id": "L-0378",
+   "reason": "Course marketing: the instructor's separate beginner course and its audience. No lecture content."
+  },
+  {
+   "id": "L-0379",
+   "reason": "Course marketing: what the beginner course does and doesn't cover compared with this one."
+  },
+  {
+   "id": "L-0380",
+   "reason": "Course marketing: the two courses' problem statements are mutually exclusive; tiered offering."
+  },
+  {
+   "id": "L-0381",
+   "reason": "Pure logistics: one-on-one booking window after the cohort ends."
+  }
+ ],
+ "source_notes": {
+  "SN-01": [
+   "L-0038"
+  ],
+  "SN-02": [
+   "L-0077"
+  ],
+  "SN-03": [
+   "L-0104"
+  ],
+  "SN-04": [
+   "L-0359"
+  ],
+  "SN-05": [
+   "L-0149"
+  ],
+  "SN-06": [
+   "L-0237"
+  ],
+  "SN-07": [
+   "L-0218"
+  ],
+  "SN-08": [
+   "L-0182"
+  ],
+  "SN-09": [
+   "L-0206"
+  ],
+  "SN-10": [
+   "L-0364"
+  ],
+  "SN-11": [
+   "L-0365"
+  ],
+  "SN-12": [
+   "L-0261"
+  ],
+  "SN-13": [
+   "L-0326"
+  ],
+  "SN-14": [
+   "L-0332",
+   "L-0336"
+  ],
+  "SN-15": [
+   "L-0335"
+  ],
+  "SN-16": [
+   "L-0305"
+  ],
+  "SN-17": [
+   "L-0311"
+  ]
+ },
+ "additions": {
+  "A-E-01": {
+   "section": "1.1",
+   "component": "Prose",
+   "note": "Read replica as the usual first step before a warehouse (L-0015)."
+  },
+  "A-E-02": {
+   "section": "1.1",
+   "component": "Prose",
+   "note": "GDPR data minimisation; analytics copies drop or mask PII (L-0018)."
+  },
+  "A-E-03": {
+   "section": "1.1",
+   "component": "Prose",
+   "note": "Iceberg is a table format; engines provide the SQL (L-0021)."
+  },
+  "A-E-04": {
+   "section": "1.1",
+   "component": "Prose",
+   "note": "Redshift is PostgreSQL-based but columnar (L-0021)."
+  },
+  "A-E-05": {
+   "section": "1.1",
+   "component": "Prose",
+   "note": "MongoDB SQL Interface; BI Connector EOL Sept 2026 (L-0022)."
+  },
+  "A-E-06": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "Fowler: Event Notification vs Event-Carried State Transfer (L-0027)."
+  },
+  "A-E-07": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "Kafka ~1 MB default record cap, as of 4.3 (L-0027)."
+  },
+  "A-E-08": {
+   "section": "1.2",
+   "component": "Prose",
+   "note": "Dual write; transactional outbox (L-0028)."
+  },
+  "A-CDP-01": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "Polling CDC needs a timestamp column; misses deletes and intermediate updates (L-0036)."
+  },
+  "A-CDP-02": {
+   "section": "1.4",
+   "component": "SourceNote",
+   "note": "SN-01: MongoDB change streams need a replica set (L-0038)."
+  },
+  "A-CDP-03": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "PostgreSQL slot retains WAL while CDC is down; can fill pg_wal (L-0040)."
+  },
+  "A-CDP-04": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "Purged MySQL binlog position forces a re-snapshot (L-0040)."
+  },
+  "A-CDP-05": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "Initial snapshot, then stream from the recorded position (L-0035)."
+  },
+  "A-CDP-06": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Outbox pattern combines CDC and application events (L-0046)."
+  },
+  "A-CDP-07": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "PostgreSQL 16+ slots on a standby; 17 failover slots (L-0058)."
+  },
+  "A-CDP-08": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "MySQL replica needs log_replica_updates (L-0058)."
+  },
+  "A-CDP-09": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "Checkpointing prevents loss, not duplicates; idempotent sinks (L-0065)."
+  },
+  "A-CDP-10": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "Per-row events; Debezium transaction metadata (L-0072)."
+  },
+  "A-CDP-11": {
+   "section": "1.6",
+   "component": "Prose",
+   "note": "Airbyte CDC runs as scheduled syncs (L-0063)."
+  },
+  "A-CDP-12": {
+   "section": "1.4",
+   "component": "MarginNote",
+   "note": "(optional, used) One active reader per slot; Debezium PG single task (L-0343)."
+  },
+  "A-CDP-13": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Redshift UNLOAD to S3 (L-0051)."
+  },
+  "A-CDP-14": {
+   "section": "1.4",
+   "component": "Prose",
+   "note": "MySQL writes the transaction to the binlog at commit (L-0037)."
+  },
+  "A-CDP-15": {
+   "section": "1.3",
+   "component": "Prose",
+   "note": "Airbyte CDC limits: primary keys, no TRUNCATE/ALTER, refresh after adding tables (L-0030)."
+  },
+  "A-CDP-16": {
+   "section": "1.5",
+   "component": "Prose",
+   "note": "Debezium fan-out via Kafka; Airbyte one destination per connection (L-0374)."
+  },
+  "A-DCL-01": {
+   "section": "3.1",
+   "component": "Prose",
+   "note": "Redis object header: 4 type + 4 encoding + 24-bit lru (L-0139); also on Fig 3·a."
+  },
+  "A-DCL-02": {
+   "section": "3.3",
+   "component": "SourceNote",
+   "note": "SN-06: approximated LRU by sampling (L-0237)."
+  },
+  "A-DCL-03": {
+   "section": "3.1",
+   "component": "Prose",
+   "note": "Redis LFU logarithmic counter with decay (L-0143)."
+  },
+  "A-DCL-04": {
+   "section": "2.6",
+   "component": "Prose",
+   "note": "maxmemory 0 = no limit; buffers not counted (L-0127)."
+  },
+  "A-DCL-05": {
+   "section": "3.3",
+   "component": "Prose",
+   "note": "Full list of Redis eviction policies (L-0154)."
+  },
+  "A-DCL-06": {
+   "section": "3.5",
+   "component": "SourceNote",
+   "note": "SN-07: Redis 6+ active expiry, ~10% threshold (L-0218)."
+  },
+  "A-DCL-07": {
+   "section": "3.5",
+   "component": "Prose",
+   "note": "Redis keeps db->expires (L-0220)."
+  },
+  "A-DCL-08": {
+   "section": "4.1",
+   "component": "SourceNote",
+   "note": "SN-08: HTTP/1.1 persistent by default (L-0182)."
+  },
+  "A-DCL-09": {
+   "section": "4.2",
+   "component": "Prose",
+   "note": "(optional, used) Host header and blank line for strict servers (L-0190)."
+  },
+  "A-DCL-10": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "RESP framing and inline commands (L-0195)."
+  },
+  "A-DCL-11": {
+   "section": "4.3",
+   "component": "Prose",
+   "note": "gRPC framing; compression only with grpc-encoding (L-0199)."
+  },
+  "A-DCL-12": {
+   "section": "4.5",
+   "component": "Prose",
+   "note": "Redis 'mostly single threaded' (L-0233)."
+  },
+  "A-DCL-13": {
+   "section": "5.4",
+   "component": "SourceNote",
+   "note": "SN-12: Redis Cluster MOVED redirect (L-0261)."
+  },
+  "A-DCL-14": {
+   "section": "6.1",
+   "component": "Prose",
+   "note": "Redis Cluster hash slots, not a ring (L-0270)."
+  },
+  "A-DCL-15": {
+   "section": "6.5",
+   "component": "SourceNote",
+   "note": "SN-15: Dynamo spreads load with virtual nodes (L-0335)."
+  },
+  "A-DCL-16": {
+   "section": "6.5",
+   "component": "Prose",
+   "note": "Cassandra's documented costs of many tokens; newer allocator (L-0334)."
+  },
+  "A-DCL-17": {
+   "section": "6.7",
+   "component": "Prose",
+   "note": "RF counts all copies (Dynamo, Cassandra) (L-0317)."
+  },
+  "A-DCL-18": {
+   "section": "6.7",
+   "component": "Prose",
+   "note": "AOF off by default; everysec loses ~1 s (L-0319)."
+  },
+  "A-DCL-19": {
+   "section": "6.6",
+   "component": "Prose",
+   "note": "Kademlia iterative lookups (L-0314)."
+  },
+  "A-DCL-20": {
+   "section": "3.2",
+   "component": "SourceNote",
+   "note": "SN-05: Memcached keeps linked LRU lists (L-0149)."
+  },
+  "A-DCL-21": {
+   "section": "3.4",
+   "component": "Prose",
+   "note": "InnoDB midpoint insertion, scan-resistant LRU (L-0165)."
+  },
+  "A-DCL-22": {
+   "section": "4.6",
+   "component": "SourceNote",
+   "note": "SN-10: InnoDB S/X compatibility, deadlock (L-0364)."
+  },
+  "A-DCL-23": {
+   "section": "4.6",
+   "component": "SourceNote",
+   "note": "SN-11: REPEATABLE READ snapshot applies to SELECT, not DML (L-0365)."
+  },
+  "A-DCL-24": {
+   "section": "4.3",
+   "component": "MarginNote",
+   "note": "(optional, used) MySQL wait_timeout; pools validate connections (L-0373)."
+  },
+  "A-DCL-25": {
+   "section": "2.4",
+   "component": "SourceNote",
+   "note": "SN-03: Linux overcommit and the OOM killer (L-0104)."
+  }
+ },
+ "additions_not_used": {}
+}

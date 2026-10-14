@@ -1,0 +1,973 @@
+{
+  "lecture": "lec07",
+  "title": "Lecture 09 - ETL and CDC, designing a distributed cache, consistent hashing",
+  "sources": [
+    "lectures/lec07/transcript/transcript.md",
+    "lectures/lec07/board/board_log.md",
+    "lectures/lec07/board/diagrams.md"
+  ],
+  "count": 120,
+  "skipped_windows": [],
+  "questions": [
+    {
+      "id": "Q001",
+      "q": "What two items were on the agenda written on the board for this session?",
+      "answer": "Designing a distributed cache, and ETL and tiered storage (the ETL/tiered-storage part was only an introduction, done first; its detailed application comes later with Amazon's order system).",
+      "source": "transcript 00:00:57; board S02 00:03:15",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q002",
+      "q": "In the day-zero multi-user blogging app, what are the components, and why is the database not exposed directly?",
+      "answer": "User -> API server -> database (MongoDB). The API server abstracts the database's complexity; you cannot expose the database directly to users.",
+      "source": "transcript 00:04:35; board S03 00:04:15",
+      "kind": "diagram",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q003",
+      "q": "At a very early stage, before it has a data warehouse, how does a company typically get metrics and dashboards?",
+      "answer": "A visualization tool (Grafana, Metabase, Tableau) connected directly to the production database, firing queries on it. This works fine up to roughly Series A / 10,000-50,000 users.",
+      "source": "transcript 00:04:35",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q004",
+      "q": "Why is giving the insights/business-analyst team (even read-only) access to the production MongoDB a bad idea?",
+      "answer": "It is risky: the database holds critical and personally identifiable information. Also the analysts know SQL (every warehouse, such as Redshift or BigQuery, speaks SQL) but the data is in a NoSQL store like MongoDB, so they cannot work with it.",
+      "source": "transcript 00:06:07; board S03 00:04:45",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q005",
+      "q": "Describe the first ('events') pipeline drawn to get blog data into a SQL store for the insights team.",
+      "answer": "The API publishes events into Kafka; workers consume from Kafka and write into MySQL in a particular format; the insights team queries MySQL.",
+      "source": "transcript 00:08:23; board S05 00:08:45",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q006",
+      "q": "List the problems with relying on API-server events to populate the analytics database, in the board's order.",
+      "answer": "Events carry the application's context (not raw data); events might not contain all the data (e.g. only a blog ID, forcing extra fetches that load the DB); not everything has an event (e.g. a view count++); if the change is done but sending the event fails, you lose consistency. Business decisions need data that is correct, at least eventually.",
+      "source": "transcript 00:08:23; board S05 00:08:45",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q007",
+      "q": "What does CDC stand for, and what is its core idea?",
+      "answer": "Change Data Capture: instead of relying on events from the API server, rely on the source of truth, the database itself, and capture every change from it (one CDC event per inserted/updated/deleted row or document).",
+      "source": "transcript 00:10:45; board S07 00:10:45",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q008",
+      "q": "Which two CDC tools were named, and which was called the easiest to set up?",
+      "answer": "Airbyte and Debezium (both open source); Airbyte is the easiest to set up locally.",
+      "source": "transcript 00:10:45; board S07 00:11:00",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q009",
+      "q": "What three things does a CDC tool typically let you configure?",
+      "answer": "The source database(s), the (optional) transformation logic, and the sink(s); it pulls data from the source and puts it into the sink in the format you want.",
+      "source": "transcript 00:10:45; board S07 00:13:30",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q010",
+      "q": "How does CDC read changes from a database, and what does it do when the database exposes no log?",
+      "answer": "It reads the commit log / binlog (the WAL: every commit is appended there) and pushes the changes. If the database does not expose its log (MongoDB may not; Elasticsearch doesn't), it iterates over the tables/collections row by row. MySQL exposes its binlog.",
+      "source": "transcript 00:12:06; board S07 00:13:30",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q011",
+      "q": "What happens to CDC if the source database goes down?",
+      "answer": "Changes are not captured while it is down, but when the database is back CDC resumes from the point (checkpoint) it had reached.",
+      "source": "transcript 00:12:55",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q012",
+      "q": "Must a CDC sink be a database? Give examples.",
+      "answer": "No. A sink can be Kafka, SQS, Kinesis, a broker, local disk, or many kinds of databases: whatever plugins the tool supports.",
+      "source": "transcript 00:14:00; board S07 00:13:30",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q013",
+      "q": "When should you use CDC, and when API-server events into Kafka?",
+      "answer": "CDC when you are working with raw data (sync/replication with basic transformation); API events into Kafka when you need application context (when a particular event happens in your API). Neither is universally better.",
+      "source": "transcript 00:15:15",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q014",
+      "q": "In the multi-tiered storage diagram (columns Transactional, Search, Analytics, Backup), which stores feed which via CDC?",
+      "answer": "MySQL (transactional) -> CDC -> Elasticsearch (search); MySQL -> CDC -> Redshift (analytics); Redshift -> CDC -> S3 (backup).",
+      "source": "transcript 00:15:15; board S09 00:16:45",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q015",
+      "q": "Why is CDC better than API events for loading a data warehouse like Redshift?",
+      "answer": "With events you must remember to add an event for every new table or use case; CDC works on raw data and can bulk-fetch and bulk-ingest rows, whereas consuming one event per change is very slow.",
+      "source": "transcript 00:17:04",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q016",
+      "q": "In the teacher's consulting story, by how much did switching a data-sync subsystem from Kafka to CDC cut its infrastructure cost?",
+      "answer": "About 80%, for that subsystem only (not the company's whole infra), with more reliability.",
+      "source": "transcript 00:19:07",
+      "kind": "number",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q017",
+      "q": "Does CDC usually read the Postgres WAL via the Postgres client or by extracting the WAL files, and which is better?",
+      "answer": "The most basic configuration uses the database client (the Postgres client); plugins that extract WAL files also exist. The client is better: if the log format changes the plugin doesn't need updating, because the client handles decoding.",
+      "source": "transcript 00:20:27",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q018",
+      "q": "Does CDC put heavy load on the master database? How can you reduce it further?",
+      "answer": "No, it is a sequential read. You can also configure CDC on a replica instead of the master, which cuts the load on the master.",
+      "source": "transcript 00:21:18",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q019",
+      "q": "In the 80% story, what was the original architecture and why was it so expensive?",
+      "answer": "API servers pushed every update as an event to Kafka; consumers did a simple transformation and wrote one row at a time into the other database, with no batching. It needed 60+ consumers on 32 GB machines.",
+      "source": "transcript 00:22:10",
+      "kind": "example",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q020",
+      "q": "After moving to an Airbyte CDC, how many machines did that workload need?",
+      "answer": "Two simple EC2 instances (down from about 60 machines plus Kafka).",
+      "source": "transcript 00:22:10",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q021",
+      "q": "Did that company lose performance after switching to CDC?",
+      "answer": "No, it gained: replication lag became minimal (multi-threaded Java tools, parallel fetch, fast checkpointing), and they stopped silently losing data, because CDC checkpoints which rows/documents it has captured.",
+      "source": "transcript 00:24:24",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q022",
+      "q": "Is CDC strongly consistent? When can't you use it?",
+      "answer": "No, CDC is eventually consistent between source and sink. Where you need strong consistency, you must do it synchronously instead.",
+      "source": "transcript 00:26:31",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q023",
+      "q": "Is CDC similar to Server-Sent Events?",
+      "answer": "No. SSE is a frontend/JavaScript mechanism where a backend server sends events to the browser; CDC pulls data from a database, transforms it and pushes it to another database or sink.",
+      "source": "transcript 00:27:20",
+      "kind": "misconception",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q024",
+      "q": "When a MySQL transaction has several statements, does CDC preserve the order?",
+      "answer": "Yes. A transaction is atomic; its changes are written to the log in one shot on commit, and CDC reads and pushes them in the same sequence in which transactions committed to the log.",
+      "source": "transcript 00:29:03",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q025",
+      "q": "For complex transformations with multiple joins and aggregations, is CDC the right tool?",
+      "answer": "No. CDC is for extract, basic transformation and put. For complex joins and aggregations across tables use Apache Spark. PGSync (Postgres -> Elasticsearch) is an example of a Postgres-only CDC.",
+      "source": "transcript 00:30:06",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q026",
+      "q": "What requirements were written for the distributed cache?",
+      "answer": "High throughput, low latency, distributed; the operations GET, PUT, DEL, TTL; scale is the default.",
+      "source": "transcript 00:32:07; board S11 00:31:45",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q027",
+      "q": "List the brainstorm topics for the single-node cache, in the board's order.",
+      "answer": "Storage, cache full, eviction, communication, concurrency, TTL.",
+      "source": "transcript 00:32:46; board S11 00:32:57",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q028",
+      "q": "How is data stored on a single cache node?",
+      "answer": "Keys and values in a hash table (use the existing hash map; there is no need to rebuild open addressing or chaining).",
+      "source": "transcript 00:34:46; board S12 00:36:00",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q029",
+      "q": "Values can be sets, lists, Bloom filters or HyperLogLogs. How do you know which commands (add for a set, push for a list) are allowed on a key?",
+      "answer": "Wrap the value in a custom object (MyValue) that holds a value pointer (void*/Object) and a type integer (e.g. 0 string, 1 integer, 2 set, 3 list). On a command, fetch the value, check that its type supports the operation, then typecast and apply it.",
+      "source": "transcript 00:37:20; board S13 00:41:30",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q030",
+      "q": "Why store the type in the value wrapper rather than prefixing it onto the key?",
+      "answer": "The key is a string; prefixing it or turning it into an object would make lookups complicated and need dereferencing every time. Keep the key plain and put the metadata in the value object, which is also extensible for more metadata.",
+      "source": "transcript 00:39:06",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q031",
+      "q": "How many bits does Redis use for the value type, and what principle does this illustrate?",
+      "answer": "4 bits (type int4), capping the number of types. In-memory designs must be careful with every bit and byte, because RAM is costly.",
+      "source": "transcript 00:41:21; board S13 00:42:30",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q032",
+      "q": "A program keeps mallocing 1 MB chunks with 1 GB of RAM. What happens on the 1025th iteration?",
+      "answer": "Not eviction, and not spilling to disk: the program goes beyond its allowed memory and crashes with a segmentation fault.",
+      "source": "transcript 00:43:24; board S14 00:44:45",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q033",
+      "q": "Since the cache must never crash, what must it do about memory?",
+      "answer": "Cap its memory usage.",
+      "source": "transcript 00:44:51; board S14 00:45:30",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q034",
+      "q": "Why not use an OS command to find how much memory the cache process is using?",
+      "answer": "It needs a system call (the memory figure lives in the kernel), which causes an interrupt; doing it often slows the whole system. Instead the cache maintains its own size counter.",
+      "source": "transcript 00:45:58; board S14 00:46:15",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q035",
+      "q": "Why can't you just add sizeof(MyValue) to a counter each time you store a key?",
+      "answer": "sizeof the struct only gives the wrapper (a pointer plus the type, a few bytes); the value it points to (e.g. a 1 MB Bloom filter) is not counted.",
+      "source": "transcript 00:47:22",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q036",
+      "q": "What do malloc and free do?",
+      "answer": "malloc(size) gets memory on the heap from the OS (via a system call) and returns an address you can use; free marks that memory as free so the OS can give it to others.",
+      "source": "transcript 00:48:29; board S15 00:51:30",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q037",
+      "q": "Why does counting at the allocation call capture all memory, including nested values?",
+      "answer": "Everything the cache stores (the MyValue object, a Bloom filter, linked-list nodes, a set) lives on the heap and is allocated through malloc/free, so counting there catches every byte.",
+      "source": "transcript 00:52:26",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q038",
+      "q": "Write out the zmalloc wrapper as given on the board.",
+      "answer": "zmalloc(int b) { [if total_size + b > max -> eviction]; o = malloc(b); total_size += b; return o; }. It has the same signature as malloc; total_size is a global; zfree subtracts on free.",
+      "source": "transcript 00:53:28; board S16 00:57:00",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q039",
+      "q": "Why wrap malloc instead of writing 'total_size += ...' next to each malloc call?",
+      "answer": "With malloc called at, say, 50,000 places you will forget some; doing it once in a wrapper is simple and complete. In Redis's codebase you never see malloc, only zmalloc.",
+      "source": "transcript 00:54:10",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q040",
+      "q": "What memory limit was used as the example, and is it a hard or soft limit?",
+      "answer": "1 GB max (a user-defined configuration) even though the machine may have 32 GB of RAM; it is a soft limit.",
+      "source": "transcript 00:55:09; board S16 00:57:00",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q041",
+      "q": "Where is eviction plugged in?",
+      "answer": "Inside zmalloc: if total_size + b > max, evict key(s) (or return an error), then allocate, add b to total_size and return the object.",
+      "source": "transcript 00:56:13; board S17 01:01:30",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q042",
+      "q": "Define LRU and LFU.",
+      "answer": "LRU: evict the least recently used key (based on last access time). LFU: evict the least frequently used key (based on access frequency).",
+      "source": "transcript 00:58:50",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q043",
+      "q": "Where does Redis store recency/frequency information, in how many bits, and why is that size neat?",
+      "answer": "In the value object, as LRU bits (28 bits) next to the 4-bit type: 4 + 28 = 32 bits, one integer. The same bits store a timestamp for LRU or a frequency for LFU.",
+      "source": "transcript 01:00:32; board S17 01:01:30",
+      "kind": "number",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q044",
+      "q": "How is the textbook O(1) LRU implemented?",
+      "answer": "A hash map from key to a node of a doubly linked list; on access, move the node to the head; evict from the tail.",
+      "source": "transcript 01:02:22; board S18 01:02:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q045",
+      "q": "What is the per-key memory overhead of the doubly-linked-list LRU, and how does it compare to the data in the board's example?",
+      "answer": "Each node has next, prev and value pointers at 4 B each = 12 B per key. For key 'a' (1 B) and value 2 (4 B), 5 B of data carries 12 B of overhead.",
+      "source": "transcript 01:04:39; board S18 01:09:00",
+      "kind": "number",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q046",
+      "q": "Where are linked lists a good fit, per the lecture, and why not here?",
+      "answer": "In the Linux kernel (it creates about 52,000 linked lists at boot), which is not memory constrained in this way. A cache is memory intensive and should spend memory on user data, not metadata, so real caches like Redis avoid the list.",
+      "source": "transcript 01:05:15",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q047",
+      "q": "What is the third eviction strategy, and its key property?",
+      "answer": "Random eviction: pick a random key and evict it. It has zero extra memory overhead and is fast.",
+      "source": "transcript 01:07:12; board S18 01:09:15",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q048",
+      "q": "What is the trade-off of random eviction?",
+      "answer": "You give up correctness/optimality: an important key may be evicted (it becomes a cache miss and gets refilled). In return you fit more keys in the same memory and eviction is fast.",
+      "source": "transcript 01:07:12",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q049",
+      "q": "What happened when the teacher switched a production cache to random eviction (eight months into the industry)?",
+      "answer": "They could fit a large number of extra keys with only a very minimal increase in the cache miss ratio.",
+      "source": "transcript 01:08:33",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q050",
+      "q": "Give the concrete case, from class, where LFU beats LRU.",
+      "answer": "Scans: a big scan of data would wipe out the heavily used entries under LRU; under LFU the scan does not evict items with high access frequency.",
+      "source": "transcript 01:11:59",
+      "kind": "heuristic",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q051",
+      "q": "Explain the stock-market analogy for LFU.",
+      "answer": "A stock you believe in drops recently; you hold it, expecting it to rise again because it did well in the past. LFU keeps keys that were used frequently even if not recently: no recency bias.",
+      "source": "transcript 01:12:33; board S19 01:12:30",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q052",
+      "q": "Which practical system was the LFU example, and why?",
+      "answer": "Wikipedia: during the FIFA World Cup the FIFA pages spike, but historically popular pages should not be evicted, because they will be accessed with the same frequency again once the fad passes.",
+      "source": "transcript 01:14:17; board S19 01:17:45",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q053",
+      "q": "What access-pattern shapes were drawn for LRU and LFU?",
+      "answer": "LRU (News): a sharp spike near the start that decays into a long flat tail. LFU (Wikipedia): a zig-zag line that keeps rising, like a stock chart.",
+      "source": "transcript 01:16:09; board S19 01:17:45",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q054",
+      "q": "Give the classic LRU examples.",
+      "answer": "Google News (you rarely read week-old news) and social-media trends (a song used in reels is cached until the fad passes); the recap board also lists CDN.",
+      "source": "transcript 01:16:53; board S28 01:33:45",
+      "kind": "example",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q055",
+      "q": "How should you choose between LRU and LFU, and which eviction policies does Redis support?",
+      "answer": "Neither always wins; mostly the difference is invisible, but in extreme cases it is significant, so study your keys' access pattern and life cycle. Redis supports LRU, LFU and random, doing LRU/LFU efficiently via the LRU bits.",
+      "source": "transcript 01:17:26",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q056",
+      "q": "What three protocol options were shown inside the Cache box, and what do they all run over?",
+      "answer": "HTTP 1.1, gRPC and a custom protocol, all over TCP connections from the API to the cache.",
+      "source": "transcript 01:21:12; board S20 01:22:15",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q057",
+      "q": "Why is stateless HTTP/1.1 inefficient for talking to a cache? What does '3/2' on the board mean?",
+      "answer": "Each request opens a new TCP connection: a 3-way handshake and a 2-way teardown every time, which is very inefficient.",
+      "source": "transcript 01:21:40; board S20 01:22:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q058",
+      "q": "What was the IoT problem in the netcat detour?",
+      "answer": "Friends had a Python Flask HTTP backend, but the IoT sensors had no Python/JS HTTP library; they could only open TCP connections.",
+      "source": "transcript 01:23:41",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q059",
+      "q": "Over netcat to the Flask server, what came back for the raw text 'This is a sample', and what for 'GET /hello HTTP/1.1'?",
+      "answer": "The plain text got 400 Bad Request (bad request syntax); the correctly formatted 'GET /hello HTTP/1.1' got 200 OK 'Hello, World!'. HTTP is just text in a format over a raw TCP connection.",
+      "source": "transcript 01:26:11; board S23 01:27:00",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q060",
+      "q": "What does the netcat POST example teach about choosing a cache protocol?",
+      "answer": "HTTP adds a lot of textual overhead (headers, content type, content length) just to send a small key/value; more bytes means more for the cache server to process.",
+      "source": "transcript 01:28:15",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q061",
+      "q": "What is RESP?",
+      "answer": "Redis's own protocol specification over raw TCP (just as HTTP is a specification); Redis clients speak it. Memcached likewise has its own.",
+      "source": "transcript 01:29:29",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q062",
+      "q": "What does gRPC offer for cache communication?",
+      "answer": "It runs on HTTP/2, keeps the connection open (stateful) and compresses data (Protobuf), so it is optimized for data transfer over the network.",
+      "source": "transcript 01:30:17",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q063",
+      "q": "Which protocol should you pick, and can you support several?",
+      "answer": "Avoid opening an HTTP connection per request; use a persistent connection with gRPC (if clients support it) or your own custom format; to prototype, just use gRPC. You can support all three by abstracting the implementation (several ports, one hash table).",
+      "source": "transcript 01:31:16; board S27 01:33:30",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q064",
+      "q": "Why TCP rather than UDP for the cache?",
+      "answer": "You need statefulness, guaranteed delivery and acknowledgments; UDP is fire-and-forget, and the cache is effectively a database that must not lose data.",
+      "source": "transcript 01:32:24",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q065",
+      "q": "Per the recap board, what are the two ways to define 'the cache is full'?",
+      "answer": "A cap on the max number of keys in the cache (hash table), or a cap on the cumulative size of the values inserted (total_size += sizeof(obj) via zmalloc). You can trigger eviction only when you know the cache is full.",
+      "source": "transcript 01:32:24; board S28 01:33:45",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q066",
+      "q": "How is a key's TTL stored?",
+      "answer": "As an absolute expiry time in the key's value object (next to the LRU bits), using minimal memory.",
+      "source": "transcript 01:35:13; board S29 01:35:00",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q067",
+      "q": "What are the advantages and the disadvantage of a priority queue for finding expired keys?",
+      "answer": "Advantages: simple and consistent (the head, with the earliest absolute expiry, is freed first). Disadvantage: it needs an additional data structure (pointers, memory).",
+      "source": "transcript 01:35:48; board S29 01:35:45",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q068",
+      "q": "What is lazy deletion for TTLs?",
+      "answer": "On access, check the object's expiry; if the current time is past it, delete the key (zfree: free it and decrement total_size). Most expired keys are deleted this way.",
+      "source": "transcript 01:36:20",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q069",
+      "q": "Describe the sampling approach for expired keys that are never accessed.",
+      "answer": "From the keys that have an expiry set, sample 20, delete the expired ones, and repeat until fewer than 25% of the sample are expired.",
+      "source": "transcript 01:37:02; board S29 01:37:45",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q070",
+      "q": "Why did Redis choose lazy deletion plus sampling rather than a priority queue?",
+      "answer": "Neither needs any additional data structure; memory leaks only temporarily; the saved memory lets more data fit in RAM.",
+      "source": "transcript 01:37:50",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q071",
+      "q": "How do you scale a single-node cache?",
+      "answer": "Only vertically: add more RAM, CPU and network.",
+      "source": "transcript 01:38:52; board S30 01:38:54",
+      "kind": "concept",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q072",
+      "q": "What three ways of handling concurrency on a single node were listed?",
+      "answer": "Pessimistic locking, optimistic locking, single-threadedness.",
+      "source": "transcript 01:39:05; board S30 01:39:24",
+      "kind": "recall",
+      "difficulty": "easy"
+    },
+    {
+      "id": "Q073",
+      "q": "Describe the pessimistic locking sketch.",
+      "answer": "ACQ_LOCK(); DELETE K; REL_LOCK(). Two threads try a=20 and a=30 starting from a=10; one waits for the other to finish. Implemented with mutexes and semaphores / atomic variables (like Java's synchronized).",
+      "source": "transcript 01:39:27; board S31 01:39:30",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q074",
+      "q": "Explain optimistic locking with the a=10 example, and how it is implemented.",
+      "answer": "Make updates conditional: 'update a=20 where a=10' and 'update a=30 where a=10'; only one succeeds (after the first, a is 20, so the second does nothing). Implemented with atomic compare-and-swap: CAS(a,20,10), CAS(a,30,10), a CPU instruction exposed in every language (e.g. Go's atomic package).",
+      "source": "transcript 01:41:11; board S31 01:43:30",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q075",
+      "q": "Why is compare-and-swap safe without locks?",
+      "answer": "It is an atomic CPU instruction (provided by ARM/Intel/AMD and used by the compiler); there is no context switch while it runs, so nothing else can run in between.",
+      "source": "transcript 01:42:58",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q076",
+      "q": "What is the single-threadedness approach to concurrency?",
+      "answer": "Don't support threads at all: one thread processes the commands, so there are no concurrent updates. This is what Redis did.",
+      "source": "transcript 01:44:05",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q077",
+      "q": "At a high level, how do you get memory-efficient LRU/LFU, and what trade-off underlies it?",
+      "answer": "Exact O(1) LRU/LFU costs a lot of memory; when space-constrained you trade off time, or use random eviction (low memory, at the risk of evicting an important key). Better time costs space.",
+      "source": "transcript 01:46:11",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q078",
+      "q": "Is a single-threaded cache blocked or underperforming when two servers access different keys?",
+      "answer": "No: single-threaded systems like Redis are not blocking; concurrent systems can be built this way.",
+      "source": "transcript 01:47:45",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q079",
+      "q": "Does zmalloc only count the size of the MyValue wrapper struct?",
+      "answer": "No: every allocation (the object, the Bloom filter, a set) goes through zmalloc, so all of their sizes are counted.",
+      "source": "transcript 01:48:54",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q080",
+      "q": "Why make the cache distributed, and which five topics were brainstormed?",
+      "answer": "One node is not enough to handle the load. Storage, routing, availability, reliability, scaling.",
+      "source": "transcript 01:55:18; board S33 01:55:00",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q081",
+      "q": "How is storage distributed?",
+      "answer": "Run multiple instances of the same single-node cache, each owning a mutually exclusive subset of keys, e.g. range a-j on c1, k-t on c2, u-z on c3.",
+      "source": "transcript 01:55:50; board S34 01:57:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q082",
+      "q": "What routing table is on the board, and where did it end up?",
+      "answer": "(a,j) -> c1, (k,t) -> c2, (u,z) -> c3. It was first in a separate Routing box between the client and the nodes, then moved under the Client (client-side routing).",
+      "source": "transcript 01:57:26; board S34 01:59:00",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q083",
+      "q": "In the bank analogy, who is the peon and which routing style does it represent?",
+      "answer": "The peon at the door does your work for you (for a commission/bribe): a proxy. The client talks to the proxy, which forwards to the right node.",
+      "source": "transcript 01:59:34; board S35 01:59:12",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q084",
+      "q": "Bank-analogy way 2: what is it, and what are its advantage and disadvantage?",
+      "answer": "A regular customer knows which desk to go to: a smart client holds the routing info and there is no router. Advantage: no extra hop (you save the 'bribe', which is network latency). Disadvantage: when the topology changes, every client must be notified.",
+      "source": "transcript 02:00:50",
+      "kind": "tradeoff",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q085",
+      "q": "Bank-analogy way 3: what is it, and which systems use it?",
+      "answer": "There is no peon; you go to the nearest desk, which forwards your request to the right desk and returns the result: node-to-node forwarding over an overlay network. IPFS and BitTorrent use it, and the internet forwards packets this way.",
+      "source": "transcript 02:02:32; board S37 02:02:12",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q086",
+      "q": "Bank-analogy way 4: what is it, and what real systems work this way?",
+      "answer": "The nearest desk says 'go to counter 13' and you go there directly: a redirect. DNS works this way (it returns the IP and you connect directly); so does Redis.",
+      "source": "transcript 02:03:35; board S37 02:02:12",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q087",
+      "q": "How do you choose among the four routing approaches?",
+      "answer": "There is no one right way: to save a hop, make the client smarter; to keep clients simple, add a proxy hop that holds the routing info; for gigantic decentralized systems (BitTorrent) use forwarding; or do a DNS-like redirect.",
+      "source": "transcript 02:05:14",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q088",
+      "q": "How does Redis use the redirect approach?",
+      "answer": "If you send a write to a replica, it returns the master's IP address and asks you to write on the master (replicas don't take writes).",
+      "source": "transcript 02:06:06",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q089",
+      "q": "Which routing approach did the teacher say you would typically NOT use for a cache?",
+      "answer": "Node-to-node forwarding (way 3): unnecessary and far too complicated for a cache. Proxy, smart client and redirect work.",
+      "source": "transcript 02:06:06",
+      "kind": "heuristic",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q090",
+      "q": "Which two routing schemes determine key ownership, and which is most common?",
+      "answer": "Range-based routing (cache 1: a-j, etc.) and hash-based routing (i = hash(key) % N). Hash-based is most common because it spreads keys nearly uniformly yet deterministically.",
+      "source": "transcript 02:08:22; board S39 02:07:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q091",
+      "q": "In the hash-mod example with 6 keys going from 2 to 3 caches, which keys moved and how much data moved?",
+      "answer": "With mod 2: K1, K2, K6 on cache 0; K3, K4, K5 on cache 1. With mod 3: K2 -> cache 2, K5 -> cache 0, K6 -> cache 2; K1, K3, K4 stay. 3 of 6 keys moved = 50% data movement.",
+      "source": "transcript 02:09:35; board S40 02:08:15",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q092",
+      "q": "What does consistent hashing solve, and what does it NOT do?",
+      "answer": "Only ownership: who owns which key. It is not a service or microservice, does not move data, does not give uptime guarantees, and is no magic fix. Its implementation is a simple sorted array with binary search.",
+      "source": "transcript 02:12:00; board S41 02:12:00",
+      "kind": "misconception",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q093",
+      "q": "In the example, what is the hash range and where do the cache nodes sit on the ring?",
+      "answer": "Range 0 to 2^4 (16 values) in the example; 2^128 in reality. cache 1 at 3, cache 3 at 5, cache 4 at 10, cache 2 at 12.",
+      "source": "transcript 02:14:21",
+      "kind": "number",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q094",
+      "q": "Where is the consistent-hashing ring implemented?",
+      "answer": "Wherever the routing lives: the proxy/router, the client (smart client), or the DNS-like node. It just replaces the routing table with an array of node positions.",
+      "source": "transcript 02:15:02",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q095",
+      "q": "Key K1 hashes to 0. Who owns it, and why?",
+      "answer": "Cache 1 (at 3): a key is owned by the first node clockwise (to its right) from its hash position.",
+      "source": "transcript 02:16:20; board S41 02:16:30",
+      "kind": "diagram",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q096",
+      "q": "Cache 5 is added at position 1. What changes?",
+      "answer": "Keys in the range up to 1 that used to go to cache 1 (including K1) now go to cache 5; all other keys are unaffected, since only the neighbouring node is involved. Minimal data transfer.",
+      "source": "transcript 02:17:10; board S42 02:17:30",
+      "kind": "diagram",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q097",
+      "q": "Cache 1 is removed. Where do its keys go, and how do a graceful shutdown and an abrupt outage differ?",
+      "answer": "Its keys move to the next node clockwise, cache 3. Graceful: snapshot/copy cache 1's data to cache 3, then remove it from the ring, so there are no misses. Abrupt: all of that range's load suddenly hits cache 3 (misses), which you must accept. Either way, minimal data transfer.",
+      "source": "transcript 02:19:29; board S43 02:19:30",
+      "kind": "concept",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q098",
+      "q": "Operationally, how do you add cache 5 without a storm of cache misses?",
+      "answer": "Don't add a blank server: snapshot cache 1, build cache 5 from it, add cache 5 to the ring, then slowly delete the keys that are no longer owned.",
+      "source": "transcript 02:21:51; board S42 02:17:30",
+      "kind": "heuristic",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q099",
+      "q": "What is a distributed hash table, and how does it relate to the distributed cache?",
+      "answer": "A distributed cache is a DHT under the covers: it maps keys to values spread across nodes, has no central entity, and is optimized for minimal data movement when nodes are added or removed (hence consistent-hashing-like techniques).",
+      "source": "transcript 02:23:21; board S44 02:23:24",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q100",
+      "q": "List the uses of DHTs from the board.",
+      "answer": "Distributed file systems, DNS servers, instant messaging (IRC), peer-to-peer sharing (BitTorrent uses DHTs); IPFS.",
+      "source": "transcript 02:24:57; board S44 02:24:30",
+      "kind": "recall",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q101",
+      "q": "What problem does Kademlia solve?",
+      "answer": "Routing in a decentralized DHT: no node knows every other node, yet requests converge on the node holding the data (ask the nearest node, which points you closer). No load balancer.",
+      "source": "transcript 02:25:47; board S44 02:26:15",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q102",
+      "q": "How do you get high availability for the distributed cache?",
+      "answer": "Data redundancy: replicas or standby nodes that take over; or copy each node's data onto the next nodes on the ring (a replication factor, e.g. 2: the owner plus the following nodes).",
+      "source": "transcript 02:27:23; board S45 02:27:00",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q103",
+      "q": "What gives reliability/durability, and what is Redis's version of it?",
+      "answer": "Write-ahead logging. Redis's is the AOF (append-only file): every write is logged and the file is reloaded on restart.",
+      "source": "transcript 02:28:51; board S45 02:29:00",
+      "kind": "concept",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q104",
+      "q": "Why does Redis use a DNS-like redirect rather than a load balancer?",
+      "answer": "There's no need for another component; the node handles it. The redirect only happens for writes sent to replicas (it returns the master's IP). Sentinel/proxy setups also exist now.",
+      "source": "transcript 02:30:59",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q105",
+      "q": "Can nodes land too close together on the ring, or keys cluster in one area?",
+      "answer": "Yes, both. Placement is not in your control; bad key distribution or a bad hash function gives hot partitions. It is used anyway because scaling stays simple, and with a huge range (2^128) the odds are low.",
+      "source": "transcript 02:33:00",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q106",
+      "q": "Why are virtual nodes a bad idea for a stateful cache?",
+      "answer": "A new node appears at many ring positions, so data must be copied from many nodes instead of snapshotting one: operationally complex, slow, and more network transfer, which defeats consistent hashing's purpose. They are not a good fix for hot partitions in stateful systems.",
+      "source": "transcript 02:36:20; board S42 02:19:00",
+      "kind": "misconception",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q107",
+      "q": "Does malloc itself segfault when memory runs out?",
+      "answer": "No: malloc returns NULL when it cannot allocate (C++ throws bad_alloc). malloc hands out virtual pages; the crash came when the program actually used pages beyond physical memory, so the program crashes, not malloc.",
+      "source": "transcript 02:39:19",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q108",
+      "q": "With multiple CDC instances, how do they coordinate what to read?",
+      "answer": "They read from one replica; CDC keeps its own small database of checkpoints (the last point read/committed) and uses locks to coordinate, for example to read several tables in parallel.",
+      "source": "transcript 02:42:24",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q109",
+      "q": "Why does CDC put less load than event workers that fetch rows by ID?",
+      "answer": "Event workers either carry big messages (network IO) or fetch each row by ID (database load), one at a time. CDC reads from the WAL in batches and writes in batches; the data volume is the same but it is processed much faster.",
+      "source": "transcript 02:44:17",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q110",
+      "q": "Give the class's example of a database change that has no API event.",
+      "answer": "Asynchronous workers that periodically aggregate the like counts in the database: they are not API calls, so no events, but CDC still captures the changes.",
+      "source": "transcript 02:45:26",
+      "kind": "example",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q111",
+      "q": "If a set allocated 1024 bytes fills up, what happens?",
+      "answer": "Allocate a bigger block (e.g. double), copy the data across and free the old one, like hash-table resizing.",
+      "source": "transcript 02:49:01",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q112",
+      "q": "Is 'use LFU when key popularity is very asymmetric' the right rule?",
+      "answer": "Partly; the key point is that you still don't want to evict popular keys when they haven't been accessed recently: hold them, like the stock.",
+      "source": "transcript 02:49:47",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q113",
+      "q": "After copying cache 1 to create cache 5, should cache 1 keep the moved data?",
+      "answer": "Without replication, delete it from cache 1, since cache 5 now owns it. With a replication factor (e.g. 2), keep it as a replica.",
+      "source": "transcript 02:50:50",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q114",
+      "q": "Single-threaded Redis on a 32-core machine: what is the problem and the fix?",
+      "answer": "Only one core is used and 31 sit idle. Run multiple Redis nodes/shards on the same machine. Single-threading keeps things simple (e.g. the zmalloc counter, no context switches) without losing concurrency.",
+      "source": "transcript 02:53:08",
+      "kind": "tradeoff",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q115",
+      "q": "What signal ends a process that goes beyond its memory limits, and which limits exist?",
+      "answer": "SIGABRT, which you can't really handle: the kernel kills the process to save itself. Limits: per-process kernel ulimits and the malloc library's own limits (tcmalloc, jemalloc).",
+      "source": "transcript 02:54:32",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q116",
+      "q": "Two transactions take shared locks on the same row and both write. Why can both writes go through?",
+      "answer": "Assuming repeatable read: the first writer upgrades to an exclusive lock; the other still holds its shared lock, waits for the release, then writes to the same row without re-evaluating, overwriting it. Check the isolation level; Percona shows the locks.",
+      "source": "transcript 02:57:49",
+      "kind": "qa",
+      "difficulty": "hard"
+    },
+    {
+      "id": "Q117",
+      "q": "Does a deadlock crash the database?",
+      "answer": "No; the transaction is terminated, not the database or the program.",
+      "source": "transcript 03:02:46",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q118",
+      "q": "Is connection pooling a property of the language (e.g. PHP)?",
+      "answer": "No: it is application/library logic: open multiple TCP connections to the database and manage them with a blocking queue. The only requirement is that the database keeps connections open until asked to close them.",
+      "source": "transcript 03:03:21",
+      "kind": "misconception",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q119",
+      "q": "Can one CDC push to multiple sinks, and at what cost?",
+      "answer": "Yes, it can fan out (they were drawn separately for clarity). A different transformation per sink needs more memory, so the CDC must be scaled up.",
+      "source": "transcript 03:04:45",
+      "kind": "qa",
+      "difficulty": "medium"
+    },
+    {
+      "id": "Q120",
+      "q": "What was promised for the next class?",
+      "answer": "Build two storage engines/databases on our own.",
+      "source": "transcript 03:05:34",
+      "kind": "recall",
+      "difficulty": "easy"
+    }
+  ]
+}

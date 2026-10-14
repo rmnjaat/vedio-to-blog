@@ -1,0 +1,142 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { RuleSourceOfTruth, Tiers, SixtyToTwo } from '../../../figures/lec07/s1b-etl-and-cdc-figs';
+
+{/* §1 ETL and change data capture, part b: 1.5–1.7. Part a (§1 opener, 1.1–1.4) is s1a-etl-and-cdc.mdx. */}
+
+<Section id="s1-5" no="1.5" title="CDC or events? Raw data, and many tiers" crumb="1.5 CDC or events"
+  dek="Raw data goes through CDC; application context goes through the API. One source can feed search, analytics and backup."
+  meta="About 5 min · class 00:15–00:19, Q&A 02:44–02:45 and 03:04–03:05">
+
+The blogging app now wants search as well as reports. Before reaching for CDC everywhere, decide when it is the right tool.
+
+Many systems earlier in this course had the API server push to Kafka and a consumer act on it. A lot of them could be done with CDC instead. That doesn’t make one better than the other: start with whatever works for you. [[L-0045]]
+
+The bifurcation is this. When you are moving raw data, go for CDC. When you need application context, when a particular thing happens on the API server, have the API server push it to Kafka. [[L-0046]] The two also combine. In the outbox pattern, the service writes an event row to an outbox table in the same transaction as its business data, and CDC tails the log and publishes those rows to Kafka: application-context events without the dual-write risk of [1.2](#s1-2) <Cite href="https://debezium.io/blog/2019/02/19/reliable-microservices-data-exchange-with-the-outbox-pattern/">debezium.io</Cite>. [[L-0046]]
+
+<RuleBox rule="Rely on ==the source of truth==." k="L-0031 L-0046">
+
+Moving raw data? Read it with CDC, from the database itself, not from events the API remembered to send. Need application context, *this* happened on the API server? Publish an event from the API.
+
+<Desk><RuleSourceOfTruth /></Desk>
+<Phone><RuleSourceOfTruth layout="phone" /></Phone>
+
+</RuleBox>
+
+Search shows both ways. Transactions live in MySQL and search runs on Elasticsearch. One way is the Kafka way you have seen before: the API server sends an event, and a consumer ingests it into Elasticsearch. The other is CDC reading from MySQL and putting the data into Elasticsearch, with an optional transformation that you may have to write yourself. Then CDC maintains the sync between the two databases. [[L-0047]]
+
+Analytics is the same move. From MySQL to a data warehouse such as Redshift, CDC copies the relational data over and takes care of it. [[L-0048]] And because it works on raw data, it can bulk-fetch rows from the source and bulk-ingest them into Redshift. A pipeline with application context, one event per published blog, consumed one by one, is very slow by comparison. The amount of data moved is the same; reading and writing in batches is what makes it fast. [[L-0050]]
+
+<Figure id="fig-1e" max={700} no="Fig 1·e" k="L-0047 L-0048 L-0051 L-0374 L-0375" caption="One source, many tiers: CDC keeps search and analytics in sync with MySQL and copies the warehouse to S3 for backup. Under it the board read: “Implement a quick CDC using Airbyte (if you have never used it). We will be using it a lot in future system discussions.” Redrawn from the class board at 00:16–00:18, shown again at 02:43.">
+<Desk><Tiers /></Desk>
+<Phone><Tiers layout="phone" /></Phone>
+</Figure>
+
+Backup works too. CDC can move data from a warehouse like Redshift into S3, even though S3 is not a database, through plugins that write the data into S3 in a particular form. Redshift offers its own way to do this; the point is how handy CDC is in a lot of places. [[L-0051]] Redshift’s built-in export is `UNLOAD`, which writes query results to S3 as text, CSV, JSON or Parquet files, in parallel by default <Cite href="https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html">docs.aws.amazon.com</Cite>. [[L-0051]]
+
+The board drew a separate CDC for each pair only to keep the picture readable. One CDC can push to several sinks, Elasticsearch and Redshift for example. [[L-0374]] How that works depends on the tool. With Debezium on Kafka Connect, the source is read once into Kafka topics and separate sink connectors stream them onwards <Cite href="https://debezium.io/documentation/reference/stable/architecture.html">debezium.io</Cite>; an Airbyte connection links one source to one destination <Cite href="https://docs.airbyte.com/platform/using-airbyte/core-concepts">docs.airbyte.com</Cite>. [[L-0374]] Fanning out has a cost: the CDC does a different transformation for each sink (JSON for Elasticsearch, another format for MySQL, something else for a third), so its memory use is high and it has to scale up. [[L-0375]]
+
+This diagram is also all the tiered storage in this class. It was on the agenda, and it appears here as one multi-tier picture, not as a design of its own. CDC is used heavily in data-engineering architectures and in multi-tiered storage; this chapter is only a gentle introduction to it. [[L-0052]]
+
+<ForwardChip block when="a later week" k="L-0052">CDC inside data-engineering and multi-tiered storage designs</ForwardChip>
+
+<ForwardChip block when="a later week" k="L-0009 L-0010">Amazon’s order system: one detailed data pipeline, built from these one or two ideas</ForwardChip>
+
+</Section>
+
+<Section id="s1-6" no="1.6" title="From practice: sixty machines down to two" crumb="1.6 Sixty machines"
+  dek="A data sync built on events, one message at a time, and what replacing it with CDC did."
+  meta="About 6 min · class 00:19–00:20, Q&A 00:21–00:28">
+
+A couple of organisations had data sync built on Kafka, with a high infrastructure cost. This is a consulting case, and its numbers come from that telling; they can’t be checked independently. The advice was to switch to CDC, and that brought the cost down by 80%, with much more reliability. [[L-0053]] The 80% was that subsystem’s infrastructure cost, not the organisation’s whole bill. [[L-0059]]
+
+The design looked like 1.2. The API servers pushed every single update to Kafka. A bunch of consumer workers read each event, applied a very simple transformation, and wrote it to the other database: one read and one write at a time. They could have batched, and didn’t, “because that’s how they thought systems are built”. [[L-0060]] Without batching, just keeping up with the incoming traffic took more than 60 consumers: 60 machines with 32 GB each. [[L-0061]]
+
+<Figure id="fig-1f" max={640} no="Fig 1·f" k="L-0053 L-0060 L-0061 L-0062" caption="A consulting case: that subsystem’s infra cost fell about 80% (as told in class). Before, every update was one Kafka event, one read and one write on more than sixty machines. After, two EC2 instances ran an Airbyte CDC and wrote in batches.">
+<Desk><SixtyToTwo /></Desk>
+<Phone><SixtyToTwo layout="phone" /></Phone>
+</Figure>
+
+The suggestion was simple. The transformation was simple, so configure a simple CDC in Airbyte, write the simple transformation there, and ingest directly into the other database; both databases had Airbyte plugins. Sixty machines and a Kafka became two simple EC2 instances. [[L-0062]]
+
+They didn’t lose performance; by this account they gained it. Replication lag dropped to a bare minimum, put down in class to how these tools are built: written in Java, multi-threaded, fetching in parallel, heavily optimised for minor transformations, with fast reads and fast checkpointing. [[L-0063]] How a tool runs matters too. Airbyte doesn’t treat CDC sources as endless streams: each scheduled sync reads the log from the last saved position up to the sync’s start, so a change can wait up to one sync interval to arrive <Cite href="https://docs.airbyte.com/platform/understanding-airbyte/cdc">docs.airbyte.com</Cite>. [[L-0063]]
+
+The bigger finding was the data. The old pipeline had been silently losing changes: the two databases were out of sync and nobody had any idea. Once it was pointed out, the plan was a cron job to resync them, and “it’s okay if we lose data”. With CDC they stopped losing data. [[L-0064]]
+
+Wouldn’t batching the events alone have fixed it? It would not have been as bad, yes. They processed one event at a time because that was the most basic thing to write, and it was a legacy design: the company scaled and nobody changed it. [[L-0066]] There is always one service in a company that nobody ever touches, and this was one of them. [[L-0067]]
+
+And why Kafka at all, rather than a cheaper queue such as SQS? A company always has some decisions made a certain way. At their throughput, Kafka and SQS would have cost about the same anyway. The service started basic, the company grew, nobody refactored it, and then it started to bite back. [[L-0071]]
+
+</Section>
+
+<Section id="s1-7" no="1.7" title="What CDC is not" crumb="1.7 What CDC is not"
+  dek="Not strongly consistent, not server-sent events, and not a transformation engine."
+  meta="About 4 min · class Q&A 00:14–00:15 and 00:26–00:31">
+
+CDC is not a magic sync button. It is eventually consistent: it gives no strong consistency between the source and the sink. So pairing it with an eventually consistent NoSQL store is not a bad use case at all. [[L-0068]] Where you need strong consistency you need synchronous processing, and asynchronous CDC can’t be used there. [[L-0069]]
+
+It is not like server-sent events either. With SSE a backend server sends events to the front end, the browser; CDC is backend work that pulls data from a database, transforms it and pushes it into another database. Very different. [[L-0070]] (SSE is in <LectureLink lec="lec01" sec="s5-5">Lecture 2</LectureLink>.)
+
+Nor is it a transformation engine. Multiple joins across tables, multiple aggregations, several jobs: that is what Apache Spark solves, not CDC. [[L-0074]] In this course’s view Spark is the king of the big-data tools at the moment, your friend for complex transformations across tables and joins. [[L-0075]] CDC is for the simple case: consume whatever is written in the source, extract it, and put it somewhere, with basic transformation. [[L-0076]]
+
+<ForwardChip block when="a later week" k="L-0044">Spark and data-engineering basics, for the bigger transformations</ForwardChip>
+
+You may already be using one without the name. PG sync, a tool that pushes Postgres data into Elasticsearch, is an example of a Postgres-based CDC: it was described in class as working only with Postgres, but it does exactly what a CDC does. [[L-0077]]
+
+<SourceNote href="https://github.com/toluaina/pgsync" site="github.com/toluaina/pgsync" k="L-0077">
+
+PGSync is a CDC tool that syncs to Elasticsearch or OpenSearch through PostgreSQL logical replication. As of its GitHub README checked in October 2026, it also supports MySQL and MariaDB (through the binary log), so “only works with Postgres” no longer holds.
+
+</SourceNote>
+
+It could be replaced with Airbyte or Debezium, which have much fancier plugins, so pushing the same data into some other system wouldn’t mean rewriting the integrations. [[L-0078]]
+
+<TradeoffTable caption="API events, CDC and Spark: what each reads, what it misses, and when to reach for it"
+  k="L-0046 L-0050 L-0068 L-0074"
+  columns={[{ label: 'API events · Kafka', glyph: 'stream' }, { label: 'CDC · Airbyte, Debezium', glyph: 'replicas' }, { label: 'Spark', glyph: 'minions' }]}
+  rows={[
+    { label: 'What it reads', k: 'L-0026 L-0037 L-0074', cells: ['The events the API chose to publish', 'The database itself: its log, or its rows', 'Many tables at once, for joins and aggregations'] },
+    { label: 'Catches changes with no event?', k: 'L-0026 L-0033 L-0346', cells: [{ text: 'No: views++, background jobs, a crash before publish', bad: true }, 'Yes: it reads the source of truth', 'Not covered in class'] },
+    { label: 'Batching', k: 'L-0050 L-0060', cells: ['One event at a time, unless you build it', 'Bulk fetch, bulk ingest', 'Not covered in class'] },
+    { label: 'Consistency with the source', k: 'L-0068 L-0025', cells: ['Eventual, and drifts when an event is missing', 'Eventual', 'Not covered in class'] },
+    { label: 'Transformations', k: 'L-0074 L-0076', cells: ['Whatever the consumer code does', 'Light, simple ones', 'Complex: joins, aggregations, many jobs'] },
+    { label: 'Reach for it when', k: 'L-0046 L-0074', cells: ['You need application context', 'You move raw data', 'A report needs joins and aggregates'] },
+  ]} />
+
+<h3 id="s1-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem q="Name two ways an API-event pipeline can leave the analytics copy incomplete even when Kafka never loses a message.">
+
+Any two of: a change with no event at all (a `views++`, or a background job aggregating likes outside any API request); the API saving the row and crashing before it publishes the event (the dual write); and a new table whose event nobody remembered to add. Kafka can only deliver what was published. A thin event that carries only an id doesn’t lose data, but it forces the consumer to read the rest back from the database.
+
+  </RecallItem>
+  <RecallItem q="Why is it better for a CDC tool to read through the database’s client than to parse log files directly, and why point it at a replica?">
+
+The client decodes the log for you, so if the binlog or commit-log format changes, your plugin doesn’t need updating. It is a sequential read, so the load is light, and pointing CDC at a new replica takes even that off the master. One replica is enough, since they all hold the same data. (Check that the replica can serve it: `log_replica_updates` on MySQL, version 16+ for a logical slot on a PostgreSQL standby.)
+
+  </RecallItem>
+  <RecallItem q="A report needs a join of five tables and a monthly aggregate. CDC or Spark, and why?">
+
+Spark. CDC is for simple cases: consume what is written in the source, extract it and put it somewhere, with light transformation. Multiple joins across tables, aggregations and several jobs are what Apache Spark is for.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '2 · One node, every byte counted', href: '#s2' }}
+  concepts={[{ label: 'analytics copy', href: '#s1-1' }, { label: 'dual write', href: '#s1-2' }, { label: 'change data capture', href: '#s1-3' }, { label: 'binlog / WAL', href: '#s1-4' }, { label: 'checkpoint', href: '#s1-4' }, { label: 'outbox pattern', href: '#s1-5' }, { label: 'fan-out', href: '#s1-5' }, { label: 'eventual consistency', href: '#s1-7' }]} />
+
+</Section>

@@ -1,0 +1,115 @@
+{
+ "lecture": "lec07",
+ "page": {
+  "title": "Build your own Redis",
+  "kicker": "Lecture 09 · week 5, day 1 · running case: build-your-own Redis",
+  "dek": "Copying data out without losing it, then a cache built from one hash table up to a ring of nodes, with the cost of each decision measured in bytes, hops and data moved.",
+  "description": "Lecture 09: meet ETL and change data capture, then build a cache like Redis on one node and make it distributed with routing, consistent hashing and replicas."
+ },
+ "clip_prefix": "l07-",
+ "overview_part": "s0-header",
+ "overview_sections": [
+  "about"
+ ],
+ "chapters": [
+  {
+   "no": "1",
+   "slug": "1-etl-and-cdc",
+   "title": "ETL and change data capture",
+   "summary": "The blogging app's analysts need their own SQL copy of production. The obvious event pipeline drifts silently. Change data capture reads the database itself.",
+   "writer": "w1",
+   "parts": [
+    {
+     "file": "s1a-etl-and-cdc",
+     "sections": ["1.1", "1.2", "1.3", "1.4"]
+    },
+    {
+     "file": "s1b-etl-and-cdc",
+     "sections": ["1.5", "1.6", "1.7"]
+    }
+   ]
+  },
+  {
+   "no": "2",
+   "slug": "2-one-node",
+   "title": "One node, every byte counted",
+   "summary": "Build the cache on one machine first: a hash table, values of many types, and a hard cap on memory that the cache can always check cheaply.",
+   "writer": "w2",
+   "parts": [
+    {
+     "file": "s2-one-node",
+     "sections": ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6"]
+    }
+   ]
+  },
+  {
+   "no": "3",
+   "slug": "3-eviction-and-expiry",
+   "title": "When the cache is full: eviction and expiry",
+   "summary": "Which key goes when memory runs out, and how expired keys disappear, without spending memory on bookkeeping.",
+   "writer": "w3",
+   "parts": [
+    {
+     "file": "s3-eviction-and-expiry",
+     "sections": ["3.1", "3.2", "3.3", "3.4", "3.5"]
+    }
+   ]
+  },
+  {
+   "no": "4",
+   "slug": "4-protocol-and-concurrency",
+   "title": "Talking to the cache, and taking turns",
+   "summary": "How other systems reach the cache (all of it is TCP; the question is the format), and how one node stays correct when two clients touch the same key.",
+   "writer": "w4",
+   "parts": [
+    {
+     "file": "s4-protocol-and-concurrency",
+     "sections": ["4.1", "4.2", "4.3", "4.4", "4.5", "4.6"]
+    }
+   ]
+  },
+  {
+   "no": "5",
+   "slug": "5-routing",
+   "title": "Many nodes: splitting the keys and finding them",
+   "summary": "One node can't take the load. Split the keys across nodes, and then decide who tells a client where its key lives.",
+   "writer": "w4",
+   "parts": [
+    {
+     "file": "s5-routing",
+     "sections": ["5.1", "5.2", "5.3", "5.4"]
+    }
+   ]
+  },
+  {
+   "no": "6",
+   "slug": "6-consistent-hashing",
+   "title": "Consistent hashing, DHTs and staying up",
+   "summary": "Adding a node with hash % N moves half the data. Consistent hashing decides ownership so only a slice moves. Then: running it in production, its weak spots, the general idea (DHTs), and replicas.",
+   "writer": "w5",
+   "parts": [
+    {
+     "file": "s6a-consistent-hashing",
+     "sections": ["6.1", "6.2", "6.3", "6.4"]
+    },
+    {
+     "file": "s6b-consistent-hashing",
+     "sections": ["6.5", "6.6", "6.7"]
+    }
+   ]
+  },
+  {
+   "no": "7",
+   "slug": "7-what-to-keep",
+   "title": "What to keep",
+   "summary": "The decisions, the heuristics, and where the next lessons pick up.",
+   "writer": "w3",
+   "parts": [
+    {
+     "file": "s7-keep",
+     "sections": ["7"]
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,108 @@
+---
+title: "Build your own Redis"
+kicker: "Lecture 09 · week 5, day 1 · running case: build-your-own Redis"
+dek: "Copying data out without losing it, then a cache built from one hash table up to a ring of nodes, with the cost of each decision measured in bytes, hops and data moved."
+description: "Lecture 09: meet ETL and change data capture, then build a cache like Redis on one node and make it distributed with routing, consistent hashing and replicas."
+reviewed: 14 Oct 2026
+status: published
+ledger: lectures/lec07/ledger/ledger.jsonl
+contents:
+  - no: "1"
+    title: "ETL and change data capture"
+    href: "#s1"
+    children:
+      - { no: "1.1", title: "Day zero: dashboards on the production database", href: "#s1-1" }
+      - { no: "1.2", title: "The obvious pipeline: API events through Kafka", href: "#s1-2" }
+      - { no: "1.3", title: "Change data capture: read the source of truth", href: "#s1-3" }
+      - { no: "1.4", title: "How a CDC tool reads, and where to point it", href: "#s1-4" }
+      - { no: "1.5", title: "CDC or events? Raw data, and many tiers", href: "#s1-5" }
+      - { no: "1.6", title: "From practice: sixty machines down to two", href: "#s1-6" }
+      - { no: "1.7", title: "What CDC is not", href: "#s1-7" }
+  - no: "2"
+    title: "One node, every byte counted"
+    href: "#s2"
+    children:
+      - { no: "2.1", title: "What we’re building", href: "#s2-1" }
+      - { no: "2.2", title: "Storage is a hash table", href: "#s2-2" }
+      - { no: "2.3", title: "Values of many types", href: "#s2-3" }
+      - { no: "2.4", title: "What happens when the heap runs out", href: "#s2-4" }
+      - { no: "2.5", title: "Knowing how much memory you use", href: "#s2-5" }
+      - { no: "2.6", title: "zmalloc: one wrapper, one counter, one cap", href: "#s2-6" }
+  - no: "3"
+    title: "When the cache is full: eviction and expiry"
+    href: "#s3"
+    children:
+      - { no: "3.1", title: "LRU, LFU, and where their bookkeeping lives", href: "#s3-1" }
+      - { no: "3.2", title: "The textbook LRU, priced in bytes", href: "#s3-2" }
+      - { no: "3.3", title: "Random eviction", href: "#s3-3" }
+      - { no: "3.4", title: "LRU or LFU? Follow the key’s life", href: "#s3-4" }
+      - { no: "3.5", title: "Expiry without extra structures", href: "#s3-5" }
+  - no: "4"
+    title: "Talking to the cache, and taking turns"
+    href: "#s4"
+    children:
+      - { no: "4.1", title: "Which protocol? It’s all TCP", href: "#s4-1" }
+      - { no: "4.2", title: "From practice: HTTP typed by hand", href: "#s4-2" }
+      - { no: "4.3", title: "Your own protocol, or gRPC", href: "#s4-3" }
+      - { no: "4.4", title: "The single node so far", href: "#s4-4" }
+      - { no: "4.5", title: "Concurrency: lock, compare-and-swap, or one thread", href: "#s4-5" }
+      - { no: "4.6", title: "From class: the double-booked seats", href: "#s4-6" }
+  - no: "5"
+    title: "Many nodes: splitting the keys and finding them"
+    href: "#s5"
+    children:
+      - { no: "5.1", title: "Why distribute, and splitting the keys", href: "#s5-1" }
+      - { no: "5.2", title: "The routing problem", href: "#s5-2" }
+      - { no: "5.3", title: "Four ways to route: a visit to the bank", href: "#s5-3" }
+      - { no: "5.4", title: "Which way for a cache?", href: "#s5-4" }
+  - no: "6"
+    title: "Consistent hashing, DHTs and staying up"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "Who owns a key?", href: "#s6-1" }
+      - { no: "6.2", title: "What consistent hashing is, and isn’t", href: "#s6-2" }
+      - { no: "6.3", title: "Adding and removing nodes", href: "#s6-3" }
+      - { no: "6.4", title: "Never add a blank node", href: "#s6-4" }
+      - { no: "6.5", title: "Where the ring hurts: close nodes, hot spots, virtual nodes", href: "#s6-5" }
+      - { no: "6.6", title: "The general idea: distributed hash tables", href: "#s6-6" }
+      - { no: "6.7", title: "Staying up: replicas, copies on the ring, and the AOF", href: "#s6-7" }
+  - no: "7"
+    title: "What to keep"
+    href: "#s7"
+chapters:
+  - no: "1"
+    slug: 1-etl-and-cdc
+    parts: [s1a-etl-and-cdc, s1b-etl-and-cdc]
+    summary: "The blogging app's analysts need their own SQL copy of production. The obvious event pipeline drifts silently. Change data capture reads the database itself."
+  - no: "2"
+    slug: 2-one-node
+    parts: [s2-one-node]
+    summary: "Build the cache on one machine first: a hash table, values of many types, and a hard cap on memory that the cache can always check cheaply."
+  - no: "3"
+    slug: 3-eviction-and-expiry
+    parts: [s3-eviction-and-expiry]
+    summary: "Which key goes when memory runs out, and how expired keys disappear, without spending memory on bookkeeping."
+  - no: "4"
+    slug: 4-protocol-and-concurrency
+    parts: [s4-protocol-and-concurrency]
+    summary: "How other systems reach the cache (all of it is TCP; the question is the format), and how one node stays correct when two clients touch the same key."
+  - no: "5"
+    slug: 5-routing
+    parts: [s5-routing]
+    summary: "One node can't take the load. Split the keys across nodes, and then decide who tells a client where its key lives."
+  - no: "6"
+    slug: 6-consistent-hashing
+    parts: [s6a-consistent-hashing, s6b-consistent-hashing]
+    summary: "Adding a node with hash % N moves half the data. Consistent hashing decides ownership so only a slice moves. Then: running it in production, its weak spots, the general idea (DHTs), and replicas."
+  - no: "7"
+    slug: 7-what-to-keep
+    parts: [s7-keep]
+    summary: "The decisions, the heuristics, and where the next lessons pick up."
+---
+import Header from './lec07/s0-header.mdx';
+
+{/* Lecture 09 (lec07). This body is the lecture overview page (/lectures/lec07/): the header block
+    from s0-header.mdx. Each chapter is its own page, built from the parts listed under `chapters`. Written by the
+    pipeline scaffold (pipeline/lib/scaffold_page.py); the assembler owns this file. */}
+
+<Header />

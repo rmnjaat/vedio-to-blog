@@ -1,0 +1,38 @@
+[
+ {
+  "id": "l07-events-vs-cdc",
+  "section": "1.3",
+  "title": "The same changes, two pipelines",
+  "seconds": 32,
+  "ledger": ["L-0026", "L-0028", "L-0033", "L-0034", "L-0040", "L-0346"],
+  "predict": "The API saves a post and crashes before publishing its event. A worker bumps a like count with no event at all. Which copy ends up complete?",
+  "caption": "The event pipeline misses every change that has no event or whose event was lost; CDC reads the database's log, copies all four, and resumes from its checkpoint after downtime. Read the source of truth, not the API's events."
+ },
+ {
+  "id": "l07-lru-vs-lfu",
+  "section": "3.4",
+  "title": "A scan and a spike",
+  "seconds": 30,
+  "ledger": ["L-0165", "L-0167", "L-0169", "L-0170"],
+  "predict": "A nightly report scans every article once. Which cache still holds the evergreen pages in the morning?",
+  "caption": "One burst of one-off reads flushes the evergreen pages from LRU but not from LFU, so LRU misses the next morning. When past popularity predicts the future, frequency wins. Redis approximates both by sampling."
+ },
+ {
+  "id": "l07-four-routes",
+  "section": "5.3",
+  "title": "Four banks, one request",
+  "seconds": 36,
+  "ledger": ["L-0249", "L-0250", "L-0251", "L-0252", "L-0255"],
+  "predict": "Same request, four banks. Which one costs the client two round trips?",
+  "caption": "Proxy, smart client, forwarding and redirect differ in who sends the next message. The smart client skips the middle hop, but every client must hear about every topology change."
+ },
+ {
+  "id": "l07-mod-vs-ring",
+  "section": "6.3",
+  "title": "Add one node, count what moves",
+  "seconds": 30,
+  "ledger": ["L-0272", "L-0273", "L-0274", "L-0291", "L-0292", "L-0294"],
+  "predict": "Six keys, two nodes, add a third. How many keys move with % N, and how many on the ring?",
+  "caption": "With hash % N, adding a node rechecks every key and about half move; on the ring only the new node's slice moves, all from one neighbour. On average % N moves about N/(N+1) of keys, a ring about 1/(N+1)."
+ }
+]

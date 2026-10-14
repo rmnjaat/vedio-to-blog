@@ -1,0 +1,328 @@
+import Section from '../../../components/Section.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import SourceNote from '../../../components/SourceNote.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import SectionEnd from '../../../components/SectionEnd.astro';
+import Cite from '../../../components/Cite.astro';
+import { HashTable, StructStage1, HeapFills, SizeofVsData, ZmallocCap, EveryBit } from '../../../figures/lec07/s2-one-node';
+
+{/* §2 One node, every byte counted (2.1–2.6). Chapter page /lectures/lec07/2-one-node/.
+    Class 00:31–00:58, with Q&A 01:48 (zmalloc counts every allocation), 02:39–02:48 (malloc returns NULL, virtual pages,
+    the crash experiment, growing a set) and 02:54–02:57 (ulimits, allocator limits, SIGABRT) folded in.
+    Fact-check: SN-03 (L-0104), SN-04 (L-0359); inline L-0103, L-0115, L-0116, L-0341, L-0358, L-0360;
+    additions A-DCL-04 (L-0127), A-DCL-25 (SN-03). zmalloc-with-eviction is labelled "our design" (L-0122, L-0129). */}
+
+<Section id="s2" no="2" title="One node, every byte counted" crumb="2 One node"
+  dek="Build the cache on one machine first: a hash table, values of many types, and a hard cap on memory that the cache can always check cheaply."
+  meta="About 25 min · class 00:31–00:58, Q&A 01:48, 02:39–02:48, 02:54–02:57">
+
+Chapter 1 copied the blogging app’s data out of its database. This chapter starts a different build: a cache like Redis, written from scratch. Call it our Redis. It has to answer `GET`, `PUT`, `DELETE` and `TTL` with high throughput and low latency, and it must never crash.
+
+Before it can be distributed, it has to work on one machine. So start there, and count every byte it spends.
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What we’re building" crumb="2.1 What we’re building"
+  dek="A distributed in-memory cache with four operations. First, one node and its low-level details."
+  meta="About 3 min · class 00:31–00:34">
+
+The requirements fit on one line: high throughput, low latency, distributed. Everything we want; we are very greedy. Scale is a given. [[L-0080]] The cache offers four operations: get, put, delete and TTL. [[L-0081]]
+
+On one node, three of them are one line each against a hash table: [[L-0222]]
+
+```text
+GET k     → check the hash table, return
+PUT k, v  → add to the hash table
+DEL k     → delete from the hash table
+```
+
+TTL needs more machinery, and gets it in [chapter 3](#s3-5).
+
+Be explicit about what this is: a distributed in-memory cache. [[L-0083]] The interesting decisions sit inside one node: how it stores data, how it knows it is full, what it evicts, how clients talk to it, how it handles concurrent writers, and how keys expire. [[L-0084]] This chapter and the next two build that single node; distributing it comes in [chapter 5](#s5). [[L-0085]] Call these the low-level implementation details rather than “LLD”; the distributed design that follows is the high-level part. [[L-0203]]
+
+Why build a cache you could simply download? Because the decisions made here are not only about caches. They are Lego blocks: once you have seen a pattern you can “control C, control V” it into almost any other system, with a modification here or there. [[L-0005]] There are only a few ways to achieve anything. Once you spot a pattern you can apply it elsewhere, which is why very different systems keep turning out to be built from the same few ideas. [[L-0006]]
+
+The reference design throughout is Redis. The design below comes from a deep dive into the Redis source code: not only the low-level code, but how Redis made its decisions (a separate Redis-internals course goes further). At each step, Redis’s choice is named next to ours. [[L-0004]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="Storage is a hash table" crumb="2.2 Hash table"
+  dek="Where does a key and its value live in RAM? In the data structure that already solves it."
+  meta="About 2 min · class 00:33–00:36, Q&A 02:48">
+
+Where do a key and its value live in memory? A natural first design keeps a contiguous array of keys, each holding a pointer to where its value is stored. Put simply, that is a hash table. [[L-0086]] So a single node’s storage is a hash map from keys to values. [[L-0087]]
+
+<Figure id="fig-2a" no="Fig 2·a" max={360} wide={false} k="L-0087"
+  caption="One node’s storage: each slot of a hash table holds a key and a pointer to its value in memory. Redrawn from the class board at 00:33.">
+<HashTable />
+</Figure>
+
+It is tempting to go one level further down and design the table itself: open addressing or chaining, for a table of fixed size. There is no need. Hash maps already exist and have solved that problem, so there is no reason to rebuild the logic. Use one. [[L-0088]]
+
+The next question is usually: and with more than one machine? That is sharding, and it waits until this node works. [Chapter 5](#s5-1) picks it up. [[L-0089]]
+
+<ForwardChip block when="chapter 5" k="L-0089">splitting the keys across nodes</ForwardChip>
+
+One thing the hash map does teach is how to grow. Say a set was given 1,024 bytes when it was created, and elements keep arriving. Do what hash tables do: allocate an array of some size, and when it fills up, double it, reallocate and move the data. That is an expensive operation, but it is the way to go. [[L-0350]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Values of many types" crumb="2.3 Value types"
+  dek="A value can be a string, a set, a list or a Bloom filter. The cache has to know which, in as few bits as possible."
+  meta="About 6 min · class 00:35–00:42">
+
+Now change the requirement a little. A value can be a string, a set, a list, a Bloom filter, a HyperLogLog and more. How is such a value represented? [[L-0090]]
+
+Java suggests the first answer. A value is a general object: store a pointer to the object, which lives on the heap, and store primitive values in place of the pointer. [[L-0091]]
+
+That raises a second problem. The cache has to know each value’s type, because commands depend on it: a set supports `add`, a list supports `push`. Before it runs a command, the cache must check that the value is of the right type. [[L-0092]]
+
+<PauseAndThink k="L-0092 L-0093 L-0094 L-0096 L-0097"
+  q="A cache value can be a string, set, list or Bloom filter, and add only works on a set. Where do you record a value’s type: in the key, or in a small wrapper around the value? And how much space does it need?"
+  choices={[{ label: 'In the key: everything is looked up by key anyway' }, { label: 'In a wrapper around the value, using a few bits', correct: true }]}
+  right="Right. MyValue { value*; type } keeps the key clean and gives one place for all per-key metadata. There will never be more than a handful of types, so 4 bits (16 types) is plenty. Redis uses exactly 4."
+  wrong="Then every key carries a type prefix, and every lookup has to strip or match it. The key should stay a plain key.">
+
+In memory, every bit you spend is multiplied by the number of keys. The wrapper will grow (eviction bits, an expiry time) and still stay small.
+
+</PauseAndThink>
+
+It is tempting to keep the type with the key, since everything is reached through the key. [[L-0093]] But a key is a string. Prefix it with a type, or turn it into an object, and every lookup gets complicated: you dereference and match each time. Keep the key a normal key, and make the value a custom type of your own: [[L-0093 L-0094]]
+
+```c
+// key → MyValue
+struct MyValue {
+    void *value;  // points at anything
+    int   type;   // 0 string, 1 int,
+                  // 2 set, 3 list
+};
+```
+
+`value` is a void pointer (an Object in Java), so it can refer to anything; `type` is a small integer code. On the board the type field was written `int4`. [[L-0094]]
+
+Running a typed command, say `add` on the key `myset`, now takes four steps: get the value, read its type, check that the type supports the operation, and if it does, cast the object to that type and run the operation. [[L-0095]]
+
+<Figure id="fig-2a2" no="Fig 2·b" max={720} k="L-0087 L-0094 L-0096 L-0097"
+  caption="MyValue, stage 1. The key stays a plain key. Its slot points at a small wrapper whose value pointer can lead to anything, and whose type needs only 4 bits of a word. Chapter 3 adds eviction bits and an expiry time to this same struct. Redrawn from the class board at 00:36.">
+<Desk><StructStage1 /></Desk>
+<Phone><StructStage1 layout="phone" /></Phone>
+</Figure>
+
+How much space does `type` need? There will only ever be five to ten types, so a few bits are enough. Half a byte, 4 bits, gives 16 types; a whole byte, 2<sup>8</sup> types, would last the next 10 or 20 years. This point first came up as an argument for putting the type next to the key, to save the wrapper. The bits are exactly right; the type still belongs in the value, for the reason two paragraphs down. [[L-0096]]
+
+Redis uses four bits to store a value’s type. The number of types can never go beyond a certain number, so Redis caps it. [[L-0097]]
+
+<RuleBox rule="In memory, be cautious about ==every single byte and bit==." k="L-0098">
+
+RAM is very costly. Get the most out of every byte you use, and if you can’t, reduce it to the bare minimum you can work with.
+
+<EveryBit />
+
+</RuleBox>
+
+Why wrap the value at all, rather than squeeze those bits in beside the key? Because Redis keeps a lot of other metadata alongside the type. In Redis the wrapper is a struct (Redis is written in C), and having one per value makes the design extensible: new fields arrive when new features need them, eviction first. [[L-0099]]
+
+<ForwardChip block when="chapter 3" k="L-0099">the wrapper’s next fields, for eviction and expiry</ForwardChip>
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="What happens when the heap runs out" crumb="2.4 Heap runs out"
+  dek="Every value lives on the heap. Fill it, and the cache is in trouble whatever the exact failure looks like."
+  meta="About 6 min · class 00:42–00:45, Q&A 02:39–02:48, 02:54–02:57">
+
+Every value, and every wrapper, lives on the heap: `malloc` or `new`, whatever your language uses, allocates the object in the program’s heap memory. [[L-0100]] So what happens when the heap is exhausted?
+
+It is tempting to answer “the eviction policy runs”. But that is the cache’s policy, which runs only because the cache was written to run it. The question is about the program’s own heap, under a program that keeps calling `malloc`. [[L-0101]]
+
+Make it concrete. A loop mallocs a 1 MB chunk on every iteration, forever, on a machine with 1 GB of RAM. After 1,024 iterations everything is used. What happens on iteration 1,025? [[L-0102]]
+
+One guess is that the operating system moves data from memory to disk to make room. That is closer than it sounds: under memory pressure the OS can page memory out to swap on disk <Cite href="https://www.kernel.org/doc/html/latest/admin-guide/mm/concepts.html">kernel.org</Cite>. Running out of heap does not cause a segfault by itself either: `malloc` returns NULL, or on Linux with overcommit the OOM killer ends a process when the pages are touched <Cite href="https://man7.org/linux/man-pages/man3/malloc.3.html">man7.org</Cite> (more in the note below). [[L-0103]]
+
+The answer as taught: going beyond your allocated heap is a segmentation fault. You are entering someone else’s territory, and your program crashes. [[L-0104]]
+
+<SourceNote href="https://man7.org/linux/man-pages/man3/malloc.3.html" site="man7.org (malloc)" k="L-0104">
+
+When memory runs out, `malloc` returns NULL; or, with Linux overcommit, the OOM killer kills the process later. A segfault only happens if the program then uses an invalid pointer, such as that unchecked NULL. Linux overcommits memory by default <Cite href="https://www.kernel.org/doc/html/latest/mm/overcommit-accounting.html">kernel.org</Cite>, so `malloc` can succeed without physical memory behind it; if the system later runs out, “one or more processes will be killed by the OOM killer”. See also the signals in signal(7) <Cite href="https://man7.org/linux/man-pages/man7/signal.7.html">man7.org</Cite>.
+
+</SourceNote>
+
+<Figure id="fig-2b" no="Fig 2·c" max={800} k="L-0101 L-0102 L-0104 L-0107"
+  caption="Left: the thought experiment, and the answer given in class (the bubble). Right: what the 1,025th malloc actually does on Linux (see the note above). Either way, the cache has to cap its own memory. Left panel redrawn from the class board at 00:45; the right panel is new.">
+<Desk><HeapFills /></Desk>
+<Phone><HeapFills layout="phone" /></Phone>
+</Figure>
+
+Segmentation faults are a rite of passage. Everyone who coded C in the first and second years of engineering suffered them, from trying to access memory allocated by someone else. [[L-0105]]
+
+And crashing is one of the main reasons you never want to go beyond the heap, the memory assigned to you. [[L-0106]]
+
+Whatever the exact mechanism, the conclusion is the one the design needs. The cache has to keep running no matter what; it must never crash. So it has to cap its own memory usage, and the first question becomes: how does it know how much memory it is using? [[L-0107]]
+
+<MarginNote title="Later: malloc, pages and signals" why="skip unless you write C"
+  k="L-0338 L-0339 L-0340 L-0341 L-0347 L-0348 L-0349 L-0358 L-0359 L-0360">
+
+A correction from long C practice: `malloc` does not segfault when the heap runs out. It returns a NULL pointer (in C++, `new` throws `bad_alloc`), so you check whether malloc returned NULL. [[L-0338]]
+
+That was accepted, with an addition on how allocation works underneath: malloc assigns virtual pages, not physical ones. With 4 GB of RAM, malloc can hand out 40 GB of virtual space; physical pages are allocated only when the logical pages are actually used. [[L-0339]]
+
+That view came from an experiment: crash a Redis prototype on purpose, following an old blog post: allocate a page, fill it with ones, keep calling malloc and reusing the pages. After a point the program crashed from the memory use, at the same point on every run. [[L-0340]]
+
+So malloc does return NULL when it cannot allocate, which is how you find out and can react. [[L-0347]] But touching pages beyond the limit, not just allocating them, crashed the program: “it’s not malloc’s fault”. Treat that explanation as tentative and open to correction. On Linux, touching more overcommitted memory than RAM plus swap usually ends with the OOM killer terminating a process with SIGKILL, not a segmentation fault; a segfault would come from using a pointer whose allocation failed, such as an unchecked NULL <Cite href="https://man7.org/linux/man-pages/man3/malloc.3.html">man7.org</Cite>. [[L-0341]]
+
+Another way it was put: a crash happens whenever a program tries to access memory it is not supposed to. [[L-0348]] And a limit worth stating plainly: this account of OS memory paging rests only on what the prototype showed, not on a deep study of paging, which deserves a dive of its own. [[L-0349]]
+
+In practice, limits come from two places: per-process ulimits in the kernel, and limits configured in the malloc library itself (GNU malloc, tcmalloc, jemalloc), so one service on a shared node can’t push it to 98 or 99%. It was added that people generally don’t use GNU malloc. More precisely, a per-process limit (`RLIMIT_AS` or `RLIMIT_DATA`, set with ulimit) makes malloc fail with ENOMEM rather than killing the process <Cite href="https://man7.org/linux/man-pages/man2/getrlimit.2.html">man7.org</Cite>, while container (cgroup) limits trigger the OOM killer instead. And glibc malloc is the default for most Linux programs, though Redis builds with jemalloc by default on Linux <Cite href="https://github.com/redis/redis">github.com/redis</Cite>. [[L-0358]]
+
+Exceed those limits, the explanation went, and you generally get a SIGABRT and the program does crash: the kernel kills the process to save itself. [[L-0359]]
+
+<SourceNote href="https://man7.org/linux/man-pages/man7/signal.7.html" site="man7.org (signal)" k="L-0359">
+
+Exceeding a ulimit makes allocation fail (NULL, ENOMEM). Exhausting system or cgroup memory gets the process killed by the OOM killer with SIGKILL. SIGABRT comes from the program itself calling `abort()` <Cite href="https://man7.org/linux/man-pages/man3/abort.3.html">man7.org</Cite>.
+
+</SourceNote>
+
+SIGABRT was described as mostly unhandleable (there are some ways): it signals that “your instruction pipeline is done”, you can run a little last code, and the process is killed. Either way, the program does crash. In fact SIGABRT can be caught, but if the handler returns, `abort()` still terminates the process; the signal that truly cannot be handled is SIGKILL. And SIGABRT means “abort signal from abort(3)”, not the end of an instruction pipeline <Cite href="https://man7.org/linux/man-pages/man7/signal.7.html">man7.org</Cite>. [[L-0360]]
+
+</MarginNote>
+
+</Section>
+
+<Section id="s2-5" no="2.5" title="Knowing how much memory you use" crumb="2.5 Memory used"
+  dek="The cap is 1 GB. How do you know where you stand, on every write, without slowing every write down?"
+  meta="About 6 min · class 00:44–00:53, Q&A 01:48">
+
+Say the cap is 1 GB. Every write has to know where usage stands. How?
+
+The first idea is to ask the operating system. There is certainly a command that reports how much memory a process uses. [[L-0108]] But it is the kernel that knows that number, so every check becomes a system call, and a system call causes an interrupt. Doing that on every memory check would slow the entire system down. The command exists; it just isn’t performant enough. [[L-0109 L-0108]]
+
+So the cache writes its own size function. [[L-0110]] A first version multiplies the number of keys stored by the size of each key-value pair. Simpler still: keep a running counter, and do `size += n` every time a key or a value is added. [[L-0111]]
+
+Add how much, though? `sizeof(MyValue)` is a small fixed number (the lecture said four bytes; on a 64-bit machine a pointer plus an int comes to 16 with padding). But the pointer inside may lead to far more memory than that, so the struct alone doesn’t tell you the size. [[L-0112]]
+
+This is what every cache does: it keeps track of its own size, because asking the OS is too expensive. [[L-0113]]
+
+<PauseAndThink k="L-0108 L-0109 L-0112 L-0118 L-0120 L-0121"
+  q="The cache must never exceed 1 GB. sizeof(MyValue) is 16 bytes, but a value can point at a 1 MB Bloom filter. How do you always know your usage, without asking the OS each time?"
+  choices={[{ label: 'Count bytes inside a wrapper around malloc', correct: true }, { label: 'Add sizeof(MyValue) for every key stored' }]}
+  right="Right. Every byte the cache holds comes from malloc, so count there: zmalloc(b) mallocs b bytes and adds b to total_size, and zfree subtracts. One place, and no call site can forget it."
+  wrong="sizeof only measures the wrapper. The set, list or Bloom filter it points to was allocated separately and can be far bigger, so the count would be off by megabytes.">
+
+Asking the OS is a system call on every write, which is too slow. A counter in the allocator wrapper is exact and nearly free.
+
+</PauseAndThink>
+
+A hint toward the answer: look at how memory gets allocated. C is the example here, but the same holds for Java, Python or whichever language you use. [[L-0114]]
+
+In C you allocate on the heap with `malloc`. You pass the size you want and get back an address you can start using. More exactly, malloc hands out memory from the process’s heap, and asks the OS for more (with `sbrk` or `mmap`) only when its free memory runs low <Cite href="https://man7.org/linux/man-pages/man3/malloc.3.html">man7.org</Cite>. [[L-0115]] `free` releases it again: it marks the block reusable by the process’s allocator, and the memory goes back to the OS only in some cases, such as heap trimming or large mmap’d blocks <Cite href="https://man7.org/linux/man-pages/man3/mallopt.3.html">man7.org</Cite>. [[L-0116]]
+
+Adding a new key means creating its wrapper: allocate that many bytes, cast them to `MyValue`, and store the object in the hash table. [[L-0117]]
+
+```c
+// the new key's wrapper, kept in the table
+MyValue *o =
+    (MyValue *) malloc(sizeof(MyValue));
+```
+
+A tempting fix is to count `sizeof(MyValue) + 4 + 4` on every allocation, for the pointer and the type. But `sizeof(MyValue)` already covers both fields. The interesting problem is what the pointer points to: a Bloom filter of, say, 1 MB. [[L-0118]]
+
+<Figure id="fig-2c" no="Fig 2·d" max={680} k="L-0112 L-0118 L-0120"
+  caption="sizeof measures the 16-byte wrapper; the Bloom filter it points to was allocated on its own. Counting inside malloc catches both, because both allocations go through it.">
+<Desk><SizeofVsData /></Desk>
+<Phone><SizeofVsData layout="phone" /></Phone>
+</Figure>
+
+Another tempting thought is that the pointed-to data need not be allocated on the heap. It must be: a Bloom filter stored in the cache is allocated too, through a malloc call of its own. [[L-0119]]
+
+That is the observation that solves it. Everything the cache stores (the `MyValue` wrappers, Bloom filters, sets, lists, the nodes of a linked list) lives on the heap, and every one of them is allocated through the same `malloc` and released through the same `free`. So keep one counter and update it on every malloc: `size += size_alloc`. The total then includes the values themselves, not just their wrappers, because the Bloom filter’s own allocation goes through the same function as the wrapper’s. [[L-0120]]
+
+One question is left: how do you make sure that line runs on every allocation? Write your own wrapper around `malloc`, and one around `free`. [[L-0121]]
+
+</Section>
+
+<Section id="s2-6" no="2.6" title="zmalloc: one wrapper, one counter, one cap" crumb="2.6 zmalloc"
+  dek="Redis never calls malloc directly. One small wrapper keeps the count, and the cap check sits right beside it."
+  meta="About 5 min · class 00:53–00:58">
+
+That wrapper is exactly what Redis has. It wraps `malloc` in a function called `zmalloc`, with the same signature. Inside, it mallocs `b` bytes, adds `b` to a total and returns the object. That’s it. [[L-0122]]
+
+```c
+size_t total_size = 0;  // global: bytes held
+
+void *zmalloc(size_t b) {
+    void *o = malloc(b);
+    total_size += b;
+    return o;
+}
+
+void zfree(void *o) {
+    // the block's size, known from
+    // when it was allocated
+    total_size -= size_of(o);
+    free(o);
+}
+```
+
+Now the global `total_size` always tells you how much memory the cache is using, with no operating-system command. [[L-0123]] Redis does still ask the OS now and then, to check its usage periodically, and an occasional check is fine. Most of the time, the counter is what it uses. [[L-0124]]
+
+It is a simple, elegant answer to a tricky problem. The naive way is to add a count update next to every `malloc` call. With malloc at 50,000 places in the code, forget the update at one of them and the count is wrong. The wrapper does it in one place. [[L-0125]] That is why, in the Redis code base, you never see `malloc`: you always see `zmalloc`, with the same signature and the count kept inside. [[L-0126]]
+
+Now set the cap. When you start Redis, or any in-memory cache, you configure the total memory it may use: say 1 GB. It is a soft limit you choose, even though the machine may have 32 GB of RAM. [[L-0127]] In Redis the setting is `maxmemory`. Set to 0, the default on 64-bit systems, it means no limit; and memory for replication and AOF buffers isn’t counted toward it, so leave some RAM free <Cite href="https://redis.io/docs/latest/develop/reference/eviction/">redis.io</Cite>. [[L-0127]]
+
+Enforcing the cap takes one check before allocating. If `total_size + b` is greater than the limit, return an error; otherwise allocate and return the object. [[L-0128]] Or, instead of failing, make room: remove a key, then allocate, add to `total_size` and return the object. This is where the eviction algorithm plugs in. [[L-0129]]
+
+```c
+// our design: the cap inside the wrapper
+void *zmalloc(size_t b) {
+    if (total_size + b > maxmemory)
+        evict_a_key();  // or: an error
+    void *o = malloc(b);
+    total_size += b;
+    return o;
+}
+```
+
+That second version is our design, and a fine one. Real Redis splits the two jobs: `zmalloc` only counts, and the `maxmemory` check runs once per command, before the command executes, evicting keys until usage is back under the limit <Cite href="https://redis.io/docs/latest/develop/reference/eviction/">redis.io</Cite>. [[L-0122 L-0129]]
+
+<Figure id="fig-2d" no="Fig 2·e" max={720} k="L-0122 L-0123 L-0127 L-0128 L-0129"
+  caption="zmalloc as the class drew it, with the cap check inside, beside a gauge of total_size just under its 1 GB cap on a 32 GB machine. Real Redis zmalloc only counts; the maxmemory check runs once per command. Redrawn from the class board at 00:52 and 00:58.">
+<Desk><ZmallocCap /></Desk>
+<Phone><ZmallocCap layout="phone" /></Phone>
+</Figure>
+
+Nothing here is fancy. It is basic logic, and it tells you exactly where to trigger eviction. Big systems are built on very simple solutions like this one. [[L-0130]] In the lecture’s view the Redis source is one of the easiest code bases you can skim: a few days in, by the fifth or sixth, you start understanding everything in it. [[L-0131]] The decisions carry over well beyond caches: in any system, think in very simple solutions rather than reaching for something fancy or complex. [[L-0132]]
+
+So this is how the cache knows it is full. Once `total_size` says so, it is time to evict keys. Which ones? [[L-0133]]
+
+<h3 id="s2-check">Check yourself</h3>
+
+Answer in your head, or out loud, before opening each one.
+
+<RecallQuestions>
+  <RecallItem k="L-0108 L-0109 L-0113 L-0123 L-0124" q="Why does the cache keep its own byte counter instead of asking the OS?">
+
+The kernel knows a process’s memory use, so asking means a system call on every check, and doing that on every write would slow the whole cache down. A counter updated inside the allocator wrapper is exact and nearly free. Redis still asks the OS occasionally, but relies on its own counter.
+
+  </RecallItem>
+  <RecallItem k="L-0112 L-0118 L-0120 L-0122" q="sizeof(MyValue) is 16 bytes. Why can’t the counter just add 16 per key, and what does zmalloc do instead?">
+
+`sizeof` measures only the wrapper: the pointer and the type. The set, list or Bloom filter it points to is allocated separately and can be megabytes. zmalloc adds the size of every allocation, wrappers and values alike, to `total_size`, because everything the cache stores is allocated through it.
+
+  </RecallItem>
+  <RecallItem k="L-0125 L-0126 L-0128 L-0129" q="Which is cheaper to get wrong: a cap checked at every call site, or in one wrapper? Why?">
+
+The wrapper. With checks at every call site, one forgotten place out of 50,000 makes the count, and the cap, wrong. In one wrapper there is a single place to get right, which is why Redis code never calls malloc directly, only zmalloc.
+
+  </RecallItem>
+</RecallQuestions>
+
+<SectionEnd next={{ title: '3 · When the cache is full: eviction and expiry', href: '#s3' }}
+  concepts={[{ label: 'hash table storage', href: '#s2-2' }, { label: 'MyValue wrapper', href: '#s2-3' }, { label: '4-bit type', href: '#s2-3' }, { label: 'heap exhaustion', href: '#s2-4' }, { label: 'own size counter', href: '#s2-5' }, { label: 'zmalloc', href: '#s2-6' }, { label: 'maxmemory', href: '#s2-6' }]} />
+
+</Section>

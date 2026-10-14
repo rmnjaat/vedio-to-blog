@@ -1,0 +1,154 @@
+{
+ "lecture": "lec07",
+ "coverage": {
+  "s0-header": "7/7",
+  "s1a-etl-and-cdc": "42/42",
+  "s1b-etl-and-cdc": "26/26",
+  "s2-one-node": "65/65",
+  "s3-eviction-and-expiry": "52/52",
+  "s4-protocol-and-concurrency": "62/62",
+  "s5-routing": "34/34",
+  "s6a-consistent-hashing": "42/42",
+  "s6b-consistent-hashing": "36/36",
+  "s7-keep": "10/10",
+  "sourcenotes": "17/17",
+  "inline_clarifications": "18/18",
+  "unverifiable_attributions": "21/21",
+  "figures": "46/46",
+  "clips": "4/4"
+ },
+ "issues": [
+  {
+   "id": "F-001",
+   "severity": "medium",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s6b-consistent-hashing.mdx",
+   "line": 129,
+   "quote": "Redis has the **AOF**, the append-only file, which it calls its write-ahead log: every write to Redis is appended to the file",
+   "problem": "The teacher's own label (\"Redis's write-ahead log\") is turned into a claim that Redis itself calls the AOF a write-ahead log. Redis does not; the fact-check (L-0319, simplified-low) notes the AOF is not strictly write-ahead, since Redis appends after executing the command. Left-as-taught is fine; attributing the label to Redis is not.",
+   "evidence": "transcript 02:28:51 'So even Redis has this AOF file format, which is Redis's write-ahead log.' / L-0319 (checker note: 'not strictly write-ahead: Redis appends after executing commands')",
+   "fix": "Redis has the **AOF**, the append-only file, which the class called Redis’s write-ahead log: every write to Redis is appended to the file, and when the cache rebuilds, after a reboot say, Redis loads everything back from it. [[L-0319]] (Strictly, Redis appends a write after executing it, so the AOF is a log of writes rather than a write-ahead log.)"
+  },
+  {
+   "id": "F-002",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s6b-consistent-hashing.mdx",
+   "line": 69,
+   "quote": "As it was put on the board, the entire internet is a distributed hash table, and so are the BitTorrent network and the Bitcoin network.",
+   "problem": "L-0305 comes from the audio only; the board (D-21) has no such line. The source is misattributed to the board.",
+   "evidence": "L-0305 origin=audio, source 02:23:21-02:24:03, board [] / transcript 02:23:21 'The entire internet is a distributed hash table. The BitTorrent network is a distributed hash table. The Bitcoin network is a distributed hash table.'",
+   "fix": "The idea reaches far. As it was put in class, the entire internet is a distributed hash table, and so are the BitTorrent network and the Bitcoin network. [[L-0305]]"
+  },
+  {
+   "id": "F-003",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s6b-consistent-hashing.mdx",
+   "line": 33,
+   "quote": "Divide the ring into many small virtual parts, ten or twenty per machine, and map those to the physical nodes.",
+   "problem": "\"Ten or twenty per machine\" hardens a vague number from the student's question (\"dividing it like 10 or 20 or something\", not stated as per machine) into a definite per-machine count.",
+   "evidence": "transcript 02:34:43 Student 1: 'if we divide the ring in virtual parts, I'm dividing it like 10 or 20 or something' / L-0332",
+   "fix": "Divide the ring into many small virtual parts (the question in class put it at “10 or 20 or something”) and map those to the physical nodes. [[L-0332]]"
+  },
+  {
+   "id": "F-004",
+   "severity": "low",
+   "kind": "voice",
+   "file": "site/src/content/lectures/lec07/s1a-etl-and-cdc.mdx",
+   "line": 173,
+   "quote": "You can run several CDC instances against the same source, either active-standby or all active; both work. [[L-0343]]",
+   "problem": "Stated as taught fact, but who said \"Active standby both works\" is unclear: it sits inside the student's question and the transcript flags it as possibly the teacher interjecting. The page should not present it as the instructor's settled answer.",
+   "evidence": "transcript 02:41:42 (Student 3 turn) '... should be active, right? Active standby both works. [check: \"active standby both works\" may be the teacher replying inside the student turn]' / L-0343 detail: 'Who said \"Active standby both works\" is unclear'",
+   "fix": "Several CDC instances can read the same source, active-standby or all active: “active standby both works” came up inside the question itself, so who said it is unclear. [[L-0343]] (keep the existing clarification sentence that follows)"
+  },
+  {
+   "id": "F-005",
+   "severity": "low",
+   "kind": "factcheck",
+   "file": "site/src/content/lectures/lec07/s2-one-node.mdx",
+   "line": 146,
+   "quote": "It doesn’t change the ending, though, which comes next. [[L-0103]]",
+   "problem": "The specified L-0103 inline clarification includes 'Running out of heap does not cause a segfault by itself (see L-0104). malloc returns NULL, or on Linux with overcommit the OOM killer ends a process when pages are touched.' The page drops that and instead says the swap point 'doesn't change the ending', which reads as endorsing the segfault ending that SN-03 then corrects.",
+   "evidence": "factcheck_applied.md §2 row L-0103 / L-0103 (imprecise/low) / transcript 00:43:48",
+   "fix": "One guess is that the operating system moves data from memory to disk to make room. That is closer than it sounds: under memory pressure the OS can page memory out to swap on disk <Cite href=\"https://www.kernel.org/doc/html/latest/admin-guide/mm/concepts.html\">kernel.org</Cite>. Running out of heap does not cause a segfault by itself either: malloc returns NULL, or on Linux with overcommit the OOM killer ends a process when the pages are touched (more in the note below). [[L-0103]]"
+  },
+  {
+   "id": "F-006",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s3-eviction-and-expiry.mdx",
+   "line": 122,
+   "quote": "It implements LRU and LFU very efficiently on those per-key bits, with a superb algorithm that is too deep for this page. [[L-0154]]",
+   "problem": "The teacher said the algorithm was too deep to cover in class (\"It would take me three years to talk about it\"); \"too deep for this page\" changes it into the page's judgement, and the page then explains the gist twelve lines later (L-0236 inline, SN-06), contradicting itself.",
+   "evidence": "L-0154 detail: 'too deep to cover in class - It would take me three years to talk about it.' (01:06:05-01:07:12)",
+   "fix": "It implements LRU and LFU very efficiently on those per-key bits, with a superb algorithm the class did not go into (“It would take me three years to talk about it”). [[L-0154]]"
+  },
+  {
+   "id": "F-007",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s3-eviction-and-expiry.mdx",
+   "line": 60,
+   "quote": "As taught, Redis stores 4 type bits and 28 LRU bits per object.",
+   "problem": "Drops the teacher's own wavering: he first said \"It's actually 24 bits. 8 bits, 28 bits\" before settling on 4 + 28. Worth keeping, since 24 is what the inline correction then gives.",
+   "evidence": "transcript 01:00:32 'It's actually 24 bits. 8 bits, 28 bits, it stores as LRU bits. Redis does that.' / L-0139 detail",
+   "fix": "As taught, Redis stores 4 type bits and 28 LRU bits per object (the instructor first said 24, then settled on 28, the figure on the board). [[L-0139]]"
+  },
+  {
+   "id": "F-008",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s4-protocol-and-concurrency.mdx",
+   "line": 278,
+   "quote": "A puzzle the board left for later: how would you use MySQL as a cache server, with the same throughput as any other cache? [[L-0225]]",
+   "problem": "The board line was erased at 01:43:57, shortly after the teacher said 'We'll skip this. Don't need this.' Nothing says it was left for later; the ledger marks the link to the remark as uncertain.",
+   "evidence": "L-0225 detail: 'Line erased at 01:43:57, shortly after the teacher said We'll skip this. Don't need this. (01:43:38); whether that remark refers to this exercise is not certain.'",
+   "fix": "The board briefly carried a fun exercise, erased soon after: how would you use MySQL as a cache server, with the same throughput as any other cache? [[L-0225]]"
+  },
+  {
+   "id": "F-009",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec07/s4-protocol-and-concurrency.mdx",
+   "line": 169,
+   "quote": "{ label: 'Bytes per set a 1', cells: [{ text: 'About 117: headers dwarf the data', bad: true }, 'A small frame', '27'], k: 'L-0193' }",
+   "problem": "117 bytes is the page's own illustrative HTTP request (Fig 4·b says so), but the table states it as a general figure tagged to L-0193. The class gave no byte count.",
+   "evidence": "L-0193 (no number) / Fig 4·b caption 'The HTTP request is illustrative, built for this page'",
+   "fix": "cells: [{ text: 'About 117 in Fig 4·b’s example: headers dwarf the data', bad: true }, 'A small frame', '27']"
+  },
+  {
+   "id": "F-010",
+   "severity": "low",
+   "kind": "invention",
+   "file": "site/src/content/lectures/lec07/s7-keep.mdx",
+   "line": 57,
+   "quote": "Two storage engines, built from files, on our own. [[L-0376]]",
+   "problem": "\"Built from files\" is not in L-0376 or the transcript; the class only said two storage engines would be built on their own tomorrow.",
+   "evidence": "transcript 03:05:34 'Will build two databases tomorrow on our own, our two storage engines on our own.' / L-0376",
+   "fix": "Two storage engines, built on our own. [[L-0376]]"
+  },
+  {
+   "id": "F-011",
+   "severity": "low",
+   "kind": "distortion",
+   "file": "site/src/content/lectures/lec07/s1a-etl-and-cdc.mdx",
+   "line": 29,
+   "quote": "Production runs on MongoDB, and it holds everyone’s personal data.",
+   "problem": "The teacher hedged the choice of database (\"this database might be a NoSQL database like MongoDB\"; board: \"Transactional Database like MongoDB\"). The chapter opener states it as fact; 1.1 later restores the hedge.",
+   "evidence": "L-0019 V: 'this database might be a NoSQL database like MongoDB' (00:06:07-00:07:15) / board D-01",
+   "fix": "Production runs on a transactional database, MongoDB say, and it holds everyone’s personal data."
+  },
+  {
+   "id": "F-012",
+   "severity": "low",
+   "kind": "clip",
+   "file": "site/src/content/lectures/lec07/s1a-etl-and-cdc.mdx",
+   "line": 122,
+   "quote": "<AnimationClip clip=\"l07-events-vs-cdc\" no=\"Clip 1·1\" k=\"L-0026 L-0028 L-0033 L-0034 L-0040 L-0346\"",
+   "problem": "The clip's downtime beat (timeline.ts:63, 'CDC stops. Meanwhile a worker updates likes; the log keeps it.') shows the CDC tool stopped while the database keeps taking writes, which is the checkpoint point (L-0065, in the clip's META ledger). The class's L-0040 case was the source database being down. The page's k= omits L-0065, so the beat reads as if it illustrates L-0040.",
+   "evidence": "L-0040 'If the source database is down, data is not captured; once it is back up, the CDC tool resumes' (00:12:55) / L-0065 checkpointing (00:24:15) / animations/clips/l07-events-vs-cdc/timeline.ts:63 and META.ledger",
+   "fix": "k=\"L-0026 L-0028 L-0033 L-0034 L-0040 L-0065 L-0346\"; optionally caption: “… and, after the CDC tool has been down, resumes from its checkpoint.”"
+  }
+ ]
+}

@@ -1,0 +1,143 @@
+# Storyboard — clip l07-events-vs-cdc   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l07-events-vs-cdc
+title: The same changes, two pipelines
+lecture: 9            # course position (folder lec07)
+section: "1.3 Change data capture: read the source of truth"
+status: reviewed
+why_motion: >
+  Ordering and a window in time, plus silent accumulation of drift. The event pipeline fails at a moment (after
+  the database write, before the publish) and on changes that never produce an event; each miss is invisible when it
+  happens and only adds up across changes. CDC's resume is also temporal: it stops, the log keeps growing, and it
+  picks up from its checkpoint. A still of the two end tables shows that they differ, not which change went missing
+  or why.
+static_twin: "Fig 1·b (D-02 redraw: api → kafka → consumer → mysql) and Fig 1·c (D-03 redraw: mongodb + log → cdc → mysql), drawn as one figure with two lanes"
+ledger:
+  taught:
+    - L-0026  # not everything has an event: views++ has none (B2); restated: read the source of truth (B6)
+    - L-0028  # board: "changes done but sending event failed" → the API crash (B3); the obvious answer isn't
+    - L-0033  # CDC captures updates the app has no event for (B2, B4)
+    - L-0034  # API crashes while pushing the event: nothing lost with CDC (B3)
+    - L-0040  # resumes from that point once back up (B5)
+    - L-0065  # CDC checkpoints what it has captured, in order, so it doesn't lose data (B5 `checkpoint`)
+    - L-0346  # async worker aggregating likes: no API event (B4)
+  context_only:
+    - L-0024  # the event pipeline API → Kafka → consumer → MySQL (the top lane's shape)
+    - L-0031  # rely on the source of truth (the rule, stated in 1.3/1.5 prose; the closing caption echoes L-0026's restatement)
+    - L-0037  # CDC reads the commit log / binlog (the `log` strip; how it reads is §1.4)
+fidelity_notes:
+  - "The four changes are the lecture's: blog published (L-0026 'Blog published, okay'), views count++ (L-0026), change saved but event failed (board line, L-0028/L-0034), a worker aggregating likes (L-0346). Their order and the names `post 1`, `post 2` are ours."
+  - "The source is `mongodb` as in the lesson's running case (L-0019, Fig 1·c); the log is labelled just `log` (the lecture says commit log / bin log / WAL; MongoDB's is the oplog). How CDC reads it is left to §1.4 and Fig 1·d."
+  - "L-0040 says 'in case this DB is down ... once this DB is back up, it will resume from that point'. The clip shows the CDC tool stopped and restarted, the case the fact-check's sources describe (Debezium: after a restart the connector continues reading where it left off; A-CDP-03: the log is retained while the CDC tool is down). The resume is drawn as the read arrow continuing from its last row (L-0065 checkpointing)."
+  - "Fact-check L-0040 (simplified): resuming works only if the log still holds the position (A-CDP-03, A-CDP-04: purged binlog → re-snapshot). The clip's downtime is short and says 'the log keeps it'; the caveat stays in §1.4 prose."
+  - "Fact-check A-CDP-09: checkpointing prevents loss, not duplicates. The clip shows no delivery guarantee beyond 'copied'; exactly-once is NOT claimed."
+  - "Fact-check L-0028 (simplified): events from the API are a common design; the flaw is the dual write. The clip shows the misses, it does not call the event design wrong; the outbox (A-E-08) stays in prose."
+  - "The event-carries-only-the-id problem (L-0027) and 'did someone add the event for the new table' (L-0049) are not in the clip (Fig 1·b and prose)."
+  - "Consumers pull from Kafka, so the consumer → kafka line has its head at kafka (Fig 1·b); CDC initiates the read, so the cdc → log line has its head at the log; data rides back along it as a packet."
+  - "No timings or counts are claimed. `1 of 4` / `4 of 4` count the clip's own four changes."
+additions:
+  - {fact: "A CDC tool's log position is retained while the tool is down, so it can resume ('the log keeps it')", source_url: "https://debezium.io/documentation/reference/stable/connectors/postgresql.html", ledger_addition: A-CDP-03, checked: 2026-10-13}
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 960, note: "used at <= 640 px; same two lanes re-flowed: the events lane turns down from consumer into mysql, the CDC lane runs from the log down through cdc into mysql; 30 px lettering, 32 px captions; caption band from y 740; `log` sits left of its last row, `checkpoint` over the read arrow's last leg"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1158   # 38.6 s; 77 s at 0.5×
+start_frame_equals: "Two lanes from one source. Left: api above the mongodb cylinder, its empty 4-row log beside it. Top lane: api → kafka ← consumer → mysql with 4 empty dashed rows. CDC lane: cdc reads the log (dashed arrow to row 1) → mysql with 4 empty dashed rows."
+poster_frame: 1157
+reduced_motion_stills: [306, 494, 682, 858, 1022, 1157]
+glyphs:
+  api: {shape: server-box, label: "mono api", pos: [30, 50, 130, 60]}
+  mongodb: {shape: cylinder-solid, label: "mono mongodb (inside)", pos: "cx 110, top 196, rx 88, h 80"}
+  log: {shape: "4 row slots", label: "mono log (under)", pos: [272, 196, 200, 202], rows: ["post 1", "views++", "post 2", "likes"]}
+  kafka: {shape: pipe, label: "mono kafka (above)", pos: [236, 50, 160, 60]}
+  consumer: {shape: server-box, label: "mono consumer", pos: [466, 50, 220, 60]}
+  mysql_events: {shape: cylinder-solid, label: "mono mysql", pos: "cx 816, top 48, rx 76, h 64", table: [956, 24, 228, 194]}
+  cdc: {shape: server-box, label: "mono cdc", pos: [616, 268, 160, 60]}
+  mysql_cdc: {shape: cylinder-solid, label: "mono mysql", pos: "cx 816, top 432, rx 76, h 70", table: [956, 408, 228, 194]}
+  worker: {shape: server-box, label: "mono likes job", pos: [14, 520, 250, 60], appears: B4}
+  arrows:
+    - {route: "api → mongodb", style: solid, head: mongodb}
+    - {route: "api → kafka", style: solid, head: kafka}
+    - {route: "consumer → kafka (pull)", style: solid, head: kafka}
+    - {route: "consumer → mysql", style: solid, head: mysql}
+    - {route: "cdc → log row (reads; re-routed to the checkpoint row)", style: dashed, head: "log row"}
+    - {route: "cdc → mysql (right, then down)", style: solid, head: mysql}
+    - {route: "likes job → mongodb (straight up into its centre)", style: solid, head: mongodb, appears: B4}
+beats:
+  - id: B0
+    from: 0
+    to: 90
+    caption: "Two ways to copy blog data into analytics."
+    on_screen: [static figure]
+    motion: none (hold)
+    ledger: []
+  - id: B1
+    step: 1
+    from: 90
+    to: 312
+    caption: "A post is published. The event and the log both carry it."
+    events:
+      - {at: 98, dur: 24, what: "blue packet api → mongodb, arrow re-inked blue", colour: blue}
+      - {at: 122, dur: 16, what: "log row 1 written: post 1"}
+      - {at: 146, dur: 54, what: "blue packet api → kafka, kafka → consumer, consumer → mysql (three hops, arrows re-inked)", colour: blue}
+      - {at: 200, dur: 16, what: "events mysql row 1 written green with ✓", colour: green}
+      - {at: 226, dur: 40, what: "blue packet log row 1 → cdc → mysql", colour: blue}
+      - {at: 266, dur: 16, what: "CDC mysql row 1 written green with ✓", colour: green}
+    ledger: [L-0024]
+  - id: B2
+    step: 2
+    from: 312
+    to: 500
+    caption: "views++ changes the database. No event exists for it."
+    events:
+      - {at: 320, dur: 24, what: "blue packet api → mongodb", colour: blue}
+      - {at: 344, dur: 16, what: "log row 2 written: views++"}
+      - {at: 368, dur: 22, what: "red ✕ on the api → kafka arrow, red `no event` written under it", colour: red}
+      - {at: 394, dur: 12, what: "events mysql row 2: red dashed outline, red views++, ✕", colour: red}
+      - {at: 414, dur: 40, what: "packet log row 2 → cdc → mysql (read arrow steps to row 2 first)", colour: blue}
+      - {at: 454, dur: 16, what: "CDC mysql row 2 green ✓", colour: green}
+    ledger: [L-0026, L-0033]
+  - id: B3
+    step: 3
+    from: 500
+    to: 688
+    caption: "The API saves a post, then crashes before publishing."
+    events:
+      - {at: 508, dur: 24, what: "blue packet api → mongodb", colour: blue}
+      - {at: 532, dur: 16, what: "log row 3 written: post 2"}
+      - {at: 556, dur: 22, what: "api box turns red dashed with a red name (as cdc does when down), red `crashed` written above it; no ✕ over the name", colour: red}
+      - {at: 582, dur: 12, what: "events mysql row 3 missing (red dashed, ✕)", colour: red}
+      - {at: 602, dur: 40, what: "packet log row 3 → cdc → mysql", colour: blue}
+      - {at: 642, dur: 16, what: "CDC mysql row 3 green ✓", colour: green}
+    ledger: [L-0028, L-0034]
+  - id: B4
+    step: 4
+    from: 688
+    to: 864
+    caption: "CDC stops. Meanwhile a worker updates likes; the log keeps it."
+    events:
+      - {at: 696, dur: 20, what: "cdc box and read arrow turn red dashed, red `down` written above cdc", colour: red}
+      - {at: 726, dur: 28, what: "likes job box drawn by pen under mongodb, label written"}
+      - {at: 756, dur: 18, what: "arrow likes job → mongodb drawn"}
+      - {at: 776, dur: 22, what: "blue packet likes job → mongodb", colour: blue}
+      - {at: 798, dur: 16, what: "log row 4 written: likes (CDC's arrow stays on row 3)"}
+      - {at: 822, dur: 12, what: "events mysql row 4 missing (red dashed, ✕): no API call, no event", colour: red}
+    ledger: [L-0346, L-0033]
+  - id: B5
+    from: 864
+    to: 1028
+    caption: "CDC restarts and resumes from its checkpoint."
+    events:
+      - {at: 872, dur: 20, what: "cdc returns to ink; `down` replaced in place by green `back`", colour: green}
+      - {at: 898, dur: 18, what: "`checkpoint` written beside the read arrow, which still points at row 3"}
+      - {at: 922, dur: 16, what: "read arrow steps to row 4"}
+      - {at: 942, dur: 40, what: "packet log row 4 → cdc → mysql", colour: blue}
+      - {at: 982, dur: 16, what: "CDC mysql row 4 green ✓", colour: green}
+    ledger: [L-0040, L-0065]
+  - id: B6
+    from: 1028
+    to: 1158
+    caption: "Read the source of truth, not the API's events."
+    events:
+      - {at: 1036, dur: 18, what: "red `1 of 4` under the events mysql", colour: red}
+      - {at: 1058, dur: 18, what: "green `4 of 4` under the CDC mysql", colour: green}
+    on_screen: [end state = poster]
+    ledger: [L-0026]

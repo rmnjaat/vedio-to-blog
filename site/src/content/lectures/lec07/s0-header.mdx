@@ -1,0 +1,49 @@
+import MarginNote from '../../../components/MarginNote.astro';
+import ForwardChip from '../../../components/ForwardChip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import { RedisSoFar } from '../../../figures/lec07/s0-header-sofar';
+
+{/* Lecture header block, the part that lives in the page body. Imported by lec07.mdx right after the frontmatter.
+    The kicker, H1, dek, meta line and TOC come from lec07.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
+      kicker: "Lecture 09 · week 5, day 1 · running case: build-your-own Redis"
+      title: Build your own Redis
+      dek: "Copying data out without losing it, then a cache built from one hash table up to a ring of nodes, with the cost of each decision measured in bytes, hops and data moved."
+      contents: 1 ETL and change data capture … 7 What to keep (seven chapters, one page each).
+    Placed here (section "about"): L-0001 L-0002 L-0003 L-0007 L-0008 L-0009 L-0010 L-0079 L-0082. The "so far" block
+    is untagged: it restates where Lectures 1–5 left the cache and teaches nothing new. Its unnumbered sketch (fig-sofar)
+    was added by the design fixer (critic C-09), as Lecture 2's overview has "Medium so far". */}
+
+<div class="col">
+
+<MarginNote title="About this class" why="where this page sits in the course">
+
+This is day 1 of week 5, and week 5 is about storage engines, the lecture’s favourite topic: databases, distributed storage and query engines, a subject that rewards a deep understanding. [[L-0001 L-0002]]
+
+The board’s agenda had two items: designing a distributed cache, plus ETL and tiered storage. Almost all the papers behind this lecture are about distributed storage. [[L-0003]] So far in the course, change data capture (CDC) had only been written into designs as a box; this session goes deeper into it. Tiered storage is taught from practice, from something built on top of it in production, which is where you learn what happens behind the scenes. [[L-0007 L-0008]]
+
+The order is unusual. ETL comes first, only as an introduction “to form the dots”, the way the Kafka essentials did in Lecture 2. Its practical use comes later, when the course designs Amazon’s order system: one very detailed example that shows how data pipelines are built in general, because they all derive from one or two basic ideas. [[L-0009 L-0010]] <ForwardChip label="back in" when="Lecture 2" lec="lec01" sec="s3-6">Kafka essentials</ForwardChip> The two halves were not connected in class, and this page does not invent a link between them. Tiered storage, too, appears here only as one diagram in 1.5; it is introduced here and built in a later week.
+
+The cache is a favourite discussion too: lots of brainstorming and critical questions, down to the nitty-gritty details that matter. [[L-0079]] The design has two brainstorms. The low-level implementation on one machine comes first (chapters 2–4); after the break comes the distributed design, with routing, consistent hashing and distributed hash tables (chapters 5–6). [[L-0082]] Throughout, the design draws on a reading of the Redis source and of how Redis made each decision (more in 2.1).
+
+</MarginNote>
+
+### Our Redis so far
+
+So far in this course the cache has always been a box someone else built. In Lecture 1 the green dot’s heartbeats lived in a store with a TTL, Redis or DynamoDB, and the blog got one shared cache. In Lecture 2 that shared Redis sat next to Medium’s database, called by every API server. Lecture 3 built a key-value store on top of MySQL, looked at how Redis expires keys lazily and by sampling, and grew the store with replicas and range shards. Lecture 5 built a load balancer as a proxy, saw that DNS answers rather than forwards, then used Redis as the lock store and five independent Redis nodes for Redlock.
+
+<Figure id="fig-sofar" max={664} caption="Our Redis so far, one panel per earlier lecture: heartbeats in a store with a TTL (Lecture 1), one shared Redis beside the API servers (Lecture 2), the key-value store with range shards and replicas (Lecture 3), the load balancer as a proxy and five Redis nodes for Redlock (Lecture 5).">
+  <Desk><RedisSoFar /></Desk>
+  <Phone><RedisSoFar layout="phone" /></Phone>
+</Figure>
+
+<ul class="fwd-list">
+<li><ForwardChip label="back in" when="Lecture 2" lec="lec01" sec="s2-4">Kafka, read replicas and hash % N sharding</ForwardChip></li>
+<li><ForwardChip label="back in" when="Lecture 3" lec="lec05" sec="s4">the KV store, TTL sampling and locking</ForwardChip></li>
+<li><ForwardChip label="back in" when="Lecture 5" lec="lec08" sec="s5-2">the load balancer and DNS</ForwardChip></li>
+</ul>
+
+This page opens the box. After a first chapter on copying data out of the blogging app’s database, it builds the cache on one machine, counting every byte, then splits it across many machines and keeps it up. Each chapter starts from whatever the previous one left unsolved.
+
+</div>

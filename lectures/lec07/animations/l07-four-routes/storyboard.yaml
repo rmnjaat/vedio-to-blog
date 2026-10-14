@@ -1,0 +1,138 @@
+# Storyboard — clip l07-four-routes   (spec: .claude/skills/explainer-animation/references/storyboard-spec.md)
+id: l07-four-routes
+title: Four banks, one request
+lecture: 9            # course position (folder lec07)
+section: "5.3 Four ways to route: a visit to the bank"
+status: reviewed
+why_motion: >
+  A repeated protocol: the four ways differ in who sends the next message, to whom, and how many times the client
+  itself has to go out. Fig 5·b shows the four paths at once; it cannot show the order of the hops or who initiates
+  each one, which is exactly what tells forwarding (the desk walks it over) from redirect (you walk there yourself).
+  The leg counter grows as each message lands, so the cost is counted in front of the reader, not asserted.
+static_twin: "Fig 5·b (D-15 redraw): four quadrants, each a stick-figure client and three stacked desks c1–c3; proxy box in panel 1"
+ledger:
+  taught:
+    - L-0249  # proxy = the peon at the door; you talk only to him (B1, `proxy`, `the bribe`)
+    - L-0250  # smart client = the regular who walks to the right desk; the table lives in the client (B2, `kiwi → c2`)
+    - L-0251  # no intermediate hop saves the bribe (network latency) (B2 `no middle hop`); a desk change must reach every client (B5 `stale`, B6)
+    - L-0252  # forwarding: the nearest desk forwards, gets the answer, sends it back (B3)
+    - L-0255  # redirect: "go to counter 13", you go there yourself; DNS (B4 `c1: go to c2`)
+  context_only:
+    - L-0248  # four ways, the bank analogy (the four panels; stated in 5.3 prose)
+    - L-0245  # the key-range table (a,j) → c1, (k,t) → c2, (u,z) → c3: why kiwi lives on c2 (Fig 5·a)
+    - L-0257  # pick your battles (RuleBox in 5.4; the clip ends on L-0251's trade-off instead)
+fidelity_notes:
+  - "The bank captions are the instructor's analogy (peon, regular customer, nearest desk, 'go to counter 13'). The redirect label says `c1: go to c2` (who answered, then what) because the clip's desks are c1–c3; the caption keeps the redirect wording."
+  - "Leg and round-trip counts are the page's illustration of L-0251 ('no intermediate hop ... the bribe is network latency'), counted from the clip's own messages: proxy 4 legs, smart client 2, forwarding 4, redirect 4 with two client round trips. No latencies or milliseconds are claimed."
+  - "The key `kiwi` and the range table come from Fig 5·a (D-14's (k,t) → c2). Which desk the forwarding/redirect client walks into first (c1, the 'nearest desk') is ours."
+  - "Forwarding is not labelled IPFS or BitTorrent: the fact-check (L-0253, imprecise) notes their Kademlia lookups are iterative, closer to redirect. That clarification stays in the 5.3 prose."
+  - "The forward c1 → c2 is drawn solid (a synchronous request, motion-style rule), where Fig 5·b's spec says dashed (the board's dotted curve). Told to the section writer."
+  - "B5 shows only the smart client's cost of a topology change (L-0251). Nothing is claimed about how the proxy, forwarding or redirect panels learn of the change; they are ghosted in B5."
+  - "The job moving from c2 to c3 is drawn as a dashed graphite move (data copied between desks); how a real cache moves data is §6, not claimed here."
+  - "Each response pens its own line back to the sender, parallel to the request (Fig 5·b: blue out, green back), with a packet riding it, so every counted leg stays on the sheet (critic C-11). The redirect's answer 'go to c2' is graphite (neither failure nor success)."
+  - "The proxy's links to c1 and c3 are headless wires; only proxy → c2 has a head, the one request it sends (critic C-11, matching Fig 5·b)."
+additions: []
+canvas: {width: 1200, height: 800, fps: 30}
+phone_canvas: {width: 720, height: 1010, note: "used at <= 640 px; the 2×2 grid becomes four stacked panels 218 px tall; the leg/trip count moves onto each panel's title row, right-aligned; 30 px lettering, 32 px captions; caption band from y 890"}
+chapters_note: "chapter marks sit 10 frames into each beat so a seek lands on a settled frame with its caption up"
+duration_frames: 1182   # 39.4 s; 79 s at 0.5× (B6 holds 3.5 s: its 57-character caption needs 3.35 s)
+start_frame_equals: "Fig 5·b in graphite: four panels (① proxy, ② smart client, ③ forwarding, ④ redirect), each a stick figure and desks c1/c2/c3. ① client → proxy → c2 (one head), with headless wires from the proxy's bus to c1 and c3; ② client → c2 with the table `kiwi → c2` above the client; ③ client → c1 and c1 → c2 around the right side; ④ client → c1 and client → c2. No counts yet."
+poster_frame: 1181
+reduced_motion_stills: [306, 484, 694, 938, 1070, 1181]
+glyphs:
+  panel_grid: {wide: "2×2, origins (20,0) (620,0) (20,320) (620,320), 580×300 each; dashed ink-3 separators x 600, y 316", phone: "4 stacked, origin y 8 + 218 i"}
+  title: {shape: "StepBadge + hand title", label: "① proxy / ② smart client / ③ forwarding / ④ redirect", pos: "wide (px+38, py+30) badge, text px+70 baseline py+42"}
+  client: {shape: stick-figure, label: none, pos: "wide hips (px+60, py+156); phone (60, py+134)"}
+  desks: {shape: server-box, label: "mono c1 c2 c3", pos: "wide x px+410 w 110 h 48 at py+64/128/192; phone x 560 w 120 h 40 at py+58/110/162"}
+  proxy: {shape: server-box, label: "mono proxy", pos: "panel 1, wide px+180 w 150 at the c2 row; phone x 250 w 130"}
+  table: {shape: "mono text", label: "kiwi → c2", pos: "panel 2, above the client's head (wide baseline py+92, phone py+76)"}
+  counts: {shape: "mono text", label: "n legs · k round trip(s)", pos: "wide bottom-left baseline py+288; phone title row right-aligned at x 700"}
+  arrows:
+    - {route: "client → proxy", style: solid, head: proxy}
+    - {route: "proxy → c2", style: solid, head: c2}
+    - {route: "proxy — c1 / c3 (wires off the same bus, orthogonal)", style: solid, head: none}
+    - {route: "every answer: a parallel line 13 px (phone 11) to the right of its request's direction, back to the sender", style: solid, head: sender, colour: "green (redirect's 'go to c2': graphite)", appears: "penned with its packet"}
+    - {route: "client → c2 (straight)", style: solid, head: c2, panels: [2, 4]}
+    - {route: "client → c1 (right, up, right)", style: solid, head: c1, panels: [3, 4]}
+    - {route: "c1 → c2 around the right side (the desk forwards)", style: solid, head: c2, panels: [3]}
+    - {route: "c2 → c3 around the right side (the job moves)", style: dashed, head: c3, panels: [2], appears: B5}
+beats:
+  - id: B0
+    from: 0
+    to: 96
+    caption: "Four ways to reach desk c2, which holds the key kiwi."
+    on_screen: [static figure]
+    motion: none (hold)
+    ledger: []
+  - id: B1
+    step: 1
+    from: 96
+    to: 312
+    caption: "The peon at the door: you talk only to the proxy."
+    events:
+      - {at: 106, dur: 30, what: "client → proxy re-inked blue, blue packet; count `1 leg`", colour: blue}
+      - {at: 140, dur: 30, what: "proxy → c2 re-inked blue, packet; `2 legs`", colour: blue}
+      - {at: 172, dur: 8, what: "green ✓ in c2", colour: green}
+      - {at: 184, dur: 24, what: "green answer line penned with its packetc2 → proxy; `3 legs`", colour: green}
+      - {at: 210, dur: 26, what: "green answer line penned with its packetproxy → client; `4 legs`", colour: green}
+      - {at: 242, dur: 20, what: "`the bribe` written under the proxy"}
+      - {at: 264, dur: 16, what: "`· 1 round trip` written after the count"}
+    ledger: [L-0249, L-0251]
+  - id: B2
+    step: 2
+    from: 312
+    to: 490
+    caption: "The regular customer walks straight to the right desk."
+    events:
+      - {at: 322, dur: 38, what: "client → c2 re-inked blue, packet; `1 leg` (panel 1 ghosts)", colour: blue}
+      - {at: 362, dur: 8, what: "green ✓ in c2", colour: green}
+      - {at: 374, dur: 34, what: "green answer line penned with its packetc2 → client; `2 legs`", colour: green}
+      - {at: 414, dur: 22, what: "`no middle hop` written under the line"}
+      - {at: 440, dur: 16, what: "`· 1 round trip`"}
+    ledger: [L-0250, L-0251]
+  - id: B3
+    step: 3
+    from: 490
+    to: 700
+    caption: "No peon: the nearest desk forwards it and relays the answer."
+    events:
+      - {at: 500, dur: 34, what: "client → c1 blue, packet; `1 leg` (panel 2 ghosts)", colour: blue}
+      - {at: 538, dur: 30, what: "c1 → c2 blue (the desk forwards), packet; `2 legs`", colour: blue}
+      - {at: 570, dur: 8, what: "green ✓ in c2", colour: green}
+      - {at: 582, dur: 26, what: "green answer line penned with its packetc2 → c1; `3 legs`", colour: green}
+      - {at: 610, dur: 34, what: "green answer line penned with its packetc1 → client; `4 legs`", colour: green}
+      - {at: 650, dur: 16, what: "`· 1 round trip`"}
+    ledger: [L-0252]
+  - id: B4
+    step: 4
+    from: 700
+    to: 944
+    caption: "Redirect: the desk says “go to c2”, and you go there yourself."
+    events:
+      - {at: 710, dur: 34, what: "client → c1 blue, packet; `1 leg` (panel 3 ghosts)", colour: blue}
+      - {at: 748, dur: 34, what: "graphite answer line penned with its packet c1 → client; `2 legs`"}
+      - {at: 784, dur: 26, what: "`c1: go to c2` written under the two lines"}
+      - {at: 812, dur: 34, what: "client → c2 blue, packet; `3 legs`", colour: blue}
+      - {at: 848, dur: 8, what: "green ✓ in c2", colour: green}
+      - {at: 860, dur: 30, what: "green answer line penned with its packetc2 → client; `4 legs`", colour: green}
+      - {at: 896, dur: 16, what: "`· 2 round trips`"}
+    ledger: [L-0255]
+  - id: B5
+    from: 944
+    to: 1076
+    caption: "c2's job moves to c3. The smart client's table is now stale."
+    events:
+      - {at: 944, dur: 12, what: "panels 1, 3, 4 ghost; panel 2 returns to full"}
+      - {at: 954, dur: 40, what: "dashed graphite move c2 → c3 around the right side, packet rides it"}
+      - {at: 1000, dur: 10, what: "red ✕ on the client → c2 line near c2", colour: red}
+      - {at: 1014, dur: 10, what: "red strike through `c2` in the client's table", colour: red}
+      - {at: 1024, dur: 18, what: "red `stale` written after the table", colour: red}
+    ledger: [L-0251]
+  - id: B6
+    from: 1076
+    to: 1182
+    caption: "The smart client saves a hop but must hear every change."
+    events:
+      - {at: 1076, dur: 12, what: "all four panels return to full ink (poster)"}
+    on_screen: [end state = poster]
+    ledger: [L-0251]

@@ -1,0 +1,195 @@
+{
+  "lecture": "lec07",
+  "verdict": "pass_with_fixes",
+  "issues": [
+    {
+      "id": "C-01",
+      "severity": "medium",
+      "owner": "content",
+      "where": "4-protocol-and-concurrency, pause-and-think 1 verdict; critic_shots/fig/1440-light-4-protocol-and-concurrency-think1-after.png",
+      "problem": "The verdict line prints raw markup: 'Redis defined RESP: <code>SET a 1</code> is 27 bytes'. The tags are escaped and shown to the reader as literal text.",
+      "fix": "Render the verdict string as inline markup (or write it with backticks the way the other verdicts and prose do) so SET a 1 shows as inline code. Grep every think-card verdict for '<code>' and other literal tags.",
+      "status": "open"
+    },
+    {
+      "id": "C-02",
+      "severity": "medium",
+      "owner": "design",
+      "where": "6-consistent-hashing, fig-6e step-through; critic_shots/step/1440-light-fig-6e-s3.png, s4, s5, 390-light-fig-6e-s3.png",
+      "problem": "The ring inset above the lanes never changes. At steps 3–5, where cache 1 has been removed and the text says 'Requests for K1 now land on cache 3', the ring still shows c1 on the ring with the blue K1 → c1 ownership arrow. The drawing contradicts the step it illustrates. The 'get K1' arrows also start from the left margin, with no requester lane.",
+      "fix": "Make the inset follow the steps. From step 3 on, draw c1 struck through or dashed and swing the K1 arrow on to c3. At step 4, also tint (12, 3] red to show a cold slice. Add a 'router' lane on the left (as in fig-6f) so 'get K1' starts from someone.",
+      "status": "open"
+    },
+    {
+      "id": "C-03",
+      "severity": "medium",
+      "owner": "animation",
+      "where": "clip l07-mod-vs-ring (Clip 6·1), ring panel; critic_shots/clip/1440-light-l07-mod-vs-ring-fig-poster.png, 390-light-l07-mod-vs-ring-fig-poster.png, sweep/1440-light/6-consistent-hashing/009.png",
+      "problem": "The ring half is the messiest drawing in the lecture. All six keys get hooked ownership arrows, some inside the ring and some outside. K1's red path zig-zags through the ring's interior. A grey arc overlaps the red one at c5. Labels sit against the node boxes: 'K2' and '1' at c5, '3' and 'K3' at c1, 'K5' next to c2. Next to the clean static rings in fig-6b and fig-6d it doesn't look drawn by the same hand, and the poster doesn't show 'only K1 and K6 moved' at a glance.",
+      "fix": "Draw keys as small hatched squares on the ring with no arrows, except for the two keys that move. Give those a short clockwise arc outside the ring to c5, in red, and lay the (12, 1] slice over that segment. Place node labels outside the ring and key labels inside, at least 8 px from any box. Match fig-6d's positions and stroke.",
+      "status": "open"
+    },
+    {
+      "id": "C-04",
+      "severity": "medium",
+      "owner": "content",
+      "where": "5-routing: fig-5a, fig-5a2, pause-and-think 1 ('a–j, k–t and u–z') vs fig-5c ('c1 [a-j] · c2 [k-p] · c3 [q-z]'); critic_shots/fig/1440-light-fig-5a.png, 1440-light-fig-5c.png",
+      "problem": "In the same chapter the three nodes own a–j / k–t / u–z in fig 5·a, its continuation and the think card. In fig 5·c they own a–j / k–p / q–z. The caption of 5·c even discusses correcting the board's range, which makes the mismatch with 5·a stand out.",
+      "fix": "Use one split across chapter 5. a–j / k–t / u–z is already used in three places; change fig-5c's range line (and its caption note) to match, or explain in one clause that 5·c is the board's own split.",
+      "status": "open"
+    },
+    {
+      "id": "C-05",
+      "severity": "medium",
+      "owner": "design",
+      "where": "7-what-to-keep, fig-7a phone layout; critic_shots/fig/390-dark-fig-7a.png vs 1440-light-fig-7a.png",
+      "problem": "On phone the capstone figure becomes a glyph legend: ten icon + label rows with no clients, no router → ring connection, no opened node and no CDC side. The caption above it still describes that architecture. Two glyphs repeat for different things: a plain circle for both the ring and ttl, and a plain rectangle for both the router and MyValue.",
+      "fix": "Redraw for portrait as a vertical stack: clients → router → a small ring with c1..c5 and the two dashed replicas → a callout card of the opened node (resp port, MyValue, zmalloc gauge, 1 thread, evict/ttl). Put the CDC strip (db log → cdc → copy) as a separate small row at the bottom. Keep the § references beside each part. Drop the duplicated glyphs.",
+      "status": "open"
+    },
+    {
+      "id": "C-06",
+      "severity": "medium",
+      "owner": "content",
+      "where": "3-eviction-and-expiry §3.3; critic_shots/sweep/1440-light/3-eviction-and-expiry/006.png (also §2.3, §3.1, §3.2, §3.5)",
+      "problem": "A bold-italic mono 'byte budget' run-in label appears in the middle of a sentence: '…fetches it and puts it back. byte budget What it saves is…'. It reads as stray text. The label is a device the sample doesn't have, and it appears five times; in the other four it leads a paragraph.",
+      "fix": "In §3.3, start a new paragraph at 'What it saves', or drop the label there. Better: drop the run-in label entirely and let the five paragraphs open with a plain lead sentence. If the thread matters, turn it into a single margin note per chapter.",
+      "status": "open"
+    },
+    {
+      "id": "C-07",
+      "severity": "medium",
+      "owner": "content",
+      "where": "all chapters; e.g. overview 'About this class', §1.6 + fig-1f caption, §2.4, §3.3, §4.2, §5.4 (sweep/1440-light/5-routing/009.png), §6.5 (sweep/1440-light/6-consistent-hashing/018.png), §6.6",
+      "problem": "This is the voice problem fixed in Lecture 1 (lec01 critic #14), repeated. 'The instructor' appears about 30 times, with he/his, plus teacher biography: a C grade at university, work at Amazon, 'eight months into the industry', consulting, a kernel-contributor friend. There are promotions of the teacher's own courses and YouTube series (§3.3, §4.5, §6.6) and hedges about what the teacher was or wasn't sure of (§4.6, §5.4). Fig 1·f's caption opens 'The instructor's consulting story … (as he tells it)'. It reads as a summary of a recording, not a written page.",
+      "fix": "Keep provenance in meta lines and 'Redrawn from the class board' captions. Remove the biography and course plugs. Turn 'the instructor switched a production cache to random' into a plain claim ('In production, switching a cache to random eviction…'). Turn uncertainty hedges into the sourced 'More precisely' note that already follows them. Fig 1·f caption: 'A consulting case: …'. No gendered pronouns.",
+      "status": "open"
+    },
+    {
+      "id": "C-08",
+      "severity": "medium",
+      "owner": "content",
+      "where": "all 9 pause-and-think cards; critic_shots/fig/1440-light-*-think*-after.png",
+      "problem": "The verdict copy is question-specific and agrees with each reveal, which is good. But in every one of the 9 cards the right answer is the second button. By the third card the reader can stop thinking and press the right-hand or lower option.",
+      "fix": "Put the correct option first on about half the cards (for example ch2 card 2, ch3 card 1, ch5, ch6 card 1). The verdicts don't need to change. While there, change ch3 card 2's 'Right here:' to 'Right:'.",
+      "status": "open"
+    },
+    {
+      "id": "C-09",
+      "severity": "medium",
+      "owner": "design",
+      "where": "overview, 'Our Redis so far'; critic_shots/1440-light-overview-mid.png, 1440-light-overview-end.png",
+      "problem": "The 'so far' section is a prose paragraph followed by three 'back in' chips spaced about 60 px apart, with no drawing. Lecture 1's overview carries a 'so far' figure. With one paragraph and three floating chips it reads as a stack of components, not paragraph, figure, paragraph.",
+      "fix": "Add a small unnumbered 'so far' sketch: TTL store for green dots (L1), shared Redis beside the API servers (L2), the KV store with replicas and range shards (L3), the LB proxy and Redlock nodes (L5), each tagged with its lecture. Put the three back-in links in one tight list under it.",
+      "status": "open"
+    },
+    {
+      "id": "C-10",
+      "severity": "low",
+      "owner": "design",
+      "where": "5-routing fig-5b panel ④ Redirect; critic_shots/fig/1440-light-fig-5b.png",
+      "problem": "The caption says 'Blue is the request, green the answer', but the redirect panel has no green answer: c1's 'go to c2' is a black arrow and c2 never replies.",
+      "fix": "Add the green c2 → client answer arrow. Draw 'go to c2' as a thin green or ink reply from c1, so every panel shows request and answer.",
+      "status": "open"
+    },
+    {
+      "id": "C-11",
+      "severity": "low",
+      "owner": "animation",
+      "where": "clip l07-four-routes (Clip 5·1), proxy panel; critic_shots/clip/390-light-l07-four-routes-fig-poster.png",
+      "problem": "In the proxy panel, the proxy has arrowheads into c1, c2 and c3. That reads as a fan-out to all three. The static fig-5b correctly draws headless links to c1 and c3 and a request only to c2. The clip also shows no green answers, unlike fig-5b.",
+      "fix": "Keep a single blue arrow proxy → c2 and make c1 and c3 headless links. Add the green return legs, so the '4 legs' count is visible.",
+      "status": "open"
+    },
+    {
+      "id": "C-12",
+      "severity": "low",
+      "owner": "design",
+      "where": "3-eviction-and-expiry fig-3b; critic_shots/fig/1440-light-fig-3b.png",
+      "problem": "The speech bubble 'everyone uses me' points at the tail node, which the caption calls 'the next to evict' (the least recently used). The bubble says the opposite of the node it's pinned to.",
+      "fix": "Point the bubble at the head node, or drop it. Chapter 3 doesn't need a misconception bubble here.",
+      "status": "open"
+    },
+    {
+      "id": "C-13",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-2a + fig-2a2 ('Fig 2·a, stage 1'), fig-5a + fig-5a2 ('Fig 5·a, continued'); critic_shots/fig/1440-light-fig-5a.png",
+      "problem": "Two figures share a number twice, the issue lec01 critic #8 fixed. Fig 5·a itself is three staggered boxes and a label, a nearly empty sheet sitting about one screen before its 'continued' panel.",
+      "fix": "Number them 2·a / 2·b and 5·a / 5·b and shift the rest. Fold 5·a's three range boxes into the left edge of the current 5·a2, or drop 5·a.",
+      "status": "open"
+    },
+    {
+      "id": "C-14",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-4a, fig-2d; critic_shots/fig/1440-light-fig-4a.png, 1440-light-fig-2d.png",
+      "problem": "Marker colours drift. Fig 4·a draws the three api → cache requests in black ink, while 4·c and 4·d draw requests in blue. Fig 2·d uses a red arrow for the cross-reference '→ §3', where red means failure or stale.",
+      "fix": "Make 4·a's tcp arrows blue. Make 2·d's '→ §3' ink or grey.",
+      "status": "open"
+    },
+    {
+      "id": "C-15",
+      "severity": "low",
+      "owner": "design",
+      "where": "4-protocol-and-concurrency fig-4d; critic_shots/fig/1440-light-fig-4d.png",
+      "problem": "The 'single node so far' recap draws 'struct obj { type data }'. Chapters 2–3 built MyValue { value*, type, lru_bits, expires_at }, and fig 7·a uses that. The recap drops the two fields the reader just built and renames the struct.",
+      "fix": "Draw MyValue with all four fields, as in fig-7a. Keep 'Redrawn from the recap page' in the caption, and note that the board wrote a short struct.",
+      "status": "open"
+    },
+    {
+      "id": "C-16",
+      "severity": "low",
+      "owner": "content",
+      "where": "fig-4f steps 3–4, the 4.5 comparison table ('CAS(a, 20, 10)'); critic_shots/step/1440-light-fig-4f-s5.png",
+      "problem": "CAS is written as CAS(a, new, expected). Almost every API and textbook uses compare_and_swap(addr, expected, new), so CAS(a, 20, 10) reads as 'expect 20, set 10'.",
+      "fix": "Write CAS(a, 10 → 20) and CAS(a, 10 → 30), or CAS(a, expect=10, new=20), in the figure, the steps and the table.",
+      "status": "open"
+    },
+    {
+      "id": "C-17",
+      "severity": "low",
+      "owner": "animation",
+      "where": "all 4 clips on desktop; critic_shots/clip/1440-light-*-poster.png, sweep/1440-light/6-consistent-hashing/009.png",
+      "problem": "Clip stages render about 540 px wide, centred inside the 920 px sheet, with lettering about 16–18 px. The static figures beside them letter at about 13 px. The chapter chips and caption below are flush left, so the stage looks off-centre relative to its own controls.",
+      "fix": "Either widen the stage to the sheet width and author lettering to land at about 14–15 px, or left-align the stage with its chips. Either way, align the chips row and the play button to the stage's left edge.",
+      "status": "open"
+    },
+    {
+      "id": "C-18",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-1e; critic_shots/fig/1440-light-fig-1e.png",
+      "problem": "The note 'could be one cdc with two sinks: one transform per sink, more memory' sits against the dashed mysql → bottom-cdc line. The line runs through the start of both text lines.",
+      "fix": "Move the note right, about 30 px clear of the dashed line, or route that line further left.",
+      "status": "open"
+    },
+    {
+      "id": "C-19",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-4g, fig-6h; critic_shots/fig/1440-light-fig-4g.png, 1440-light-fig-6h.png",
+      "problem": "Fig 4·g's 'redis' label inside the busy core renders at about 11 px, under the 12 px floor. Fig 6·h mixes an outline ② on the node with a filled ❷ in 'go to ❷'.",
+      "fix": "Raise 4·g's in-box label to 12 px or more (or move it under the core). Use the same outline ② glyph in 6·h's 'go to' label.",
+      "status": "open"
+    },
+    {
+      "id": "C-20",
+      "severity": "low",
+      "owner": "design",
+      "where": "fig-2d gauge; critic_shots/fig/1440-light-fig-2d.png",
+      "problem": "The dashed 'machine: 32 GB' outline is drawn about the same height as the 1 GB total_size bar. That undercuts the point that the cap is a small slice of the machine.",
+      "fix": "Make the machine outline clearly taller than the 1 GB bar (or break it with a '≈' gap), so the 1 GB cap reads as a small part of 32 GB.",
+      "status": "open"
+    },
+    {
+      "id": "C-21",
+      "severity": "low",
+      "owner": "design",
+      "where": "6-consistent-hashing §6.5; critic_shots/sweep/1440-light/6-consistent-hashing/018.png",
+      "problem": "The 'next session · Lecture 10' chip sits flush under the last line of the paragraph with no top margin, and runs straight into the § 6.6 kicker.",
+      "fix": "Give inline 'next/back in' chips the same 12–16 px block margin the other chips have.",
+      "status": "open"
+    }
+  ]
+}
