@@ -34,6 +34,10 @@ const lectures = defineCollection({
     status: z.enum(['draft', 'published']).default('draft'),
     contents: z.array(toc), // the lecture contents block; hrefs point at section ids (#s2-4)
     ledger: z.string().optional(), // path to the ledger, relative to the repo root (for coverage)
+    // optional overrides for the provenance lines: `origin` replaces the overview meta "From a live whiteboard class",
+    // `footnote` replaces the footer text after "Lecture NN ·" (overview) / "Lecture NN, chapter N ·" (chapter pages)
+    origin: z.string().optional(),
+    footnote: z.string().optional(),
     // One page per chapter: /lectures/<id>/<slug>/. `no` matches a top-level `contents` item (its title is used);
     // `parts` are MDX files in src/content/lectures/<id>/ (without .mdx), rendered in order; `summary` is the
     // one-line summary on the lecture overview. Without `chapters`, the whole lecture body is one page.

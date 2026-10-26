@@ -23,7 +23,7 @@ const chapters = chaptersOf(entry);
 const nav = await courseNav();
 const href = lectureHref(entry.id);
 const { prev, next } = around(nav, href);
-const meta: (string | { label: string; href: string })[] = ['From a live whiteboard class'];
+const meta: (string | { label: string; href: string })[] = [d.origin ?? 'From a live whiteboard class'];
 if (d.reviewed) meta.push(`Last reviewed ${d.reviewed}`);
 meta.push({ label: 'Found an error?', href: '#' });
 // a one-page lecture keeps the old "Contents of this lecture" block (hrefs are section ids on this page)
@@ -42,7 +42,7 @@ const contents = chapters.length ? undefined
     <Content />
     <Fragment slot="foot">
       <Pager prev={prev} next={next && { ...next, label: next.kind === 'chapter' ? 'Start reading' : next.label }} />
-      <div class="col"><footer class="page hand">Lecture {pad(num)} · written from the class recording and board, with sources linked where a fact comes from outside the class.</footer></div>
+      <div class="col"><footer class="page hand">Lecture {pad(num)} · {d.footnote ?? 'written from the class recording and board, with sources linked where a fact comes from outside the class.'}</footer></div>
     </Fragment>
   </DocsShell>
 </Layout>

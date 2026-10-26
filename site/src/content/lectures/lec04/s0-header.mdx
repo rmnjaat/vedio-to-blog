@@ -1,31 +1,44 @@
-import MarginNote from '../../../components/MarginNote.astro';
+import Figure from '../../../components/Figure.astro';
+import { WhatUserSees } from '../../../figures/lec04/s2a-green-dots';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec04.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec04.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 01 · week 1, day 1 · running case: an online/offline indicator, then a Medium-like blog"
-      title: Green dots and blog rows
-      contents: 1 How to approach a design (#s1), 2 Green dots, 3 Redis or DynamoDB?, 4 Six million heartbeats a minute,
-        5 Blog rows, 6 What a cache is, 7 What to keep.
-    This is the first lecture of the course, so "so far" has no earlier picture to redraw: the outline gives no figure. */}
+{/* Lecture 01 (lec04) overview body: the hook, what you build, what you will be able to do. Story rewrite, see
+    lectures/lec04/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+Look at the small green dot next to a friend’s name in any chat app. It makes a promise: *this person is here, right now.* In this lecture you build that dot, and the first version you would naturally write will lie.
 
-This is the first session of the course: eight weeks of system design aimed at building raw intuition for systems, always from the implementation side rather than just drawing boxes. Drawing boxes is something “you can do as a kid also”; going into the intricate details is what makes an engineer better. [[L-0001]]
+The obvious design: when a user logs in, the app tells the server “I’m online”; when they log out, “I’m offline”. One true-or-false value per user. Done?
 
-The course does not prepare you for interviews. Its goals are the joy of engineering and the intuition to build any system in the world, from first principles, with simple designs that scale the way real systems are built. Literally every system in the course can be implemented on a local machine; you need no fancy infrastructure. Over the next year or so, implement the core of each one (the flash-sale module itself, not its UI or every CRUD API). The devil lies in the details: implementing shows where a design falters, and real teams expect engineers to implement, not just draw boxes. [[L-0003 L-0008 L-0009 L-0010]]
+Now let the laptop’s battery die on a train. No “offline” call ever leaves the machine. Your friend keeps seeing green for someone who has been gone for hours.
 
-Today has two parts. First, an online/offline indicator like the one on Facebook or Twitter; then, after the break, how to approach system design, with databases and caching worked through on a Medium-like blogging app. Since it is day one, this page keeps things simple and puts little focus on scale: performance still comes up, but scale arrives in weeks two to four. The first week is foundations only, so everyone starts level; brainstorming whole systems begins in the second week. It opens with a build rather than theory on purpose: starting from the foundations used to become too theoretical. [[L-0019 L-0020 L-0016 L-0167]]
+Fixing that one lie forces nearly every decision in the first half of this lecture: what to store, who deletes it, which database holds it, and why a tiny table can still bring its database to its knees. [[L-0021 L-0046]]
 
-**How to use this page.** The course is built on live brainstorming, which trains you to think about systems intuitively rather than in question-and-answer form, so stop at every pause-and-think prompt and answer it before you open it. You will meet new terms; this is an intermediate course, so note them down and read about them yourself. Revise: the weeks chain together, and by week 7 a flash sale takes about ten minutes to design. The pre-reads on Redis and DynamoDB are curated for this session and cover most of what you need. [[L-0002 L-0004 L-0005 L-0006]]
+<Figure id="fig-0a" max={320} no="Fig 0·a" k="L-0021" caption="The brief, in one picture: a friends list with two people online (green) and two offline (an empty ring).">
+<WhatUserSees />
+</Figure>
 
-**One convention.** A table drawn on these pages only helps you see a schema. It does not mean a relational database, and SQL written here is just an easy way to show the idea. [[L-0050]]
+### What you’ll build
 
-</MarginNote>
+**Build 1, the green dot (chapters 1–5).** You start from one boolean per user and find out, one failure at a time, what it takes to keep it honest: what the store must remember, who deletes it, which store holds it, and what happens to the database when every user writes at once.
 
-### The green dot so far
+**Build 2, a blog’s first month (chapters 6–8).** Then you follow an ordinary Medium-like blog through its first month: a writer deletes the wrong post, the home page slows down, and one post goes viral. Each forces a decision about what the database stores and where copies of it live.
 
-Nothing exists yet. This is the first lecture, so there is no earlier design to pick up: only a brief from a product team that wants a green or grey dot next to every user’s name, and an empty board. Chapter 1 settles how to start, chapters 2 to 4 build the indicator from its core, and chapters 5 and 6 switch to a second running case, the rows and the cache of a Medium-like blog. That blog is where Lecture 2 picks up the story.
+The dot is tiny data with a brutal write rate. The blog is ordinary content that people care about. Between them they cover the two questions every design starts with: what must be stored, and what does it cost to read and write it.
+
+### What you’ll be able to do
+
+- Design a presence indicator that stays honest when devices die, and say why a logout call can never be the whole answer.
+- Estimate storage and write rate in two lines of arithmetic, and size a connection pool against the database’s limit.
+- Choose between two stores that both “work”, on the grounds that actually decide it.
+- Decide soft or hard delete, column types and date formats from the queries that use them, and say what a cache really is.
+
+### Before you start
+
+You need to know what an API server, a database, an HTTP request and a TCP connection are. Nothing else is assumed: this is the first lecture. [[L-0016]]
+
+Each chapter opens with a small map of the design so far, with the piece the last chapter added marked “new”. When a “Pause and think” box asks you something, commit to an answer before you open it.
+
+Everything here runs on a laptop. After chapter 2 you can build the dot yourself: a tiny API, a local Redis and a script that sends heartbeats. Building it is what shows you where a design falters. [[L-0008 L-0009 L-0010]]
 
 </div>

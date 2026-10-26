@@ -1,0 +1,120 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { BlogSchema, DeletedLife } from '../../../figures/lec04/s5a-blog-rows';
+import { SoFarBlog } from '../../../figures/lec04/so-far';
+
+{/* Chapter 6 "A writer deletes a post by mistake. Can you give it back?" The hand-off from the dot, the schema,
+    soft delete and its three reasons, the lifecycle (archive, staggered hard delete), when a delete must be real. */}
+
+<Section id="s6" no="6" title="A writer deletes a post by mistake. Can you give it back?" crumb="6 Delete" meta="About 8 min">
+
+It is midnight, and a writer has deleted the wrong post: three months of work, gone with one click. With the green dot, losing data cost ten seconds until the next beat. Here it costs someone’s work. That is the second build: an ordinary blog, a multi-user app like Medium, where the data *is* the product. No recommendation engine, nothing exotic. [[L-0170]]
+
+Follow this blog through its first month: this mistaken delete, then a home page that slowly gets slower, then one post that goes viral. Each one forces a decision about what the database stores and where copies of it live. What carries over from the dot is the method: start from what must be stored and how it is read, count before you optimise, and let the database do what it already does before you add a box.
+
+It helps to know where this sits on the map. Almost every design decision falls under one of six topics: database, caching, scaling, delegation, concurrency and communication. The green dot touched them all; the blog’s month works through the first two, and <LectureLink lec="lec01">Lecture 2</LectureLink> takes the other four on the same blog. [[L-0168 L-0259]]
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="The blog so far: a reader, an API server, and one database with the blogs table.">
+<Desk><SoFarBlog stage={0} /></Desk>
+<Phone><SoFarBlog stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="What does the blog store?" crumb="6.1 The schema">
+
+Here is the whole schema; it fits on a napkin. `users` holds an auto-increment `id`, the `name` shown on the page and a short `bio` of about 140 characters. `blogs` holds an `id`, the `author_id` of whoever wrote it, a `title`, the `body`, `published_at` and `is_deleted`. [[L-0171 L-0172]]
+
+<Figure id="fig-6b" max={600} no="Fig 6·b" k="L-0171 L-0172 L-0173" caption="The blog schema. author_id points back to users.id. The ringed column is tonight’s question.">
+<Desk><BlogSchema /></Desk>
+<Phone><BlogSchema layout="phone" /></Phone>
+</Figure>
+
+Nothing here looks interesting, and that is the point. Every column hides a decision you make whether or not you notice it, and each problem this month lands on one of them. Tonight’s lands on the most boring-looking one, `is_deleted`.
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="What should “delete” mean?" crumb="6.2 Delete">
+
+The database gives you `DELETE`. Run it and the row is gone; your application can’t get it back. That is a **hard delete**. [[L-0174]] So why would anyone add an `is_deleted` column and, when the user clicks delete, run an `UPDATE` instead? [[L-0173]]
+
+<PauseAndThink k="L-0175 L-0177 L-0179 L-0183"
+  q="A writer clicks delete on a post. Your table has an <code>is_deleted</code> column. Is there a good reason to set it to true instead of running <code>DELETE</code>?"
+  choices={[{ label: 'No: deleted should mean gone' }, { label: 'Yes, more than one', correct: true }]}
+  right="Right. There are three, and one of them ends in a police station."
+  wrong="For some tables, yes. For things users write, there are at least three reasons to wait.">
+
+**Recoverability**: the writer can change their mind. **Archival**: the content is still valuable after it leaves the site. **Audit**: someone may need proof that it existed.
+
+</PauseAndThink>
+
+Marking a row as deleted without removing it is a **soft delete**. Each of the three reasons is worth seeing in practice.
+
+*Recoverability.* The writer who deleted a post by mistake wants it back, and a soft delete lets you give it back by flipping one column. Google Drive works this way: a deleted file sits in the trash for 30 days, recoverable at any time. [[L-0175 L-0176]]
+
+*Archival.* A post someone worked on is rich data even after it is taken down. A background job can later move soft-deleted rows into blob storage such as S3 for analysis or model training. Hard delete it and that option is gone. Where users have a legal right to erasure, keeping deleted content for a new purpose needs its own legal basis, so check before you build the pipeline. [[L-0177 L-0178]]
+
+*Audit.* Deleted data can be evidence. One startup learned this directly. A user posted a vicious comment harassing another user; the victim went to the police; the police asked the platform for the details; and the harasser promptly deleted the comment. Because the platform soft-deleted, the comment still existed, and an engineer ended up at the police station handing over printed copies of every trace. With a hard delete, the evidence would have vanished. Platforms are expected to hand such information to the authorities, and nobody wants harassment evidence to disappear with one click. [[L-0179 L-0180 L-0181 L-0182]]
+
+So ask three questions of every table you design: does it need recoverability, archival or audit? If any answer is yes, soft delete. If none is, a hard delete is fine. Tables that hold what users create almost always say yes. [[L-0183 L-0184 L-0188]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="Soft-deleted rows pile up. Then what?" crumb="6.3 They pile up">
+
+A soft delete removes nothing, so the table only grows, and every query the site runs now has to skip the marked rows with `AND NOT is_deleted`. Sooner or later, the rows marked deleted have to go somewhere. When depends on the product: a 30-day trash, a day, or a legal deadline. [[L-0263 L-0265]]
+
+This is where soft delete and archival meet. They are not the same thing: a soft delete *gives you time* to archive. After a day, a job collects the marked rows, copies them to the archive, then hard deletes them. Without the soft delete you would have to archive each row in the instant you deleted it. [[L-0264 L-0308]]
+
+<Figure id="fig-6c" max={880} no="Fig 6·c" k="L-0178 L-0263 L-0264 L-0308 L-0283 L-0296" caption="The life of a deleted post: marked, recoverable for a while, archived by a background job, then hard deleted in small batches. The side branch is the one place a soft delete gets in the way (next section).">
+<Desk><DeletedLife /></Desk>
+<Phone><DeletedLife layout="phone" /></Phone>
+</Figure>
+
+Now the hard delete itself. Suppose the job has 100,000 marked rows to clear and traffic is at its peak. Would you run one `DELETE`?
+
+<AnimationClip clip="l04-staggered-delete" no="Clip 6·1" k="L-0263 L-0282 L-0283 L-0295 L-0297 L-0298"
+  lead="100,000 soft-deleted rows, peak traffic. One big DELETE, or many small ones?"
+  caption="Spread the hard delete out, like garbage collection, whether your job or the database runs it. The request queue and its slowdown are illustrative." />
+
+One huge delete puts all of its work on the database at once, and every request behind it slows down. Spread it across the day instead, a few thousand rows at a time at a steady pace, and the live service barely notices. Each small batch holds its locks briefly and commits quickly. [[L-0283 L-0230]]
+
+```sql
+-- MySQL: repeat until fewer than 1,000 rows go
+DELETE FROM blogs
+WHERE is_deleted = 1
+LIMIT 1000;
+```
+
+The job isn’t free either: it holds a connection or two from the blog database’s pool, while letting rows pile up costs disk. You gain some, you lose some. [[L-0295]] Some databases will run the deletion for you, the same instinct as the dot’s TTL: MongoDB’s TTL indexes expire documents on their own. The database is then running the job on its own threads, on its own schedule (MongoDB checks every 60 seconds), so under load rows can outlive their expiry. Offload it, and keep it staggered. [[L-0297 L-0298]]
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="When does a delete have to be real?" crumb="6.4 A real delete">
+
+Sometimes a soft-deleted row gets in the way. Add the column every real `users` table has, an `email` with a unique index on it. A user deletes their account and later signs up again with the same address. Their old row is only marked deleted, still holds the email, and the signup fails. Either hard delete that row, or make the index apply only to live rows. [[L-0296]]
+
+```sql
+-- PostgreSQL: unique email among live rows only
+CREATE UNIQUE INDEX users_email_live
+  ON users (email) WHERE NOT is_deleted;
+```
+
+And sometimes the law decides: under the EU’s GDPR a person can ask you to erase their data, the “right to be forgotten”, so a soft delete can’t be the end of the road. [[L-0266 L-0273]]
+
+<MarginNote title="Go deeper: what an erasure request requires" why="skip unless you serve EU users" k="L-0267 L-0268 L-0270 L-0271">
+
+You must act within one month (extendable by two for complex cases) and may keep only what an exception covers, such as data needed for legal claims, like the harassment comment above. Live data is erased; copies in old backups and logs aren’t rewritten but must be kept beyond use and age out on their normal schedule <Cite href="https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-to-erasure/">ico.org.uk</Cite>. GDPR covers organisations in the EU and those serving or monitoring people there.
+
+</MarginNote>
+
+So `is_deleted` decides whether a row stays, and the archive job keeps deleted rows from piling up forever. Three weeks in, that isn’t enough. The home page, which lists last week’s posts, gets slower every day, and deleted rows aren’t the reason. What is inside each row is.
+
+</Section>

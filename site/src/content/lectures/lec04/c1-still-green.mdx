@@ -1,0 +1,109 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { FourCallsOrOne, UsersPush, TwoCallsNotEnough } from '../../../figures/lec04/s2a-green-dots';
+import { SoFarDot } from '../../../figures/lec04/so-far';
+
+{/* Chapter 1 "Why is the dot still green?" Story rewrite: brief → core → batch read → the lie → why the server
+    can't ask → periodic heartbeats. */}
+
+<Section id="s1" no="1" title="Why is the dot still green?" crumb="1 Still green" meta="About 7 min">
+
+A product team hands you a one-line brief: show a list of users, each with a green dot if they are online and a grey one if they are not, the way Facebook and Twitter do. [[L-0021]] No scale target, no deadline. Just the dot.
+
+Where do you start? With the one part the feature can’t exist without, here the data, adding every other part only when a question forces it in. Growing outward from a core like this is called the spiral approach; when you are unsure what a system needs, the incremental approach ships the simplest whole system and fixes what breaks. Neither is a rule, and most projects mix the two. [[L-0022 L-0023 L-0025 L-0028]]
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="The design you would write first: the app says “online” at login and “offline” at logout, and the server keeps one true/false per user. This chapter breaks it.">
+<Desk><SoFarDot stage={0} /></Desk>
+<Phone><SoFarDot stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="What does one dot need?" crumb="1.1 One dot">
+
+Ask the plainest question first: to draw one user with a green or a grey dot, what must you store? A user ID, an integer, and whether that user is online, a boolean. [[L-0033 L-0034]]
+
+Now look at how that data gets used. You read the status of a set of users, you read the status of one user, and you update the status of one user. Every access goes through the user’s ID. That is a **key-value access pattern**. Notice what it does not name: a database. You know how the data is read and written before you know where it lives, and that order matters: which tool fits comes later, once you know the property you need. [[L-0035 L-0029]]
+
+Something has to serve those reads, so an API server sits between the screen and the data. The first endpoint you would write takes one user ID and returns one status. [[L-0036]] But the screen shows a friends list. Four friends on screen means four calls from the front end, a slow screen for the user and four times the requests for your backend. [[L-0037]]
+
+<Figure id="fig-1b" max={660} no="Fig 1·b" k="L-0036 L-0037 L-0038 L-0039" caption="Four calls or one. A single-user endpoint costs one call per dot; a batch endpoint carries every user on screen in one call and every status in one reply.">
+<Desk><FourCallsOrOne /></Desk>
+<Phone><FourCallsOrOne layout="phone" /></Phone>
+</Figure>
+
+So the first real design decision is the shape of the endpoint: a **batch read**, `GET /status/users?ids=u1,u2,u3,u4`, that returns every status in one reply. The front end makes one call and the backend does the work. [[L-0038 L-0039]] Shaping an endpoint for the screen that calls it, instead of drawing a box labelled “API”, is exactly the kind of detail that separates a design from a diagram.
+
+Reading is settled. The harder half is writing: who keeps that boolean true?
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="The battery dies. Who tells the server?" crumb="1.2 Battery dies">
+
+The obvious answer is the one in Fig 1·a. The app calls the server with “I’m online” when the user logs in and “I’m offline” when they log out. Two calls per session, and the boolean is always right. [[L-0045]]
+
+<PauseAndThink k="L-0045 L-0046"
+  q="A user’s laptop battery dies in the middle of a session. Their app had sent “I’m online” at login. What do their friends see?"
+  choices={[{ label: 'Grey: the app goes offline with the laptop' }, { label: 'Green, for as long as nothing else notices', correct: true }]}
+  right="Right. The server only knows what a client tells it."
+  wrong="Not quite. A dead laptop sends nothing, so nothing reaches the server.">
+
+The “offline” call never leaves the machine. The server still holds `online = true`, and every friend keeps seeing green, for hours, for someone who is gone.
+
+</PauseAndThink>
+
+A crash, a dead battery and a pulled plug all look the same from the server: silence. A client can announce that it has arrived. It cannot promise to announce that it is leaving, because it isn’t in control of the moment it dies. [[L-0046]] That one asymmetry is the whole problem. The fix most people reach for first is to stop trusting the client and have the server check.
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Why can’t the server just ask?" crumb="1.3 Server asks?">
+
+If the client can’t be trusted to say goodbye, let the server check: every few seconds, ask each client “are you alive?”. That is a **pull** model. The alternative, where each client keeps reporting on its own, is **push**. [[L-0040]]
+
+Pull doesn’t work over plain HTTP, and the reason is direction. HTTP is a request-and-response protocol that the client starts. Your user’s laptop sits behind a home or office router that accepts no incoming calls, so the server has no way to open a conversation with it. It can only answer. The exception is a connection the client opens and both sides keep open for two-way messages, such as a WebSocket. [[L-0041]]
+
+<Figure id="fig-1d" max={440} no="Fig 1·c" k="L-0040 L-0041 L-0042" caption="Clients push; the server can’t pull. Each client sends its own beats (blue). The pull back to the clients is crossed out: over plain HTTP the server cannot start the conversation.">
+<Desk><UsersPush /></Desk>
+<Phone><UsersPush layout="phone" /></Phone>
+</Figure>
+
+So the client pushes. Every client calls `POST /heartbeat` over and over, and each call marks whichever user is authenticated on that request as alive. [[L-0042 L-0044]] The name says how it works: as long as a heart keeps beating, its owner is alive, and when the beats stop, they aren’t. [[L-0043]]
+
+<MarginNote title="Go deeper: how real chat apps hold the line open" why="skip unless you build presence" k="L-0101 L-0102">
+
+Production presence systems keep a persistent connection open instead of sending REST heartbeats. WebSocket is one way; Facebook built Messenger’s on MQTT because it uses little bandwidth and battery. The server still learns that a device died from silence: these connections carry their own small keep-alive pings, and when the pings stop, the server closes the connection and marks the user offline. <LectureLink lec="lec01">Lecture 2</LectureLink> covers WebSockets, and <LectureLink lec="lec02">Lecture 4</LectureLink> builds Slack’s real-time messaging on those persistent connections.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="How long is long enough?" crumb="1.4 Long enough">
+
+A single beat at login is no better than the two-call design: it says “I arrived” and nothing more. The beats have to keep coming, because the absence of a beat is now the only way the server learns that someone has gone. As long as beats arrive, the user is online. When none has arrived for long enough, the user is offline. [[L-0046 L-0047]]
+
+How long is “long enough”? There is no technical answer. It is a product decision you configure per system: one product can tolerate ten minutes, another wants ten seconds. This design sends a beat **every 10 seconds** and calls a user offline after **30 seconds** of silence, so one or two delayed or lost beats don’t flicker a live user grey. [[L-0048]] Here is the same dead battery, played twice: once with login and logout calls, once with beats.
+
+<StepThrough id="fig-1c" grow no="Fig 1·d" label="Two calls are not enough"
+  k="L-0045 L-0046 L-0047 L-0048"
+  stepK={['L-0045', 'L-0045', 'L-0046', 'L-0046', 'L-0047 L-0048']}
+  caption="Time runs down. Lanes: the user’s laptop, the API server, the store and a friend’s screen. Blue is a call; the red ring is a stale dot."
+  steps={[
+    'At login the app says <code>online</code>. The store marks <code>u7 = online</code> and the friend sees a <span class="term green">green dot</span>.',
+    'The user works for a while. Under the two-call design nothing else needs sending, so the dot stays green.',
+    'The battery dies. The app never gets to say <code>offline</code>: <span class="term red">no call leaves the laptop</span>.',
+    'Much later the friend still sees green, for a user who has long been gone. <span class="term red">The dot is stale.</span>',
+    'Replay with a beat every <code>10 s</code>. When the battery dies the beats stop, and after <code>30 s</code> of silence the store marks <code>u7</code> offline. The friend sees a ring.',
+  ]}>
+<Desk><TwoCallsNotEnough /></Desk>
+<Phone><TwoCallsNotEnough layout="phone" /></Phone>
+</StepThrough>
+
+That one number, 30 seconds, now has to live somewhere. And the boolean in the store can’t hold it: “true” says nothing about *when* the last beat arrived. The next chapter changes what the store remembers, and then finds out who has to clean up after users who stop beating.
+
+</Section>

@@ -9,13 +9,13 @@ import { LoopMark, PhoneGlyph, StatusDot, Table, Tick, Timer } from './s2a-parts
 /* ------------------------------------------------------------------ Fig 2·g */
 
 const DESC_2G =
-  'Left: table pulse with columns user_id and last_hb, rows u1 1000, u2 1050, u3 1060. Right: on every heartbeat, UPDATE pulse SET last_hb = NOW() WHERE user_id = u1, where NOW() is epoch seconds. ' +
-  'Below: GET /status/<user_id> applies two rules: no entry means offline; last_hb older than now minus 30 seconds means offline; otherwise online.';
+  'Left: table pulse with columns user_id and last_hb, rows u1 1000, u2 1050, u3 1060. Right: every heartbeat upserts the user’s row with the current time in epoch seconds. ' +
+  'Below: a status read applies two rules to each requested id: no entry means offline; last_hb older than now minus 30 seconds means offline; otherwise online.';
 
 function Rules({ x, y, s }: { x: number; y: number; s: (k: string) => string }) {
   return (
     <g>
-      <Label kind="mono" tone="blue" anchor="start" x={x} y={y}>{'GET /status/<user_id>'}</Label>
+      <Label kind="mono" tone="blue" anchor="start" x={x} y={y}>{'for each id in GET /status/users'}</Label>
       <Label kind="mono" anchor="start" x={x + 10} y={y + 28}>no entry</Label>
       <Label anchor="start" x={x + 92} y={y + 28}>→ offline</Label>
       <StatusDot x={x + 176} y={y + 23} on={false} r={5} seed={s('r1')} />
@@ -45,8 +45,8 @@ export function PulseTable({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
         <Label anchor="start" x={196} y={70} size={13}>one row</Label>
         <Label anchor="start" x={196} y={86} size={13}>per user</Label>
         <Label anchor="start" x={16} y={174} size={13.5}>on every heartbeat:</Label>
-        <Label kind="mono" anchor="start" x={16} y={198}>UPDATE pulse</Label>
-        <Label kind="mono" anchor="start" x={16} y={218}>SET last_hb = NOW()</Label>
+        <Label kind="mono" anchor="start" x={16} y={198}>UPSERT pulse</Label>
+        <Label kind="mono" anchor="start" x={16} y={218}>SET last_hb = now</Label>
         <Label kind="mono" anchor="start" x={16} y={238}>WHERE user_id = u1</Label>
         <Arrow pts={[[236, 196], [236, 210], [196, 210]]} weight="thin" seed={s('ep')} />
         <Label anchor="start" x={244} y={200} size={13}>epoch seconds</Label>
@@ -57,8 +57,8 @@ export function PulseTable({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
     <Fig id={id} w={560} h={260} title="The pulse table and the two rules" desc={DESC_2G}>
       {tbl}
       <Label anchor="start" x={226} y={40} size={13.5}>on every heartbeat:</Label>
-      <Label kind="mono" anchor="start" x={226} y={68}>UPDATE pulse</Label>
-      <Label kind="mono" anchor="start" x={226} y={90}>SET last_hb = NOW()</Label>
+      <Label kind="mono" anchor="start" x={226} y={68}>UPSERT pulse</Label>
+      <Label kind="mono" anchor="start" x={226} y={90}>SET last_hb = now</Label>
       <Label kind="mono" anchor="start" x={226} y={112}>WHERE user_id = u1</Label>
       <Arrow pts={[[448, 64], [368, 64], [368, 76]]} weight="thin" seed={s('ep')} />
       <Label anchor="start" x={454} y={68} size={13}>epoch seconds</Label>
@@ -118,7 +118,7 @@ export function HowBig({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
         <g transform="translate(0 176)">{Row(20, 0)}</g>
         {Pocket(230, 186)}
         <Line pts={[[16, 330], [324, 330]]} weight="thin" dotted seed={s('sep')} className="faint" />
-        <Label anchor="start" x={16} y={360} size={13.5}>absence = offline (see 2.7):</Label>
+        <Label anchor="start" x={16} y={360} size={13.5}>only online users keep a row:</Label>
         <Label kind="mono" anchor="start" x={16} y={382}>100k active → 100k rows</Label>
         <Label kind="mono" anchor="start" x={16} y={404}>= 800 KB</Label>
       </Fig>
@@ -131,7 +131,7 @@ export function HowBig({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
       <Line pts={[[16, 176], [584, 176]]} weight="thin" dotted seed={s('sep')} className="faint" />
       <Label anchor="start" x={16} y={210} size={13.5}>absence = offline:</Label>
       <Label kind="mono" anchor="start" x={150} y={210}>100k active → 100k rows = 800 KB</Label>
-      <Label muted anchor="start" x={150} y={234} size={13}>(see 2.7)</Label>
+      <Label muted anchor="start" x={150} y={234} size={13}>(rows of silent users are deleted)</Label>
     </Fig>
   );
 }

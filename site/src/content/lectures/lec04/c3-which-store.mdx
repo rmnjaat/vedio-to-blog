@@ -1,0 +1,119 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import Cite from '../../../components/Cite.astro';
+import { FeedingCompetitor, HearingExpiry } from '../../../figures/lec04/s3-redis-or-dynamodb';
+import { SoFarDot } from '../../../figures/lec04/so-far';
+
+{/* Chapter 3 "Two stores pass the test. Which one goes in the box?" Weak reasons first (persistence, speed), then
+    the ones that decide it (who runs it, lock-in, room to grow, push on expiry), then a written verdict. */}
+
+<Section id="s3" no="3" title="Two stores pass the test. Which one goes in the box?" crumb="3 Which store" meta="About 8 min">
+
+The store needs a key, a value and a TTL. Redis gives you all three, and so does DynamoDB. Both are popular, both are fast, both are well documented. When two tools both meet the requirement, the choice moves to things that aren’t on the feature list, and those are the things most people forget to weigh. [[L-0071]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="The green dot so far. Marked new: the 30-second TTL on every write, so the store deletes silent users itself.">
+<Desk><SoFarDot stage={2} /></Desk>
+<Phone><SoFarDot stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="What do people reach for first?" crumb="3.1 First answers">
+
+<PauseAndThink k="L-0072 L-0085"
+  q="A teammate says: “DynamoDB, because our presence data has to persist.” Is persistence a good reason to pick a store for this table?"
+  choices={[{ label: 'Yes: losing data is never acceptable' }, { label: 'No: ask what this data is worth first', correct: true }]}
+  right="Right. Ask what an entry is worth before paying to keep it."
+  wrong="Look at the data first: how long does an entry live?">
+
+Every entry is deleted 30 seconds after the user’s last beat, on purpose. If the store crashed and lost every key, the next round of beats would rebuild the whole table within 10 seconds.
+
+</PauseAndThink>
+
+Persistence also doesn’t separate the two stores. Redis can write to disk too: an append-only file (AOF) that logs every write, snapshots, or both. Know how the feature works, not just that it exists: with the default setting the log is flushed once a second, so a crash can lose about a second of writes, and flushing on every write is safe but very slow <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/">redis.io</Cite>. For heartbeats, a lost second is harmless. That is why Redis can be the *primary* store here, not a cache in front of something else. Whether you need a database behind it depends on the guarantees your data needs, and this data needs almost none. [[L-0085 L-0086 L-0309 L-0310 L-0311]]
+
+The second answer people give is speed: Redis keeps data in memory, so it must be faster. It is: Redis serves from RAM over connections your server keeps open, with sub-millisecond latency, while DynamoDB is a request-and-response HTTPS API that answers in single-digit milliseconds. For reading a dot, the gap rarely matters; a few milliseconds is invisible next to a 30-second threshold. Where time sensitivity does count is when you want to hear about a change the instant it happens, and that comes from the open connection, not raw speed (section 3.4). [[L-0093 L-0094]] The other questions that decide it are about people, money and next year, and they are the ones most often missed. [[L-0100]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Who gets paged at 3 a.m.?" crumb="3.2 Who runs it">
+
+DynamoDB is **managed**: AWS runs it, keeps it available and scales it, and your team writes business logic. A self-hosted Redis is yours: your engineers keep it up, watch it, scale it before a surge and react during one. Running any database, Redis, MySQL or Elasticsearch, comes with its own pain: observability, profiling, upgrades. [[L-0073 L-0099 L-0313]]
+
+So the first real question is your team. A lean startup of five or ten engineers, with no one who has run Redis in production, should go managed, and that pulls towards DynamoDB: you throw money at AWS, and it becomes your extended engineering team. Self-host only when you have both the expertise and the time. [[L-0139 L-0140]]
+
+Managed doesn’t mean DynamoDB, though. Every major cloud sells a managed Redis (AWS ElastiCache, for one), and your Redis code is the same everywhere. [[L-0087 L-0140]] Availability and autoscaling depend mostly on whoever operates the store, though the product sets limits too: AWS commits to 99.99% availability for DynamoDB, and Redis’s asynchronous replication can lose acknowledged writes on a failover however good your team is. [[L-0304 L-0313]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="What if your cloud vendor becomes your competitor?" crumb="3.3 Lock-in">
+
+The two candidates differ in one way that matters more than any feature, and it is why they are the two being compared: Redis is open source and runs anywhere, while DynamoDB is a proprietary AWS product. [[L-0098]] If you ever leave AWS, every line that talks to it gets rewritten. That is **vendor lock-in**: being tied to one cloud because a tool you depend on exists only there. [[L-0074 L-0077 L-0078]]
+
+Why would you ever leave? Pricing that grows out of hand, the rest of your infrastructure moving elsewhere, a better deal from another provider, a security incident that costs a provider your trust, or a provider that keeps discontinuing services. People often fear lock-in more than it ends up costing them, but these reasons are real. [[L-0075 L-0076]]
+
+The reason teams miss is **competition**. Amazon enters new businesses all the time. In 2020 it launched food delivery in Bengaluru, and any Indian food-delivery company running on AWS was paying the company that had just become its competitor. The bill literally fed the rival. Amazon closed that service at the end of 2022 <Cite href="https://techcrunch.com/2022/11/25/amazon-to-shut-down-food-delivery-business-in-india">techcrunch.com</Cite>, but the risk doesn’t go away: you may already be on a cloud when its owner walks into your market. [[L-0079]]
+
+<Figure id="fig-3b" max={580} no="Fig 3·b" k="L-0079 L-0080" caption="Feeding your competitor: a food-delivery company pays a cloud vendor that runs its own food business. The bill funds the rival.">
+<Desk><FeedingCompetitor /></Desk>
+<Phone><FeedingCompetitor layout="phone" /></Phone>
+</Figure>
+
+Walmart, Amazon’s rival in retail, stays off AWS for exactly this reason, on a hybrid of Microsoft Azure, Google Cloud and its own private cloud. [[L-0080]] The stakes grow with the bill: $10 million a month to a competitor matters, $10,000 a month from a young startup doesn’t. [[L-0081 L-0082]] The counter-example is Netflix, which stays on AWS even though Amazon now runs a rival video service: rewriting that much code would be enormous, and a customer that large may well have a deal that makes staying worthwhile, though its terms aren’t public. [[L-0083]] And a company that will never leave its cloud loses nothing to lock-in. [[L-0301]] All of this, plus the fact that far more engineers already know an open tool than one vendor’s product, is why many teams lean towards open source. [[L-0084 L-0302]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="What will the dot need next year?" crumb="3.4 Next year">
+
+Today the feature needs a key and a timer. Pick the store for what it might need next. Redis isn’t only strings: it ships sorted sets, HyperLogLog (approximate counting), Bloom filters (fast “have I seen this?” checks), geospatial indexes and more, so a later “friends online near you” or “how many people were online today” has somewhere to live. DynamoDB reaches some of that ground differently, with a change feed that triggers code you run beside it (Streams and Lambda). [[L-0088 L-0089 L-0090]]
+
+One “next” is close at hand. Suppose the product wants a friend’s dot to turn grey *the moment* they go offline, pushed to the screen instead of waiting for the next poll. You then need to be **told** when a key expires.
+
+<Figure id="fig-3c" max={640} no="Fig 3·c" k="L-0094 L-0097" caption="Hearing about an expiry. Left: the API server keeps a connection open to Redis, and Redis pushes “expired” on it when it deletes the key. Right: DynamoDB answers separate calls; an expired item lingers until it is deleted, and the stream reports it later.">
+<Desk><HearingExpiry /></Desk>
+<Phone><HearingExpiry layout="phone" /></Phone>
+</Figure>
+
+Redis can do that. Your server holds a long-lived connection to it, and Redis pushes an event on that connection when it deletes an expired key. Two details matter: the event fires when Redis actually removes the key, which can be a little after the TTL runs out, and delivery is fire-and-forget, so treat it as a fast hint, not a guarantee <Cite href="https://redis.io/docs/latest/develop/pubsub/keyspace-notifications/">redis.io</Cite>. DynamoDB has no open connection to push on; it reports deletions through its stream, later. [[L-0094 L-0097]]
+
+```text
+CONFIG SET notify-keyspace-events Ex   # expired-key events (off by default)
+SUBSCRIBE __keyevent@0__:expired       # this connection now receives each expired key
+```
+
+</Section>
+
+<Section id="s3-5" no="3.5" title="So which one would you write down?" crumb="3.5 The verdict">
+
+Here is the whole comparison for this one table.
+
+<TradeoffTable caption="Redis or DynamoDB for the presence store"
+  k="L-0070 L-0073 L-0077 L-0089 L-0094 L-0097 L-0311"
+  columns={[{ label: 'Redis (self-hosted)', glyph: 'redis' }, { label: 'Redis (managed)', glyph: 'redis' }, { label: 'DynamoDB', glyph: 'dynamodb' }]}
+  rows={[
+    { label: 'TTL', cells: ['Deletes the key promptly; send the TTL on every write', 'Same', { text: 'Deletes within days; check expires_at on read', bad: true }], k: 'L-0070' },
+    { label: 'Who runs it', cells: [{ text: 'Your engineers: uptime, scaling, surges', bad: true }, 'The provider', 'AWS'], k: 'L-0073' },
+    { label: 'Lock-in', cells: ['None: runs anywhere', 'Low: every cloud sells one', { text: 'AWS only', bad: true }], k: 'L-0077' },
+    { label: 'Room to grow', cells: ['Sorted sets, HyperLogLog, Bloom filters, geo', 'Same', 'Streams and Lambda'], k: 'L-0089' },
+    { label: 'Told on expiry', cells: ['Pushed on an open connection (best effort)', 'Same', 'Through the stream, later'], k: 'L-0097' },
+    { label: 'Losing a second of beats', cells: ['Harmless', 'Harmless', 'Not an issue'], k: 'L-0311' },
+  ]} />
+
+Now write the decision down, with its reason. Two write-ups are both defensible here. A lean team that wants nothing to operate, already on AWS: **DynamoDB**, storing `expires_at` and checking it on every read. A team that wants to hear about expiries the moment they happen, may need richer data structures later, or wants to stay free to change clouds: **Redis**, managed unless you have people who have run it before, with `SET … EX 30` on every beat. Redis as the primary store is fine for data this small. Which one is right depends on your team, your cloud and what the feature will need next; what is not optional is writing the reason down. [[L-0311 L-0139 L-0140 L-0089 L-0097]]
+
+Next to the decision, record its limits and what a migration would take. That record is worth more than the decision itself when someone revisits it a year later. [[L-0317]]
+
+<MarginNote title="Go deeper: shouldn’t you avoid database-specific features?" why="a common review objection" k="L-0314 L-0315 L-0316">
+
+A reviewer may say: TTL isn’t universal, so don’t depend on it. But the design *needed* expiry, so it picked a store that has it. If you ever move, you move to one with similar features, or you rebuild the feature yourself (a cron job does it). The same goes for change streams: off DynamoDB, a change-data-capture tool such as Debezium reads MySQL’s binlog instead. Draw a line: abstract over everything and you end up writing your own database.
+
+</MarginNote>
+
+The store is chosen and the design looks finished. Then you multiply the beats by the users, and a number appears that is much scarier than 8 GB.
+
+</Section>

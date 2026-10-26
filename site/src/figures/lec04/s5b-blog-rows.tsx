@@ -73,14 +73,14 @@ export function LongShortText({ layout = 'desk' }: Layout) {
 /* ------------------------------------------------------------------ Fig 5·g */
 
 const DESC_5G =
-  'Three ways to store published_at. As a native datetime, serialised in some format, for example 02-04-2022T09:01:36Z: convenient, sub-optimal, heavy on size and index. ' +
-  'As an epoch integer, 1648890096, seconds since 1 January 1970: efficient, light, unreadable. ' +
-  'As a custom integer format YYYYMMDD, 20220402: readable, and an integer.';
+  'Three ways to store published_at. As the native date-time type, 2022-04-02 09:01:36, stored by the engine in a compact binary form: convenient and readable. ' +
+  'As an epoch integer, 1648890096, seconds since 1 January 1970: a plain integer compare, unreadable. ' +
+  'As a custom integer format YYYYMMDD, 20220402: readable, an integer, a date only.';
 
 const DATE_ROWS = [
-  { name: 'datetime as datetime', sub: '', value: '02-04-2022T09:01:36Z', note: 'serialized in some format', traits: 'convenient · sub-optimal', traits2: 'heavy on size and index' },
-  { name: 'datetime as epoch integer', sub: '', value: '1648890096', note: 'seconds since 1 Jan 1970', traits: 'efficient · light · unreadable', traits2: '' },
-  { name: 'custom format', sub: '(int)', value: 'YYYYMMDD → 20220402', note: '', traits: 'readable · integer', traits2: '' },
+  { name: 'native date-time', sub: '', value: '2022-04-02 09:01:36', note: 'compact binary inside the engine', traits: 'convenient · readable', traits2: 'decoded by the engine' },
+  { name: 'epoch integer', sub: '', value: '1648890096', note: 'seconds since 1 Jan 1970', traits: 'integer compare · unreadable', traits2: '' },
+  { name: 'custom format', sub: '(int)', value: 'YYYYMMDD → 20220402', note: '', traits: 'readable · integer · date only', traits2: '' },
 ];
 
 /** Fig 5·g: three ways to store a date (D-14). Desk 740 × 250, phone 340 × 380. */
@@ -129,7 +129,7 @@ export function ThreeDates({ layout = 'desk' }: Layout) {
 /* ------------------------------------------------------------------ Fig 5·h */
 
 const DESC_5H =
-  'Byte strips. The string 02-04-2022T09:01:36Z takes 20 cells, one byte per character, about 20 bytes, counted live in class. ' +
+  'Byte strips. The string 02-04-2022T09:01:36Z takes 20 cells, one byte per character, about 20 bytes. ' +
   'The same instant as a 32-bit epoch integer, 1648890096, takes 4 bytes: 62 48 10 F0 in hex. ' +
   'For comparison, MySQL actually stores a DATETIME in 5 bytes.';
 
@@ -155,7 +155,7 @@ export function TwentyOrFour({ layout = 'desk' }: Layout) {
   if (P)
     return (
       <Fig id={id} w={340} h={372} title="Twenty bytes or four" desc={DESC_5H}>
-        <Label anchor="start" x={x0} y={18} size={13.5}>as a string, counted live in class</Label>
+        <Label anchor="start" x={x0} y={18} size={13.5}>as a string</Label>
         {strip(CHARS.slice(0, perRow), 48, 'a1', 0)}
         {strip(CHARS.slice(perRow), 110, 'a2', perRow)}
         <Label kind="mono" anchor="end" x={x0 + cw * 10} y={162} size={15}>≈ 20 B</Label>
@@ -174,7 +174,7 @@ export function TwentyOrFour({ layout = 'desk' }: Layout) {
     );
   return (
     <Fig id={id} w={600} h={250} title="Twenty bytes or four" desc={DESC_5H}>
-      <Label anchor="start" x={x0} y={18} size={13.5}>as a string, counted live in class</Label>
+      <Label anchor="start" x={x0} y={18} size={13.5}>as a string</Label>
       {strip(CHARS, 48, 'a', 0)}
       <Label kind="mono" anchor="start" x={x0 + cw * 20 + 14} y={68} size={15}>≈ 20 B</Label>
       <Label anchor="start" x={x0} y={118} size={13.5}>as an epoch integer</Label>
@@ -196,7 +196,7 @@ export function TwentyOrFour({ layout = 'desk' }: Layout) {
 
 const DESC_5I =
   'An epoch number line in seconds. 0 is 1 January 1970; −1, just left of it, is 31 December 1969, and the line runs on to the left: negative values are dates before 1970. ' +
-  'To the right, a signed 32-bit integer (4 bytes) runs out at 2,147,483,647, a red wall at 19 January 2038 (said as 2032 in class). ' +
+  'To the right, a signed 32-bit integer (4 bytes) runs out at 2,147,483,647, a red wall at 19 January 2038. ' +
   'Past the wall the line continues dashed: a 64-bit integer (8 bytes) has no practical limit. Not to scale.';
 
 /** Fig 5·i: the epoch number line (new). Desk 600 × 196, phone 340 × 218. */
@@ -234,7 +234,6 @@ export function EpochLine({ layout = 'desk' }: Layout) {
       <Mark a={[WALL, Y - 34]} b={[WALL, Y + 34]} tone="red" weight="heavy" seed={s('wall')} />
       <Label kind="mono" tone="red" x={WALL} y={Y - 44} size={13}>2,147,483,647</Label>
       <Label tone="red" x={WALL} y={Y + 54} size={T}>19 Jan 2038</Label>
-      <Label muted x={WALL} y={Y + 72} size={12.5}>(said as 2032 in class)</Label>
       <Label kind="mono" x={(WALL + END) / 2 + 2} y={Y - 12} size={13}>int64 · 8 B</Label>
       <Label muted anchor="end" x={END + 2} y={P ? Y + 94 : Y + 28} size={12.5}>no practical limit</Label>
     </Fig>

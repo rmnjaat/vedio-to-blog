@@ -1,0 +1,128 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { ThreeFour } from '../../../figures/lec04/s4a-heartbeats';
+import { SoFarDot } from '../../../figures/lec04/so-far';
+
+{/* Chapter 4 "The table is tiny. Why is the store struggling?". The write rate → where one write's time goes → keep connections
+    open (clip) → what a pool is and how it grows (stepper). */}
+
+<Section id="s4" no="4" title="The table is tiny. Why is the store struggling?" crumb="4 Struggling" meta="About 8 min">
+
+The design is complete: beats, a TTL, a store you can defend. Chapter 2 asked whether a billion users was a storage problem, and the answer was no. But that estimate counted rows. It never counted how often those rows change.
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The green dot so far. Marked new: the store choice, written down: Redis or DynamoDB, one key per online user with a 30-second TTL.">
+<Desk><SoFarDot stage={3} /></Desk>
+<Phone><SoFarDot stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Which number should scare you?" crumb="4.1 The number">
+
+Chapter 2 imagined 100,000 people online. A successful app has ten times that, so take a million.
+
+<PauseAndThink k="L-0103 L-0104 L-0105"
+  q="A million users are online at once (active, not total). Each sends a heartbeat every 10 seconds, and every heartbeat is one write. How many writes does the store take per minute?"
+  choices={[{ label: 'About 100,000' }, { label: 'About 6 million', correct: true }]}
+  right="Right. And the table is still tiny."
+  wrong="Count again: 6 beats a minute, per user.">
+
+Every 10 seconds is 6 beats a minute per user. 6 × 1,000,000 = **6 million writes a minute**, about 100,000 every second, each one an update.
+
+</PauseAndThink>
+
+The data for those million users is about 8 MB. The work on it is relentless. This is the textbook shape where **storage is not the problem; computation is**: tiny data, enormous write rate. [[L-0103 L-0104 L-0105]]
+
+How hard that bites depends on what sits behind the API. A single Redis node can handle roughly a hundred thousand simple `SET`s a second in its own benchmarks, so it is within range, though with little headroom <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/">redis.io</Cite>. A disk-based relational database committing 100,000 durable single-row updates every second is a much harder ask. [[L-0104]] This chapter and the next follow one heartbeat into the case where it hurts most: **a classic relational database such as PostgreSQL behind the API**. The lesson carries to any store you talk to over a network.
+
+The usual answers to a write load like this, splitting the data across machines with sharding and partitioning, come in <LectureLink lec="lec01">Lecture 2</LectureLink> and later. [[L-0106]] Before reaching for them, look at a cost almost everyone ignores, because it hides in the one part of the diagram nobody thinks about: the line between the API server and the store. [[L-0107]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Where does one tiny write spend its time?" crumb="4.2 One write">
+
+Follow one heartbeat. It arrives at the API server as an HTTP request over the client’s TCP connection. To write it, the API server opens a *second* TCP connection, to the database. [[L-0108]]
+
+Before the write can even be sent, opening the connection costs a three-way handshake, three trips. After the reply, closing it costs a teardown, two more in the simple count. The one request and one reply you actually wanted are wrapped in five trips of ceremony, and the real bill is higher: on top of TCP comes the database’s login exchange, and TLS if the connection is encrypted. [[L-0109 L-0110]]
+
+And the write itself? It updates one row by its primary key. The database finds it almost instantly and does the bare minimum. So most of each heartbeat’s time goes not into the write but into building and tearing down the connection around it. [[L-0111]]
+
+The database pays too. Accepting a connection means reading the handshake, spending CPU and network buffers, authenticating the caller, and setting up a thread or, in PostgreSQL, a whole new server process for that connection <Cite href="https://www.postgresql.org/docs/current/connect-estab.html">postgresql.org</Cite>. Each of those costs memory as well as CPU. Do it 100,000 times a second and the database spends its day saying hello and goodbye. [[L-0116 L-0117]]
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="What if the connection never closed?" crumb="4.3 Never close">
+
+Nothing forces a connection to close after one query. Open a few connections once, keep them open, and hand them out: that is a **connection pool**. With one-row updates, so much of each call was spent on setup that this is the obvious fix. [[L-0112]]
+
+Say the API server opens three connections when it boots. A request arrives, takes a free connection, marks it busy, runs its query and gives it back. The connection is already open, so the write is one request and one reply. The handshake and the teardown are gone. [[L-0113 L-0114]]
+
+<AnimationClip clip="l04-connection-pool" no="Clip 4·1" k="L-0109 L-0113 L-0114 L-0115"
+  lead="Five writes, without and with a pool. Count the trips each write makes before you play it."
+  caption="The same five queries: faster calls, and a database that no longer opens and closes a connection for each one." />
+
+Two things improve at once. Each API call gets much faster. And the database’s load drops even though it runs exactly the same number of queries, because it no longer does the connection work around each one. [[L-0115 L-0117]]
+
+The gain is largest here because the queries are tiny. A big report that joins a dozen tables runs long enough that the connection setup is a rounding error; a one-row update by primary key is the opposite. Whenever you fire many small queries at a database, a pool is almost always worth having, and if your codebase has none, measure what adding one gives you. [[L-0129 L-0130 L-0131]]
+
+This holds for whatever store you chose: Redis clients pool too, as do MySQL and PostgreSQL drivers. [[L-0119]]
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="Three connections, and a fourth request" crumb="4.4 A fourth request">
+
+Where does the pool live? Not in a new service. It is a library inside the API server’s own process. [[L-0126 L-0127]]
+
+At boot it opens a few connections and puts them in a **blocking queue**. A caller takes one if one is free, or waits until someone puts one back. There are many implementations; the idea stays this small. [[L-0128]]
+
+```python
+import queue
+
+class Pool:
+    def __init__(self, connect, size):
+        self.idle = queue.Queue()   # blocking
+        for _ in range(size):       # at boot: open `size`
+            self.idle.put(connect())
+
+    def get(self):                  # waits while none is free
+        return self.idle.get()
+
+    def release(self, conn):
+        self.idle.put(conn)         # back in line
+```
+
+Three connections serve three requests at once. What happens to the fourth? Step through the life of one server’s pool.
+
+<StepThrough id="fig-4c" grow no="Fig 4·b" label="A pool’s life" k="L-0118 L-0120 L-0121 L-0122 L-0123 L-0125 L-0142"
+  caption="Five snapshots of one API server’s pool. Blue lines are connections in use; the dashed one is being opened."
+  stepK={['L-0118', 'L-0120', 'L-0121', 'L-0122 L-0123', 'L-0125 L-0142']}
+  steps={[
+    '<code>min 3</code>: three idle connections. Three requests arrive; each takes one. All three are busy.',
+    'A fourth request finds none free. Option one: wait until a query finishes and frees a connection.',
+    'Option two: open one more and keep it. The pool stretches from three to four.',
+    'Stretching needs a ceiling. With <code>max 100</code>, request 101 <span class="term red">waits</span>, up to a timeout. Without one, a flood of requests would each add a connection.',
+    'A connection idle for <code>10 min</code> is closed by the pool, so the pool holds what the traffic needs, never more than the maximum.',
+  ]}>
+<Desk><ThreeFour /></Desk>
+<Phone><ThreeFour layout="phone" /></Phone>
+</StepThrough>
+
+So a pool has three settings: a **minimum** it opens at boot, a **maximum** it may grow to, and an **idle timeout** after which unused connections close. A server doesn’t always hold its maximum; that is only the most it will ever hold, and the real number follows the traffic. [[L-0118 L-0123 L-0125 L-0141 L-0142]] Waiting has a limit too: a widely used Java pool, HikariCP, makes a caller wait up to 30 seconds by default, then fails the request with an error. [[L-0135]]
+
+<MarginNote title="Go deeper: a minimum below the maximum?" why="a real-world tuning disagreement" k="L-0157">
+
+A common convention is a small minimum, 3 or 5, because the pool can always open more on demand. HikariCP recommends the opposite: leave the minimum unset so the pool is fixed-size, minimum equal to maximum, since opening connections during a burst is exactly the latency a pool exists to avoid. Either way, its idle timeout (10 minutes by default) only retires connections when the minimum is below the maximum.
+
+</MarginNote>
+
+Why have a maximum at all, if more connections mean fewer waits? Because the database at the other end of every pool has a limit of its own, and you don’t run one API server. You run a fleet, and fleets grow at the worst moment.
+
+</Section>

@@ -87,8 +87,8 @@ export function BlogSchema({ layout = 'desk' }: Layout) {
 
 const DESC_5C =
   'Three copies of one B+ tree: a root, two internal nodes and four leaves holding keys 10 15, 20 30, 40 50, 60 70. ' +
-  'Hard delete, as taught: key 30 is struck out, the leaf merges with its neighbour and the parent is updated, a rebalance that costs CPU. ' +
-  'Soft delete, as taught: key 30 stays, its row is tagged is_deleted=1, no rebalance. ' +
+  'Hard delete, the naive picture: key 30 is struck out, the leaf merges with its neighbour and the parent is updated, a rebalance that costs CPU. ' +
+  'Soft delete, the naive picture: key 30 stays, its row is tagged is_deleted=1, no rebalance. ' +
   'What engines actually do: the deleted key is only marked, purge or VACUUM removes it later, and a leaf merges only when its fill drops below 50 percent.';
 
 const LEAVES = [['10', '15'], ['20', '30'], ['40', '50'], ['60', '70']];
@@ -135,7 +135,7 @@ function TreePanel({ id, mark }: { id: string; mark: 'hard' | 'soft' | 'engine' 
           <Ring x={80} y={80} rx={36} ry={17} tone="red" seed={s('ring')} />
           <Label tone="red" x={30} y={62} size={13}>update</Label>
           <Label tone="red" x={186} y={186}>rebalance → CPU</Label>
-          <Label kind="title" x={145} y={238}>hard delete, as taught</Label>
+          <Label kind="title" x={145} y={238}>hard delete, naive picture</Label>
         </g>
       )}
       {mark === 'soft' && (
@@ -143,7 +143,7 @@ function TreePanel({ id, mark }: { id: string; mark: 'hard' | 'soft' | 'engine' 
           <Label kind="mono" muted x={110} y={170} size={12.5}>is_deleted=1</Label>
           <Tick x={150} y={196} s={8} seed={s('tick')} />
           <Label tone="green" anchor="start" x={166} y={194}>no rebalance</Label>
-          <Label kind="title" x={145} y={238}>soft delete, as taught</Label>
+          <Label kind="title" x={145} y={238}>soft delete, naive picture</Label>
         </g>
       )}
       {mark === 'engine' && (

@@ -1,0 +1,130 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import Cite from '../../../components/Cite.astro';
+import { LongShortText, ThreeDates, EpochLine } from '../../../figures/lec04/s5b-blog-rows';
+import { SoFarBlog } from '../../../figures/lec04/so-far';
+
+{/* Chapter 7 "The home page is slow. What's in the row?" One query, shown before and after: what it drags along
+    (body out of the row, a short excerpt column) and what it compares (how published_at is stored). */}
+
+<Section id="s7" no="7" title="The home page is slow. What’s in the row?" crumb="7 The row" meta="About 8 min">
+
+The home page lists the posts published in the last seven days, each with its title and a short excerpt. Here is the query the first version of the blog shipped with:
+
+```sql
+-- the home page, version 1
+SELECT * FROM blogs
+WHERE published_at > :week_ago
+  AND NOT is_deleted
+ORDER BY published_at DESC;
+```
+
+It looks harmless, and with a few hundred posts it was. A month in, with thousands, it is the slowest page on the site. To see why, look at what the database does for every row it considers.
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="The blog so far. Marked new: rows are soft-deleted, and a background job moves them to an archive before hard deleting them in small batches.">
+<Desk><SoFarBlog stage={1} /></Desk>
+<Phone><SoFarBlog stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="What is the list query paying for?" crumb="7.1 The bill">
+
+Two things, and neither is visible in the SQL.
+
+First, `SELECT *` asks for every column, including `body`: thousands of words per post, on a page that shows a title and two lines. Every matching row drags its whole post along for nothing. [[L-0198]]
+
+Second, the filter. In version 1, `published_at` went in as text, exactly as the editor sent it: `'2022-04-02 09:01:36'`. To answer `published_at > :week_ago`, the database has to cast that string to a date on every row it checks, and an index on the column can’t help. How a value sits on disk decides how fast you can compare it. [[L-0203 L-0204 L-0205]]
+
+Both costs come from the same place: decisions about the row that nobody made on purpose. Take them one at a time.
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="Why don’t bio and body live the same way?" crumb="7.2 bio and body">
+
+`bio` is about 140 characters. `body` can run to thousands of words. Both are text, in the same schema. Should the database store them the same way? [[L-0189]]
+
+A row-oriented database, which is what MySQL and PostgreSQL are, keeps a row’s columns together on disk, so one read brings back the whole row. Short columns that most reads need, a name, an email, a bio, belong right there: a `VARCHAR` stays inline with the rest of the row. [[L-0190 L-0192 L-0196]] A very large value is different. The engine stores it **out of line**, somewhere else on disk, and keeps only a pointer in the row. [[L-0193]]
+
+<Figure id="fig-7b" max={620} no="Fig 7·b" k="L-0189 L-0192 L-0193" caption="Long text vs short text. A large body lives elsewhere on disk with only a reference in the row; a short bio is stored with the other columns.">
+<Desk><LongShortText /></Desk>
+<Phone><LongShortText layout="phone" /></Phone>
+</Figure>
+
+How and when that happens depends on the engine, so know yours. MySQL’s InnoDB moves long `TEXT`, `BLOB` and `VARCHAR` values off the page behind a 20-byte pointer when the row is too big to fit <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-row-format.html">dev.mysql.com</Cite>. PostgreSQL compresses or moves any wide value out of line once a row passes about 2 kB, and fetches it only if a query asks for that column <Cite href="https://www.postgresql.org/docs/current/storage-toast.html">postgresql.org</Cite>. [[L-0193]]
+
+Why not keep everything inline and save the extra read? Because rows have to stay bounded: an InnoDB row must fit in about half of a 16 KB page, and small rows mean more of them per page, so scans touch fewer pages. A 5,000-character body is not 5,000 bytes, either: in MySQL’s `utf8mb4` a character can take up to four bytes, so it can be 20,000. [[L-0195 L-0197]] Keep the row to the bare minimum that most reads need: very large text in a long-text column, everything else short. [[L-0199]]
+
+That fixes the first cost. The list doesn’t need the body, so stop asking for it. The excerpt it does need is short text, so give it its own short column, filled when the post is saved, and select only what the page shows. The out-of-line body is read only when someone opens a post. [[L-0194 L-0198]]
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="How should published_at sit on disk?" crumb="7.3 Dates">
+
+Now the second cost, the filter. There are several ways to store a date and time. Here are three. [[L-0200]]
+
+<Figure id="fig-7c" max={740} no="Fig 7·c" k="L-0200 L-0201 L-0209 L-0216 L-0217" caption="Three ways to store the same instant, 2 April 2022 09:01:36 UTC: the database’s native type, an epoch integer, and a custom integer that keeps only the date.">
+<Desk><ThreeDates /></Desk>
+<Phone><ThreeDates layout="phone" /></Phone>
+</Figure>
+
+**The native type.** Every database has a date-time column, and it is the most convenient choice: your language hands you a date object, and the value reads at a glance in any SQL console. [[L-0201 L-0208]] It is not the text column version 1 used. The major engines store dates in compact binary, 5 bytes for a MySQL `DATETIME`, 8 for a PostgreSQL `timestamp`, and compare and index them efficiently <Cite href="https://dev.mysql.com/doc/refman/8.4/en/storage-requirements.html">dev.mysql.com</Cite>. Still, every engine has its own format, so find out how yours stores a date; if that isn’t good enough for your query, store it differently. [[L-0202 L-0206 L-0207 L-0208]]
+
+**An epoch integer.** Make `published_at` an integer column and store the epoch, as the heartbeat store did in chapter 2. [[L-0209 L-0210 L-0054]] It is small, 4 bytes, or 8 for a 64-bit value, and a comparison is a plain integer comparison, the cheapest thing a computer does. [[L-0211 L-0213]] What it costs is readability: nobody can look at `1648890096` and tell you the date. [[L-0212]]
+
+Either one fixes the second cost. Here is the home page with both fixes:
+
+```sql
+-- the home page, version 2
+SELECT id, title, excerpt FROM blogs
+WHERE published_at > :week_ago   -- native date-time or epoch integer
+  AND NOT is_deleted
+ORDER BY published_at DESC;
+```
+
+The list now reads short rows and compares dates without parsing a string.
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="Why would a team store 20220402?" crumb="7.4 20220402">
+
+There is a third way, and it comes from a real team. In 2016, the bus-booking site Redbus had a table that stored dates as date-times, and heavy date comparisons in it had become the bottleneck. The workload was closer to analytics than to live transactions. Epoch integers would have helped the comparisons, but the engineers debugged by reading values straight from their SQL tools, and epoch numbers would have made that miserable. [[L-0214 L-0215 L-0227]]
+
+So they relaxed a constraint they didn’t need. They needed the date, never the time, and stored it as an integer in `YYYYMMDD` form: `20220402` for 2 April 2022. [[L-0216 L-0217]]
+
+<PauseAndThink k="L-0218 L-0221 L-0222"
+  q="Is <code>20220402</code> faster to compare than an epoch integer like <code>1648890096</code>?"
+  choices={[{ label: 'Yes: it is a custom, optimised format' }, { label: 'No: both are plain integers', correct: true }]}
+  right="Right. The win was somewhere else."
+  wrong="Not faster. To the database both are just integers.">
+
+Against epoch there is no speed difference at all. What `YYYYMMDD` buys over epoch is **readability**: anyone can read `20220402` in a console. Against the date-time column Redbus had, it bought the speed they needed *and* stayed readable. The price is flexibility: the time of day is gone, which Redbus knew it would never need.
+
+</PauseAndThink>
+
+The move worth copying is not the format but the habit: there is no rule that says “always native” or “always epoch”. Look at what your queries need and which constraints you can drop. `YYYYMMDD` integer keys are common in data warehouses. [[L-0219 L-0220 L-0223]]
+
+Every format gives something up. An epoch integer has no time zone, so display is easy: render it in the viewer’s local time. Native types usually normalise to UTC, or store no zone at all. Time zones burn a lot of teams, so the rule is simple: store UTC, and keep the writer’s original zone in its own column if you need it. [[L-0224 L-0225 L-0226]] Ranges end, too. A signed 32-bit count of seconds runs out on 19 January 2038; a 64-bit integer doubles the size and removes the limit. Dates before 1970 are simply negative. MySQL’s `DATETIME` covers the years 1000 to 9999, PostgreSQL’s `timestamp` 4713 BC to AD 294276: learn these from your database’s own documentation. [[L-0231 L-0232 L-0233 L-0234 L-0235 L-0236]]
+
+<Figure id="fig-7d" max={600} no="Fig 7·d" k="L-0232 L-0233" caption="The epoch number line, in seconds. 0 is 1 January 1970 and −1 the second before it. A signed 32-bit value hits its wall on 19 January 2038; a 64-bit one carries on. Not to scale.">
+<Desk><EpochLine /></Desk>
+<Phone><EpochLine layout="phone" /></Phone>
+</Figure>
+
+<TradeoffTable caption="Storing published_at"
+  k="L-0208 L-0211 L-0212 L-0213 L-0218 L-0220 L-0224 L-0232"
+  columns={[{ label: 'Native date-time' }, { label: 'Epoch integer' }, { label: 'Custom YYYYMMDD integer' }]}
+  rows={[
+    { label: 'Size', k: 'L-0208 L-0211', cells: ['5 B (MySQL DATETIME), 8 B (PostgreSQL)', '4 B, or 8 B past 2038', '4 B'] },
+    { label: 'Readable?', k: 'L-0212 L-0218', cells: ['Yes', { text: 'No', bad: true }, 'Yes'] },
+    { label: 'Time of day', k: 'L-0221', cells: ['Yes', 'Yes', { text: 'No: a date only', bad: true }] },
+    { label: 'Pick it for', k: 'L-0220', cells: ['Convenience', 'Performance', 'Performance with readability'] },
+  ]} />
+
+The home page is fast again. A week later, one post on it goes viral, and the cost moves from the list to the page for that one post, which starts loading thousands of times a minute.
+
+</Section>

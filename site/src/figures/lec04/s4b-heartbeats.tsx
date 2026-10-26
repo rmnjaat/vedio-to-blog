@@ -132,7 +132,7 @@ export function FourResources({ layout = 'wide' }: Layout) {
 
 const T4H = 'Heartbeats, reused';
 const D4H =
-  'Two panels. a, failure detection: four nodes each send heartbeat pulses to a central tracker, which shows a green dot for each live node; the third node’s pulses have stopped, it is outlined red, and the tracker shows its dot as a hollow offline ring. b, your own load balancer, as taught: three backends send heartbeats to the load balancer; one backend goes quiet, marked with a red cross, and the load balancer stops routing requests to it. A grey note: real load balancers often ask instead, with health checks.';
+  'Two panels. a, failure detection: four nodes each send heartbeat pulses to a central tracker, which shows a green dot for each live node; the third node’s pulses have stopped, it is outlined red, and the tracker shows its dot as a hollow offline ring. b, your own load balancer: three backends send heartbeats to the load balancer; one backend goes quiet, marked with a red cross, and the load balancer stops routing requests to it. A grey note: real load balancers often ask instead, with health checks.';
 
 function Detect({ ox, oy, id }: { ox: number; oy: number; id: string }) {
   const s = (k: string) => `${id}-a-${k}`;

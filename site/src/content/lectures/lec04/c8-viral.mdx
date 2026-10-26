@@ -1,0 +1,147 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { WhatACacheSaves, YourTurn } from '../../../figures/lec04/s6-cache';
+import { SoFarBlog } from '../../../figures/lec04/so-far';
+
+{/* Chapter 8 "One post goes viral". What a cache is → one shared cache (cache-aside clip) → a table can be the
+    cache → what you can now do, recall, and the homework Lecture 2 opens with. */}
+
+<Section id="s8" no="8" title="One post goes viral" crumb="8 Viral" meta="About 9 min">
+
+A post climbs to the top of the home page and the whole internet opens it. Every open runs the same query, a join of the post with its author (in a real blog, also its tags and counts), assembled from scratch for a result that hasn’t changed since the last reader saw it. The database does the same expensive work thousands of times a minute.
+
+<Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="The blog so far. Marked new: the body lives out of line, and published_at has a format chosen for the query that reads it.">
+<Desk><SoFarBlog stage={2} /></Desk>
+<Phone><SoFarBlog stage={2} layout="phone" /></Phone>
+</Figure>
+
+Everyone knows the fix: “add a cache”. Before you add one, be precise about what a cache is, because the usual picture is too small and it hides most of the places a cache can go.
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="What counts as a cache?" crumb="8.1 What a cache is">
+
+<PauseAndThink k="L-0238 L-0239 L-0241 L-0244"
+  q="Your API server calls a slow partner API and saves each response on its own local disk, reading the disk next time instead of calling again. Is that a cache?"
+  choices={[{ label: 'No: a cache lives in memory' }, { label: 'Yes', correct: true }]}
+  right="Right. Where the copy lives is a separate choice."
+  wrong="It is. Nothing about a cache says RAM.">
+
+A cache is anything that saves you from repeating expensive work: an expensive **disk read**, an expensive **network call**, or an expensive **computation**. A local disk that saves a slow network call qualifies.
+
+</PauseAndThink>
+
+The habit of picturing caches in RAM comes from the most common case: RAM is faster than disk, so you keep the result of a disk read in memory and skip the disk next time. Turn that around and the same idea puts a cache on disk to skip the network. You have met another one already: memoization in dynamic programming saves a computation by remembering its answer. [[L-0240 L-0242 L-0243]]
+
+<Figure id="fig-8b" max={880} no="Fig 8·b" k="L-0241 L-0243 L-0244" caption="Three things a cache can save. Left: a disk read, by keeping the result in RAM. Middle: a network call, by keeping its result on the server’s own disk. Right: a computation, by remembering its answer.">
+<Desk><WhatACacheSaves /></Desk>
+<Phone><WhatACacheSaves layout="phone" /></Phone>
+</Figure>
+
+Those are the resources from chapter 5 again: disk, network, CPU, with memory the usual place for the copy. [[L-0244 L-0151]] Underneath, a cache is a hash table, key and value, plus a size limit, an eviction rule and expiry. [[L-0246 L-0247]] So be creative about where a copy could live. [[L-0245]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="Three servers, one copy" crumb="8.2 One copy">
+
+For the viral post, the copy goes into a **shared remote cache** that every API server can reach. Logically it sits between the API servers and the database; physically it is its own small box. [[L-0248]] The read path is the standard one, called cache-aside: check the cache; if the post is there, return it; if not, run the query, put the result in the cache, and return it. [[L-0249]]
+
+```python
+def get_blog(blog_id):
+    blog = cache.get(f"blog:{blog_id}")
+    if blog is not None:
+        return blog                          # hit: no database work
+    blog = db.fetch_blog_with_join(blog_id)  # miss: the join, once
+    cache.set(f"blog:{blog_id}", blog)
+    return blog
+```
+
+<AnimationClip clip="l04-cache-aside" no="Clip 8·1" k="L-0248 L-0249 L-0250 L-0251 L-0252"
+  lead="Three API servers, a thousand reads of one popular post. How many times does the database run the join?"
+  caption="With one shared cache, the first read misses and runs the join; every later read, on any server, gets the same copy." />
+
+Because the cache is shared, it doesn’t matter which server a reader lands on. There is one copy and everyone reads it, and the database’s load from that post falls to almost nothing. [[L-0250 L-0251]] The cache isn’t free: it is still a network hop away. But fetching a ready result is far cheaper than recomputing it on the database and sending it back. [[L-0252]] When that copy goes stale, and how a cache decides what to throw out, come later; the course builds a cache from scratch in <LectureLink lec="lec07">Lecture 9</LectureLink>. [[L-0253]]
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Could a database table be the cache?" crumb="8.3 A table as cache">
+
+If a cache is any saved result, then precomputing the expensive join and storing it in a table is a cache too. Databases even have it built in: a PostgreSQL materialized view stores a query’s result as a table, as fresh as its last refresh <Cite href="https://www.postgresql.org/docs/current/rules-materializedviews.html">postgresql.org</Cite>. Ask “why not this?” about every option instead of reaching for RAM by reflex. [[L-0260 L-0261]]
+
+So why use Redis at all? Compare them from first principles. Your server keeps persistent connections to both, so that cost is a wash. Redis finds a key with one hash lookup in memory. A database walks an index tree from root to leaf, a few pages deep, and in the worst case each page comes from disk. Databases do keep hot pages in memory, so many reads never touch the disk, but you can’t count on that, so design for the worst case. [[L-0286 L-0287 L-0289 L-0299 L-0300]]
+
+Then the costs. RAM costs far more per gigabyte than disk, so a table can be a much larger cache for the money. But if the table lives in the same database that serves your users, every cache read is load on the very machine you were trying to protect. A managed Redis has its own bill to count, too. [[L-0290 L-0293 L-0294]] Weigh read size, how the data is stored, the I/O each read costs and the money, then decide for your case. [[L-0291]]
+
+<MarginNote title="Go deeper: should the cache compress the body?" why="a trade-off worth reasoning through" k="L-0274 L-0277 L-0279 L-0280">
+
+Only large values are worth it: a 10 KB body that shrinks to 1 KB, never an email address. Compress in the application: if the cache compressed, the full 10 KB would still cross the network each time.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="What you can now do" crumb="8.4 What you can do">
+
+<Figure id="fig-8c" max={640} no="Fig 8·c" caption="The blog at the end of this lecture. Marked new: one shared cache that every API server checks before the database.">
+<Desk><SoFarBlog stage={3} /></Desk>
+<Phone><SoFarBlog stage={3} layout="phone" /></Phone>
+</Figure>
+
+- **Build a presence indicator.** Clients beat every 10 s; each beat writes a key with a 30 s TTL; key present means online. Never trust a logout call to report offline. In Redis, put `EX 30` on every write; in DynamoDB, check `expires_at` on read.
+- **Estimate before you optimise.** A billion users × 8 bytes is 8 GB, nothing. A million active users × 6 beats a minute is 6 million writes a minute, the real problem.
+- **Choose between stores that both work** by who runs it, lock-in, what the feature needs next and how you hear about changes. Write the verdict and its limits down.
+- **Pool connections, inside a budget.** Per-server maximum = database limit ÷ the most servers you will run. Watch query time, wait time and saturation.
+- **Soft delete** when a table needs recoverability, archival or audit; archive, then hard delete in small batches; hard delete when a unique index or the law requires it.
+- **Keep rows small.** Large text out of line; pick a date format by readability, performance and convenience, and store UTC.
+- **A cache is anything that saves a disk read, a network call or a computation.** One shared cache with cache-aside reads takes a viral post off the database.
+
+<RecallQuestions>
+  <RecallItem q="A user’s phone dies mid-session. Walk through how your design turns their dot grey, and the one-line mistake that would keep it green forever.">
+
+The phone stops sending heartbeats. Its key was written with a 30-second TTL on the last beat, so 30 seconds later the store deletes it, and a missing key reads as offline. The mistake: a Redis write without `EX 30`. A plain `SET` clears the expiry, so if that was the user’s last beat, the key never goes away.
+
+  </RecallItem>
+  <RecallItem q="Your database allows 1,000 connections and you will run at most 100 API servers. What maximum pool size per server, and what goes wrong if each server instead keeps a minimum of 100?">
+
+10 per server (1,000 ÷ 100). With a minimum of 100, ten servers already hold all 1,000 connections, so any server added during a spike can’t open a single one, and its requests fail.
+
+  </RecallItem>
+  <RecallItem q="Give three reasons to soft delete a blog post, and one case where you must hard delete anyway.">
+
+Recoverability (undo, like a 30-day trash), archival (the content still has value, moved later to blob storage) and audit (evidence, such as a deleted harassing comment). Hard delete when a soft-deleted row blocks a unique index, such as a re-signup with the same email (or use a partial index), and when an erasure request requires it.
+
+  </RecallItem>
+  <RecallItem q="Name a cache that doesn’t live in RAM.">
+
+The result of a slow network call kept on the API server’s local disk; or precomputed results stored in a database table, such as a materialized view. Each saves an expensive network call or computation.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s8-5" no="8.5" title="Where else could you keep a copy?" crumb="8.5 Your turn">
+
+You put one cache into the blog: the shared one between the API servers and the database. It is far from the only place a copy could live. Here is the whole path a reader’s request takes. [[L-0254]]
+
+<Figure id="fig-8d" max={700} no="Fig 8·d" k="L-0254 L-0256" caption="Your turn. Tag 1 is done: the shared cache that saves database calls. Tags 2 and 3 are hints, the CDN and the load balancer. Find the rest.">
+<Desk><YourTurn /></Desk>
+<Phone><YourTurn layout="phone" /></Phone>
+</Figure>
+
+Before you open the next lecture, find every place on this path where you could keep a copy. For each one, write down three things: what you would cache there, what expensive work it saves, and what could go wrong. The CDN is one candidate; the load balancer might be another. Does the reader’s own device count? Decide, and say why. [[L-0256 L-0262]]
+
+It pays off. One engineer who did this exercise took an idea back to work at a large bank, got it approved, and saw a large speed-up from a cache nobody there had thought of. [[L-0255]]
+
+<LectureLink lec="lec01">Lecture 2, “Medium under load”</LectureLink> opens with exactly this question on the same blog, and then takes it through the four topics this lecture left out: scaling, delegating work, concurrency and communication. [[L-0259]] Bring your list.
+
+</Section>

@@ -38,7 +38,7 @@ export function WhatUserSees() {
   const rows: [string, boolean][] = [['user 1', true], ['user 4', true], ['user 5', false], ['user 3', false]];
   return (
     <Fig id="f04-2a" w={320} h={190} title="What the user sees"
-      desc="A friends list card with four rows in the board's order: user 1 and user 4 have a green dot, online; user 5 and user 3 have a hollow ring, offline.">
+      desc="A friends list card with four rows: user 1 and user 4 have a green dot, online; user 5 and user 3 have a hollow ring, offline.">
       <path className="ink shape" d={chamferRect(30, 14, 170, 160, s('card'))} />
       <Label kind="mono" muted anchor="start" x={46} y={38} size={13}>friends</Label>
       <Line pts={[[30, 48], [200, 48]]} weight="thin" seed={s('hd')} />
@@ -117,7 +117,7 @@ function CallsPanel({ id, batch }: { id: string; batch?: boolean }) {
 }
 
 const DESC_2C =
-  'As on the board (Interfacing API): user with a device ⟷ API server ⟷ database, both arrows double-headed. ' +
+  'user with a device ⟷ API server ⟷ database, both arrows double-headed. ' +
   'Two panels with a user holding a phone, an API server and a database joined by a double-headed arrow. Panel 1, one call per user: four blue arrows from the user to the API server, GET /status/u1 to u4; in red, 4 calls for 4 dots. ' +
   'Panel 2, one batch call: one blue arrow, GET /status/users?ids=u1,u2,u3,u4, a brace under the ids marking the users on screen, and a green reply listing each user as on or off.';
 

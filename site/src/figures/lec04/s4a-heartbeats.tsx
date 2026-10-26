@@ -32,7 +32,7 @@ export function Timer({ x, y, tone = 'ink', seed, size = 9 }: { x: number; y: nu
 
 const T4A = 'The write load';
 const D4A =
-  'Arithmetic from the class board: one heartbeat every 10 seconds is 6 a minute per user; times 1 million active users is 6 million requests a minute; each request is one database write. Below, two users send heartbeats to an api server, which writes each one to the database. Next to the database, in red: 6 million updates per minute. The board’s later note: micro reads and updates, so the bottleneck is the network.';
+  'Arithmetic: one heartbeat every 10 seconds is 6 a minute per user; times 1 million active users is 6 million requests a minute; each request is one database write. Below, two users send heartbeats to an api server, which writes each one to the database. Next to the database, in red: 6 million updates per minute. A note: micro reads and updates, so the bottleneck is the network.';
 
 const MATH = ['1 beat / 10 s → 6 / min / user', '× 1m active users', '= 6m requests / min', '1 request = 1 db write'];
 
@@ -61,7 +61,7 @@ export function WriteLoad({ layout = 'wide' }: Layout) {
         <Label tone="red" x={170} y={300} size={16}>6m updates per minute!!</Label>
         <Label x={170} y={346} size={T}>micro reads / updates</Label>
         <Label x={170} y={366} size={T}>→ network bottleneck</Label>
-        <Label muted x={170} y={392} size={12.5}>(the board’s note, 01:25)</Label>
+        <Label muted x={170} y={392} size={12.5}>(micro reads and writes)</Label>
       </Fig>
     );
   }
@@ -85,7 +85,7 @@ export function WriteLoad({ layout = 'wide' }: Layout) {
       <Label tone="red" anchor="start" x={466} y={202} size={17}>6m updates per minute!!</Label>
       <Label anchor="start" x={466} y={244} size={T}>micro reads / updates</Label>
       <Label anchor="start" x={466} y={264} size={T}>→ network bottleneck</Label>
-      <Label muted anchor="start" x={466} y={286} size={12.5}>(the board’s note, 01:25)</Label>
+      <Label muted anchor="start" x={466} y={286} size={12.5}>(micro reads and writes)</Label>
     </Fig>
   );
 }
@@ -162,7 +162,7 @@ export function FiveTrips({ layout = 'wide' }: Layout) {
 
 const T4C = 'The connection pool';
 const D4C =
-  'Redrawn from the class board. The question above: what is hectic? Creating a new connection every time. An api server, one of a fleet, keeps three pre-established connections open to the database: the connection pool. One connection is in use, drawn blue with a loop: it is reused for the next query instead of being closed.';
+  'The question above: what is hectic? Creating a new connection every time. An api server, one of a fleet, keeps three pre-established connections open to the database: the connection pool. One connection is in use, drawn blue with a loop: it is reused for the next query instead of being closed.';
 
 export function ConnectionPool({ layout = 'wide' }: Layout) {
   const P = layout === 'phone';

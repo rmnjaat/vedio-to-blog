@@ -19,8 +19,8 @@ const ROWS3A: { col: 'redis' | 'dynamo'; label: string; sub?: string; q?: boolea
 
 const DESC3A =
   'A two-column T-table headed Redis and DynamoDB, under the question "which one would you pick and why?" and a small note "cost estimation". ' +
-  'Five rows, each a tick in one column with a line running to its label: DynamoDB, persistence (with a question mark, because the class challenged it); ' +
-  'DynamoDB, managed (team size and expertise); Redis, vendor lock-in; Redis, future extensibility; Redis, time sensitivity. The ticks record the class’s answers, not a verdict.';
+  'Five rows, each a tick in one column with a line running to its label: DynamoDB, persistence (with a question mark: it does not hold up); ' +
+  'DynamoDB, managed (team size and expertise); Redis, vendor lock-in; Redis, future extensibility; Redis, time sensitivity. The ticks record first answers, not a verdict.';
 
 export function BrainstormTable({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
   const title = 'The brainstorm table: Redis or DynamoDB?';
