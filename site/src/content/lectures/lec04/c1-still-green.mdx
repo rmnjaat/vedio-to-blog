@@ -16,7 +16,9 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
 
 A product team hands you a one-line brief: show a list of users, each with a green dot if they are online and a grey one if they are not, the way Facebook and Twitter do. [[L-0021]] No scale target, no deadline. Just the dot.
 
-Where do you start? With the one part the feature can’t exist without, here the data, adding every other part only when a question forces it in. Growing outward from a core like this is called the spiral approach; when you are unsure what a system needs, the incremental approach ships the simplest whole system and fixes what breaks. Neither is a rule, and most projects mix the two. [[L-0022 L-0023 L-0025 L-0028]]
+Where do you start? With the one part the feature can’t exist without, here the data, adding every other part only when a question forces it in. Growing outward from a core like this is called the spiral approach. What the core is depends on the system: usually the data, but in a chat app it can be the communication layer, the WebSocket connections everything else hangs off. [[L-0022 L-0023 L-0024]]
+
+The other way to build is incremental, and it is a loop: ship the simplest whole system that works on day zero (users, a load balancer, an API server, a database), watch how each part behaves under real load, find the part that breaks first, re-architect it, and go back to watching. Spiral suits a system whose shape you already know; incremental suits one you are unsure of, like a startup’s first product. Neither is a rule, and most projects mix the two. [[L-0025 L-0027 L-0028]]
 
 <Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="The design you would write first: the app says “online” at login and “offline” at logout, and the server keeps one true/false per user. This chapter breaks it.">
 <Desk><SoFarDot stage={0} /></Desk>
@@ -67,6 +69,8 @@ A crash, a dead battery and a pulled plug all look the same from the server: sil
 If the client can’t be trusted to say goodbye, let the server check: every few seconds, ask each client “are you alive?”. That is a **pull** model. The alternative, where each client keeps reporting on its own, is **push**. [[L-0040]]
 
 Pull doesn’t work over plain HTTP, and the reason is direction. HTTP is a request-and-response protocol that the client starts. Your user’s laptop sits behind a home or office router that accepts no incoming calls, so the server has no way to open a conversation with it. It can only answer. The exception is a connection the client opens and both sides keep open for two-way messages, such as a WebSocket. [[L-0041]]
+
+You might ask: doesn’t HTTP keep connections open too? It can. Stateless means each request stands alone, not that the connection must close: HTTP keep-alive and HTTP/2 reuse one TCP connection for many requests. But on that connection the client still asks and the server still only answers. Reuse saves the cost of reconnecting; it doesn’t let the server start a message. A WebSocket does. [[L-0330 L-0331 L-0332]]
 
 <Figure id="fig-1d" max={440} no="Fig 1·c" k="L-0040 L-0041 L-0042" caption="Clients push; the server can’t pull. Each client sends its own beats (blue). The pull back to the clients is crossed out: over plain HTTP the server cannot start the conversation.">
 <Desk><UsersPush /></Desk>

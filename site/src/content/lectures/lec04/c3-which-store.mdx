@@ -72,6 +72,8 @@ Walmart, Amazon’s rival in retail, stays off AWS for exactly this reason, on a
 
 Today the feature needs a key and a timer. Pick the store for what it might need next. Redis isn’t only strings: it ships sorted sets, HyperLogLog (approximate counting), Bloom filters (fast “have I seen this?” checks), geospatial indexes and more, so a later “friends online near you” or “how many people were online today” has somewhere to live. DynamoDB reaches some of that ground differently, with a change feed that triggers code you run beside it (Streams and Lambda). [[L-0088 L-0089 L-0090]]
 
+Don’t judge the candidates by reputation, though. Databases keep borrowing each other’s features: MongoDB has ACID transactions now, and SQL databases shard. What a store “can’t do” is often a few years out of date, so check each one’s current docs before you rule it out. [[L-0091]]
+
 One “next” is close at hand. Suppose the product wants a friend’s dot to turn grey *the moment* they go offline, pushed to the screen instead of waiting for the next poll. You then need to be **told** when a key expires.
 
 <Figure id="fig-3c" max={640} no="Fig 3·c" k="L-0094 L-0097" caption="Hearing about an expiry. Left: the API server keeps a connection open to Redis, and Redis pushes “expired” on it when it deletes the key. Right: DynamoDB answers separate calls; an expired item lingers until it is deleted, and the stream reports it later.">

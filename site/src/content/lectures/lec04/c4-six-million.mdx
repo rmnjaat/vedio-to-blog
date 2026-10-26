@@ -117,6 +117,8 @@ Three connections serve three requests at once. What happens to the fourth? Step
 
 So a pool has three settings: a **minimum** it opens at boot, a **maximum** it may grow to, and an **idle timeout** after which unused connections close. A server doesn’t always hold its maximum; that is only the most it will ever hold, and the real number follows the traffic. [[L-0118 L-0123 L-0125 L-0141 L-0142]] Waiting has a limit too: a widely used Java pool, HikariCP, makes a caller wait up to 30 seconds by default, then fails the request with an error. [[L-0135]]
 
+The fastest way to make this feel real is to watch it. Write a hello-world API against a local PostgreSQL with a pool, send it a burst of requests, and change the minimum, maximum and idle timeout to see connections open, wait and close. [[L-0318]]
+
 <MarginNote title="Go deeper: a minimum below the maximum?" why="a real-world tuning disagreement" k="L-0157">
 
 A common convention is a small minimum, 3 or 5, because the pool can always open more on demand. HikariCP recommends the opposite: leave the minimum unset so the pool is fixed-size, minimum equal to maximum, since opening connections during a burst is exactly the latency a pool exists to avoid. Either way, its idle timeout (10 minutes by default) only retires connections when the minimum is below the maximum.

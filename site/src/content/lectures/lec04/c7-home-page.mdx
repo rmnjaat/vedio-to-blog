@@ -23,7 +23,7 @@ WHERE published_at > :week_ago
 ORDER BY published_at DESC;
 ```
 
-It looks harmless, and with a few hundred posts it was. A month in, with thousands, it is the slowest page on the site. To see why, look at what the database does for every row it considers.
+It looks harmless, and while the table was small it was. As the posts pile up, it becomes the slowest page on the site. To see why, look at what the database does for every row it considers.
 
 <Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="The blog so far. Marked new: rows are soft-deleted, and a background job moves them to an archive before hard deleting them in small batches.">
 <Desk><SoFarBlog stage={1} /></Desk>
@@ -38,7 +38,7 @@ Two things, and neither is visible in the SQL.
 
 First, `SELECT *` asks for every column, including `body`: thousands of words per post, on a page that shows a title and two lines. Every matching row drags its whole post along for nothing. [[L-0198]]
 
-Second, the filter. In version 1, `published_at` went in as text, exactly as the editor sent it: `'2022-04-02 09:01:36'`. To answer `published_at > :week_ago`, the database has to cast that string to a date on every row it checks, and an index on the column can’t help. How a value sits on disk decides how fast you can compare it. [[L-0203 L-0204 L-0205]]
+Second, the filter. In version 1, `published_at` went in as text, exactly as the editor sent it: `'02-04-2022 09:01:36'`, day first. Text in that order doesn’t sort by date, so to answer `published_at > :week_ago` the database has to parse the string into a date on every row it checks, and an ordinary index on the text can’t answer the comparison. How a value sits on disk decides how fast you can compare it. [[L-0203 L-0204 L-0205]]
 
 Both costs come from the same place: decisions about the row that nobody made on purpose. Take them one at a time.
 
@@ -92,7 +92,7 @@ The list now reads short rows and compares dates without parsing a string.
 
 <Section id="s7-4" no="7.4" title="Why would a team store 20220402?" crumb="7.4 20220402">
 
-There is a third way, and it comes from a real team. In 2016, the bus-booking site Redbus had a table that stored dates as date-times, and heavy date comparisons in it had become the bottleneck. The workload was closer to analytics than to live transactions. Epoch integers would have helped the comparisons, but the engineers debugged by reading values straight from their SQL tools, and epoch numbers would have made that miserable. [[L-0214 L-0215 L-0227]]
+There is a third way, from a team at the bus-booking site Redbus, as an engineer who worked on it tells the story. In 2016 they had a table that stored dates as date-times, and the workload was closer to analytics than to live transactions: queries comparing dates across huge numbers of rows, all day. A native date-time is fine for ordinary lookups like the home page’s, but at that volume the comparisons themselves had become the bottleneck. Epoch integers would have helped the comparisons, but the engineers debugged by reading values straight from their SQL tools, and epoch numbers would have made that miserable. [[L-0214 L-0215 L-0227]]
 
 So they relaxed a constraint they didn’t need. They needed the date, never the time, and stored it as an integer in `YYYYMMDD` form: `20220402` for 2 April 2022. [[L-0216 L-0217]]
 

@@ -294,7 +294,7 @@ export function CompressWhere({ layout = 'desk' }: { layout?: 'desk' | 'phone' }
 /* ------------------------------------------------------------------ Fig 6·e */
 
 const DESC6E =
-  'The blog architecture from Fig 6·b drawn faint: users, a CDN cloud in front, the load balancer, three API servers, the shared cache and the database. ' +
+  'The blog architecture drawn faint: users, a CDN cloud in front, the load balancer, three API servers, the shared cache and the database. ' +
   'Three numbered tags: 1 the shared cache (filled in: central cache, saves database calls), and two hints, 2 the CDN and 3 the load balancer. The other places are left for you to find. ' +
   'The question: what would you cache here, and what does it save?';
 

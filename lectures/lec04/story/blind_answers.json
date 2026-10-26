@@ -1,0 +1,716 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Yes: everything runs on a laptop (tiny API, local Redis, heartbeat script). Implement the core: the part the feature can't exist without (here the data).",
+  "evidence": "Overview: 'Everything here runs on a laptop... you can build the dot yourself'; Ch1: 'the one part the feature can't exist without, here the data'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Building it shows you where a design falters; shaping real details (e.g. the endpoint) separates a design from a diagram.",
+  "evidence": "Overview: 'Building it is what shows you where a design falters'; Ch1 §1.1",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "Database and caching, on an ordinary Medium-like blog (soft delete, row/column decisions, a cache).",
+  "evidence": "Ch6: 'the blog's month works through the first two' (database, caching); 'a multi-user app like Medium'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "The brief had no scale target and no deadline; just the dot. (Page gives no further reason.)",
+  "evidence": "Ch1: 'No scale target, no deadline. Just the dot.'",
+  "found": false
+ },
+ {
+  "id": "Q005",
+  "answer": "Grow outward from a core, adding other parts only when a question forces it in; the core is usually the data.",
+  "evidence": "Ch1: 'Growing outward from a core like this is called the spiral approach'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "NOT ON PAGE",
+  "evidence": "Ch1 only says incremental 'ships the simplest whole system and fixes what breaks'",
+  "found": false
+ },
+ {
+  "id": "Q007",
+  "answer": "Spiral when you know the core the feature can't exist without; incremental when you are unsure what the system needs. Neither is a rule; most projects mix.",
+  "evidence": "Ch1 §1 intro",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q009",
+  "answer": "NOT ON PAGE",
+  "evidence": "(Ch6 lists the method: start from what must be stored and how it is read, count before you optimise, let the DB do what it already does before adding a box, but not as board 'points to remember')",
+  "found": false
+ },
+ {
+  "id": "Q010",
+  "answer": "Don't start by naming a database/tool. Work out how data is read and written first; which tool fits comes later once you know the property you need.",
+  "evidence": "Ch1 §1.1: 'Notice what it does not name: a database...'",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "User ID (integer) and online (boolean). Access is always by user ID: key-value access pattern.",
+  "evidence": "Ch1 §1.1",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "A batch read endpoint, GET /status/users?ids=u1,u2,..., so the friends list costs one call instead of one per user (slow screen, 4x requests).",
+  "evidence": "Ch1 §1.1, Fig 1·b",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "User with a device <-> API server <-> database, both arrows double-headed.",
+  "evidence": "Fig 1·b description",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "HTTP is client-initiated request/response; the client sits behind a router that accepts no incoming calls, so the server can't open a conversation. Exception: a persistent two-way connection like WebSocket.",
+  "evidence": "Ch1 §1.3",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "POST /heartbeat, called repeatedly; marks the authenticated user on that request as alive (rewrites their last-heartbeat time / sets key with TTL).",
+  "evidence": "Ch1 §1.3, Ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "If the battery dies/crashes, the 'offline' call never leaves the machine, so friends see green for hours. A client can announce arrival but can't promise to announce leaving.",
+  "evidence": "Ch1 §1.2",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "When no beat has arrived for long enough. No technical answer: a product decision configured per system; this design uses 30 s of silence with beats every 10 s.",
+  "evidence": "Ch1 §1.4",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "From online=true/false to the time of the last heartbeat: pulse(user_id, last_heartbeat), upserted on every beat.",
+  "evidence": "Ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "Not stated directly. Page shows PostgreSQL SQL as an example, but the access pattern is key-value and the store chosen is Redis or DynamoDB, so no.",
+  "evidence": "Ch1 §1.1 key-value; Ch2 §2.1 SQL; Ch2 §2.4",
+  "found": false
+ },
+ {
+  "id": "Q020",
+  "answer": "For each id: no entry -> offline; last_hb < now - 30s -> offline; else online.",
+  "evidence": "Fig 2·b; Ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Every 10 seconds.",
+  "evidence": "Ch1 §1.4",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "8 bytes: a 4-byte int user_id plus a 4-byte int timestamp.",
+  "evidence": "Ch2 §2.2, Fig 2·c",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "8 GB (a few times that with DB overhead); storage is not this system's problem, it fits in RAM of a cheap server.",
+  "evidence": "Ch2 §2.2",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "As a habit: ask 'can this be smaller, is there an alternative?' at every step and write down the options; here it leads somewhere useful.",
+  "evidence": "Ch2 §2.2",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "Absence of a row means offline; a row exists only while the user is online, so row count = people online now.",
+  "evidence": "Ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "100,000 rows, about 800 KB.",
+  "evidence": "Ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "A cron job deleting rows older than 30 s. Drawbacks: separate process to host and keep running (if it stops, users stay green), uptime as critical as API, needs monitoring/alerts, edge cases (overlapping runs, dying halfway).",
+  "evidence": "Ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Never draw a box you wouldn't want to build, deploy and be paged for; more boxes isn't a better design; first ask if something you already run can do the job.",
+  "evidence": "Ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "Let the store expire entries natively with a TTL; Redis and DynamoDB.",
+  "evidence": "Ch2 §2.4",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "Each heartbeat sets the user's key with a 30 s TTL (pushing expiry forward); key present = online, absent = offline.",
+  "evidence": "Ch2 §2.4",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "No ticks on page. Managed favours DynamoDB for a lean team without Redis production expertise (but managed Redis exists); persistence does not separate the two.",
+  "evidence": "Ch3 §3.1-3.2, table",
+  "found": false
+ },
+ {
+  "id": "Q032",
+  "answer": "Being tied to one cloud because a tool you depend on exists only there; leaving means rewriting every line that talks to it.",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Competition: the cloud vendor may enter your market (Amazon food delivery in Bengaluru, 2020), so your bill funds your rival.",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "Netflix stays on AWS despite Amazon's rival video service: rewriting would be enormous, and it may have a favorable deal.",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "When the company will never leave its cloud; also when the bill is small (startup paying $10k/month).",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "Avoid lock-in, runs anywhere, and far more engineers already know an open tool than one vendor's product.",
+  "evidence": "Ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "Redis can persist too: AOF logging every write, snapshots, or both; default fsync once a second may lose ~1 s; persistence isn't needed much here anyway.",
+  "evidence": "Ch3 §3.1",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "Redis: no lock-in (runs anywhere) and room to grow: sorted sets, HyperLogLog, Bloom filters, geospatial indexes.",
+  "evidence": "Ch3 §3.4, table",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "No: Redis isn't only strings, it has many data structures. (DynamoDB numbers not discussed.)",
+  "evidence": "Ch3 §3.4",
+  "found": false
+ },
+ {
+  "id": "Q040",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q041",
+  "answer": "Because the server holds a long-lived open connection to Redis, so Redis can push an expiry event (keyspace notification) immediately; DynamoDB is request/response and reports deletions via its stream later.",
+  "evidence": "Ch3 §3.1, §3.4",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Page table rows: TTL (Redis prompt; DynamoDB within days), who runs it (managed/DynamoDB easier), lock-in (Redis), room to grow (Redis), told on expiry (Redis), losing a second of beats (harmless/no issue).",
+  "evidence": "Ch3 §3.5 table",
+  "found": false
+ },
+ {
+  "id": "Q043",
+  "answer": "Provider runs, keeps available and scales it; your team writes business logic; lean teams without expertise/time pay the cloud as an extended engineering team.",
+  "evidence": "Ch3 §3.2",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "With persistent connections (WebSocket, MQTT for Messenger) and keep-alive pings; when pings stop, server closes connection and marks user offline.",
+  "evidence": "Ch1 §1.3 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "6 million writes a minute (~100k/s); each is an update to the store.",
+  "evidence": "Ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Computation (write rate), not storage.",
+  "evidence": "Ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "3 trips for handshake + 2 for teardown = 5 (plus DB login, TLS); for a tiny primary-key update most time goes to connection setup.",
+  "evidence": "Ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "Open a few connections once, keep them open, hand them out to requests and take them back.",
+  "evidence": "Ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "The DB no longer does connection work (handshake, auth, process/thread setup, memory) around each query.",
+  "evidence": "Ch4 §4.2-4.3",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Each API call much faster; DB load drops even with same query count.",
+  "evidence": "Ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "It waits until a connection is released (up to a timeout, e.g. HikariCP 30 s), or the pool opens one more up to its maximum.",
+  "evidence": "Ch4 §4.4, Fig 4·b",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Max: the DB has its own connection limit and a flood would otherwise each add a connection. Idle timeout: closes unused connections so the pool holds what traffic needs.",
+  "evidence": "Ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "No; a library inside the API server process: connections opened at boot in a blocking queue; get/release.",
+  "evidence": "Ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "Massive for many tiny queries (one-row PK updates); for long reports joining many tables, setup is a rounding error.",
+  "evidence": "Ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Failure detection in distributed systems (nodes heartbeat to a tracker) and your own load balancer.",
+  "evidence": "Ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "Its connections are refused; requests wait, time out and fail.",
+  "evidence": "Ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Connections and the network carrying them (queries are cheap); concurrency needed decides DB size, not data size.",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "Lean team without Redis production experience: managed (DynamoDB or managed Redis); self-host only with both expertise and time.",
+  "evidence": "Ch3 §3.2, §3.5",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "The pool reopens connections on demand up to max; there are not always 100, the real number follows traffic.",
+  "evidence": "Ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Each query touches one row by key and is cheap, so the bottleneck moves to the connections and network.",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "For long reports joining 10-15 tables, limited by CPU and memory, not connection setup.",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Managed: published limit/formula (RDS from memory); self-hosted: benchmark on your hardware under your load. PostgreSQL default 100.",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "CPU, memory, disk, network: heartbeat store network-bound; big report CPU/memory-bound; data warehouse disk-bound.",
+  "evidence": "Ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "Max = DB max connections / most servers you'll run (1000/100 = 10, maybe 15); small minimum.",
+  "evidence": "Ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "Start conservative, put telemetry on the pool, use a week of production traffic; monitor average query time, wait time for a connection, pool saturation.",
+  "evidence": "Ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "Scale DB up before the spike, down after (restart may be needed, do ahead); raise pool maximums to match.",
+  "evidence": "Ch5 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Database, caching, scaling, delegation, concurrency, communication.",
+  "evidence": "Ch6 intro",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "users(id auto-increment, name, bio ~140 chars); blogs(id, author_id -> users.id, title, body, published_at, is_deleted).",
+  "evidence": "Ch6 §6.1",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "The app runs UPDATE setting is_deleted = true instead of DELETE; the row remains.",
+  "evidence": "Ch6 §6.1-6.2",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Recoverability, archival, audit.",
+  "evidence": "Ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Google Drive's 30-day trash; writer wants mistakenly deleted post back.",
+  "evidence": "Ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Background job later moves soft-deleted rows to blob storage like S3 for analysis/model training.",
+  "evidence": "Ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Harassing comment; victim went to police; harasser deleted it; soft delete kept it and an engineer gave printed traces to police.",
+  "evidence": "Ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q075",
+  "answer": "LONGTEXT stored out of line elsewhere on disk with a pointer/reference in the row; VARCHAR stored inline with other columns.",
+  "evidence": "Ch7 §7.2",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Short: name, email, bio (and excerpt); long: body. Not everything inline because rows must stay bounded (InnoDB ~half a 16KB page) and small rows mean more per page, fewer pages scanned.",
+  "evidence": "Ch7 §7.2",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Native date-time, epoch integer, custom YYYYMMDD integer.",
+  "evidence": "Ch7 §7.3 Fig 7·c",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Page: native type is compact binary that the engine decodes; every engine has its own format, so it may not be good enough (Redbus's date comparisons became the bottleneck). Text strings need casting per row.",
+  "evidence": "Ch7 §7.1, §7.3, §7.4",
+  "found": false
+ },
+ {
+  "id": "Q079",
+  "answer": "Convenient, readable (decoded by the engine).",
+  "evidence": "Fig 7·c",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Seconds since 1 Jan 1970 as a plain integer, 4 bytes (8 for 64-bit). Savings vs string not quantified explicitly (string is ~19 characters).",
+  "evidence": "Ch2 §2.1, Ch7 §7.3",
+  "found": false
+ },
+ {
+  "id": "Q081",
+  "answer": "Cheap integer comparison but unreadable; also no time zone and 2038 limit for 32-bit.",
+  "evidence": "Ch7 §7.3-7.4",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Redbus 2016: date-time comparisons bottleneck in analytics-like table; epoch unreadable for debugging; stored date-only as integer YYYYMMDD.",
+  "evidence": "Ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "No, no speed difference vs epoch; it buys readability.",
+  "evidence": "Ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "Readability and time zone; render in viewer's local time, store UTC and keep writer's original zone in its own column.",
+  "evidence": "Ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q086",
+  "answer": "Signed 32-bit runs out 19 Jan 2038; use 64-bit; learn limits from your database's documentation.",
+  "evidence": "Ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Anything that saves you from repeating expensive work: disk read, network call, or computation.",
+  "evidence": "Ch8 §8.1",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "No; e.g., caching a slow partner API's responses on local disk; memoization; DB table/materialized view.",
+  "evidence": "Ch8 §8.1, §8.3",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "A hash table (key/value) plus size limit, eviction rule and expiry.",
+  "evidence": "Ch8 §8.1",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Users -> CDN -> load balancer -> three API servers -> shared central cache -> database.",
+  "evidence": "Fig 8·d, Clip 8·1",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Cache-aside: check cache; hit return; miss run the join, store result in cache, return.",
+  "evidence": "Ch8 §8.2",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Shared by all API servers: one copy regardless of server, DB load from the hot post falls to almost nothing.",
+  "evidence": "Ch8 §8.2",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Find every place on the request path you could cache; for each: what, what it saves, what could go wrong (CDN, LB, device?).",
+  "evidence": "Ch8 §8.5",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Yes: precomputed join in a table, e.g. PostgreSQL materialized view.",
+  "evidence": "Ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "After a period, a job archives marked rows then hard deletes them in small staggered batches.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "Erase the person's data on request within one month (extendable by two), keeping only what an exception covers.",
+  "evidence": "Ch6 §6.4 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Not fully: backups and logs aren't rewritten but must be kept beyond use and age out; exceptions like legal claims.",
+  "evidence": "Ch6 §6.4 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Only large values (10 KB -> 1 KB); compress in the application so less crosses the network.",
+  "evidence": "Ch8 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "One huge delete slows requests but nothing goes down; stagger in small batches (LIMIT 1000) across the day so locks are brief.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Redis: one in-memory hash lookup; DB walks an index tree a few pages deep, worst case from disk; also read size, storage, I/O per read, cost.",
+  "evidence": "Ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "DELETE ... LIMIT 1000 repeatedly, spread across the day (e.g. 10,000/hour), like garbage collection.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "Hard delete the old row, or use a partial unique index on live rows only.",
+  "evidence": "Ch6 §6.4",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Yes, e.g. MongoDB TTL indexes; but the DB runs it on its own threads/schedule and rows may outlive expiry under load. Offload it and keep it staggered.",
+  "evidence": "Ch6 §6.3",
+  "found": false
+ },
+ {
+  "id": "Q104",
+  "answer": "Databases keep hot pages in memory, but you can't count on it; design for worst case (disk).",
+  "evidence": "Ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Lock-in loses nothing if you never leave. Other concern: (page hints) far more engineers know open tools.",
+  "evidence": "Ch3 §3.3",
+  "found": false
+ },
+ {
+  "id": "Q106",
+  "answer": "Availability and autoscaling depend mostly on whoever operates the store, not the product (though AWS 99.99% SLA and Redis async replication set limits).",
+  "evidence": "Ch3 §3.2",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Keep one row per user (don't delete); last heartbeat is the last-seen time; storage is fine (8 GB).",
+  "evidence": "Ch2 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "No; soft delete gives you time to archive.",
+  "evidence": "Ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Yes; data rebuilds within 10 s, losing a second is harmless.",
+  "evidence": "Ch3 §3.1, §3.5",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Not really: autoscaling depends on who operates it; managed Redis exists.",
+  "evidence": "Ch3 §3.2",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "No; design needed expiry so pick a store with it; if you move pick similar or rebuild; abstracting everything means writing your own database.",
+  "evidence": "Ch3 go deeper",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q113",
+  "answer": "10 servers use the whole 1000; new autoscaled servers are refused; caps max servers.",
+  "evidence": "Ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "A few busy servers take every connection; idle servers hog unused ones while LB sends users to servers that can't get any: outage.",
+  "evidence": "Ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Small minimum, max inside the budget, moderate idle timeout; add telemetry.",
+  "evidence": "Ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "Average query time: connections needed ~ throughput x query time.",
+  "evidence": "Ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q118",
+  "answer": "Page: a client-opened persistent two-way connection (WebSocket) can stay open; doesn't discuss statelessness.",
+  "evidence": "Ch1 §1.3",
+  "found": false
+ },
+ {
+  "id": "Q119",
+  "answer": "HTTP request travels over the client's TCP connection.",
+  "evidence": "Ch4 §4.2",
+  "found": false
+ }
+]
