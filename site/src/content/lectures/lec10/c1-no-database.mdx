@@ -1,0 +1,82 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import { PlainTextFile } from '../../../figures/lec10/s1-dictionary-no-database-figs';
+import { NaiveScan } from '../../../figures/lec10/s2-finding-one-word-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 1 "A terabyte of words, and no database. Where is apple?" Story rewrite: the brief (why 1 TB, portable =
+    one file, weekly changelog, no duplicates, the sorted question planted) → JSON vs a text file → ideas set aside
+    in a few lines → the naive scan, 500 GB per lookup → reads slow means index. */}
+
+<Section id="s1" no="1" title="A terabyte of words, and no database. Where is apple?" crumb="1 No database" meta="About 6 min">
+
+A user asks for “apple”. Somewhere in a terabyte of text is its meaning, and there is no database to ask. Before you can find it, you have to decide what you are building and what the file looks like.
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="Where you start: the brief and nothing else. Over the next six chapters the dictionary’s rows fill in.">
+<Desk><SoFarStorage stage={0} /></Desk>
+<Phone><SoFarStorage stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="What exactly must the dictionary do?" crumb="1.1 The brief">
+
+Compute, the API servers, and storage, normally a database, both still have to scale; only the database is gone. Speed is not today’s problem: a high response time is acceptable, because there are many known ways to make a system faster later. [[L-0004 L-0005 L-0006]]
+
+It is a standard English dictionary, and it is mostly read: think how rarely the Oxford dictionary changes. A thousand reads to one write understates it. [[L-0009 L-0025]] A lookup is always a single word. No autocomplete: given a word, return its meaning, and if the word doesn’t exist, return 404. So it is a key-value store, where the key is the word and the value is two or three lines of meaning. [[L-0011 L-0024]]
+
+There are no live updates. Every Sunday a changelog arrives with only the changed words and their new meanings, and one big processing pass a week to apply it is fine. [[L-0010 L-0026]]
+
+The whole thing is 1 TB for 170,000 words, several megabytes per word. Two or three lines of text don’t come close; the publisher’s entries carry audio and video with each meaning, which is how 170,000 words reach a terabyte. The size is on purpose. A small file you would simply copy to every server; a terabyte forces you to think about where the file lives and what copying it costs. [[L-0012 L-0305]]
+
+The last requirement drives more of the design than any other: the dictionary must be **portable**. Portable means literally one file, holding everything needed to read it and write it, that you can copy and ship. Not ten files, not a hundred. You will move this file around a lot: onto a server that updates it, onto S3, to anyone who wants to read it. One file is one thing to move, and nothing to keep in step. [[L-0007 L-0029 L-0085]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="JSON, or a plain text file?" crumb="1.2 The format">
+
+The first choice is the format. JSON is tempting, and a lot of people put a lot of data in JSON files. Here it is the wrong fit. A JSON document has no way to jump to one entry: to find out whether a word is there, a parser has to read its way through the file from the top, and usually builds the whole thing in memory as a hash map before you can ask it anything. With a terabyte, that is a disaster on every lookup. [[L-0015 L-0016]]
+
+So use a plain text file, CSV-like, one line per word: `apple,a fruit`, a newline, then `amazon,a rainforest`, and so on. [[L-0017 L-0019]]
+
+<Figure id="fig-1b" max={600} no="Fig 1·b" k="L-0016 L-0017 L-0019 L-0021" caption="The dictionary as one plain text file, one line per word. JSON is struck out: checking one word would mean reading and parsing all of it.">
+<Desk><PlainTextFile /></Desk>
+<Phone><PlainTextFile layout="phone" /></Phone>
+</Figure>
+
+Could a word appear twice, so that an update is just one more line? No. There are no columns here, only words and meanings, and a portable file that someone opens in a text editor must not hold two different meanings for apple. So: **no repeated entries**. [[L-0020 L-0021]]
+
+Will you keep the file sorted? For now, no. Nothing needs it yet, since response time isn’t a constraint, and the words can sit in any order. Hold on to that question. It comes back. [[L-0022]]
+
+You might reach for a hundred files with each word routed to its own, or one zip of many folders: both break the one-file rule. Start with the simplest thing that meets the brief, and add structure only when a number forces you to. [[L-0028 L-0030 L-0040]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Read until you find it. How much is that?" crumb="1.3 The scan">
+
+Here is the simplest lookup. Open the file, read it line by line until a line starts with the word, stop, read the meaning, and send it back. [[L-0041 L-0042]]
+
+```python
+def lookup(word):
+    with open("data.dict") as f:
+        for line in f:                      # from the top, every time
+            w, meaning = line.rstrip("\n").split(",", 1)
+            if w == word:
+                return meaning
+    return None                             # -> 404
+```
+
+It works. Now count what it reads. The words are in no particular order, so the one you want is anywhere. In the worst case a request reads the whole 1 TB file; on average it reads half, 0.5 TB, which is **500 GB per request**. And the dictionary is very read-heavy, so that cost is paid again on almost every request it serves. [[L-0043 L-0044]]
+
+<Figure id="fig-1c" max={660} no="Fig 1·c" k="L-0041 L-0042 L-0043 L-0044" caption="The naive lookup. The read is the scan: line by line from the top until the word turns up, half the file on average, and every request starts again.">
+<Desk><NaiveScan /></Desk>
+<Phone><NaiveScan layout="phone" /></Phone>
+</Figure>
+
+Half a terabyte per lookup is slow, and it eats the disk’s throughput that every other request needs. [[L-0045]]
+
+When reads are slow, the first thing that should come to mind is an index. [[L-0046]] But an index of what, stored where, and how big? A terabyte of data sounds like it needs a big index. Does it?
+
+</Section>

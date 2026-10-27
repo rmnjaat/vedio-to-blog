@@ -1,0 +1,97 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { OneCopyPerServer, PointedReads, BootThenGet } from '../../../figures/lec10/s4-serving-from-s3-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 4 "A hundred API servers need the file. Where does it live?" Story rewrite: LB + API servers, GET /word →
+    a copy per server (pause: updates and inconsistency are tolerable, cost is not) → don't buy speed with RAM →
+    properties first: shared over the network, random reads (file, off, n) → S3 is object storage with ranged GETs
+    (fact-check L-0108, L-0112) → anything with the same read works → boot and GET stepper → a key-value store on
+    S3 → one S3 call per request? */}
+
+<Section id="s4" no="4" title="A hundred API servers need the file. Where does it live?" crumb="4 Where it lives" meta="About 6 min">
+
+A user’s `GET /word` reaches a load balancer, which hands it to one of a fleet of API servers. Each server needs the dictionary’s header and index when it starts, and a few bytes of meaning on every request. [[L-0093 L-0094]]
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The dictionary after chapter 3: one file, a 16-byte header in front of the index and the data.">
+<Desk><SoFarStorage stage={3} /></Desk>
+<Phone><SoFarStorage stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Why not a copy on every server?" crumb="4.1 A copy each">
+
+The obvious answer: put the file on each server’s disk, so every read is local. What is actually wrong with it? [[L-0095 L-0098]]
+
+<PauseAndThink k="L-0096 L-0097 L-0099 L-0102"
+  q="You put a copy of the 1 TB dictionary on each of 100 API servers. Updates come once a week; meanings barely change. What is the real problem?"
+  choices={[{ label: 'Keeping 100 copies up to date' }, { label: 'Servers briefly disagreeing after an update' }, { label: 'Paying for the same terabyte 100 times', correct: true }]}
+  right="Right."
+  wrong="That one is real, but tolerable here.">
+
+The cost. Updates are one bulk job a week, so updating every copy is a routine batch. A server answering “a fruit” while another says “a round fruit” for a few minutes is not the end of the world. But 100 servers each holding the same terabyte, on their SSDs, is 100 TB of storage paid for a hundred times over.
+
+</PauseAndThink>
+
+<Figure id="fig-4b" no="Fig 4·b" k="L-0093 L-0096 L-0097 L-0099 L-0102" caption="A copy of the dictionary on every API server. Tedious updates and brief inconsistency you can live with for a weekly change; a hundred terabytes of copies you can’t.">
+  <Desk><OneCopyPerServer /></Desk>
+  <Phone><OneCopyPerServer layout="phone" /></Phone>
+</Figure>
+
+Real system design is about doing the bare minimum at the bare minimum cost. [[L-0100]] You can make almost anything fast by throwing money at it: give each machine a terabyte of RAM and you could hold the whole dictionary in one hash map, no index at all. Fast, and a bad design. [[L-0101]]
+
+So keep one copy, in one central place that every server reads. [[L-0103]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="What must the shared storage be able to do?" crumb="4.2 What it must do">
+
+“Put it on S3” comes to mind fast, and it turns out to be right. But start from what you need, not from a product name, and then pick the technology. [[L-0104 L-0106]]
+
+What do the servers have in common? The network, and the brief rules out a database. [[L-0107]] What does the design need from that shared place? Only a few bytes at a time: 16 bytes of header, exactly index-size bytes of index, then a few bytes at some offset per request. [[L-0109]] Strip it to the bare minimum and one operation is required, a **random read**: from this file, at this offset, read n bytes, `(file, offset, n)`. The map already gives both numbers: the offset, and the line’s length as n. [[L-0111]]
+
+S3 does exactly that. It is object storage: whole objects fetched over HTTP by key, where a GET can ask for one byte range, `Range: bytes=0-15` for the first 16 bytes <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html">GetObject</Cite>. [[L-0105 L-0108 L-0112]] And it is cheap, which is why <LectureLink lec="lec09" sec="s2-1">Lecture 7</LectureLink> put Instagram’s photos there; there every photo was fetched whole, here nobody ever fetches the whole object. [[L-0104]]
+
+S3 is not special: HDFS, or network hard disks in a data center, offer the same read; S3 is just the one everyone knows. And on S3 it is still one file. [[L-0108 L-0110 L-0113]]
+
+<Figure id="fig-4c" no="Fig 4·c" k="L-0093 L-0094 L-0110 L-0111 L-0117" caption="The serving path. Each API server holds a word → (offset, length) map in memory and reads n bytes at an offset from the one file on S3 (I, D: index, data). Under the cloud, other storage that offers the same read.">
+  <Desk><PointedReads /></Desk>
+  <Phone><PointedReads layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="One server, from boot to its first answer" crumb="4.3 Boot and GET">
+
+Each server needs one setting: the file’s path on S3, passed as static configuration for now. [[L-0114]] Boot is chapter 3’s decoder with S3 in place of the disk, and a GET is one ranged read. [[L-0115 L-0116]]
+
+<StepThrough id="fig-4d" no="Fig 4·d" label="Boot, then one GET" grow k="L-0114 L-0115 L-0116 L-0117"
+  caption="Time runs down. Lanes: one API server and S3. Byte ranges follow from the 16-byte header, the 3,502,000-byte index and apple’s 14-byte line at the start of the data. qwzx is an invented unknown word."
+  stepK={['L-0114', 'L-0115', 'L-0115', 'L-0115', 'L-0116', 'L-0116 L-0117', 'L-0116']}
+  steps={[
+    'The server starts with one setting: the file’s path on S3.',
+    'One ranged read gets the 16-byte header: <code>OUR_DICT</code>, version 1, index size 3,502,000.',
+    'A second read gets exactly index-size bytes, the index.',
+    'Build the in-memory map, then start serving.',
+    'A request for apple: the map gives its offset, <code>0</code> into the data, and its length, 14.',
+    'One ranged read of that line, 14 bytes, and the answer goes back: <span class="term green">200</span>.',
+    'An unknown word misses the map: <span class="term red">404</span>, and S3 is never touched.',
+  ]}>
+  <Desk><BootThenGet /></Desk>
+  <Phone><BootThenGet layout="phone" /></Phone>
+</StepThrough>
+
+Look at what that is: each request reads only the bytes it needs from a terabyte object on cheap storage. At its core a database is a key-value lookup over files, and this is one, read-only, serving gets straight from S3. [[L-0117]]
+
+Isn’t an S3 call per request slow and costly? It is, and in a real system you would put a cache in front of the hot words. Reading S3 on every request here shows that pointed reads on S3 are possible at all, and that is the capability this build is after. Chapter 6 shows what it is for. [[L-0306]]
+
+The file is now read by byte offset, by a hundred servers at once. On Sunday, some of its meanings change.
+
+</Section>

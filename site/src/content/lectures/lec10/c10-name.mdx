@@ -1,0 +1,137 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { OneMapManyFiles, RiakRing } from '../../../figures/lec10/s10-bitcask-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 10 "You built a database out of files. What is it, and what can't it do?" Story rewrite: the map's
+    entry, the RAM limit, the strengths → the name: Bitcask, embedded; Riak (masterless ring, vnodes, Bitcask per
+    partition) and Uber's dispatch (fact-check L-0275, L-0276, L-0278); the throughput heuristic (L-0280) → LSM in
+    two sentences (L-0288) → the two engines side by side → build it yourself → what you can now do, recall → the
+    course closes. */}
+
+<Section id="s10" no="10" title="You built a database out of files. What is it, and what can’t it do?" crumb="10 The name" meta="About 9 min">
+
+Put the pieces together: records in chapter 9’s format appended to the active file, small files rotated and compacted in the background, one map in memory that knows where every key’s latest record is. [[L-0268]]
+
+<Figure id="fig-10-sofar" max={640} no="Fig 10·a" caption="Both builds after chapter 9. The key-value store’s last row is the record format with a CRC.">
+<Desk><SoFarStorage stage={9} /></Desk>
+<Phone><SoFarStorage stage={9} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s10-1" no="10.1" title="What is its one hard limit?" crumb="10.1 The limit">
+
+Look at what the map holds now. For each key: the file it is in, the size of its record, so a get fetches the whole record in one read, the offset, and the timestamp. Entries can point into any file; writes go only to the active one. [[L-0268]]
+
+<Figure id="fig-10b" no="Fig 10·b" k="L-0268 L-0269" caption="Each map entry names the file, the record size, the offset and the timestamp of the key’s latest record. K1 points into a read-only file, K2 into the active one. A get is one lookup, one seek and one read.">
+  <Desk><OneMapManyFiles /></Desk>
+  <Phone><OneMapManyFiles layout="phone" /></Phone>
+</Figure>
+
+O(1) put, delete and get, at the price you met in chapter 8: **every key must fit in memory.** The number of keys you can hold in RAM is the number of keys the database can store. [[L-0269]]
+
+In return it does the bare minimum of disk I/O: writes add no seek of their own and go as fast as the disk can persist them, and each get is one read. [[L-0270]] The disk stays busy with useful sequential work, called **I/O saturation**, so you get close to everything the hardware can deliver. [[L-0271]] And backups are easy: copy the files. [[L-0272]]
+
+</Section>
+
+<Section id="s10-2" no="10.2" title="Does anyone run this?" crumb="10.2 Bitcask">
+
+What you just designed is **Bitcask**. [[L-0273]]
+
+Bitcask is an **embedded database**: a library inside your program, like SQLite, not a server everyone connects to like MySQL. [[L-0274]]
+
+So who turns a library into something a company runs? **Riak**, a distributed key-value store whose default storage backend is Bitcask. Keys are hashed onto a ring split into partitions, each owned by a virtual node, and each key is stored on N of them. There is no master: any node can take a request and coordinate it. Every partition runs its own Bitcask underneath, which does one job, getting the most out of the disk <Cite href="https://docs.riak.com/riak/kv/latest/learn/concepts/clusters/index.html">docs.riak.com</Cite>. [[L-0276 L-0277 L-0278]] That is <LectureLink lec="lec07" sec="s8-2">Lecture 9</LectureLink>’s ring, and its <LectureLink lec="lec07" sec="s9-1">virtual nodes</LectureLink>, with a Bitcask at every point.
+
+<Figure id="fig-10c" no="Fig 10·c" k="L-0278" caption="Riak runs a Bitcask under every partition of the ring. No master: any node can take the request, and each key lives on N vnodes.">
+  <Desk><RiakRing /></Desk>
+  <Phone><RiakRing layout="phone" /></Phone>
+</Figure>
+
+Around 2015, Uber used Riak for parts of its dispatch system <Cite href="https://riak.com/posts/technical/ubers-ringpop-and-riak/">riak.com</Cite>; Bitcask is Riak’s default backend, and most Riak setups run it underneath. [[L-0275 L-0281]]
+
+What made it fast wasn’t a clever data structure but the append-only file. So when any system claims high throughput *and* persistence, look for the append-only log; if there isn’t one, find out where the throughput really comes from. [[L-0279 L-0280]]
+
+Bitcask also tells you what comes after it. The engines behind many write-heavy databases, **LSM trees**, keep recent writes in memory, in a memtable backed by a log on disk, and push everything else into sorted, immutable files called SSTables <Cite href="https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html">cassandra.apache.org</Cite>. Unlike Bitcask, their keys don’t all have to fit in RAM. Bitcask is the foundation that makes them easy to follow. [[L-0288 L-0290]]
+
+</Section>
+
+<Section id="s10-3" no="10.3" title="Two engines. Were they really different?" crumb="10.3 Same ideas">
+
+From the outside the two builds share nothing. Inside, they are built from the same few ideas.
+
+<TradeoffTable caption="The dictionary and the key-value store, idea by idea" k="L-0061 L-0221 L-0146 L-0213 L-0256"
+  columns={[{ label: 'The dictionary (ch 1–6)' }, { label: 'The key-value store (ch 7–10)' }]}
+  rows={[
+    { label: 'a · A small map in memory', cells: ['word → offset + length, loaded at boot', 'key → file + offset, updated on every write'], k: 'L-0061 L-0221' },
+    { label: 'b · Know how many bytes to read', cells: ['A 16-byte header says where each part lies', 'Key size and value size on every record, under a CRC'], k: 'L-0256' },
+    { label: 'c · Never write in the middle', cells: ['Merge into a new file', 'Append, no matter what'], k: 'L-0146 L-0213' },
+    { label: 'Merging', cells: ['Two sorted files, two pointers', 'Unsorted files, a temporary hash table'] },
+    { label: 'After a change', cells: ['New path, meta.json, a deployment', 'Repoint the map to the merged file'] },
+  ]} />
+
+Any file can be a database if you keep a small map in memory, always know how many bytes to read, and never write in the middle of it.
+
+The best way to make that stick is to build it. A small Bitcask is not difficult: put, get and delete over an append-only file, the map, rotation, a merge process, the CRC record. It takes about a week, and the details teach you the most: does the merge run in the same process or another, and how does it update the map while gets are running? Then benchmark it against an on-disk and an in-memory key-value store, on a hard disk and on an SSD, with Prometheus watching the machine, and see whether the disk’s I/O saturates. [[L-0283 L-0285]] The original paper, “Bitcask: A Log-Structured Hash Table for Fast Key/Value Data”, by Justin Sheehy and David Smith at Basho, is short and worth reading alongside. [[L-0282 L-0292]]
+
+</Section>
+
+<Section id="s10-4" no="10.4" title="What you can now do" crumb="10.4 What you can do">
+
+- **Size an index before you build anything.** Entries × (word + 8-byte offset + 4-byte length + 1): 170,000 words came to about 3.5 MB for 1 TB of data, so it lives in RAM and every lookup is one pointed read.
+- **Change a big file safely:** never overwrite in place; merge sorted inputs into a new file, upload it to a new path, update a pointer file at a fixed path, then roll a deployment so each server loads it at boot. Mixed answers for a while, never garbage.
+- **Write as fast as the disk can persist:** append every put, update and delete; keep a key → file + offset map in RAM; rotate small files; merge and compact them, repointing only keys the map still points at; keep the sawtooth under the disk.
+- **Catch torn writes:** sizes in front of every record, a CRC over all of it, checked before you trust a byte; never serve what fails, and after a crash write to a new file.
+- **Know the price:** every key in RAM.
+
+<RecallQuestions>
+  <RecallItem q="The new dictionary is uploaded over the old one at the same S3 path. S3 never serves a half-written object. Why do users still get garbage?" k="L-0157 L-0158">
+
+Each server’s index still describes last week’s file, so the read at apple’s old offset lands somewhere else in the new one, often mid-word, until that server reloads its index.
+
+  </RecallItem>
+  <RecallItem q="Chapter 5 merged files with two pointers. Chapter 8 merged files with a hash table. Why not two pointers both times?" k="L-0142 L-0243">
+
+The dictionary and changelog were sorted, so two pointers walk them in step. The store’s files are in write order, so the merge collects each key’s latest entry in a temporary hash table, dropping deleted ones.
+
+  </RecallItem>
+  <RecallItem q="A Bitcask node has plenty of disk left but refuses to take more keys. What ran out, and why?" k="L-0269">
+
+Memory. The map holds every key in RAM; values live on disk, but a key missing from the map can’t be found, so the keys that fit in memory are all the store can hold.
+
+  </RecallItem>
+  <RecallItem q="A record’s value was cut short by a power failure. What does a reader do with the CRC, what would it do without one, and why must the store never append after that record?" k="L-0259 L-0260 L-0265">
+
+With a CRC it recomputes the checksum over the rest of the record it read, sees it doesn’t match, and never serves it. Its sizes can’t be trusted either, so nothing may follow it: after a restart, writes go to a new file. Without a CRC, the reader trusts the value size; if more records had been appended after it, it would read on into them and return those bytes as the value with no error.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s10-5" no="10.5" title="Ten lectures in. What can you build now?" crumb="10.5 The course">
+
+This is the last lecture. Look at what you can now design from a blank page.
+
+- A presence dot that never lies, from heartbeats and a TTL, and a blog through its first viral post (<LectureLink lec="lec04">Lecture 1</LectureLink>).
+- The same blog under load: copies along the whole route, more servers and a scaled database, queues and streams for the slow work, a clap counter that never loses an update, and claps that arrive live (<LectureLink lec="lec01">Lecture 2</LectureLink>).
+- A booking that gives 120 seats to 120 people at once, and a key-value store with expiry on one MySQL table (<LectureLink lec="lec05">Lecture 3</LectureLink>).
+- A choice of database family by what it gives up, and Slack’s messages reaching every member of a channel across servers (<LectureLink lec="lec02">Lecture 4</LectureLink>).
+- A load balancer, a fleet of them, and a lock that holds across machines (<LectureLink lec="lec08">Lecture 5</LectureLink>).
+- Unique IDs on many machines at once, from a central service like Flickr’s ticket servers or with no coordination at all like Snowflake and Instagram, and pages that stay fast however deep you go (<LectureLink lec="lec03">Lecture 6</LectureLink>).
+- Instagram’s photos behind a CDN, and its hashtag counts through Kafka (<LectureLink lec="lec09">Lecture 7</LectureLink>).
+- An avatar service, photo tags and an unread badge that don’t hammer the database (<LectureLink lec="lec06">Lecture 8</LectureLink>).
+- An analytics copy that can’t drift, through change data capture, and a cache built from one hash table up to a ring of nodes (<LectureLink lec="lec07">Lecture 9</LectureLink>).
+- And now two storage engines out of nothing but files, with the old orders still queryable on S3.
+
+Each build started with the simplest version that met the brief, then a number or a failure that broke it, then the smallest fix. The question that did the breaking was always the same, and it is the one to keep asking about every box you draw: **what would the code inside it actually do, and what does that cost?** Ask it of the next design you are handed, and you will find the next problem before your users do. [[L-0100 L-0133]]
+
+</Section>

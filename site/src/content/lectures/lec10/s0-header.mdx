@@ -1,47 +1,51 @@
-import MarginNote from '../../../components/MarginNote.astro';
-import ForwardChip from '../../../components/ForwardChip.astro';
 import Figure from '../../../components/Figure.astro';
 import Desk from '../../../components/Desk.astro';
 import Phone from '../../../components/Phone.astro';
-import { StorageSoFar } from '../../../figures/lec10/s0-header-sofar';
+import LectureLink from '../../../components/LectureLink.astro';
+import { TheBrief } from '../../../figures/lec10/s1-dictionary-no-database-figs';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec10.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec10.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 10 · week 5, day 2 · running case: a word dictionary with no database, then Bitcask"
-      title: Files as a database
-      dek: "Two storage engines built from plain files: …, revealed at the end as Bitcask."
-      contents: 1 A dictionary with no database … 11 What to keep (eleven chapters, one page each).
-    Placed here (section "about"): L-0001 L-0002 L-0008. The "so far" block is untagged: it restates where
-    Lectures 3 and 9 left storage and teaches nothing new. Its unnumbered sketch (fig-sofar) was added by the
-    design fixer (critic C-07), like lec01's "Medium so far". */}
+{/* Lecture 10 (lec10) overview body: the hook (old orders, cheap storage that can't answer), the toy brief, where
+    you are (Lectures 9, 7, 3), the two builds, what you will be able to do. Story rewrite, see
+    lectures/lec10/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+How likely are you to open an Amazon order you placed six months ago? Not very. Yet every one of those orders still sits in the main database, on fast and expensive machines, next to the orders people check every day. Move the old ones to S3 and they cost a fraction as much. But S3 holds files, not tables: you can’t just dump the orders there and still ask for order 1234 without reading everything. [[L-0189 L-0190 L-0192]]
 
-This is day 2 of week 5, and it continues the week’s subject, storage engines. The agenda is two problem statements: a word dictionary without any database, and a superfast key-value store. Both were chosen to build foundational blocks, for designing interesting new systems and for getting the most out of the ones that already exist. [[L-0001]]
+This lecture builds the answer twice, out of nothing but files. [[L-0002]]
 
-Neither is a toy. Both systems are actively used in production, to a huge extent; this is not something that is just theoretical. [[L-0002]] The problem statement was put together on purpose to touch a lot of the critical building blocks used day in and day out in the real world: file formats, indexes, object storage, rollouts, append-only logs and checksums all turn up before the end. [[L-0008]]
+The first build is a toy with real numbers. A publisher hands you a dictionary, 170,000 English words with their meanings, 1 TB in all, and wants an API that returns the meaning of any word. You may not use MySQL, Postgres, MongoDB, Redis, Elasticsearch or any other database. Whatever you build lives in plain files. [[L-0003 L-0012]]
 
-**How this page is built.** Each engine is designed from nothing, one step at a time, and named only at the end, as in class. The class’s question-and-answer time is folded into the chapter it answers.
-
-</MarginNote>
-
-### Our storage so far
-
-Yesterday’s session built a cache like Redis: one hash table in memory, every byte counted, then split across many nodes with a ring to find each key, and an append-only file to come back after a restart. Earlier still, Lecture 3 built a key-value store on top of MySQL, where a delete was an update with a magic value and a cleanup job removed rows in batches.
-
-<Figure id="fig-sofar" max={620} caption="Our storage so far, one panel per earlier lecture: a cache like Redis with one hash table in memory, a ring of nodes and an append-only file (Lecture 9); a key-value store on MySQL where a delete sets a magic value and a cleanup job removes rows in batches (Lecture 3).">
-  <Desk><StorageSoFar /></Desk>
-  <Phone><StorageSoFar layout="phone" /></Phone>
+<Figure id="fig-0a" max={700} no="Fig 0·a" k="L-0003 L-0006 L-0007 L-0009 L-0010 L-0011 L-0012 L-0024 L-0025 L-0305" caption="The brief, as a card. The four tabs are what every design in chapters 1–6 is judged on; the struck-out row is the one rule with no exceptions.">
+<Desk><TheBrief /></Desk>
+<Phone><TheBrief layout="phone" /></Phone>
 </Figure>
 
-<ul class="fwd-list">
-<li><ForwardChip label="back in" when="Lecture 9" lec="lec07" sec="s7-2">routing a key to its node, and the byte budget</ForwardChip></li>
-<li><ForwardChip label="back in" when="Lecture 9" lec="lec07" sec="s9-3">the append-only file</ForwardChip></li>
-<li><ForwardChip label="back in" when="Lecture 3" lec="lec05" sec="s6-2">delete with a magic value, and batched cleanup</ForwardChip></li>
-</ul>
+### Where you are
 
-Today the data no longer fits in memory and must survive restarts, so both engines live in files. Engine 1, the dictionary (chapters 1–6), is read-mostly and changes once a week. Engine 2, the key-value store (chapters 7–10), must take writes as fast as the disk allows. Chapter 11 puts the two side by side.
+<LectureLink lec="lec07">Lecture 9</LectureLink> built a cache like Redis: one hash table in memory, every byte counted, then a ring of nodes, and an append-only file that only mattered after a restart. Everything lived in RAM, which is why it was fast, and why it had a ceiling. <LectureLink lec="lec09">Lecture 7</LectureLink> put Instagram’s photos in S3 because it is dirt cheap, and fetched each photo whole. <LectureLink lec="lec05">Lecture 3</LectureLink> built a key-value store on one MySQL table and let the database do the hard parts.
+
+
+### What you’ll build
+
+**Build 1, a dictionary on S3 (chapters 1–6).** Read-mostly, updated once a week, and it has to ship as one file. You start with a plain text file and a lookup that reads half a terabyte. Each chapter fixes the problem the last one left: how to find one word, how to keep it one file, where the file lives when a hundred servers need it, how to change it on Sunday, and how every server moves to the new version without a single user reading garbage. At the end you meet the old orders again. [[L-0013]]
+
+**Build 2, a key-value store on cheap disks (chapters 7–10).** Now the data is written all day: puts, updates and deletes, each safe on disk before it is acknowledged, on the magnetic disks that hold most of the world’s data because SSDs cost too much. It is a database many people use without knowing it. You design put, get and delete, then deal with the disk filling up and a crash tearing a record in half, and only then find out what it is called. [[L-0200]]
+
+The tools in both builds are the same few: a file, byte offsets, and a small map in memory. What changes is how hard the writes push.
+
+### What you’ll be able to do
+
+- Size an index before you build it, and decide from the number where it lives.
+- Read a few bytes from one huge file on S3, and say what storage can stand in for S3.
+- Apply a batch of changes to a big file without ever corrupting what is being served, and move a fleet onto the result.
+- Design a store that takes writes as fast as a cheap disk allows, and say what it costs in memory and disk.
+- Catch a half-written record instead of serving it.
+
+### Before you start
+
+You need a load balancer with API servers behind it, a hash map, and what a byte offset in a file is. Python sketches show the code; any language works the same way.
+
+Each chapter opens with a small map of what has been built so far. When a “Pause and think” box asks you something, commit to an answer before you open it.
 
 </div>

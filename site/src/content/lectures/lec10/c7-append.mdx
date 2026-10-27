@@ -1,0 +1,122 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { MagneticDisk, AppendOnly, CrashRebuild } from '../../../figures/lec10/s7-fast-writes-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 7 "Writes never stop, and the disks are cheap. Where does a put go?" Build 2 opens. Story rewrite: the
+    brief (put/get/delete, immediate persistence, magnetic disks, a database people use unknowingly) → how a
+    magnetic disk spends its time → memtable rejected by the requirement → append every put (fsync) → update is an
+    append → delete (pause): a put with −1 → get: key → offset map (the dictionary's index again) (clip) → crash:
+    rebuild by scanning (stepper) → O(1) everything. Fact-check L-0208, L-0210 folded in. */}
+
+<Section id="s7" no="7" title="Writes never stop, and the disks are cheap. Where does a put go?" crumb="7 Put, get, delete" meta="About 8 min">
+
+The second build is a key-value store written to all day: put, get and delete, each put on disk before it is acknowledged, on the cheapest hardware there is, magnetic hard disks. Many people use a database like this without knowing it, and by the end of this chapter you’ll see why every operation it does costs the same. [[L-0200 L-0207]]
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="Build 1, finished: the dictionary, from a text file to a fleet that switches files with a deployment. Build 2 starts empty.">
+<Desk><SoFarStorage stage={6} /></Desk>
+<Phone><SoFarStorage stage={6} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="What does a cheap disk spend its time on?" crumb="7.1 The disk">
+
+SSDs are expensive next to magnetic disks, so the world’s huge piles of data sit on magnetic disks; in the storage hierarchy, SSDs sit closer to memory in both speed and cost. [[L-0201 L-0202]]
+
+A magnetic disk is a platter spinning under a head. A byte offset in a file becomes a physical place, a sector on the platter; to reach it the platter rotates and the head moves there, and every read somewhere else means another movement. [[L-0203 L-0204 L-0205]]
+
+<Figure id="fig-7b" no="Fig 7·b" k="L-0201 L-0202 L-0203 L-0204 L-0206" caption="A magnetic disk: the platter spins and the head moves to the sector that holds the bytes. Beside it (below it on a phone), where SSDs sit between memory and hard disks.">
+  <Desk><MagneticDisk /></Desk>
+  <Phone><MagneticDisk layout="phone" /></Phone>
+</Figure>
+
+That mechanical movement, the head travelling and the platter turning, is the slowest part of disk I/O. [[L-0206]] So for every operation, ask one question: how little can it make the disk move?
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="Where should a put go?" crumb="7.2 Put">
+
+You might collect writes in memory and flush them in batches. That’s out: a put must be on disk when it is acknowledged. [[L-0207 L-0208]]
+
+Where on the disk? Not where the key “belongs”, since finding that spot moves the head. Keep one file, like a ledger, and append every change at its end. The head is already where the last write finished, so there is no seek, as long as the disk is busy with this one stream of writes; reads will pull the head away, one seek each, but the writes never add one. [[L-0209 L-0210]]
+
+So `put K1 V1` appends K1 and V1 to the end of the file. `put K2 V2` and `put K3 V3` go after it. [[L-0211]] And an update, `put K1 V1′`? Don’t go back and find the old K1. Append it, like everything else, and the old entry simply becomes obsolete. Any put is appended, no matter what. [[L-0213 L-0214]]
+
+<Figure id="fig-7c" no="Fig 7·c" k="L-0210 L-0211 L-0213" caption="Four puts, appended in order. The update K1 V1′ doesn’t touch the first K1 entry; it goes to the end like everything else.">
+  <Desk><AppendOnly /></Desk>
+  <Phone><AppendOnly layout="phone" /></Phone>
+</Figure>
+
+The code is a few lines. Open the file in append mode (`"ab"` in Python, append and binary), write the record, and force it to disk before you answer. You don’t reserve space up front; laying the file out on disk is the file system’s job. [[L-0293]]
+
+```python
+import os
+f = open("001.data", "ab")        # append mode: writes always land at the end
+f.write(record)
+f.flush(); os.fsync(f.fileno())   # on disk before you acknowledge the put
+```
+
+That `fsync` on every put is what the requirement costs: writes go as fast as the disk can persist them one after another, and no faster. Real Bitcask makes it a setting; by default it leaves flushing to the operating system, which is faster but can lose the last few writes in a power cut <Cite href="https://docs.riak.com/riak/kv/latest/setup/planning/backend/bitcask/index.html">docs.riak.com</Cite>. [[L-0289]]
+
+You have met this before. <LectureLink lec="lec07" sec="s9-3">Lecture 9</LectureLink>’s Redis kept an append-only file next to its memory, to replay after a restart. Here the append-only file is not a backup of the data. It is the data.
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="How do you delete from a file you only append to?" crumb="7.3 Delete">
+
+K2 was written a while ago, somewhere up the file. A user deletes it.
+
+<PauseAndThink k="L-0215 L-0216 L-0217 L-0218"
+  q="Your store only ever appends to the end of its file. K2 was written earlier. How do you delete K2?"
+  choices={[{ label: 'Go back to K2’s entry and overwrite its value with −1' }, { label: 'Append a new K2 entry with a special “deleted” value', correct: true }]}
+  right="Right."
+  wrong="That writes at an earlier position, which this file never does, and it costs a seek.">
+
+Delete is a put: `DEL K2 = PUT(K2, −1)`, where −1 stands for a marker the store reserves, often called a tombstone, that no real value can look like. It lands at the end like every other write, so it costs exactly what a put costs.
+
+</PauseAndThink>
+
+That is the whole contract of an append-only file: reads anywhere, writes only at the end. Put and delete are now both solved, at the bare minimum. [[L-0216 L-0217 L-0218]] It is the same trick as <LectureLink lec="lec05" sec="s6-2">Lecture 3</LectureLink>’s MySQL store, which deleted a key by writing an expiry of −1; there it updated a row in place, here it can only be appended.
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="K1 is in the file twice. Which one does a get read?" crumb="7.4 Get">
+
+The naive get scans every entry and returns the latest one for the key. You already know what that costs. [[L-0219]]
+
+You also already know the fix. Keep an **in-memory hash table** from each key to the offset of its latest entry in the file: the offset, not the value. It is the dictionary’s index from chapter 2 again, a small map in memory pointing into a big file, except that this one changes on every write. [[L-0220 L-0221]]
+
+The order matters. A put appends first, then points the key at where it landed; after `put K1 V1′` lands at O4, K1 moves to O4. A delete appends its marker and drops the key from the map. A get with no entry returns 404 without touching the disk; otherwise it is one read at that offset. [[L-0222 L-0223 L-0224]]
+
+<AnimationClip clip="l10-append-only-log" no="Clip 7·1" k="L-0211 L-0213 L-0216 L-0217 L-0221 L-0222 L-0223 L-0224 L-0226"
+  lead="Four puts and a delete. Which offset does K1 point to at the end, and where is K2?"
+  caption="Every put, update and delete is appended at the end, then the map points the key at its latest entry: K1 moves to O4 and K2 leaves the map. A get is one lookup and one read." />
+
+The map lives in memory, so it dies with the machine. The file doesn’t. On restart, read the file from the top and rebuild the map, later entries overriding earlier ones. That can take a long time, and for now that is accepted. [[L-0225]]
+
+<StepThrough id="fig-7d" no="Fig 7·d" label="Crash and rebuild"
+  k="L-0221 L-0222 L-0223 L-0225"
+  stepK={['L-0221', 'L-0225', 'L-0225', 'L-0222 L-0223', 'L-0225']}
+  caption="The map on the left, the file on disk on the right, offsets O1–O5 beside it. Blue is the scan reading the file; red, the lost map; green, the map rebuilt."
+  steps={[
+    'The store is serving: the map points at the latest entries, <code>K1 → O4</code> and <code>K3 → O3</code>.',
+    'The machine <span class="term red">dies</span>. The map lived in memory, so it is gone; the file is safe on disk.',
+    'On restart, read the file from the top and rebuild the map: <code>K1 → O1</code>, <code>K2 → O2</code>, <code>K3 → O3</code>.',
+    'Later entries win: K1 moves to O4, and K2’s −1 removes it from the map.',
+    'Back to the <span class="term green">same map</span>. Reading the whole file is why a restart is slow.',
+  ]}>
+  <Desk><CrashRebuild /></Desk>
+  <Phone><CrashRebuild layout="phone" /></Phone>
+</StepThrough>
+
+Put, get and delete are each O(1): each does the bare minimum the disk has to do, with every write persisted. On a cheap magnetic disk, you can’t ask for more. [[L-0226]] So what could go wrong?
+
+</Section>

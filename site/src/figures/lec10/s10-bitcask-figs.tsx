@@ -115,7 +115,7 @@ export function RiakRing({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l10-f10b-p' : 'l10-f10b';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Bitcask inside Riak';
-  const desc = 'Riak, a distributed key-value store, runs an instance of Bitcask under every node. A request can go to any node; keys are hashed onto a ring and each key is stored on N nodes, with no master.';
+  const desc = 'Riak, a distributed key-value store, runs an instance of Bitcask for every partition (vnode). A request can go to any node; keys are hashed onto a ring and each key is stored on N vnodes, with no master.';
   const g = P
     ? { W: 340, H: 392, cx: 190, cy: 210, r: 86, bw: 84, bh: 58, ax: 26 }
     : { W: 520, H: 362, cx: 320, cy: 175, r: 110, bw: 96, bh: 62, ax: 60 };
@@ -127,7 +127,7 @@ export function RiakRing({ layout = 'desk' }: { layout?: Layout }) {
       <Arrow weight="thin" pts={arc(g.cx, g.cy, g.r + 9, 178, 244)} seed={s('a1')} />
       <Arrow weight="thin" pts={arc(g.cx, g.cy, g.r + 9, 122, 58)} seed={s('a2')} />
       {[top, bl, br].map(([x, y], i) => <RiakNode key={i} cx={x} cy={y} w={g.bw} h={g.bh} seed={s('n' + i)} />)}
-      <Label x={g.cx} y={g.cy + 4}>each key on N nodes</Label>
+      <Label x={g.cx} y={g.cy + 4}>each key on N vnodes</Label>
       <Actor x={g.ax} y={bl[1] - 22} seed={s('user')} />
       <Arrow tone="blue" pts={[[g.ax + 16, bl[1]], [bl[0] - g.bw / 2 - 2, bl[1]]]} seed={s('req')} />
       {P ? (
@@ -136,8 +136,8 @@ export function RiakRing({ layout = 'desk' }: { layout?: Layout }) {
           <Box x={208} y={8} w={86} h={26} label="bitcask" seed={s('name')} />
           <Label anchor="start" x={10} y={60}>any node can route the request</Label>
           <Label x={170} y={326}>no master: keys hashed onto a ring</Label>
-          <Label x={170} y={356}>each node of Riak has an</Label>
-          <Label x={170} y={376}>instance of Bitcask running</Label>
+          <Label x={170} y={356}>every vnode runs</Label>
+          <Label x={170} y={376}>its own Bitcask</Label>
         </g>
       ) : (
         <g>
@@ -145,7 +145,7 @@ export function RiakRing({ layout = 'desk' }: { layout?: Layout }) {
           <Box x={44} y={42} w={92} h={28} label="bitcask" seed={s('name')} />
           <Label anchor="start" x={20} y={294}>any node can route the request</Label>
           <Label x={g.cx} y={324}>no master: keys hashed onto a ring</Label>
-          <Label x={g.W / 2} y={350}>each node of Riak has an instance of Bitcask running</Label>
+          <Label x={g.W / 2} y={350}>every vnode runs its own Bitcask</Label>
         </g>
       )}
     </Fig>

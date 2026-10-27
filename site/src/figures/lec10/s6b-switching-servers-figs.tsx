@@ -159,7 +159,7 @@ export function ColdData({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l10-f6e-p' : 'l10-f6e';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Cold data you can still query';
-  const desc = 'Recent orders stay in the hot MySQL database; orders older than six months move to S3 in an indexed file, so they can still be looked up by order id, slower but much cheaper. Data lakes and query engines such as Athena rest on the same ability.';
+  const desc = 'Recent orders stay in the hot MySQL database; orders older than six months move to S3 in an indexed file, so they can still be looked up by order id, slower but much cheaper. Data lakes rest on the same ability.';
   const bar = [{ w: 20, label: 'H' }, { w: 30, label: 'I' }, { w: 76, label: 'D' }];
   if (P)
     return (
@@ -184,7 +184,7 @@ export function ColdData({ layout = 'desk' }: { layout?: Layout }) {
         <FileBar x={107} y={360} segs={bar} seed={s('fb')} />
         <Label x={170} y={442}>historical orders (6+ months)</Label>
         <Label x={170} y={466}>without losing the ability to query</Label>
-        <Label kind="mono" muted x={170} y={492} size={13}>athena · data lake</Label>
+        <Label kind="mono" muted x={170} y={492} size={13}>same idea: data lakes</Label>
       </Fig>
     );
   return (
@@ -206,7 +206,7 @@ export function ColdData({ layout = 'desk' }: { layout?: Layout }) {
       <FileBar x={337} y={204} segs={bar} seed={s('fb')} />
       <Label anchor="start" x={512} y={206}>historical orders</Label>
       <Label anchor="start" x={512} y={226}>(6+ months)</Label>
-      <Label kind="mono" muted anchor="end" x={640} y={150} size={13}>athena · data lake</Label>
+      <Label kind="mono" muted anchor="end" x={640} y={150} size={13}>same idea: data lakes</Label>
       <Label x={400} y={302}>without losing the ability to query the data</Label>
     </Fig>
   );

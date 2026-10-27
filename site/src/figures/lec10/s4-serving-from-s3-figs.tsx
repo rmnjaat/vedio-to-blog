@@ -107,7 +107,7 @@ export function PointedReads({ layout = 'desk' }: L) {
         <Arrow tone="blue" pts={[[102, 80], [146, 80]]} seed={s('l')} />
         <Fleet x={148} y={60} w={110} h={48} n={3} seed={s('api')} countLabel={false} />
         <Label kind="mono" x={203} y={80} size={14}>api</Label>
-        <Label kind="mono" muted x={203} y={100} size={14}>w → o</Label>
+        <Label kind="mono" muted x={203} y={100} size={14}>w → o, n</Label>
         <Label kind="mono" tone="blue" anchor="start" x={6} y={140} size={14}>GET /word</Label>
         {/* one ranged read per server */}
         {[172, 194, 216].map((x, i) => <Arrow key={i} tone="blue" pts={[[x, 112], [x, 186]]} seed={s(`rd${i}`)} />)}
@@ -137,7 +137,7 @@ export function PointedReads({ layout = 'desk' }: L) {
       {ys.map((y, i) => (
         <g key={i}>
           <Arrow tone="blue" pts={[[114, y], [158, y]]} seed={s(`l${i}`)} />
-          <Box x={160} y={y - 22} w={110} h={44} label="api" sub="w → o" seed={s(`api${i}`)} />
+          <Box x={160} y={y - 22} w={110} h={44} label="api" sub="w → o, n" seed={s(`api${i}`)} />
         </g>
       ))}
       {/* each server makes its own ranged read: three connectors into three ports on the cloud */}
@@ -186,7 +186,7 @@ export function BootThenGet({ layout = 'desk' }: L) {
   );
   return (
     <Fig id={id} w={W} h={596} halo title="Boot, then one GET"
-      desc="Time runs down. Lanes: an API server and S3. 1: the server starts with the file's S3 path. 2: one ranged read gets the 16-byte header. 3: a second ranged read gets exactly index-size bytes. 4: it builds the in-memory map and starts serving. 5: a GET for apple; the map gives its offset. 6: one ranged read of that record, and 200 goes back. 7: an unknown word misses the map and gets 404 without touching S3.">
+      desc="Time runs down. Lanes: an API server and S3. 1: the server starts with the file's S3 path. 2: one ranged read gets the 16-byte header. 3: a second ranged read gets exactly index-size bytes. 4: it builds the in-memory map and starts serving. 5: a GET for apple; the map gives its offset and length. 6: one ranged read of that record, and 200 goes back. 7: an unknown word misses the map and gets 404 without touching S3.">
       <Box x={A - 48} y={20} w={96} h={34} label="api" seed={s('api')} />
       <Cloud cx={S} cy={36} w={P ? 92 : 112} h={46} label="s3" seed={s('s3')} />
       <Lifeline x={A} y0={56} y1={584} seed={s('la')} />
@@ -202,28 +202,28 @@ export function BootThenGet({ layout = 'desk' }: L) {
       <Step n={2}>
         <Num x={NX} y={172} n={2} tone="blue" size={14} />
         {req(172, ['Range: bytes=0-15'], '2q')}
-        {ret(190, P ? 'OUR_DICT·1·1,751,000' : 'OUR_DICT · 1 · 1,751,000', '2r')}
+        {ret(190, P ? 'OUR_DICT·1·3,502,000' : 'OUR_DICT · 1 · 3,502,000', '2r')}
       </Step>
       <Step n={3}>
         <Num x={NX} y={250} n={3} tone="blue" size={14} />
-        {req(250, ['bytes=16-1,751,015'], '3q')}
+        {req(250, ['bytes=16-3502015'], '3q')}
         {ret(268, 'the index', '3r')}
       </Step>
       <Step n={4}>
         <Num x={NX} y={318} n={4} tone="green" size={14} />
         <EmptySlot x={A - 44} y={302} w={88} h={30} seed={s('map')} />
-        <Label kind="mono" tone="green" x={A} y={322} size={14}>w → o</Label>
+        <Label kind="mono" tone="green" x={A} y={322} size={14}>w → o, n</Label>
         <Label tone="green" anchor="start" x={A + 54} y={322} size={14}>hash map built</Label>
       </Step>
       <Step n={5}>
         <Num x={NX} y={372} n={5} tone="blue" size={14} />
         <Arrow tone="blue" pts={[[NX + 14, 384], [A - 2, 384]]} seed={s('5in')} />
         <Label kind="mono" tone="blue" anchor="start" x={A + 10} y={370} size={14}>GET /word?w=apple</Label>
-        <Label kind="mono" anchor="start" x={A + 10} y={392} size={14}>map: apple → 0</Label>
+        <Label kind="mono" anchor="start" x={A + 10} y={392} size={14}>map: apple → 0, 14</Label>
       </Step>
       <Step n={6}>
         <Num x={NX} y={448} n={6} tone="blue" size={14} />
-        {req(448, P ? ['bytes=1,751,016-', '1,751,029'] : ['bytes=1,751,016-1,751,029'], '6q')}
+        {req(448, P ? ['bytes=3502016-', '3502029'] : ['bytes=3502016-3502029'], '6q')}
         {ret(466, 'apple,a fruit⏎', '6r')}
         <Arrow tone="green" pts={[[A - 2, 506], [NX + 14, 506]]} seed={s('6out')} weight="thin" />
         <Label kind="mono" tone="green" x={(A + NX + 12) / 2} y={498} size={14}>200</Label>

@@ -143,7 +143,7 @@ const LOG9: { t: string; tone?: 'red' | 'green' }[] = [
   { t: 'crash: the value is cut short', tone: 'red' },
   { t: 'restart: next record appended' },
   { t: 'trusting VSZ, the read runs on', tone: 'red' },
-  { t: 'CRC fails → corrupt, skip', tone: 'green' },
+  { t: 'CRC fails → never served', tone: 'green' },
 ];
 
 export function TornRecord({ layout = 'desk' }: { layout?: Layout }) {
@@ -151,7 +151,7 @@ export function TornRecord({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l10-f9c-p' : 'l10-f9c';
   const s = (k: string) => `${id}-${k}`;
   const title = 'A torn record';
-  const desc = 'The machine crashes while writing a big value, so the record is cut short; after restart the next record is appended right after it. A reader that trusts the value size reads past the torn bytes into the next record and serves garbage. With a CRC written first, over the sizes, key and value, the reader recomputes it, sees it does not match, reports the record as corrupt and skips it; the next record checks out.';
+  const desc = 'The machine crashes while writing a big value, so the record is cut short; after restart the next record is appended right after it. A reader that trusts the value size reads past the torn bytes into the next record and serves garbage. With a CRC written first, over everything after it in the record, the reader recomputes it, sees it does not match, and never serves the record. Its sizes can’t be trusted either, so a real store never appends after it: after a crash, the next write goes to a new file.';
   const k = P ? 0.8 : 1, x0 = P ? 30 : 40, W = P ? 340 : 420;
   const yA = 50, yB = 140;
   // steps 1–3 have no CRC slot yet (it is introduced at step 4)
@@ -183,10 +183,10 @@ export function TornRecord({ layout = 'desk' }: { layout?: Layout }) {
         <Label anchor="start" x={x0} y={yA - 14}>CRC: first thing written</Label>
         <RecordBar x={x0} y={yA} cells={neu({ label: '110…', tone: 'red' }, 100)} torn seed={s('a2')} />
         <Cross x={x0 + 22 * k} y={yA + 16} size={20} seed={s('x')} />
-        <Label tone="red" anchor="start" x={x0} y={yA + 56}>doesn’t match → “corrupt”, skip</Label>
+        <Label tone="red" anchor="start" x={x0} y={yA + 56}>doesn’t match → never served</Label>
         <RecordBar x={x0} y={yB} cells={neu({ label: 'V' }, 150)} seed={s('b2')} />
         <Tick x={x0 + 22 * k - 2} y={yB - 5} seed={s('ok')} />
-        <Label anchor="start" x={x0} y={yB + 56}>TS: for conflicts</Label>
+        <Label anchor="start" x={x0} y={yB + 56}>a real store puts this in a new file</Label>
       </StepState>
 
       {LOG9.map((r, i) => (

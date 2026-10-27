@@ -1,0 +1,124 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { PointerFile } from '../../../figures/lec10/s6a-switching-servers-figs';
+import { ColdData } from '../../../figures/lec10/s6b-switching-servers-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 6 "The new file is ready. How does every server move to it?" Story rewrite: same path → S3 swaps
+    atomically but offsets are stale → garbage (pause + stepper) → new path, versioned names, static meta.json →
+    how servers hear: one compact table (known time, poll, Pub/Sub, reload endpoint) → hint: what happens at boot
+    (pause) → trigger a rolling deployment; mixed, never garbage (clip); order of steps; war story as experience →
+    what it was for: old orders on S3, multi-tiered storage, data lakes → hand-off to Build 2. Fact-check L-0153,
+    L-0157, L-0194 folded in. */}
+
+<Section id="s6" no="6" title="The new file is ready. How does every server move to it?" crumb="6 The switch" meta="About 9 min">
+
+The merged dictionary, with apple’s new meaning, sits on the job server’s disk. Getting it onto S3 is the easy part. Getting a hundred running servers onto it, without a single user ever reading garbage, is the part that takes thought.
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="The dictionary after chapter 5: a weekly job merges the changelog into a new sorted file.">
+<Desk><SoFarStorage stage={5} /></Desk>
+<Phone><SoFarStorage stage={5} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Why not upload it over the old one?" crumb="6.1 Same path">
+
+Uploading to the same path looks simplest of all: every server already knows that path, so nobody needs telling. [[L-0152]] And S3 won’t serve a half-uploaded file. Overwriting an object is atomic: a reader gets the old object or the new one, never a mix <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html">S3 user guide</Cite>. [[L-0157]]
+
+So what is the problem? Each server’s index. [[L-0157 L-0158]]
+
+<PauseAndThink k="L-0157 L-0158 L-0159"
+  q="The new file lands at the same S3 path. An API server still holds last week’s index: apple at byte 100, 1,024 bytes long. A user asks for apple a minute later. What do they get?"
+  choices={[{ label: 'The new meaning of apple' }, { label: 'The old meaning of apple' }, { label: '1,024 bytes of something else', correct: true }]}
+  right="Right."
+  wrong="The server reads byte 100 of whatever file is at that path now.">
+
+The read still goes to byte 100, but byte 100 of the new file is somewhere else, perhaps the middle of the word before apple. The server’s offsets describe a file that no longer exists.
+
+</PauseAndThink>
+
+Every server would have to reload its index the instant the file changes, and until it does, its users read garbage. Overwriting also throws the old file away, so unless the bucket keeps old versions, a new file that turns out to be corrupt leaves nothing to roll back to. [[L-0153 L-0157 L-0159]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="A new path. How do the servers find out?" crumb="6.2 A new path">
+
+Upload the new file beside the old one, under a new name, and let the old one keep serving until everyone has moved: [[L-0151 L-0161]]
+
+```text
+s3://word-dictionary/dictionary1.dictionary    (serving now)
+s3://word-dictionary/dictionary2.dictionary    (this week's)
+```
+
+Now a server’s index always matches the file it reads. To tell a hundred servers the dictionary’s new name, write it in one small file that never moves: `meta.json`, at a fixed, never-versioned path, so everyone knows it is the one place to look. The job updates it only once the upload has succeeded. [[L-0166 L-0167]]
+
+<Figure id="fig-6b" no="Fig 6·b" k="L-0151 L-0161 L-0165 L-0166 L-0167" caption="A pointer file. The job uploads dict2 beside dict1, then updates meta.json, whose own path never changes. The inset is a tempting shortcut, one file per word, that breaks the one-file rule.">
+  <Desk><PointerFile /></Desk>
+  <Phone><PointerFile layout="phone" /></Phone>
+</Figure>
+
+How do the servers learn that `meta.json` changed? The usual answers each cost something. [[L-0163 L-0164 L-0168 L-0170 L-0171 L-0172 L-0175]]
+
+<TradeoffTable caption="Telling every server about the new file" k="L-0164 L-0166 L-0168 L-0170 L-0171 L-0172 L-0175"
+  columns={[{ label: 'Switch at a set time' }, { label: 'Poll meta.json' }, { label: 'Redis Pub/Sub' }, { label: 'Reload endpoint' }]}
+  rows={[
+    { label: 'How it works', cells: ['Every server swaps on Sunday at 1 PM', 'Each server rereads meta.json every 5–10 min', 'The job publishes “changed”; servers subscribe', 'The job calls each server’s reload API'] },
+    { label: 'What it costs', cells: [{ text: 'Nothing to run, but it switches even if the job failed', bad: true }, 'Thousands of polls for one weekly change', 'One more component, a persistent connection per server', 'The job must know and reach every server'] },
+  ]} />
+
+Polling every few minutes for something that changes once a week is wasteful. <LectureLink lec="lec08" sec="s4-3">Lecture 5</LectureLink> answered this for a fleet of load balancers: make it reactive, through a real-time Pub/Sub. That works here too, at the price of running Redis, a connection open on every server and new reload code, all to hear one word a week. [[L-0169 L-0171 L-0172]] Is there something the servers already do that would take care of it?
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="What does a server do when it boots?" crumb="6.3 At boot">
+
+Walk through it. A server boots, reads `meta.json`, sees the path, reads that file’s header and index, builds its hash map and starts serving. [[L-0177]]
+
+<PauseAndThink k="L-0177 L-0178 L-0183 L-0185 L-0198"
+  q="The new dictionary is at a new path, and meta.json points at it. Servers read meta.json only when they boot. What is the least new code that moves every server onto the new file?"
+  choices={[{ label: 'A reload API on every server' }, { label: 'None: start new servers', correct: true }]}
+  right="Right."
+  wrong="That works, but it is new code on every server for something they already know how to do.">
+
+A reload is a boot. Replace the servers, and each new one loads the new file by itself, with no polling, no Pub/Sub and no reload API.
+
+</PauseAndThink>
+
+The update job calls the deployment pipeline you already have, through the cloud provider’s SDK or a Jenkins job. A rolling deployment takes one server out and brings a new one up, again and again, while the load balancer stays put, and each new server reads `meta.json` on boot and serves the new file. [[L-0178 L-0183 L-0185]]
+
+So the job does four things, in this order: build the merged file, upload it to a new path, update `meta.json`, and only then trigger the deployment. [[L-0196]] And `dictionary1` is still there: if the new file turns out bad, point `meta.json` back at the old path and deploy again. [[L-0153 L-0154]]
+
+<AnimationClip clip="l10-garbage-vs-rolling" no="Clip 6·1" k="L-0157 L-0158 L-0159 L-0161 L-0177 L-0178 L-0183 L-0184 L-0196"
+  lead="Same new file, two ways to switch. During the rolling deployment, what does a user asking for apple get?"
+  caption="At the same path, servers read the new file with last week’s offsets and serve garbage until each reloads. With a new path, meta.json and a rolling deployment, answers are briefly mixed but never garbage." />
+
+During the roll, some users get the old meaning and some the new: briefly inconsistent, eventually consistent, and fine for meanings that barely change in a week. None gets garbage, because every server reads the file its own index was built from. [[L-0184]]
+
+Many engineers never think of a deployment as a way to reload; we are used to solving problems by writing code and forget that the infrastructure is ours to use too. One engineer, facing this exact problem on a couple of services, first built Redis Pub/Sub and reload APIs, then threw them out and triggered a deployment: the same cost, no new code, nothing extra to maintain. [[L-0198 L-0308]]
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="What was all this for?" crumb="6.4 What it was for">
+
+Look at what the dictionary gave you: one key’s value from one huge file on S3, reading only the bytes it needs. Now go back to the old orders. [[L-0188]]
+
+Move orders older than six months to S3; recent ones stay in the hot database, MySQL say. When someone does go back to check an old order, the pointed query, order ID in, order details out, works against a file on S3. Dumped there as one big JSON file, they would be archived, not queryable. [[L-0189 L-0190]]
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0189 L-0191 L-0192 L-0193" caption="Multi-tiered storage. Both arrows are reads the API server starts; the old orders sit on S3 in the dictionary’s layout: H, I, D, a header, an index of order IDs, and the data.">
+  <Desk><ColdData /></Desk>
+  <Phone><ColdData layout="phone" /></Phone>
+</Figure>
+
+This is **multi-tiered storage**: move data from the hot tier to the cold one to save money, without losing the ability to query it. S3 is slower than the hot database, but its storage is very cheap, and for rarely read data the slower answer is fine. Data lakes rest on the same idea. Table formats such as Apache Hudi build on it: they keep an index from each record key to the file that holds it, so huge data on cheap storage can be queried without scanning everything <Cite href="https://hudi.apache.org/docs/indexes">hudi.apache.org</Cite>. [[L-0191 L-0192 L-0193 L-0194]]
+
+From the first scan to the rolling deployment, every step of the dictionary was the simplest thing that worked, and it got away with that because writes came once a week, in one batch, prepared off to the side. [[L-0195]] Now take data that is written all day long: puts, updates and deletes arriving one at a time, each safe on disk before it is acknowledged. Rebuilding a terabyte file per write is out, and S3 can’t help either: an object in an ordinary bucket can’t be appended to, only replaced whole (only the single-zone S3 Express class allows appends, and at most 10,000 per object <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-objects-append.html">S3 user guide</Cite>). So the data goes onto local disks, and the cheapest ones there are, magnetic hard disks, because that is where huge amounts of data live. [[L-0200 L-0202]] The tools stay the same, a file, byte offsets and a small map in memory. The order you use them in changes.
+
+</Section>

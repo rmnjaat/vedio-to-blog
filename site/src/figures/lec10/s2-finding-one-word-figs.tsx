@@ -80,7 +80,8 @@ const DESC_2B =
 
 export function OneLevelIndex({ layout = 'desk' }: { layout?: Layout }) {
   const title = 'A one-level index';
-  const idx = ['apple, 0', 'amazon, 14', 'book, 34'];
+  const idx = ['apple, 0, 14', 'amazon, 14, 20', 'book, 34, …'];
+  const idxP = ['apple,0,14', 'amazon,14,20', 'book,34,…'];
   const offs = ['0', '14', '34'];
   if (layout === 'phone') {
     const s = (k: string) => `l10-f2b-p-${k}`;
@@ -88,7 +89,7 @@ export function OneLevelIndex({ layout = 'desk' }: { layout?: Layout }) {
     return (
       <Fig id="l10-f2b-p" w={340} h={378} title={title} desc={DESC_2B}>
         <Label x={170} y={22}>“Indexing”</Label>
-        <RowFile x={10} y={Y} w={112} h={170} rows={idx} seed="l10-indexfile" name="index.dict" pad={10} />
+        <RowFile x={10} y={Y} w={112} h={170} rows={idxP} seed="l10-indexfile" name="index.dict" pad={10} />
         <RowFile x={160} y={Y} w={170} h={170} rows={['apple,a fruit', 'amazon,…', 'book,…']} seed="l10-datafile" name="data.dict" pad={42} />
         <Label kind="mono" anchor="end" x={322} y={202}>1 TB</Label>
         {offs.map((o, i) => (
@@ -98,7 +99,7 @@ export function OneLevelIndex({ layout = 'desk' }: { layout?: Layout }) {
             <Label kind="mono" muted anchor="start" x={168} y={rowY(Y, i) + 5}>{o}</Label>
           </g>
         ))}
-        <Label x={170} y={264}>index: keys + offsets only</Label>
+        <Label x={170} y={264}>index: keys + offsets + lengths only</Label>
         <Label kind="mono" x={170} y={292}>"apple,a fruit\n"</Label>
         <Label kind="mono" x={170} y={312}>= 14 bytes</Label>
         <Label x={170} y={342}>byte offset: the nth byte</Label>
@@ -120,7 +121,7 @@ export function OneLevelIndex({ layout = 'desk' }: { layout?: Layout }) {
           <Label kind="mono" muted anchor="start" x={300} y={rowY(Y, i) + 5}>{o}</Label>
         </g>
       ))}
-      <Label x={110} y={300}>keys + offsets only</Label>
+      <Label x={110} y={300}>keys + offsets + lengths only</Label>
       <Label kind="mono" x={435} y={300}>"apple,a fruit\n" = 14 bytes</Label>
       <Label x={435} y={326}>byte offset: the nth byte where the line starts</Label>
     </Fig>
@@ -130,15 +131,15 @@ export function OneLevelIndex({ layout = 'desk' }: { layout?: Layout }) {
 /* ------------------------------------------------------------------ Fig 2·c the number crunch */
 
 const DESC_2C =
-  'The index estimate as a calculator strip. Row one, as taught: 170,000 words times (4.3 for the average word, plus 4 for the offset, plus 2 for the comma and newline) is 170,000 times 10.3 bytes, 1,751,000 bytes, 1.751 MB: it fits in RAM, peanuts. Row two: a 1 TB file needs 8-byte offsets, so 170,000 times 14.3 bytes, about 2.4 MB: it still fits. MB here is 10 to the 6 bytes.';
+  'The index estimate as a calculator strip: 170,000 words times (1 byte for the word’s length, plus 7.6 for the average distinct word, plus 8 for the byte offset a 1 TB file needs, plus 4 for the line’s length) is 170,000 times 20.6 bytes, 3,502,000 bytes, about 3.5 MB. It fits in RAM: peanuts next to the 1 TB of data. MB here is 10 to the 6 bytes.';
 
 /** One arithmetic line laid out token by token, so labels can sit under each term. */
-function Expr({ y, xs, eight }: { y: number; xs: number[]; eight?: boolean }) {
-  const t = ['(', '4.3', '+', eight ? '8' : '4', '+', '2', ')'];
+function Expr({ y, xs }: { y: number; xs: number[] }) {
+  const t = ['(', '1', '+', '7.6', '+', '8', '+', '4', ')'];
   return (
     <g>
       {t.map((tok, i) => (
-        <Label key={i} kind="mono" tone={eight && i === 3 ? 'red' : undefined} x={xs[i]} y={y}>{tok}</Label>
+        <Label key={i} kind="mono" x={xs[i]} y={y}>{tok}</Label>
       ))}
     </g>
   );
@@ -152,67 +153,43 @@ export function NumberCrunch({ layout = 'desk' }: { layout?: Layout }) {
   const title = 'The number crunch';
   if (layout === 'phone') {
     const s = (k: string) => `l10-f2c-p-${k}`;
-    const xs = [100, 126, 156, 182, 206, 232, 254];
+    const xs = [96, 112, 130, 156, 182, 204, 226, 248, 266];
     return (
-      <Fig id="l10-f2c-p" w={340} h={398} title={title} desc={DESC_2C}>
-        <path className="ink shape" d={chamferRect(6, 6, 328, 384, s('strip'), 3)} />
-        {/* as taught */}
-        <Label kind="mono" anchor="start" x={16} y={40}>170,000 ×</Label>
+      <Fig id="l10-f2c-p" w={340} h={268} title={title} desc={DESC_2C}>
+        <path className="ink shape" d={chamferRect(6, 6, 328, 254, s('strip'), 3)} />
+        <Label kind="mono" anchor="start" x={14} y={40}>170,000 ×</Label>
         <Expr y={40} xs={xs} />
-        <Label x={126} y={62} size={13}>avg word</Label>
-        <Label x={182} y={80} size={13}>offset</Label>
-        <Label x={256} y={62} size={13}>comma + newline</Label>
-        <Label kind="mono" anchor="start" x={16} y={114}>= 170,000 × 10.3 B</Label>
-        <Label kind="mono" anchor="start" x={16} y={138}>= 1,751,000 B</Label>
-        <Label kind="mono" anchor="start" x={16} y={168}>=</Label>
-        <Label kind="mono" x={76} y={168}>1.751 MB</Label>
-        <Circled cx={76} cy={163} rx={46} ry={14} seed={s('ring')} />
-        <Tick x={136} y={162} seed={s('t1')} />
-        <Label tone="green" anchor="start" x={150} y={168}>fits in RAM:</Label>
-        <Label tone="green" anchor="start" x={150} y={186}>“peanuts”</Label>
-        <Cache x={262} y={96} w={62} h={58} label="ram" seed={s('ram1')} />
-        <Line pts={[[18, 204], [322, 204]]} weight="thin" seed={s('sep')} />
-        {/* with 8-byte offsets */}
-        <Label kind="mono" anchor="start" x={16} y={236}>170,000 ×</Label>
-        <Expr y={236} xs={xs} eight />
-        <Label tone="red" x={182} y={260}>a 1 TB file needs</Label>
-        <Label tone="red" x={182} y={278}>8-byte offsets</Label>
-        <Label kind="mono" anchor="start" x={16} y={310}>= 170,000 × 14.3 B</Label>
-        <Label kind="mono" anchor="start" x={16} y={336}>≈ 2.4 MB</Label>
-        <Tick x={104} y={330} seed={s('t2')} />
-        <Label tone="green" anchor="start" x={118} y={336}>still fits</Label>
-        <Cache x={262} y={292} w={62} h={58} label="ram" seed={s('ram2')} />
-        <Label muted x={170} y={374}>MB = 10⁶ bytes</Label>
+        <Label anchor="start" x={14} y={66} size={13}>word length · avg word ·</Label>
+        <Label anchor="start" x={14} y={84} size={13}>offset · line length (bytes)</Label>
+        <Label kind="mono" anchor="start" x={14} y={118}>= 170,000 × 20.6 B</Label>
+        <Label kind="mono" anchor="start" x={14} y={142}>= 3,502,000 B</Label>
+        <Label kind="mono" anchor="start" x={14} y={172}>≈</Label>
+        <Label kind="mono" x={70} y={172}>3.5 MB</Label>
+        <Circled cx={70} cy={167} rx={40} ry={14} seed={s('ring')} />
+        <Tick x={124} y={166} seed={s('t1')} />
+        <Label tone="green" anchor="start" x={138} y={172}>fits in RAM:</Label>
+        <Label tone="green" anchor="start" x={138} y={190}>“peanuts”</Label>
+        <Cache x={262} y={100} w={62} h={58} label="ram" seed={s('ram1')} />
+        <Label muted x={170} y={244}>MB = 10⁶ bytes · data: 1 TB</Label>
       </Fig>
     );
   }
   const s = (k: string) => `l10-f2c-${k}`;
-  const xs = [128, 160, 205, 250, 300, 350, 378];
+  const xs = [128, 152, 176, 214, 252, 286, 320, 352, 376];
   return (
-    <Fig id="l10-f2c" w={700} h={248} title={title} desc={DESC_2C}>
-      <path className="ink shape" d={chamferRect(10, 10, 680, 228, s('strip'), 3)} />
-      {/* as taught */}
+    <Fig id="l10-f2c" w={700} h={150} title={title} desc={DESC_2C}>
+      <path className="ink shape" d={chamferRect(10, 10, 680, 130, s('strip'), 3)} />
       <Label kind="mono" anchor="start" x={30} y={50}>170,000 ×</Label>
       <Expr y={50} xs={xs} />
-      <Label x={160} y={74} size={13}>avg word</Label>
-      <Label x={250} y={74} size={13}>offset</Label>
-      <Label x={350} y={74} size={13}>comma + newline</Label>
-      <Label kind="mono" anchor="start" x={30} y={110}>= 170,000 × 10.3 B = 1,751,000 B =</Label>
-      <Label kind="mono" x={372} y={110}>1.751 MB</Label>
-      <Circled cx={372} cy={105} rx={48} ry={15} seed={s('ring')} />
-      <Tick x={436} y={104} seed={s('t1')} />
-      <Label tone="green" anchor="start" x={450} y={110}>fits in RAM: “peanuts”</Label>
+      <Label anchor="start" x={400} y={44} size={13}>word length + avg word</Label>
+      <Label anchor="start" x={400} y={62} size={13}>+ offset + line length, in bytes</Label>
+      <Label kind="mono" anchor="start" x={30} y={110}>= 170,000 × 20.6 B = 3,502,000 B ≈</Label>
+      <Label kind="mono" x={368} y={110}>3.5 MB</Label>
+      <Circled cx={368} cy={105} rx={38} ry={15} seed={s('ring')} />
+      <Tick x={422} y={104} seed={s('t1')} />
+      <Label tone="green" anchor="start" x={436} y={110}>fits in RAM: “peanuts”</Label>
       <Cache x={630} y={30} w={52} h={56} label="ram" seed={s('ram1')} />
-      <Line pts={[[26, 132], [674, 132]]} weight="thin" seed={s('sep')} />
-      {/* with 8-byte offsets */}
-      <Label kind="mono" anchor="start" x={30} y={166}>170,000 ×</Label>
-      <Expr y={166} xs={xs} eight />
-      <Label tone="red" x={250} y={190}>a 1 TB file needs 8-byte offsets</Label>
-      <Label kind="mono" anchor="start" x={30} y={222}>= 170,000 × 14.3 B ≈ 2.4 MB</Label>
-      <Tick x={276} y={216} seed={s('t2')} />
-      <Label tone="green" anchor="start" x={290} y={222}>still fits</Label>
-      <Cache x={630} y={146} w={52} h={56} label="ram" seed={s('ram2')} />
-      <Label muted anchor="end" x={612} y={226}>MB = 10⁶ bytes</Label>
+      <Label muted anchor="end" x={672} y={130}>MB = 10⁶ bytes · data: 1 TB</Label>
     </Fig>
   );
 }

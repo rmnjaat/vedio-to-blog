@@ -1,0 +1,105 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import { JobServer, RunsIntoBall } from '../../../figures/lec10/s5-weekly-update-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 5 "Sunday's changelog arrives. Can you just rewrite apple's line?" Story rewrite: a job on its own
+    server → append rejected (duplicates) → diff/hash unnecessary → rewrite in place (pause) → apple runs into ball
+    (stepper) → imagine the code → write a new file → it's merge sort's merge, if sorted (the chapter 1 question
+    answered) → code + clip → never in place → 2 TB, new header. Fact-check L-0121, L-0139, L-0310 folded in. */}
+
+<Section id="s5" no="5" title="Sunday’s changelog arrives. Can you just rewrite apple’s line?" crumb="5 Sunday" meta="About 7 min">
+
+The changelog is in: apple now means “a round fruit”, and ball and zoo changed too. Only the changed words arrive, not the whole dictionary. The live dictionary is one file on S3, read by byte offset. How does the change get in? [[L-0010]]
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="The dictionary after chapter 4: one copy on S3, read by ranged GETs from every server.">
+<Desk><SoFarStorage stage={4} /></Desk>
+<Phone><SoFarStorage stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Who applies the changelog?" crumb="5.1 The job">
+
+Not the API servers; they are busy serving. Spin up a separate server for a scheduled batch job, a cron job, that runs when the changelog arrives. It holds the changelog, downloads the current dictionary from S3, builds the updated file and uploads it. It has to build a whole file: an S3 object can’t be patched, only replaced whole. [[L-0120 L-0121 L-0122]]
+
+<Figure id="fig-5b" no="Fig 5·b" wide={false} k="L-0120 L-0122 L-0124 L-0010" caption="The weekly job runs on its own server, which downloads the dictionary and holds the changelog.">
+  <JobServer />
+</Figure>
+
+The quickest idea is to append the changelog to the end of the dictionary; it isn’t sorted anyway. But then apple is in the file twice, the file grows every week forever, and the brief said no repeated entries. [[L-0124]] Comparing a hash of every entry against the new one, or generating a diff, is extra work for nothing: the changelog already says exactly what changed. [[L-0126]] It is easy to build complex systems and hard to build simple ones; think only about what you really need. [[L-0127]]
+
+What you really need seems simple: the index already knows where apple is, so go there and write the new line over the old one. [[L-0125 L-0128]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Apple gets longer. What happens to ball?" crumb="5.2 Ball">
+
+<PauseAndThink k="L-0128 L-0129 L-0130 L-0131 L-0132"
+  q="The file holds <code>apple,a fruit</code> followed by <code>ball,a round object</code>. You go to apple’s offset and write <code>apple,a round fruit</code>. What happens to ball’s line?"
+  choices={[{ label: 'It moves down to make room' }, { label: 'Its first bytes are overwritten', correct: true }]}
+  right="Right."
+  wrong="That’s what an editor shows you, because its text is in memory.">
+
+A file on disk doesn’t shift. Bytes written at an offset land blindly on whatever is there, so the longer line runs into ball.
+
+</PauseAndThink>
+
+<StepThrough id="fig-5c" no="Fig 5·c" label="Apple runs into ball" grow k="L-0128 L-0129 L-0130 L-0131 L-0132"
+  caption="The file byte by byte, one cell per byte (· is a space, ⏎ the end of a line). Numbers on the left are byte offsets. Small grey letters show what a cell held before the write."
+  stepK={['L-0129', 'L-0128', 'L-0130 L-0131', 'L-0132']}
+  steps={[
+    'The file holds apple, then ball, byte after byte: <code>apple,a fruit⏎</code> is bytes 0–13 and <code>ball,a round object⏎</code> is bytes 14–33.',
+    'The index says apple starts at byte 0.',
+    'Write <code>apple,a round fruit⏎</code> there. It is 20 bytes, six more than the old line, so its last six bytes, <code>fruit⏎</code>, land on bytes 14–19.',
+    'Ball didn’t move down. Bytes 14–19 held <code>ball,a</code>; read as text, the file now says <code>apple,a round fruit⏎</code> and then <code>&nbsp;round object⏎</code>. <span class="term red">The word ball is lost.</span>',
+  ]}>
+  <Desk><RunsIntoBall /></Desk>
+  <Phone><RunsIntoBall layout="phone" /></Phone>
+</StepThrough>
+
+In an editor you press Enter and the lines below move down, because the text lives in memory. A file on disk gives you no such operation. It is easy to say “I would replace it”; picture the code you would actually write, `seek(0); write(...)`, and the break is obvious. [[L-0130 L-0131 L-0132 L-0133]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="A new file, then. Can you build it in one pass?" crumb="5.3 The merge">
+
+So write a new file: go through the dictionary, write each entry to the new file, put each change where it belongs, and carry on to the end. That sounds naive. It isn’t. It is the merge step of merge sort, the best approach for this design, and it works in one pass when both files are sorted. [[L-0136 L-0137 L-0139]]
+
+That is the question from chapter 1, answered. Sorting didn’t matter for lookups, because the index goes straight to an offset. It matters for the update. Keep the dictionary sorted, sort the changelog too (it is small, so sort it in memory), and the job is a textbook merge of two sorted lists into a third. [[L-0140 L-0141 L-0142]]
+
+Keep one pointer in each file. Compare the two words: write the smaller one to the new file and move that pointer. When the words match, write the changelog’s meaning and move both. [[L-0143]]
+
+```python
+d, c = dictionary.readline(), changelog.readline()
+while d and c:
+    if d.word < c.word:      # the smaller word goes out
+        new.write(d); d = dictionary.readline()
+    elif d.word > c.word:    # a word the dictionary didn't have
+        new.write(c); c = changelog.readline()
+    else:                    # same word: the changelog's meaning wins
+        new.write(c); d = dictionary.readline(); c = changelog.readline()
+while d:                     # changelog used up: the rest follows
+    new.write(d); d = dictionary.readline()
+while c:
+    new.write(c); c = changelog.readline()
+```
+
+<AnimationClip clip="l10-sorted-merge" no="Clip 5·1" k="L-0140 L-0142 L-0143 L-0144 L-0145 L-0310"
+  lead="The dictionary has seven words and the changelog three. How many times does each pointer move, and does either ever go back?"
+  caption="The smaller word is written and its pointer moves; on a match the changelog’s meaning wins and both move. Each pointer moves once per entry, so one pass builds a sorted new file." />
+
+Nothing is loaded into memory: the job reads both files line by line and writes a third, each file once. [[L-0145]] And the output comes out sorted, ready as next week’s input: sort the dictionary once, and from then on the merge keeps it sorted for free. [[L-0309 L-0310 L-0311]]
+
+The rule underneath is worth keeping on its own: **never overwrite a record in place when its size can change.** A write that runs past its slot destroys what follows, so a change goes into a new file. [[L-0146]]
+
+It has a cost you can compute. The merged dictionary is about a terabyte too, and both sit on the job server at once, so that one server needs at least 2 TB of disk. One server, once a week: fine. [[L-0147]] The new file is complete, with a fresh index and a fresh header, since the index size changes with every update. [[L-0148]]
+
+The new dictionary is ready on the job server. Every API server, meanwhile, is still serving last week’s file, with last week’s offsets in its memory.
+
+</Section>

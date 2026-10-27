@@ -1,0 +1,94 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { OneLevelIndex, NumberCrunch } from '../../../figures/lec10/s2-finding-one-word-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 2 "Half a terabyte per lookup. What would tell you where apple starts?" Story rewrite: index file of
+    word → byte offset → still a scan, but a small one (clip) → A–Z index is not enough → pause: will it fit in
+    memory? → the number crunch, with 8-byte offsets and distinct-word length (fact-check L-0055, L-0056) → load it
+    into a hash map at boot → one pointed read. */}
+
+<Section id="s2" no="2" title="Half a terabyte per lookup. What would tell you where apple starts?" crumb="2 The index" meta="About 5 min">
+
+The scan reads 500 GB to find one word. Most of those bytes are meanings you don’t want. What you need is something small that knows where each word is.
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The dictionary after chapter 1: one text file, and a lookup that scans it.">
+<Desk><SoFarStorage stage={1} /></Desk>
+<Phone><SoFarStorage stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What if a small file said where each word starts?" crumb="2.1 Offsets">
+
+Put a small index on top of the data file, one level only. Each entry holds the word, its **offset**, the byte position in the data file where that word’s line starts, and the line’s **length**, so a reader knows exactly how many bytes to fetch. [[L-0047 L-0048]]
+
+The offset counts bytes, not lines. `apple,a fruit` plus its newline is 14 bytes, so apple starts at byte 0 and amazon at byte 14; `amazon,a rainforest` and its newline take 20 more, so book starts at byte 34. [[L-0049]]
+
+<Figure id="fig-2b" max={640} no="Fig 2·b" k="L-0047 L-0048 L-0049 L-0050" caption="The index file lists each word with the byte where its line starts in the data file. A lookup finds the word in the index, then jumps straight to that byte.">
+<Desk><OneLevelIndex /></Desk>
+<Phone><OneLevelIndex layout="phone" /></Phone>
+</Figure>
+
+A lookup now reads the index entry by entry until it reaches apple, takes the offset and length, goes to that byte in the data file, reads that one line and returns the meaning. [[L-0050]]
+
+That is still a scan. Why is it any better? Because a scan of the data file wades through every huge meaning on its way, while the index holds only words, offsets and lengths. Even in the worst case it is a sequential read of a file that holds no meanings at all, followed by one read at a known place. How small is that file? [[L-0051]]
+
+<AnimationClip clip="l10-scan-vs-index" no="Clip 2·1" k="L-0042 L-0043 L-0044 L-0047 L-0048 L-0050 L-0051 L-0063"
+  lead="Before you play it: both lookups find ball, a word halfway down the file. How much does each one read?"
+  caption="The scan reads about 500 GB to reach a word halfway down the file, and every request pays it again. The index is a short scan of words and offsets, then one pointed read of one line." />
+
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="Will the index fit in memory?" crumb="2.2 Fits in RAM?">
+
+If the whole index fits in an API server’s memory, there is no index scan at all: load it once, and every lookup is a hash map lookup plus one read. So before designing anything clever, estimate its size. [[L-0052]]
+
+<PauseAndThink k="L-0052 L-0054 L-0055 L-0056 L-0057 L-0058 L-0059"
+  q="The dictionary is 1 TB and holds 170,000 words. An index entry is a word, its byte offset and its line’s length. Will the whole index fit in an API server’s memory?"
+  choices={[{ label: 'No: a 1 TB file needs an index too big for RAM' }, { label: 'Yes: it’s a few megabytes', correct: true }]}
+  right="Right."
+  wrong="The size of the meanings doesn’t enter into it.">
+
+An entry’s size depends on the word and its offset, not on the meaning it points to, and 170,000 small entries can’t add up to much. Here is the arithmetic.
+
+</PauseAndThink>
+
+An entry is the word plus the offset plus the length. [[L-0054]] Across the distinct words of English the average is about 7.6 letters <Cite href="https://norvig.com/mayzner.html">norvig.com</Cite>. [[L-0055]] The offset has to address any byte of a 1 TB file, which is 10¹² bytes; a 4-byte integer stops at about 4.3 billion, so the offset is an 8-byte integer <Cite href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html">docs.oracle.com</Cite>. A line is a few megabytes at most, so its length fits in 4 bytes. Store both as raw bytes in fixed-size slots, not as text on a line, since their bytes can happen to look like a comma or a newline, and put one byte in front of the word saying how long it is. [[L-0056 L-0057 L-0187]]
+
+<Figure id="fig-2c" max={700} no="Fig 2·c" k="L-0054 L-0055 L-0056 L-0057 L-0058 L-0059" caption="The number crunch: 170,000 entries of 20.6 bytes on average. The data is a terabyte; its index fits in RAM many times over.">
+<Desk><NumberCrunch /></Desk>
+<Phone><NumberCrunch layout="phone" /></Phone>
+</Figure>
+
+About **3.5 MB**. Next to a terabyte of data, that is peanuts. Any server holds it in RAM without noticing. [[L-0058 L-0059]]
+
+This is why you do the number crunch before you design anything. What looked huge, a terabyte and 170,000 words, needs an index of a few megabytes, and no cleverer structure is needed. <LectureLink lec="lec04" sec="s2-2">Lecture 1</LectureLink> did the same with a billion users and found 8 GB. [[L-0060 L-0062]]
+
+So keep the index stored on disk, and when the API server starts, load it into an in-memory hash map. A request checks the map for the word. Missing: 404. Present: take the offset and length, read exactly that many bytes at that offset in the data file, return the meaning. [[L-0061]]
+
+```python
+index = load_index("index.dict")            # at boot: word -> (offset, length), ~3.5 MB
+
+def lookup(word):
+    entry = index.get(word)
+    if entry is None:
+        return None                         # -> 404, data file untouched
+    off, length = entry
+    with open("data.dict", "rb") as f:
+        f.seek(off)                         # straight to the line
+        line = f.read(length)               # exactly its bytes
+        w, meaning = line.decode().rstrip("\n").split(",", 1)
+        return meaning
+```
+
+No scan is left. Every lookup is one direct, pointed read at the offset the index gives. Storage and query are settled. [[L-0063]] But look at what you now ship: `index.dict` and `data.dict`. The brief said one file.
+
+</Section>

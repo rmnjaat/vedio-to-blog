@@ -1,0 +1,92 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { SizesFirst, DictRecord, TornRecord } from '../../../figures/lec10/s9-record-format-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 9 "The power fails halfway through a 1 MB value. What does the next get return?" Story rewrite: "key
+    value" is too casual → read until newline is one call per byte → sizes first (the dictionary's header idea,
+    per record; the dictionary's own record) → a torn write (pause) → CRC over the record, checked before trusting
+    → final layout CRC | TS | KSZ | VSZ | K | V, write order → skip corrupt records → the header itself needn't be
+    atomic. Fact-check L-0253, L-0261, L-0262, L-0263, L-0297 folded in (CRC position is a convention). */}
+
+<Section id="s9" no="9" title="The power fails halfway through a 1 MB value. What does the next get return?" crumb="9 Torn writes" meta="About 6 min">
+
+Every chapter so far has written “K1 V1” into the file as if that settled what an entry looks like on disk. It doesn’t. Before you can answer what happens to a half-written value, you need to know how a reader finds where a record ends at all.
+
+<Figure id="fig-9-sofar" max={640} no="Fig 9·a" caption="The key-value store after chapter 8: small files with one active, merged and compacted in the background.">
+<Desk><SoFarStorage stage={8} /></Desk>
+<Phone><SoFarStorage stage={8} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="How does a reader know where a record ends?" crumb="9.1 Sizes first">
+
+The dictionary got away with “word, comma, meaning” and a newline, read line by line. But files are read in blocks, not lines, so a store on disk needs a defined **record format** for each entry. Every database, MySQL, Postgres, MongoDB, Redis, has its own format for what it writes to disk, designed to make reading it back efficient. [[L-0251 L-0252 L-0257]]
+
+The easy way is to read from an offset until you hit a newline. But a newline can’t mark the end of a value that may itself contain newline bytes, as chapter 1’s audio and video will, and without a length you don’t know how many bytes to fetch, so you read and check a little at a time. [[L-0253]] You want the opposite. At any offset, you should know exactly how many bytes make up the whole entry, and read it in one go. [[L-0254]]
+
+So write the sizes first. Before the key and value, store the **key size** and the **value size**, a 4-byte integer each. [[L-0255]] Reading a record now takes two reads: the first 8 bytes give the two sizes; add them, and the second read fetches exactly that many bytes, which you split into key and value. [[L-0256]]
+
+<Figure id="fig-9b" no="Fig 9·b" k="L-0251 L-0253 L-0255 L-0256" caption="Top: reading until a newline goes one byte at a time. Bottom: with the key size and value size up front, a record is two reads, the 8 bytes of sizes and then exactly the key and value.">
+  <Desk><SizesFirst /></Desk>
+  <Phone><SizesFirst layout="phone" /></Phone>
+</Figure>
+
+It is the dictionary’s header again, at the scale of one record: a few fixed bytes that tell the reader how many bytes to read next. And the dictionary should use it too. CSV was the easy start; its entries are better stored as word size, meaning size, word, meaning. [[L-0256 L-0257]]
+
+<Figure id="fig-9c" no="Fig 9·c" k="L-0257" caption="The dictionary’s apple entry in the same record format: a 4-byte word size of 5, a 4-byte meaning size of 13, then the word and the meaning. Cells drawn in proportion to their bytes.">
+  <Desk><DictRecord /></Desk>
+  <Phone><DictRecord layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="The value was cut short. Can the store tell?" crumb="9.2 The CRC">
+
+It is tempting to stop at the sizes. Don’t. The machine can crash while writing a big value, leaving a corrupt entry. You can’t fix it, but you must know it has lost its integrity and never serve it. [[L-0258]]
+
+<PauseAndThink k="L-0258 L-0259 L-0260"
+  q="Records are key size | value size | key | value. The power fails halfway through writing a 1 MB value. After restart, more records are appended right after it. A get for that key arrives. Can the store tell, from the sizes alone, that the record is broken?"
+  choices={[{ label: 'Yes: the value size says how many bytes to expect' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="The sizes were written before the crash, and they look perfectly fine.">
+
+The reader trusts the value size and reads 1 MB. The torn value is shorter than that, so the read runs on into the next record’s bytes and returns them as part of the value, with no error at all.
+
+</PauseAndThink>
+
+A broken entry is worse than a missing one. [[L-0259]] The way to detect it is a **CRC**, a cyclic redundancy check: a checksum computed over everything else in the record (its sizes, key and value, and the timestamp once it is added) when it is built in memory, and stored with it. On read, compute it again over the bytes you got. If the two don’t match, the record is corrupt. [[L-0260]]
+
+Put the CRC at the front of the record, before everything it protects. [[L-0261]] That is where Bitcask and LevelDB’s log put it <Cite href="https://github.com/google/leveldb/blob/main/doc/log_format.md">LevelDB</Cite>; Postgres’s WAL and MySQL’s binlog protect every record with a CRC too, at other positions <Cite href="https://www.postgresql.org/docs/current/wal-reliability.html">postgresql.org</Cite>. The position is a convention. The rule is that a reader checks the CRC before it trusts a single byte of the record. [[L-0262]]
+
+The full record, then: **CRC, timestamp** (metadata, kept for settling conflicts between versions of a key), **key size, value size, key, value**. [[L-0264]]
+
+<StepThrough id="fig-9d" no="Fig 9·d" label="A torn record"
+  k="L-0258 L-0259 L-0260 L-0261 L-0264 L-0265 L-0266"
+  stepK={['L-0258', 'L-0259', 'L-0259', 'L-0260 L-0261 L-0264 L-0265 L-0266']}
+  caption="One record per line; in the file, the second record starts right where the first one breaks off. Blue is the read; red, the torn bytes and the overrun; green, a CRC that checks."
+  steps={[
+    'The machine <span class="term red">crashes</span> while writing a big value. The record is cut short.',
+    'After restart, new records are appended right after the broken one.',
+    'Trusting VSZ, a reader runs <span class="term red">into the next record</span> and serves garbage.',
+    'With a CRC first, the reader recomputes the checksum, sees it <span class="term red">fails</span>, and never serves the record. Its sizes can’t be trusted either, so a real store never appends after it: the next write goes to a new file.',
+  ]}>
+  <Desk><TornRecord /></Desk>
+  <Phone><TornRecord layout="phone" /></Phone>
+</StepThrough>
+
+The writes go in order: the header part, then the key, then the possibly gigantic value. If the first write fails, the entry doesn’t exist; if a later one fails, the CRC won’t match and the entry is never served. [[L-0265]]
+
+What then? You can’t recover bytes that were never written, so ignore the entry, in merge and compaction and everywhere else, as if the write never came. [[L-0266]] But once the CRC fails, the value size can’t be trusted either, so a scan can’t use it to find where the next record starts. So never append after a torn record. Bitcask doesn’t: a file closed by a crash is never written again <Cite href="https://riak.com/assets/bitcask-intro.pdf">Bitcask paper</Cite>, and after a restart writes go to a new active file. A torn record is then always the last one in its file, and a rebuild that hits a failed CRC simply stops reading that file.
+
+Is the small header itself written whole? Neither the operating system nor the disk promises it, and the design doesn’t need the promise: a torn header fails the CRC just as a torn value does <Cite href="https://www.postgresql.org/docs/current/wal-reliability.html">postgresql.org</Cite>. [[L-0297 L-0298 L-0299]]
+
+Key size, value size, key, value, and a CRC over all of it. That is the last piece. The store is finished, and it has a name.
+
+</Section>

@@ -75,7 +75,7 @@ export function FileRotation({ layout = 'desk' }: { layout?: Layout }) {
 
 const F1: Row[] = [{ text: 'K1 V1', muted: true }, { text: 'K2 V2' }, { text: 'K3 V3' }, { text: 'K1 V1′', muted: true }, { text: 'K2 −1' }];
 const F2: Row[] = [{ text: 'K4 V4' }, { text: 'K1 V1″' }];
-const TMP: MapRow[] = [{ text: 'K1: V1→V1′→V1″' }, { text: 'K2: V2 → −1', strike: true, muted: true }, { text: 'K3: V3' }, { text: 'K4: V4' }];
+const TMP: MapRow[] = [{ text: 'K1 → f2, O2' }, { text: 'K2 → −1', strike: true, muted: true }, { text: 'K3 → f1, O3' }, { text: 'K4 → f2, O1' }];
 const MERGED: Row[] = [{ text: 'K3 V3', tone: 'green' }, { text: 'K4 V4', tone: 'green' }, { text: 'K1 V1″', tone: 'green' }];
 const MAP_OLD: MapRow[] = [{ text: 'K1 → f2, O2' }, { text: 'K3 → f1, O3' }, { text: 'K4 → f2, O1' }];
 const MAP_NEW: MapRow[] = [{ text: 'K1 → m, O3', tone: 'green' }, { text: 'K3 → m, O1', tone: 'green' }, { text: 'K4 → m, O2', tone: 'green' }];
@@ -85,7 +85,7 @@ export function MergeCompact({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l10-f8b-p' : 'l10-f8b';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Merge and compact';
-  const desc = 'Two read-only files hold stale entries (old values of K1) and a deleted key (K2 and its −1). A separate process reads them into a temporary hash table, where a newer entry replaces a key and a delete removes it, then flushes the table as one new merged file holding K3, K4 and the latest K1. The active file keeps taking writes meanwhile. The offsets changed, so the in-memory map is repointed to the merged file, and the old files are deleted.';
+  const desc = 'Two read-only files hold stale entries (old values of K1) and a deleted key (K2 and its −1). A separate process reads them into a temporary hash table, where a newer entry replaces a key and a delete removes it, then flushes the table as one new merged file holding K3, K4 and the latest K1. The active file keeps taking writes meanwhile. The offsets changed, so every moved key the map still points at is repointed to the merged file (a key written again or deleted in the active file keeps its newer entry), and the old files are deleted.';
   const g = P
     ? { W: 340, H: 525, f1x: 4, fw: 96, f2x: 108, f3x: 212, an: 118, tw: 168, mx: 180, mw: 156, gx: 258, n2: 160 }
     : { W: 420, H: 500, f1x: 8, fw: 104, f2x: 124, f3x: 262, an: 138, tw: 200, mx: 226, mw: 186, gx: 319, n2: 190 };

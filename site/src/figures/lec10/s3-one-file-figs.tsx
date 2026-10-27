@@ -24,7 +24,7 @@ export function OneFileBoundary({ layout = 'desk' }: L) {
   const ly = P ? 150 : 150;
   return (
     <Fig id={id} w={W} h={P ? 236 : 214} title="Index and data in one file"
-      desc="The index and the data are concatenated into one file. The reader must know where the index stops: a separator line or a fixed 2 MB region were proposed.">
+      desc="The index and the data are concatenated into one file. The reader must know where the index stops: a separator line or a fixed-size region are the first ideas.">
       {!P && (
         <g>
           <RowFile x={14} y={44} w={74} rowH={24} rows={['apple', 'amazon']} dots faint seed={s('gi')} size={13} />
@@ -48,7 +48,7 @@ export function OneFileBoundary({ layout = 'desk' }: L) {
       <Label anchor="start" x={P ? 10 : bx} y={ly + (P ? 20 : 0)} size={14}>– special line / separator</Label>
       <Label anchor="start" x={P ? 10 : bx} y={ly + (P ? 52 : 32)} size={14}>– pre-allocate / fixed size</Label>
       <EmptySlot x={P ? 224 : bx + 214} y={ly + (P ? 32 : 12)} w={60} h={28} seed={s('2mb')} />
-      <Label kind="mono" x={P ? 254 : bx + 244} y={ly + (P ? 51 : 31)} size={14}>2 MB</Label>
+      <Label kind="mono" x={P ? 254 : bx + 244} y={ly + (P ? 51 : 31)} size={14}>fixed</Label>
     </Fig>
   );
 }
@@ -87,8 +87,7 @@ export function HeaderBytes() {
       <Label x={8 + 16 * u + 53} y={150} size={13}>not to scale</Label>
       {/* example magic bytes for a custom format */}
       <Label anchor="start" x={8} y={252} size={14}>your own database</Label>
-      <Label anchor="start" x={8} y={276} size={14}>would start with</Label>
-      <Label kind="mono" anchor="start" x={130} y={276} size={14}>AODB</Label>
+      <Label anchor="start" x={8} y={276} size={14}>would start with its own name</Label>
     </Fig>
   );
 }
@@ -125,7 +124,7 @@ export function OpeningTheFile({ layout = 'desk' }: L) {
         <HBrace x0={sx(0) + 2} x1={sx(3) - 2} y={by - 8} tone="blue" label="16 B" seed={s('b1')} size={14} />
       </StepState>
       <StepState from={4} to={4}>
-        <HBrace x0={sx(3) + 2} x1={sx(4) - 2} y={by - 8} tone="blue" label="1,751,000 B" seed={s('b4')} size={14} />
+        <HBrace x0={sx(3) + 2} x1={sx(4) - 2} y={by - 8} tone="blue" label="3,502,000 B" seed={s('b4')} size={14} />
       </StepState>
 
       <Step n={1}>
@@ -144,13 +143,13 @@ export function OpeningTheFile({ layout = 'desk' }: L) {
       </Step>
       <Step n={4}>
         <Num x={NX} y={rowY(4) - 5} n={4} tone="blue" size={14} />
-        <Label kind="mono" x={P ? mid(2) + 12 : mid(2)} y={by + (P ? 72 : 52)} size={14}>1,751,000</Label>
+        <Label kind="mono" x={P ? mid(2) + 12 : mid(2)} y={by + (P ? 72 : 52)} size={14}>3,502,000</Label>
         <Label kind="mono" tone="blue" anchor="start" x={TX} y={rowY(4)} size={14}>read index_size B</Label>
       </Step>
       <Step n={5}>
         <Num x={NX} y={rowY(5) - 5} n={5} tone="green" size={14} />
-        <Label kind="mono" tone="green" anchor="start" x={mx + 14} y={my + 30} size={14}>apple → 0</Label>
-        <Label kind="mono" tone="green" anchor="start" x={mx + 14} y={my + 56} size={14}>amazon → 14</Label>
+        <Label kind="mono" tone="green" anchor="start" x={mx + 14} y={my + 30} size={14}>apple → 0,14</Label>
+        <Label kind="mono" tone="green" anchor="start" x={mx + 14} y={my + 56} size={14}>amazon → 14,20</Label>
         <Label tone="green" anchor="start" x={TX} y={rowY(5)} size={14}>build the hash map</Label>
       </Step>
       <Step n={6}>

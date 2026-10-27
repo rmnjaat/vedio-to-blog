@@ -1,0 +1,758 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Two builds: (1) a 1 TB word dictionary served from one file on S3 with no database, updated weekly; (2) a super-fast key-value store on cheap magnetic disks (turns out to be Bitcask).",
+  "evidence": "overview: 'two builds: a dictionary served from one file on S3, then a key-value store on cheap disks'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Every database is ruled out (MySQL, Postgres, MongoDB, Redis, Elasticsearch, memcache): plain files only. Relaxed: a high response time is acceptable. Demanded: it must scale on both the storage and the API (compute) side.",
+  "evidence": "Fig 0·a; §1.1 'Compute ... and storage ... both still have to scale... a high response time is acceptable'",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "No live updates. Every Sunday a changelog arrives holding only the changed words with their new meanings, applied in one big weekly processing pass.",
+  "evidence": "§1.1 'There are no live updates. Every Sunday a changelog arrives...'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Given one word (no autocomplete), return its meaning, else 404: a key-value store word -> 2-3 lines of meaning. 1 TB total for 170,000 words (several MB per word, because entries carry audio/video).",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "Storage, query, portability, seamless updates.",
+  "evidence": "Fig 0·a tabs: 'storage · query · portability · seamless updates'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "JSON has no way to jump to one entry: to check one word a parser must read the whole file from the top and usually builds it all in memory as a hash map first. With 1 TB that is a disaster on every lookup.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "A plain CSV-like text file, one line per word: word,meaning then newline (apple,a fruit / amazon,a rainforest).",
+  "evidence": "§1.2, Fig 1·b",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "No repeated entries (no word twice): a portable file that someone opens in a text editor must not hold two different meanings for apple; an update can't just be one more line.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "No, not for now: nothing needs it since response time is not a constraint, so words can sit in any order. (Page does not attribute it to a student.)",
+  "evidence": "§1.2 'Will you keep the file sorted? For now, no.'",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Very read-heavy: far beyond 1000:1 reads to writes (1000:1 understates it).",
+  "evidence": "§1.1, Fig 0·a",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Updates come as one weekly bulk changelog, so a single big processing pass per week is fine; per-word update cost is not the concern.",
+  "evidence": "§1.1 'one big processing pass a week to apply it is fine'",
+  "found": false
+ },
+ {
+  "id": "Q012",
+  "answer": "It breaks the one-file portability rule (a hundred files or one zip of many folders is not one file).",
+  "evidence": "§1.2 last paragraph",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "NOT ON PAGE Guess: pointed (byte-range) reads on S3 / querying cold data on S3; Parquet/Avro/Lucene are not mentioned.",
+  "evidence": "§4.2 ranged GET; nothing on Parquet/Avro/Lucene",
+  "found": false
+ },
+ {
+  "id": "Q014",
+  "answer": "NOT ON PAGE Closest: 'Start with the simplest thing that meets the brief, and add structure only when a number forces you to.'",
+  "evidence": "§1.2",
+  "found": false
+ },
+ {
+  "id": "Q015",
+  "answer": "Open the file and read line by line from the top until a line starts with the word, then return the meaning. Worst case reads 1 TB, average 0.5 TB = 500 GB per request, paid again on every request.",
+  "evidence": "§1.3, Fig 1·c",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "It eats the disk's throughput that every other request needs, and every request pays the full scan again.",
+  "evidence": "§1.3 'it eats the disk's throughput that every other request needs'",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "An index.",
+  "evidence": "§1.3 'the first thing that should come to mind is an index'",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Word, its byte offset, and the line's length. The offset is the byte position in the data file where that word's line starts (counts bytes, not lines: apple 0, amazon 14, book 34).",
+  "evidence": "§2.1, Fig 2·b",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "The index holds only words and offsets, no huge meanings, so it is a much smaller sequential read, followed by one pointed read at a known place.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q021",
+  "answer": "Entries x (1 byte word length + 7.6 average word letters + 8-byte offset + 4-byte line length) = 170,000 x 20.6 B. Offset 8 bytes because 4 bytes stops at ~4.3 billion and a 1 TB file is 10^12 bytes.",
+  "evidence": "§2.2, Fig 2·c",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "~3,502,000 B, about 3.5 MB: peanuts next to 1 TB; it fits in RAM, so load it into an in-memory hash map on every server.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "Do the number crunch before you design anything: what looks huge may need only a tiny index, and no cleverer structure is needed (like Lecture 1's billion users -> 8 GB).",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "At boot load index from disk into an in-memory hash map word -> (offset, length). Per request: look up word; miss -> 404 without touching data; hit -> seek to offset, read exactly length bytes, return meaning.",
+  "evidence": "§2.2 code",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "index.dict and data.dict; the brief demands one portable file, and anyone copying must copy both and keep them together.",
+  "evidence": "§2.2 end, §3 intro",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Every startup would read the whole terabyte to rebuild something that changes only once a week.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Where does the index stop? (reader would otherwise parse data as garbage index entries). First options: a special separator line, or a pre-allocated fixed-size index region.",
+  "evidence": "§3.1, Fig 3·b",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "It works but wastes space and caps how far the index can grow.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q030",
+  "answer": "Store the boundary as a number (the index size) at the very start: a fixed-size header. The general idea is a (custom) file format: compartments plus a header that says where each lies.",
+  "evidence": "§3.1-3.3",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "Magic name 8 B (OUR_DICT), version 4 B, index size 4 B; total 16 bytes.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "Magic name lets a decoder tell at once it is our dictionary, not some other file. Version: one format can have variants (v1 index first, v2 data first); decoder reads it and acts accordingly.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Read first 16 bytes (header); first 8 say OUR_DICT; next 4 give version; next 4 give index size (3,502,000); read exactly that many bytes; build in-memory hash map; everything after is data the offsets point into; ready.",
+  "evidence": "Fig 3·d",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "MP4 works the same way: the file records where its video and audio lie (compartments plus a directory/header); like PNG's 8 magic bytes.",
+  "evidence": "§3.3",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "JSON has no header or directory, just text, so the only way to find anything is to parse from the top. Formats with a header/index can jump to the part they need. (Parquet not named on page.)",
+  "evidence": "§3.3",
+  "found": false
+ },
+ {
+  "id": "Q036",
+  "answer": "An encoder writes the format, a decoder reads it; 'this browser does not support TIF' means the browser had no TIFF decoder.",
+  "evidence": "§3.3",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "[16-byte header: OUR_DICT 8 B | version 4 B | index size 4 B] | index (entries: word length, word, offset, length) | data (word,meaning lines).",
+  "evidence": "§3.2 struct, Fig 3·c",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "GET /word -> load balancer -> one of the API servers, each holding its own 1 TB copy of the dictionary on local disk.",
+  "evidence": "Fig 4·b",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "Tedious updates, inconsistency between servers, and cost (100 x 1 TB = 100 TB redundant on SSDs); cost is the biggest/real problem.",
+  "evidence": "§4.1, Fig 4·b",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Real system design is doing the bare minimum at the bare minimum cost; you can make anything fast by throwing money (1 TB RAM per machine, whole dictionary in a hash map) - fast and a bad design.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Keep one copy in one central place all servers read; what the servers have in common is the network (and a database is ruled out).",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "S3 GET can fetch a byte range (Range: bytes=0-15), so you read only part of an object.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "A random read: from this file, at this offset, read n bytes, written (file, offset, n).",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "HDFS, network hard disks/network attached storage in a data center. S3 because everyone knows it (and it is cheap).",
+  "evidence": "§4.2, Fig 4·c",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Only the file's S3 path (static config). Ranged read bytes 0-15 for header, then bytes 16-3502015 for the index, build map, then serve.",
+  "evidence": "§4.3, Fig 4·d",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Map gives offset and length; one ranged read of that line (e.g. bytes 3502016-3502029 for apple), return 200; unknown word -> 404 without touching S3.",
+  "evidence": "Fig 4·d",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Each request reads only the bytes it needs from a terabyte object on cheap storage: a read-only key-value database serving gets straight from S3.",
+  "evidence": "§4.3 'Look at what that is...'",
+  "found": false
+ },
+ {
+  "id": "Q048",
+  "answer": "On a separate server (not the API servers), as a scheduled cron batch job when the changelog arrives; it holds the changelog and downloads the current dictionary from S3.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "apple would be in the file twice, the file grows forever every week, and the brief forbids repeated entries.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "The changelog already says exactly what changed; hashing or diffing is extra work. Easy to build complex systems, hard to build simple ones.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Bytes don't shift: the 20-byte line overwrites 6 extra bytes (14-19) of ball's line; ball,a is overwritten and ball is lost (file reads 'apple,a round fruit' then 'round object').",
+  "evidence": "§5.2, Fig 5·c",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "NOT ON PAGE Closest: picture the actual code you would write (seek(0); write(...)) and the break is obvious.",
+  "evidence": "§5.2",
+  "found": false
+ },
+ {
+  "id": "Q053",
+  "answer": "NOT ON PAGE (Page rejects appending changelog to the dictionary: duplicates, grows forever, breaks no-repeated-entries.)",
+  "evidence": "§5.1",
+  "found": false
+ },
+ {
+  "id": "Q054",
+  "answer": "Write a new file in one pass, copying entries and putting changes in place: the merge step of merge sort.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Both files sorted (keep dictionary sorted). If the changelog isn't sorted, sort it in memory since it is small.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "a-a', b-b', c-c'', d-d', e-e', f-f'', g-g', h-h' (8 lines).",
+  "evidence": "Clip 5·1 text",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Nothing loaded into memory: reads both files line by line (only two current lines held) and writes a third; each file read once.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "At least 2 TB of disk: old and merged ~1 TB files sit on the job server at once.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Servers hold last week's index offsets, so reads at those offsets into the new file return garbage until each reloads.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Server's old index says apple at byte 100, length 1024; new file at same path has different content at byte 100 (e.g. middle of the previous word), so the read returns garbage.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Every server must reload its index the instant the file changes; and overwriting discards the old file, so without bucket versioning there is nothing to roll back to if the new file is corrupt.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Upload to a new path beside the old (dictionary1 -> dictionary2), old keeps serving. Question: how do the servers find out the new name/path?",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "Reload/ping API: job must know and reach every server. Switch at a set time: switches even if the job failed.",
+  "evidence": "§6.2 table",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "It breaks portability (not one file).",
+  "evidence": "Fig 6·b inset",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "A small meta.json at a fixed path holds the current dictionary's path; job updates it only after upload succeeds. Its own path must be static (never versioned), the one place to look.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "NOT ON PAGE (page only says polling every few minutes for a weekly change is wasteful)",
+  "evidence": "§6.2",
+  "found": false
+ },
+ {
+  "id": "Q067",
+  "answer": "Reactively via real-time Pub/Sub (Redis Pub/Sub, as in Lecture 5): job publishes 'changed', servers subscribe. Drawback: run Redis, a persistent connection on every server, and new reload code, all for one message a week.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q069",
+  "answer": "NOT ON PAGE (page calls polling wasteful for a weekly change)",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q070",
+  "answer": "NOT ON PAGE Page table lists: switch at a set time, poll meta.json, Redis Pub/Sub, reload endpoint. No timeline.",
+  "evidence": "§6.2 table",
+  "found": false
+ },
+ {
+  "id": "Q071",
+  "answer": "Ask what the servers already do: what does a server do when it boots? A reload is a boot.",
+  "evidence": "§6.2 end, §6.3",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "NOT ON PAGE Only: overwriting loses the old file unless the bucket keeps old versions.",
+  "evidence": "§6.1",
+  "found": false
+ },
+ {
+  "id": "Q073",
+  "answer": "Update job triggers a rolling deployment (existing pipeline via cloud SDK/Jenkins); each new server reads meta.json on boot and loads the new file.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Briefly some users get old meaning, some new (mixed answers); acceptable: eventually consistent, meanings barely change, and never garbage since each server reads the file its index was built from.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "NOT ON PAGE Guess: from the update job to the deployment (API servers).",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q076",
+  "answer": "Build merged file, upload to new path, update meta.json, then trigger deployment.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "NOT ON PAGE as a 'prepared procedure'; page's steps: cron job on separate server downloads dict, merges sorted changelog into new file (new header/index), uploads to new path, updates meta.json, triggers rolling deployment.",
+  "evidence": "§5.1-6.3",
+  "found": false
+ },
+ {
+  "id": "Q078",
+  "answer": "Recent orders stay in hot MySQL; orders older than 6 months move to S3 as an indexed file (header, index of order IDs, data); a lookup by order ID uses the map to do a ranged read on S3.",
+  "evidence": "§6.4, Fig 6·c",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "S3 slower than hot DB but much cheaper; rarely read data can tolerate slower answers, and you keep the ability to query.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Data lakes.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Polling meta.json, Redis Pub/Sub, a reload endpoint (and switch at set time). Deployment preferred: no new code, nothing extra to maintain, same cost; uses infrastructure you already have (engineer story who threw out Pub/Sub and reload APIs).",
+  "evidence": "§6.2-6.3",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "NOT ON PAGE as a promise; page's preview: a key-value store on cheap disks that many use without knowing, name revealed at end.",
+  "evidence": "overview",
+  "found": false
+ },
+ {
+  "id": "Q083",
+  "answer": "Key-value store with put/get/delete written all day; each put persisted on disk before ack (no in-memory batching); as fast as the disk allows; on cheap magnetic hard disks.",
+  "evidence": "§7 intro, §7.2",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "SSD sits closer to memory in speed and cost; HDD slower and cheaper; bulk data on magnetic HDDs because SSDs cost too much.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "Byte offset maps to a sector on a spinning platter; platter rotates and head moves to it. Mechanical movement (head seek + rotation) is slowest.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "No collecting writes in memory and flushing in batches: a put must be on disk when acknowledged.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Append each put to the end of one file (fsync before ack); head is already at end, no seek: the bare minimum mechanical movement.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "K1 V1' is appended at the end; old K1 V1 entry stays on disk, obsolete.",
+  "evidence": "§7.2, Fig 7·c",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "The file is append-only: writes only at the end; going back to the old value means a seek/in-place write which the design forbids.",
+  "evidence": "§7.3",
+  "found": false
+ },
+ {
+  "id": "Q090",
+  "answer": "DEL K2 = PUT(K2, -1), a tombstone marker appended at the end; costs exactly a put, O(1).",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Naive: scan all entries, return the latest for the key. Fast: in-memory hash table key -> offset of latest entry.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Reads anywhere (random reads), writes only at the end (no in-place writes).",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "K1->O1, K2->O2, K3->O3; PUT K1 V1' at O4 -> K1->O4; DEL K2 appends K2 -1 at O5 and removes K2 from map. Final: K1->O4, K3->O3.",
+  "evidence": "Clip 7·1",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "GET: look up map; miss -> 404 without disk; hit -> one read at offset. After crash: read file(s) from top, rebuild map, later entries override earlier, tombstones remove; slow.",
+  "evidence": "§7.4, Fig 7·d",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Every key (with offset) must fit in RAM; number of keys that fit = capacity.",
+  "evidence": "§8.1, §10.1",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "Disk fills (biggest: grows without limit, needs fixing now); one huge file can't be indexed in parallel on restart, and cleaning means chewing through it all at once; slow restart.",
+  "evidence": "§8.1-8.2",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Smaller files, ~100 MB to a few GB (Bitcask 2 GB default), new file started when current crosses threshold: file rotation.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Only one active file takes writes; others read-only but readable. Map stores file id and offset per key.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "Separate process reads read-only files into temp hash table and writes one merged file with only live entries (stale and deleted dropped); then repoint the map for moved keys (only if still pointing at that entry, atomically) and delete old files.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Sawtooth; bounded by disk capacity cap (1 TB).",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "Merge/compaction frequency and file rotation size; monitor the sawtooth and tune. Too often: CPU busy collecting garbage; too rarely: peaks hit the cap, disk full, store crashes.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "Smaller but real gain: flash can't overwrite in place either, so appending still suits it best.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "A value may contain newline bytes, and without a length you read a byte/bit at a time checking; no one-go read.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Key size and value size, 4 B each, before key and value; two reads: 8 bytes of sizes, then exactly KSZ+VSZ bytes.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Machine crashes while writing a big value, leaving a torn record; reader trusts value size, reads into the next record and returns garbage with no error.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "Cyclic redundancy check: checksum over rest of record (timestamp, sizes, key, value), stored with it, recomputed on read. Put first so reader checks before trusting any byte. Bitcask and LevelDB log put it first; Postgres WAL, MySQL binlog use CRCs at other positions.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "CRC | TS | KSZ | VSZ | K | V. TS is metadata for settling conflicts between versions of a key.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Ignore the entry (in merge/compaction and everywhere) as if never written; never append after a torn record; after crash write to a new file; rebuild stops reading the file at a failed CRC.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "File id, entry/value size, offset (value position), timestamp. GET: hash table lookup, disk seek, disk read.",
+  "evidence": "§10.1, Fig 10·b",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Bitcask's files are in write order, not sorted, so no two-pointer merge; use a temporary hash table (latest entry wins, deletes removed).",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Limitation: every key must fit in memory. Strengths: O(1) put/get/delete, bare-minimum disk I/O, writes as fast as disk persists (I/O saturation), one seek per get, easy backups.",
+  "evidence": "§10.1",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Bitcask: an embedded key-value database (log-structured hash table).",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "As Riak's default storage backend: each partition/vnode on the hash ring runs its own Bitcask (Uber dispatch ~2015). Analogy: embedded like SQLite, a library not a server like MySQL.",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "Look for an append-only log; if none, find out where the throughput really comes from.",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Build your own small Bitcask (about a week) and read the paper. Benchmarking not on page.",
+  "evidence": "§10.3",
+  "found": false
+ },
+ {
+  "id": "Q116",
+  "answer": "LSM trees keep recent writes in a memtable backed by a log and push data into sorted immutable SSTables; keys need not all fit in RAM, unlike Bitcask.",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Open in append mode ('ab'); no preallocation, laying out the file is the file system's job.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "In the temporary hash table a delete removes the key, so neither it nor its tombstone reach the merged file.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Neither the OS nor the disk promises it, and the design doesn't need it: a torn header fails the CRC like a torn value.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "On purpose: too big to copy everywhere, forces thinking about where the file lives and what copying costs (entries carry audio/video).",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Yes, slow and costly; in a real system cache the hot words; here it shows that pointed reads on S3 are possible.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "MB here means 10^6 bytes.",
+  "evidence": "Fig 2·c",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "Load balancer stays put; no new code: use the existing deployment pipeline (cloud SDK or Jenkins).",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "No, offsets count bytes, not lines. Index-size field stores how many bytes of index follow.",
+  "evidence": "§2.1, §3.2",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "Each update builds a whole new file with a fresh index and fresh header.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Sorting matters for the update: merge of two sorted files in one pass, O(n+m).",
+  "evidence": "§5.3, Clip 5·1",
+  "found": true
+ }
+]

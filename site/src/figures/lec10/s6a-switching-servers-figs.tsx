@@ -22,7 +22,7 @@ export function OldIndexNewFile({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l10-f6a-p' : 'l10-f6a';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Old index, new file';
-  const desc = 'An API server’s in-memory index says apple is at byte 100, 1,024 bytes long (the class’s round number), and the read, starting at apple’s entry, returns apple. The new dictionary is then uploaded to the same S3 path. The server still holds last week’s offsets, so the same read now returns bytes from another word, starting mid-line: garbage, until every server reloads its index.';
+  const desc = 'An API server’s in-memory index says apple is at byte 100, 1,024 bytes long, and the read, starting at apple’s entry, returns apple. The new dictionary is then uploaded to the same S3 path. The server still holds last week’s offsets, so the same read now returns bytes from another word, starting mid-line: garbage, until every server reloads its index.';
   const rowH = 28;
   // geometry: index box (bx, by), file (fx, fy); row 2 is the one at byte 100
   // the step-through column is ~420px wide on a desktop, so the desk layout is authored at 420 (FIGURES.md rule 1)

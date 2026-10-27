@@ -1,0 +1,108 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { OneFileBoundary, HeaderBytes, OpeningTheFile } from '../../../figures/lec10/s3-one-file-figs';
+import { SoFarStorage } from '../../../figures/lec10/so-far';
+
+{/* Chapter 3 "Two files, and the brief said one. Where does the index stop?" Story rewrite: rebuild-at-boot rejected
+    → concatenate → the reader loads data as index → separator / fixed region / stack / a number at the start
+    (pause) → 16-byte header (magic, version, index size) → boot stepper → compartments + header = a file format;
+    PNG signature, encoder/decoder, the TIF message. Go deeper: formats that keep their directory at the end
+    (fact-check L-0073, L-0086). */}
+
+<Section id="s3" no="3" title="Two files, and the brief said one. Where does the index stop?" crumb="3 One file" meta="About 6 min">
+
+The dictionary is now `index.dict`, about 3.5 MB of words, offsets and lengths, and `data.dict`, the terabyte of meanings. Anyone who copies it has to copy both and keep them together, and the brief said one file. [[L-0064]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="The dictionary after chapter 2: the text file, plus a word → (offset, length) map that every server holds in RAM.">
+<Desk><SoFarStorage stage={2} /></Desk>
+<Phone><SoFarStorage stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Why not just glue them together?" crumb="3.1 Glue them">
+
+One way out is not to store the index at all: ship only the data file, and let each server build the index as it starts. That means every startup reads the entire terabyte to rebuild something that changes once a week. Store the index. [[L-0065]]
+
+So put both in one file: the index first, then the data. That creates a new problem. A server opening the file reads index entries into its hash map one after another. Nothing tells it to stop after the last one, so it carries on into the data and parses `apple,a fruit` as if it were one more entry: a garbage word with a garbage offset, loaded into the map. The reader has to know where the index ends. [[L-0066 L-0070]]
+
+<Figure id="fig-3b" no="Fig 3·b" k="L-0066 L-0067 L-0068" caption="Index and data in one file. The open question is the zigzag: where does the index stop? Under the bar, the two first ideas.">
+  <Desk><OneFileBoundary /></Desk>
+  <Phone><OneFileBoundary layout="phone" /></Phone>
+</Figure>
+
+A separator between index and data works, but the reader checks everything it reads for the marker. [[L-0067]] A fixed-size index region works too, but wastes space and caps how far the index can grow. [[L-0068]] Better: put the boundary itself at the very start of the file. [[L-0071]]
+
+<PauseAndThink k="L-0067 L-0068 L-0071 L-0072 L-0075"
+  q="Index and data share one file, index first. What should the reader find at the very start of the file, so that it never has to search for the boundary?"
+  choices={[{ label: 'A marker that says “the index starts here”' }, { label: 'A number: how many bytes of index follow', correct: true }]}
+  right="Right."
+  wrong="The reader already knows where the index starts: right at the beginning. What it can’t know is where it stops.">
+
+Store the boundary as a number. The reader reads a few fixed bytes, learns the index is so many bytes long, reads exactly that many, and knows that everything after is data. No marker to look for, and no space wasted.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="What goes in the first 16 bytes?" crumb="3.2 The header">
+
+Those first few bytes are a **header**: a fixed-size block at the start of the file that describes everything after it. It has to be fixed-size, because the reader must know how many bytes to read before it knows anything else. [[L-0072 L-0074 L-0075]]
+
+Three fields go in it. [[L-0081]]
+
+- **8 bytes of name**, `OUR_DICT`, so a decoder can tell at once that this is our dictionary and not some other file. If you built your own database, its files would start with its own name in the same way. [[L-0077 L-0079]]
+- **4 bytes of version**, because one format can have variants: version 1 might put the index first, version 2 the data first. The decoder reads the version and acts on it. [[L-0080]]
+- **4 bytes of index size**: how many bytes of index follow, in this same file. [[L-0076]]
+
+```c
+struct dict_header {          /* 16 bytes, fixed */
+  char     magic[8];          /* "OUR_DICT"                    */
+  uint32_t version;           /* 1: index, then data           */
+  uint32_t index_size;        /* bytes of index that follow    */
+};
+/* then: index[index_size]   entries: word length, word, offset, length */
+/* then: data …              word,meaning lines  */
+```
+
+<Figure id="fig-3c" no="Fig 3·c" wide={false} k="L-0076 L-0077 L-0080 L-0081" caption="The header: 8 bytes of name, 4 of version, 4 of index size. Below, the same 16 bytes to scale against the index and the data.">
+  <HeaderBytes />
+</Figure>
+
+Now walk a server through boot. [[L-0082]]
+
+<StepThrough id="fig-3d" no="Fig 3·d" label="Opening the file" grow k="L-0076 L-0077 L-0080 L-0082"
+  caption="The decoder at boot. The bar is the file; blue brackets mark the bytes being read. Offsets in the map count from the start of the data."
+  stepK={['L-0082', 'L-0077 L-0082', 'L-0080', 'L-0076 L-0082', 'L-0082', 'L-0082']}
+  steps={[
+    'Read the first 16 bytes: that is the header.',
+    'The first 8 bytes say <code>OUR_DICT</code>, so this is our dictionary.',
+    'The next 4 bytes give the version; the decoder acts on it.',
+    'The next 4 bytes give the index size, <code>3,502,000</code>. Read exactly that many bytes.',
+    'Build the in-memory hash map from the index: <code>apple → 0, 14</code>, <code>amazon → 14, 20</code>, …',
+    'Everything after the index is data, and the offsets point into it. The server is ready.',
+  ]}>
+  <Desk><OpeningTheFile /></Desk>
+  <Phone><OpeningTheFile layout="phone" /></Phone>
+</StepThrough>
+
+Nothing is searched for. Two reads, one of 16 bytes and one of exactly the index, and the server knows where every word in the terabyte is. The offsets still count from the start of the data, so apple’s line starts at byte 16 + 3,502,000 + 0 of the file. [[L-0082]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="Haven’t you just designed a file format?" crumb="3.3 File formats">
+
+You have. Divide a file into compartments, here an index and the data, and put a header first that says where each one lies: that is how custom file formats are built. The dictionary is one file again, and anyone with the decoder can read it, wherever you ship it. [[L-0083 L-0085]]
+
+The formats you use every day work the same way. Every PNG file begins with the same 8 bytes, hex `89 50 4E 47 0D 0A 1A 0A`, which contain the letters “PNG” and tell a decoder what it is holding <Cite href="https://www.w3.org/TR/png-3/">W3C PNG</Cite>. An MP4 file records where its video and its audio lie. [[L-0073 L-0078 L-0084]] JSON is the opposite: no header and no directory, just text, so the only way to find anything is to parse from the top, which is exactly why it lost in chapter 1. [[L-0087]]
+
+Every format has an **encoder** that writes it and a **decoder** that reads it; a browser that said “this web browser does not support TIF format” simply had no TIFF decoder. [[L-0090 L-0091]]
+
+The dictionary now finds any word with one read, and ships as one file. It is time to serve it. A load balancer and a hundred API servers are waiting for `GET /word`, and each one needs the header, the index and a few bytes of meaning. Where does the terabyte go?
+
+</Section>
