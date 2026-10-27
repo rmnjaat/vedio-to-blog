@@ -57,7 +57,7 @@ export function RowBox({ x, y, w = 72, h = 28, label, seed, tone = 'ink', size =
   );
 }
 
-/** The board's six-row table: header `id │ user_id │ …`, the row numbers written in the user_id column.
+/** The board's six-row table: header `id │ user_id │ …`, the row numbers written in the id column.
  *  Row i (1-based) is centred at rowY(y, i, rowH). */
 export const TABLE_COLS = [40, 84, 40];
 export const TABLE_W = TABLE_COLS.reduce((a, c) => a + c, 0);
@@ -74,7 +74,7 @@ export function SixRows({ x, y, seed, rowH = 28, size = TEXT.mono, n = 6 }: { x:
       {xs.slice(1).map((cxv, i) => <path key={i} className="ink thin" d={poly([[cxv, y + 4], [cxv, y + h - 4]], `${seed}-c${i}`)} />)}
       {head.map((t, i) => <Label key={t} kind="mono" x={xs[i] + TABLE_COLS[i] / 2} y={y + rowH / 2 + size * 0.36} size={size}>{t}</Label>)}
       {Array.from({ length: n }, (_, j) => (
-        <Label key={j} kind="mono" x={xs[1] + TABLE_COLS[1] / 2} y={rowY(y, j + 1, rowH) + size * 0.36} size={size}>{String(j + 1)}</Label>
+        <Label key={j} kind="mono" x={xs[0] + TABLE_COLS[0] / 2} y={rowY(y, j + 1, rowH) + size * 0.36} size={size}>{String(j + 1)}</Label>
       ))}
     </g>
   );

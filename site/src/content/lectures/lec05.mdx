@@ -1,99 +1,127 @@
 ---
-title: "Locking the airline seats"
-kicker: "Lecture 03 · week 2, day 1 · running cases: airline check-in, a key-value store on MySQL"
-dek: "See pessimistic locking work live on an airline check-in, then build a key-value store on top of MySQL."
-description: "Lecture 03: row locks, deadlocks and isolation; an airline check-in fixed by two SQL words at a time; a key-value store on MySQL where every clause has a cost; Redis expiry; replicas and range shards."
-reviewed: 14 Oct 2026
+title: "120 seats, one moment"
+kicker: "Lecture 03 · two builds: an airline check-in, then a key-value store on MySQL"
+dek: "120 passengers tap “check in” at the same moment, and every seat must go to exactly one of them. Make that booking correct and then fast, a few SQL words at a time, then carry the same habit into a key-value store on one MySQL table, where keys must expire and every clause has a price."
+description: "Lecture 03: row locks on an airline check-in (FOR UPDATE, SKIP LOCKED, NOWAIT, deadlocks, hold vs lock), then a key-value store on MySQL: indexed expiry, delete as a marker, upserts, Redis-style expiry in memory, replicas and range shards."
+reviewed: 27 Oct 2026
 status: published
 ledger: lectures/lec05/ledger/ledger.jsonl
+origin: "Two builds, one story"
+footnote: "facts checked against primary sources, linked where they come from outside this lecture."
 contents:
   - no: "1"
-    title: "Locks, in theory"
+    title: "120 passengers tap “check in” at the same moment"
     href: "#s1"
     children:
-      - { no: "1.1", title: "Why relational databases are strict", href: "#s1-1" }
-      - { no: "1.2", title: "Why lock at all", href: "#s1-2" }
-      - { no: "1.3", title: "Shared and exclusive locks", href: "#s1-3" }
-      - { no: "1.4", title: "Don’t wait: SKIP LOCKED and NOWAIT", href: "#s1-4" }
-      - { no: "1.5", title: "Deadlocks", href: "#s1-5" }
-      - { no: "1.6", title: "Isolation levels: why not one at a time?", href: "#s1-6" }
-      - { no: "1.7", title: "Where locks live, and how they end", href: "#s1-7" }
+      - { no: "1.1", title: "What does a kiosk actually write?", href: "#s1-1" }
+      - { no: "1.2", title: "What if the passenger picks, or the system picks at random?", href: "#s1-2" }
+      - { no: "1.3", title: "What if everyone gets the first free seat?", href: "#s1-3" }
+      - { no: "1.4", title: "Why did a second seat fill at all?", href: "#s1-4" }
   - no: "2"
-    title: "Building the airline check-in"
+    title: "Add two words to the query. What happens to the 120?"
     href: "#s2"
     children:
-      - { no: "2.1", title: "The check-in problem", href: "#s2-1" }
-      - { no: "2.2", title: "Approaches 0 to 2: no checks at all", href: "#s2-2" }
-      - { no: "2.3", title: "Approach 3: the first free seat", href: "#s2-3" }
-      - { no: "2.4", title: "Approach 4: FOR UPDATE", href: "#s2-4" }
-      - { no: "2.5", title: "Approach 5: SKIP LOCKED", href: "#s2-5" }
-      - { no: "2.6", title: "When the passenger picks the seat", href: "#s2-6" }
-      - { no: "2.7", title: "Fixed inventory plus contention", href: "#s2-7" }
+      - { no: "2.1", title: "Same query, two more words", href: "#s2-1" }
+      - { no: "2.2", title: "What exactly did those two words lock?", href: "#s2-2" }
+      - { no: "2.3", title: "How does a waiting transaction move on?", href: "#s2-3" }
+      - { no: "2.4", title: "What did being correct cost?", href: "#s2-4" }
   - no: "3"
-    title: "A key-value store on MySQL"
+    title: "Correct, but everyone waits in line. Must they?"
     href: "#s3"
     children:
-      - { no: "3.1", title: "The problem, and one node first", href: "#s3-1" }
-      - { no: "3.2", title: "Storing keys and values", href: "#s3-2" }
-      - { no: "3.3", title: "Expiry as a timestamp", href: "#s3-3" }
-      - { no: "3.4", title: "Delete is an update", href: "#s3-4" }
-      - { no: "3.5", title: "Put is an upsert", href: "#s3-5" }
-      - { no: "3.6", title: "Get filters expiry in SQL", href: "#s3-6" }
-      - { no: "3.7", title: "The cleanup job and the last clause", href: "#s3-7" }
+      - { no: "3.1", title: "Does a passenger care which free seat they get?", href: "#s3-1" }
+      - { no: "3.2", title: "What if the transaction holding seat 2 fails?", href: "#s3-2" }
+      - { no: "3.3", title: "What if the passenger tapped seat 67?", href: "#s3-3" }
+      - { no: "3.4", title: "What if waiting is pointless?", href: "#s3-4" }
+      - { no: "3.5", title: "When does a wait never end?", href: "#s3-5" }
   - no: "4"
-    title: "If it were in memory: how Redis expires keys"
+    title: "Where else do 120 people want 120 seats?"
     href: "#s4"
     children:
-      - { no: "4.1", title: "Lazy deletion", href: "#s4-1" }
-      - { no: "4.2", title: "Sampling 20 keys", href: "#s4-2" }
+      - { no: "4.1", title: "What do a vaccine portal, a train and a cinema have in common?", href: "#s4-1" }
+      - { no: "4.2", title: "The cinema holds your seat while you pay. Is that a lock?", href: "#s4-2" }
+      - { no: "4.3", title: "So do relational databases scale or not?", href: "#s4-3" }
+      - { no: "4.4", title: "And if the payment never comes?", href: "#s4-4" }
   - no: "5"
-    title: "Making it distributed"
+    title: "Build a key-value store on one table. How does a key expire?"
     href: "#s5"
     children:
-      - { no: "5.1", title: "One MySQL, more API servers", href: "#s5-1" }
-      - { no: "5.2", title: "Read replicas", href: "#s5-2" }
-      - { no: "5.3", title: "Range shards and routing", href: "#s5-3" }
-      - { no: "5.4", title: "ACID after partitioning", href: "#s5-4" }
-      - { no: "5.5", title: "Build it yourself", href: "#s5-5" }
+      - { no: "5.1", title: "What goes in the table?", href: "#s5-1" }
+      - { no: "5.2", title: "Every key lives its own number of seconds. What do you store?", href: "#s5-2" }
+      - { no: "5.3", title: "Who removes the expired rows, and when?", href: "#s5-3" }
   - no: "6"
-    title: "Craft, opinions, and what to keep"
+    title: "The key expired at 12:02. The cleanup runs at 12:10."
     href: "#s6"
     children:
-      - { no: "6.1", title: "ORMs or raw SQL", href: "#s6-1" }
-      - { no: "6.2", title: "Why the demo is in Go", href: "#s6-2" }
-      - { no: "6.3", title: "How to learn this", href: "#s6-3" }
-      - { no: "6.4", title: "What to keep", href: "#s6-4" }
+      - { no: "6.1", title: "What should a GET at 12:04 return?", href: "#s6-1" }
+      - { no: "6.2", title: "A user deletes a key. Do you remove the row now?", href: "#s6-2" }
+      - { no: "6.3", title: "What if the key being deleted has already expired?", href: "#s6-3" }
+  - no: "7"
+    title: "PUT k1 v1, then PUT k1 v2. What breaks?"
+    href: "#s7"
+    children:
+      - { no: "7.1", title: "What does the second PUT do?", href: "#s7-1" }
+      - { no: "7.2", title: "What does one statement save?", href: "#s7-2" }
+      - { no: "7.3", title: "Two PUTs hit the same key at the same moment", href: "#s7-3" }
+      - { no: "7.4", title: "What did each clause buy?", href: "#s7-4" }
+  - no: "8"
+    title: "What if the store lived in memory?"
+    href: "#s8"
+    children:
+      - { no: "8.1", title: "Would you still wait for a cleanup job?", href: "#s8-1" }
+      - { no: "8.2", title: "What about the keys nobody reads again?", href: "#s8-2" }
+      - { no: "8.3", title: "Why not sample on disk too?", href: "#s8-3" }
+  - no: "9"
+    title: "One MySQL can’t keep up. What do you add first?"
+    href: "#s9"
+    children:
+      - { no: "9.1", title: "When do you distribute at all?", href: "#s9-1" }
+      - { no: "9.2", title: "The metrics say 99 reads for every write", href: "#s9-2" }
+      - { no: "9.3", title: "Then the master can’t take the writes", href: "#s9-3" }
+      - { no: "9.4", title: "One operation touches four keys on two shards", href: "#s9-4" }
+      - { no: "9.5", title: "What you can now do", href: "#s9-5" }
+      - { no: "9.6", title: "Build it, then ask what else a store can be", href: "#s9-6" }
 chapters:
   - no: "1"
-    slug: 1-locks
-    parts: [s1-locks]
-    summary: "Before coding the check-in, the tools: why relational databases are strict, shared and exclusive row locks, SKIP LOCKED and NOWAIT, deadlocks, isolation levels, and where a lock lives."
+    slug: 1-same-moment
+    parts: [c1-same-moment]
+    summary: "120 passengers, 120 seats, one moment. Four obvious versions of the booking code, run for real, and the gap they all fall into."
   - no: "2"
-    slug: 2-check-in
-    parts: [s2a-check-in, s2b-check-in]
-    summary: "120 passengers, 120 kiosks, one moment. Six versions of one program: four double-book, FOR UPDATE makes it correct, SKIP LOCKED makes it ten times faster."
+    slug: 2-two-words
+    parts: [c2-two-words]
+    summary: "The same query with two words added. What the run shows, what those words lock, and how a waiting transaction gets past a seat someone else just took."
   - no: "3"
-    slug: 3-kv-store
-    parts: [s3a-kv-store, s3b-kv-store]
-    summary: "GET, PUT, DELETE and per-key expiry on one table. Each operation starts with the obvious query and ends with a cheaper one."
+    slug: 3-waiting
+    parts: [c3-waiting]
+    summary: "The booking is correct and everyone queues. When must a transaction wait, when can it skip or give up, and when does a wait never end?"
   - no: "4"
-    slug: 4-redis-expiry
-    parts: [s4-redis-expiry]
-    summary: "On disk you batch. In memory a delete is nearly free: delete on access, and sample twenty keys at a time for the rest."
+    slug: 4-same-shape
+    parts: [c4-same-shape]
+    summary: "Vaccine slots, train seats, cinema tickets: the shape that calls for locks, a seat held for ten minutes while someone pays, and the loose end that starts the second build."
   - no: "5"
-    slug: 5-distributed
-    parts: [s5-distributed]
-    summary: "Grow the single node one bottleneck at a time: more API servers, read replicas, range shards with routing in the API, and what happens to ACID."
+    slug: 5-key-value
+    parts: [c5-expiry]
+    summary: "A store where every value has its own lifetime, built on one MySQL table, one node first. What the columns are, and how an expired key actually disappears."
   - no: "6"
-    slug: 6-craft-and-keep
-    parts: [s6-keep]
-    summary: "The instructor's views on ORMs, languages and learning, the heuristics from both builds, and where this lecture stops."
+    slug: 6-after-expiry
+    parts: [c6-after-expiry]
+    summary: "An expired row sits on disk until the next cleanup. What GET and DELETE must do inside that window, and what one clause each saves."
+  - no: "7"
+    slug: 7-put
+    parts: [c7-put]
+    summary: "The same key written twice, then written by two clients at once. What each fix costs in network trips, and whether two writers on one key need the check-in’s locks."
+  - no: "8"
+    slug: 8-in-memory
+    parts: [c8-in-memory]
+    summary: "Move the same store into memory, the way Redis works. Which disk-shaped answers survive, and what happens to keys nobody reads again?"
+  - no: "9"
+    slug: 9-grow
+    parts: [c9-grow]
+    summary: "One node runs out. Grow the store one bottleneck at a time, see what still holds once it is split, and the question Lecture 4 opens with."
 ---
 import Header from './lec05/s0-header.mdx';
 
-{/* Lecture 03 (lec05). This body is the lecture overview page (/lectures/lec05/): the header block (About this class,
-    Where we are) from s0-header.mdx. Each chapter is its own page (/lectures/lec05/<slug>/), built from the parts listed
-    under `chapters` in the frontmatter, in outline order. Section ids: #s1 … #s6, subsections #s<n>-<m>. A link to a
-    section on another chapter page is written as a plain #id: the page template sends it to the right chapter. */}
+{/* Lecture 03 (lec05) overview page: the hook and the two builds. Chapters are their own pages (see `chapters`).
+    Story rewrite; see lectures/lec05/story/NOTES.md. */}
 
 <Header />

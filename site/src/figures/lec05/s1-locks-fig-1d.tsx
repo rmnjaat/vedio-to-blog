@@ -15,7 +15,7 @@ function Panel({ ox, oy, nowait, id }: { ox: number; oy: number; nowait?: boolea
   const from: [number, number] = [T2[0] - 18, T2[1]];
   return (
     <g>
-      <Label kind="mono" anchor="start" x={TX} y={oy + 22}>… WHERE user_id IN (3,4,6)</Label>
+      <Label kind="mono" anchor="start" x={TX} y={oy + 22}>… WHERE id IN (3,4,6)</Label>
       <Label kind="mono" anchor="start" x={TX} y={oy + 44}>{nowait ? 'FOR UPDATE NOWAIT;' : 'FOR UPDATE SKIP LOCKED;'}</Label>
       <SixRows x={TX} y={TY} rowH={RH} seed={s('tb')} />
       {[1, 2, 6].map((i) => <Padlock key={i} x={LX} y={ry(i)} seed={s('lk' + i)} />)}

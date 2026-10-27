@@ -35,7 +35,7 @@ function TripLane({ ox, oy, P, msgs, title, count, id, variant }: {
         );
       })}
       <Label x={(apiX + dbX) / 2} y={y1 + 30} size={17}>{count}</Label>
-      {variant && <Label kind="mono" muted x={(apiX + dbX) / 2} y={y1 + 54} size={13}>SELECT TOP 1 1 … as step 1</Label>}
+      {variant && <Label kind="mono" muted x={(apiX + dbX) / 2} y={y1 + 54} size={13}>SELECT 1 … LIMIT 1 as step 1</Label>}
       {variant && <Label muted x={(apiX + dbX) / 2} y={y1 + 72} size={13}>smaller, still a round trip</Label>}
       <Label kind="title" x={(apiX + dbX) / 2} y={titleY}>{title}</Label>
     </g>
@@ -47,10 +47,10 @@ export function TwoOrFourTrips({ layout = 'wide' }: { layout?: 'wide' | 'phone' 
   const id = P ? 'fig3c-p' : 'fig3c';
   return (
     <Fig id={id} w={P ? 340 : 880} h={P ? 676 : 400} title="Two trips or four"
-      desc="Swim lanes for the API server and MySQL. Get, then write: the API sends SELECT for key k1, the row comes back over the network (perhaps a 10 MB value), the API sends INSERT or UPDATE, and the ack comes back: four network trips. SELECT TOP 1 1 shrinks the reply but is still a round trip. Upsert: one INSERT … ON DUPLICATE KEY UPDATE goes to MySQL and one ack comes back: two trips.">
+      desc="Swim lanes for the API server and MySQL. Get, then write: the API sends SELECT for key k1, the row comes back over the network (perhaps a 10 MB value), the API sends INSERT or UPDATE, and the ack comes back: four network trips. A SELECT 1 … LIMIT 1 existence check shrinks the reply but is still a round trip. Upsert: one INSERT … ON DUPLICATE KEY UPDATE goes to MySQL and one ack comes back: two trips.">
       <TripLane id={id + '-l'} ox={0} oy={0} P={P} title="get, then write" count="4 trips" variant
         msgs={[
-          { up: true, tone: 'blue', text: 'SELECT … WHERE key = k1' },
+          { up: true, tone: 'blue', text: 'SELECT … WHERE `key` = k1' },
           { up: false, tone: 'blue', text: 'row back: value 10 MB?' },
           { up: true, tone: 'blue', text: 'INSERT or UPDATE' },
           { up: false, tone: 'green', text: 'ack' },
@@ -79,16 +79,17 @@ function CronClock({ x, y, r = 14, seed }: { x: number; y: number; r?: number; s
 }
 
 export function CronBatch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
+  // Only the cron timeline: the read that filters expired rows is the next chapter's question, so it isn't drawn.
   const P = layout === 'phone';
   const id = P ? 'fig3d-p' : 'fig3d';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Batch deletion with a cron job';
-  const desc = 'A time axis with a cron job firing every t minutes (10 in the example); each run is a hard delete, DELETE FROM store WHERE expired_at < now(). Between runs an expired row is still on disk, so a user\'s read goes through the kv store to MySQL with SELECT * FROM store WHERE key = k AND expired_at > now(), which filters it out.';
+  const desc = 'A time axis with a cron job firing every t minutes (10 in the example); each run is a hard delete, DELETE FROM store WHERE expired_at <= UNIX_TIMESTAMP(). Between runs, a row that has expired is still on disk.';
   const ticks = [0, 1, 2, 3, 4, 5];
   if (P) {
     const ty = (i: number) => 60 + i * 64;
     return (
-      <Fig id={id} w={340} h={624} title={title} desc={desc}>
+      <Fig id={id} w={340} h={484} title={title} desc={desc}>
         <Arrow pts={[[44, 30], [44, 410]]} seed={s('ax')} />
         <Label muted anchor="end" x={36} y={416} size={13}>time</Label>
         {ticks.map((i) => (
@@ -103,21 +104,14 @@ export function CronBatch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
         <Label kind="mono" anchor="start" x={210} y={(ty(1) + ty(2)) / 2 + 5} size={13}>t = 10 min</Label>
         <Label anchor="start" x={152} y={ty(4) + 5} size={13}>hard delete</Label>
 
-        <Actor x={30} y={444} seed={s('u')} />
-        <Arrow tone="blue" pts={[[48, 468], [96, 468]]} seed={s('r1')} />
-        <Box x={98} y={448} w={100} h={40} label="kv store" seed={s('kv')} />
-        <Arrow tone="blue" pts={[[198, 468], [252, 468]]} seed={s('r2')} />
-        <Cyl cx={286} top={450} rx={26} ry={7} h={30} label="mysql" seed={s('db')} />
-        <Label kind="mono" tone="blue" anchor="start" x={20} y={540} size={13}>SELECT * FROM store</Label>
-        <Label kind="mono" tone="blue" anchor="start" x={20} y={560} size={13}>WHERE key = k</Label>
-        <Label kind="mono" tone="blue" anchor="start" x={20} y={580} size={13}>AND expired_at &gt; now();</Label>
-        <Label muted anchor="start" x={20} y={608} size={13}>between runs, reads filter</Label>
+        <Label muted anchor="start" x={20} y={450} size={13}>between runs, expired rows</Label>
+        <Label muted anchor="start" x={20} y={468} size={13}>are still on disk</Label>
       </Fig>
     );
   }
   const tx = (i: number) => 110 + i * 140;
   return (
-    <Fig id={id} w={880} h={290} title={title} desc={desc}>
+    <Fig id={id} w={880} h={214} title={title} desc={desc}>
       <Arrow pts={[[40, 120], [852, 120]]} seed={s('ax')} />
       <Label muted anchor="end" x={852} y={144} size={13}>time</Label>
       {ticks.map((i) => (
@@ -133,14 +127,7 @@ export function CronBatch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
       <Mark weight="thin" a={[(tx(1) + tx(2)) / 2, 142]} b={[(tx(1) + tx(2)) / 2, 149]} seed={s('brm')} />
       <Label kind="mono" x={(tx(1) + tx(2)) / 2} y={168} size={13}>t = 10 min</Label>
 
-      <Actor x={70} y={204} seed={s('u')} />
-      <Arrow tone="blue" pts={[[90, 228], [168, 228]]} seed={s('r1')} />
-      <Box x={170} y={208} w={110} h={40} label="kv store" seed={s('kv')} />
-      <Arrow tone="blue" pts={[[280, 228], [350, 228]]} seed={s('r2')} />
-      <Cyl cx={384} top={210} rx={28} ry={7} h={30} label="mysql" seed={s('db')} />
-      <Label kind="mono" tone="blue" anchor="start" x={440} y={222} size={13}>SELECT * FROM store</Label>
-      <Label kind="mono" tone="blue" anchor="start" x={440} y={242} size={13}>WHERE key = k AND expired_at &gt; now();</Label>
-      <Label muted anchor="start" x={440} y={270} size={13}>between runs, reads filter</Label>
+      <Label muted x={(tx(1) + tx(2)) / 2} y={196} size={13}>between runs, expired rows are still on disk</Label>
     </Fig>
   );
 }
@@ -152,14 +139,14 @@ export function ClauseCosts({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
   const id = P ? 'l5-rule3-p' : 'l5-rule3';
   const s = (k: string) => `${id}-${k}`;
   const title = 'What one clause costs';
-  const desc = 'One GET query, … WHERE key = k AND expired_at > now(). Three tags hang off its last clause: network, disk, rows: the three things that clause decides.';
+  const desc = 'One GET query, … WHERE `key` = k AND expired_at > UNIX_TIMESTAMP(). Three tags hang off its last clause: network, disk, rows: the three things that clause decides.';
   const tags = ['network', 'disk', 'rows'];
   if (P) {
     const xs = [96, 166, 230];
     return (
       <Fig id={id} w={320} h={128} title={title} desc={desc} className="bottomup">
-        <Label kind="mono" x={160} y={28}>… WHERE key = k</Label>
-        <Label kind="mono" tone="blue" x={160} y={52}>AND expired_at &gt; now()</Label>
+        <Label kind="mono" x={160} y={28}>… WHERE `key` = k</Label>
+        <Label kind="mono" tone="blue" x={160} y={52}>AND expired_at &gt; now_s</Label>
         <Line tone="blue" pts={[[68, 60], [252, 60]]} seed={s('ul')} />
         {xs.map((x, i) => <Line key={i} weight="thin" pts={[[x, 62], [x, 90]]} seed={s('h' + i)} />)}
         {xs.map((x, i) => <Label key={'t' + i} x={x} y={110} size={14}>{tags[i]}</Label>)}
@@ -169,8 +156,8 @@ export function ClauseCosts({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
   const xs = [250, 320, 384];
   return (
     <Fig id={id} w={480} h={118} title={title} desc={desc} className="bottomup">
-      <Label kind="mono" anchor="start" x={60} y={36}>… WHERE key = k</Label>
-      <Label kind="mono" tone="blue" anchor="start" x={198} y={36}>AND expired_at &gt; now()</Label>
+      <Label kind="mono" anchor="start" x={60} y={36}>… WHERE `key` = k</Label>
+      <Label kind="mono" tone="blue" anchor="start" x={198} y={36}>AND expired_at &gt; now_s</Label>
       <Line tone="blue" pts={[[196, 46], [394, 46]]} seed={s('ul')} />
       {xs.map((x, i) => <Line key={i} weight="thin" pts={[[x, 48], [x, 78]]} seed={s('h' + i)} />)}
       {xs.map((x, i) => <Label key={'t' + i} x={x} y={98} size={14}>{tags[i]}</Label>)}

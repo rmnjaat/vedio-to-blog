@@ -1,0 +1,119 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import { SeatSixtySeven } from '../../../figures/lec05/s2b-check-in';
+import { SkipOrFail } from '../../../figures/lec05/s1-locks-fig-1d';
+import { SoFarSeats } from '../../../figures/lec05/so-far';
+
+{/* Chapter 3 "Correct, but everyone waits in line. Must they?" Story rewrite: SKIP LOCKED and the race clip →
+    a failed holder → the passenger who picks seat 67 → NOWAIT and lock timeouts → the wait that never ends (deadlock). */}
+
+<Section id="s3" no="3" title="Correct, but everyone waits in line. Must they?" crumb="3 Waiting" meta="About 9 min">
+
+`FOR UPDATE` made the check-in correct by making everyone queue: 119 transactions behind 1A, 118 behind 1B, and so on down the plane. A queue is the right answer when you need that particular row. This chapter is about all the cases where you don’t, and the one wait that would never end on its own.
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="The check-in so far. Marked new: FOR UPDATE, which locks the seat the query returns until the transaction commits.">
+<Desk><SoFarSeats stage={2} /></Desk>
+<Phone><SoFarSeats stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Does a passenger care which free seat they get?" crumb="3.1 SKIP LOCKED">
+
+No. Someone who just wants a seat is as happy with 1B as with 1A. So when a transaction finds a seat locked, the database shouldn’t make it wait; it can look further. **Approach 5** adds two more words: [[L-0119]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL
+ORDER BY id
+LIMIT 1
+FOR UPDATE SKIP LOCKED;   -- two more words
+```
+
+`SKIP LOCKED` says: if a row this query wants is locked by someone else, leave it out of the result and carry on with the rows that aren’t. [[L-0051]]
+
+<PauseAndThink k="L-0120 L-0121"
+  q="Same 120 passengers, now with <code>FOR UPDATE SKIP LOCKED</code>. Does everyone still get a seat, and what changes?"
+  choices={[{ label: 'Some seats stay empty: locked ones are skipped and never revisited' }, { label: 'All 120 get a seat, and it is much faster', correct: true }]}
+  right="Right."
+  wrong="Not in the run.">
+
+All 120 seats filled in 147 milliseconds, against about 1.7 seconds with plain `FOR UPDATE`: roughly a tenth of the time, for two words.
+
+</PauseAndThink>
+
+<AnimationClip clip="l05-wait-vs-skip" no="Clip 3·1" k="L-0112 L-0115 L-0119 L-0121 L-0122 L-0154 L-0155"
+  lead="Same 120 passengers, same seats. One run queues at every seat; the other walks past locked seats. Watch the two clocks."
+  caption="FOR UPDATE queues everyone at the same seat and re-checks after every commit; SKIP LOCKED walks past locked seats. Both book 120 of 120: about 1.7 s against 147 ms in this demo. Time not to scale." />
+
+Each transaction still takes an exclusive lock; the difference is what happens at a locked row. The engine simply moves to the next matching row and locks that instead, for the second transaction, then the third, and so on. Nobody waits for anybody, so there is no queue to drain: about 120 evaluations in all instead of up to 7,260. [[L-0122 L-0154]]
+
+Two words made the system ten times faster, which is why it pays to know how your database actually does its work. [[L-0123]] They also change what the query means. A `SKIP LOCKED` read sees the table with the locked rows missing, a deliberately incomplete view. That is perfect when any free row will do, as with seats in a plane or jobs in a queue, and wrong for ordinary transactional work, where the row you skipped might be the one you needed. [[L-0052 L-0123]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="What if the transaction holding seat 2 fails?" crumb="3.2 A failed holder">
+
+Say a transaction locks seat 2 and then aborts. The others skipped seat 2 while it was locked. Is it lost?
+
+No. Skipping is not remembering. The lock goes away with the abort, `user_id` is still NULL, and the next statement that runs `WHERE user_id IS NULL ORDER BY id` matches seat 2 again; because of the `ORDER BY`, it is the first one that statement picks up. A row is never skipped for good, only while someone holds it. [[L-0145 L-0146 L-0147]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="What if the passenger tapped seat 67?" crumb="3.3 A chosen seat">
+
+Airlines that let you choose your seat let you tap the exact one. Now “any free seat” is the wrong answer. A passenger who tapped seat 67 must not be handed seat 68 because 67 was busy for a moment, so `SKIP LOCKED` is out. Use the plain `FOR UPDATE`, on that seat only: [[L-0138]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL AND id = 67   -- the seat they tapped
+FOR UPDATE;
+```
+
+<Figure id="fig-3b" wide={false} max={340} no="Fig 3·b" k="L-0138 L-0139 L-0140 L-0141" caption="Two taps on seat 67. One kiosk gets the lock and books it. The other waits, re-checks the same seat, and matches no rows.">
+<SeatSixtySeven />
+</Figure>
+
+The re-check you met in chapter 2 does the right thing here too. The second kiosk waits for the lock; when the first commits, it re-evaluates for the same seat, finds `user_id` no longer NULL, and gets no rows back. The query is pinned to seat 67, so there is nowhere else for it to go, and the screen says the seat is gone. Two transactions can never take the same seat. [[L-0139 L-0140 L-0141]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="What if waiting is pointless?" crumb="3.4 NOWAIT">
+
+Go back to the two kiosks racing for seat 67. The second one waits, and most likely only to learn that the seat is gone. Some products would rather tell that passenger at once that someone else is booking 67, and let them pick again. If someone else holds the row, someone else is dealing with it. For that there is the opposite extreme from `SKIP LOCKED`, called `NOWAIT`: if any row the query wants is locked, the statement fails at once instead of waiting, with error 3572 in MySQL. [[L-0054 L-0055]] Think of the query as having an existential crisis: someone else picked this row and will process it, so why should it wait? It gives up at once. What happens next is your code’s decision, and a business one. On MySQL the transaction is still open and still holds its earlier locks, so roll it back or retry; on PostgreSQL it must be rolled back. [[L-0056 L-0057]]
+
+<Figure id="fig-3c" max={740} no="Fig 3·c" k="L-0051 L-0053 L-0054 L-0055" caption="Skip or fail, on six rows with T1 holding 1, 2 and 6. Left: SKIP LOCKED leaves row 6 out and carries on with rows 3 and 4. Right: NOWAIT meets locked row 6 and fails at once.">
+<Desk><SkipOrFail /></Desk>
+<Phone><SkipOrFail layout="phone" /></Phone>
+</Figure>
+
+Without it, a transaction that doesn’t care still waits for the lock until a timeout, tying up a database connection and keeping its client waiting. The default timeouts are long: InnoDB waits 50 seconds (`innodb_lock_wait_timeout`), and PostgreSQL waits forever unless you set `lock_timeout`. [[L-0058]]
+
+One team saw “Lock wait timeout exceeded” in production again and again. The error means exactly what it says: a transaction waited for a lock longer than the limit, because the holder didn’t commit or abort in time. The usual causes: the holder is doing long work while holding the lock (raise the timeout or shorten the work); the code forgot to commit or abort; a transaction was left open in another session; or a long queue built up on one hot row. And by default the timeout rolls back only the waiting statement, so your code has to roll back or retry the rest itself. [[L-0332 L-0333]]
+
+</Section>
+
+<Section id="s3-5" no="3.5" title="When does a wait never end?" crumb="3.5 Deadlock">
+
+Every wait so far ended because the holder eventually committed. Give a transaction two seats to lock, say to swap two passengers, and that guarantee goes. One transaction locks seat 2, then wants seat 1; another locks seat 1, then wants seat 2.
+
+<AnimationClip clip="l05-deadlock" no="Clip 3·2" k="L-0025 L-0026 L-0031 L-0032 L-0033 L-0096"
+  lead="T1 holds seat 2’s row, T2 holds seat 1’s, and each now asks for the other’s. What does the database do?"
+  caption="One wait is harmless; the second wait, in the opposite order, closes a cycle. The engine rolls one transaction back and your code retries it. Lock rows in the same order and the cycle can’t form." />
+
+T1 wants row 1, which T2 holds; T2 wants row 2, which T1 holds. Neither can move. That is a transactional deadlock, the same one you met with threads in an operating-systems course, and it arrives unannounced, as a side effect of locking. [[L-0025 L-0026 L-0036]]
+
+MySQL, PostgreSQL and Oracle don’t let one last. When a lock request has to wait, the database checks the wait-for relationships for a cycle (InnoDB immediately, PostgreSQL after `deadlock_timeout`, one second by default). A cycle means a deadlock, and the engine breaks it by rolling back a victim. InnoDB rolls back a whole transaction and prefers the smaller one; PostgreSQL makes no promise about which; Oracle rolls back just one statement and leaves the rest to your code. [[L-0030 L-0031 L-0032 L-0033]] So the database never stalls, but the victim’s work is undone, and every transaction that takes more than one lock must be ready to retry. [[L-0029]]
+
+The defence is the order in which you take locks. Whenever you write code that locks rows, in any language, check whether two paths can take the same locks in different orders, and arrange them so they can’t. For the swap: always lock the lower seat number first. The check-in’s transactions each lock one seat, in seat order, which is why approaches 4 and 5 never deadlocked. [[L-0027 L-0028]]
+
+You can watch all of this with no code. Start MySQL, open two terminals, set `autocommit = 0`, begin a transaction in each, and take shared and exclusive locks by hand: one session halts while the other runs, and crossing two rows produces the deadlock error. Building it yourself is where the surprises show up. [[L-0143 L-0144]]
+
+</Section>

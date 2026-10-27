@@ -2,7 +2,7 @@
 // Pure TS (no JSX) so scripts/check.mts can import it with plain `node`.
 // One story: k1 is live at 12:01 (GET returns v1); k1 and k2 expire at 12:02 but stay on disk; the same GET at 12:04
 // is filtered in SQL (v1 never sent); DELETE k2 (already expired) writes nothing; DELETE k3 (live) marks it -1;
-// the cron at 12:10 deletes every row with expired_at <= now().
+// the cron at 12:10 deletes every row with expired_at <= UNIX_TIMESTAMP().
 
 export const FPS = 30;
 export const DURATION = 1110; // 37.0 s
@@ -15,7 +15,7 @@ export const BEAT = {
   hidden: 358, // 12:04 the same GET is filtered
   del2: 512, // 12:05 DELETE k2: nothing matches
   del3: 660, // 12:06 DELETE k3: marked -1
-  sweep: 836, // 12:10 cron: DELETE ... expired_at <= now()
+  sweep: 836, // 12:10 cron: DELETE ... expired_at <= UNIX_TIMESTAMP()
   end: 1002,
 } as const;
 
@@ -84,7 +84,7 @@ export const CAPTIONS: Cue[] = [
   {from: BEAT.hidden, text: '12:04: the same GET. Its clause is now false, so v1 is never sent.'},
   {from: BEAT.del2, text: '12:05: DELETE k2. It already expired, so nothing matches: no disk IO.'},
   {from: BEAT.del3, text: '12:06: DELETE k3. It is live, so its row is marked expired_at = -1.'},
-  {from: BEAT.sweep, text: '12:10: the cron job deletes every row with expired_at <= now().'},
+  {from: BEAT.sweep, text: '12:10: the cron deletes every row whose expiry has passed.'},
   {from: BEAT.end, text: 'One cleanup query removes expired and deleted rows alike.'},
 ];
 
@@ -131,5 +131,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    'A clock runs from 12:00 to 12:10; a cron job hard-deletes expired rows at 12:00 and again at 12:10. The store table holds k1 and k2, which expire at 12:02, and k3, which expires at 12:30. At 12:01 a GET for k1 with AND expired_at > now() returns v1. At 12:02 k1 and k2 expire, but their rows stay on disk until the next cron run. At 12:04 the same GET matches nothing, so the value is never sent out of the database. At 12:05 a delete of k2, an UPDATE that sets expired_at = -1 only where expired_at > now(), matches nothing because k2 has already expired, so there is no disk IO. At 12:06 the same delete of the live key k3 updates its row to expired_at = -1. At 12:10 the cron runs DELETE FROM store WHERE expired_at <= now(), which removes k1, k2 and the soft-deleted k3 in one query.',
+    'A clock runs from 12:00 to 12:10; a cron job hard-deletes expired rows at 12:00 and again at 12:10. The store table holds k1 and k2, which expire at 12:02, and k3, which expires at 12:30. At 12:01 a GET for k1 with AND expired_at > UNIX_TIMESTAMP() returns v1. At 12:02 k1 and k2 expire, but their rows stay on disk until the next cron run. At 12:04 the same GET matches nothing, so the value is never sent out of the database. At 12:05 a delete of k2, an UPDATE that sets expired_at = -1 only where expired_at > UNIX_TIMESTAMP(), matches nothing because k2 has already expired, so there is no disk IO. At 12:06 the same delete of the live key k3 updates its row to expired_at = -1. At 12:10 the cron runs DELETE FROM store WHERE expired_at <= UNIX_TIMESTAMP(), which removes k1, k2 and the soft-deleted k3 in one query.',
 };

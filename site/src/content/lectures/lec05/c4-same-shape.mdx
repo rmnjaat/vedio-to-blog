@@ -1,0 +1,83 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { HoldNotLock } from '../../../figures/lec05/s2b-check-in';
+import { SoFarSeats } from '../../../figures/lec05/so-far';
+
+{/* Chapter 4 "Where else do 120 people want 120 seats?" Story rewrite: the check-in finished → fixed inventory +
+    contention (CoWIN, IRCTC, BookMyShow, flash sale) → hold, not lock, during payment → relational databases scale →
+    hand-off to the key-value store. */}
+
+<Section id="s4" no="4" title="Where else do 120 people want 120 seats?" crumb="4 Same shape" meta="About 6 min">
+
+Look back at how the check-in got here. Approaches 0 to 3 proved the system could fail. `FOR UPDATE` made it correct. `SKIP LOCKED` made it fast, and a plain `FOR UPDATE` on one seat handled the passenger who chooses. Each step was two or three words in one query. [[L-0125]]
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The check-in, finished. Marked new: SKIP LOCKED for “any free seat”. A seat the passenger chose is still booked with a plain FOR UPDATE.">
+<Desk><SoFarSeats stage={3} /></Desk>
+<Phone><SoFarSeats stage={3} layout="phone" /></Phone>
+</Figure>
+
+Nothing about that design was specific to aircraft. What made it necessary was the shape of the problem.
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="What do a vaccine portal, a train and a cinema have in common?" crumb="4.1 Fixed inventory">
+
+Here the inventory was fixed, 120 seats, and the contention was 120 people trying to book them at once. [[L-0127]]
+
+<RuleBox label="The rule to keep" rule="==Fixed inventory + contention== = locking." k="L-0126">
+
+Any system with a fixed amount of something and many people competing for it at the same moment needs locking to stay correct. When you see that shape, think lock first. [[L-0126]]
+
+</RuleBox>
+
+Once you know the shape, you see it everywhere. In India, CoWIN booked COVID-19 vaccination slots from 2021: each centre had a limited number of slots a day, say 100, and everyone rushed in the moment they opened. [[L-0128]] It needs locking, though not necessarily this kind: an optimistic lock or an atomic instruction can do the job too. Built on a relational database, it would look exactly like the check-in. [[L-0129]] Lecture 2 introduced optimistic locking; <LectureLink lec="lec07" sec="s4">Lecture 9</LectureLink> builds it with compare-and-swap.
+
+IRCTC, India’s train booking system, has many people booking seats on the same train at the same time: exactly this shape. A relational version of it would lean on `SKIP LOCKED` and exclusive locks for its throughput; that is the shape talking, not a look at IRCTC’s code. [[L-0130]] On BookMyShow a screen has a fixed number of seats and people pick specific ones, so it is the seat-67 case: whoever gets the lock goes ahead, and the others wait for that transaction to finish before the next one gets its turn. [[L-0131]] A flash sale, a fixed stock and everyone arriving the moment it opens, is the same problem again. [[L-0132]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="The cinema holds your seat while you pay. Is that a lock?" crumb="4.2 Hold, not lock">
+
+A cinema site like BookMyShow holds your seats for, say, ten minutes while you pay. If booking is locking, is that a ten-minute row lock? [[L-0135]]
+
+<PauseAndThink k="L-0135 L-0161"
+  q="You could open a transaction, <code>SELECT … FOR UPDATE</code> the seat, wait up to ten minutes for the payment, then commit. Why not?"
+  choices={[{ label: 'It works; the lock just lasts longer' }, { label: 'Open transactions holding locks for minutes would wreck the database’s throughput', correct: true }]}
+  right="Right."
+  wrong="It would work for one customer. Now picture a full cinema.">
+
+Every row lock held open for ten minutes is a row nobody else can book or lock, plus an open transaction the database has to carry. You never stretch a database transaction across a payment.
+
+</PauseAndThink>
+
+The seat isn’t locked during payment; it is **on hold**. The words matter. “Lock” makes you picture MySQL blocking the row, which is not what happens. “Hold” is a state the application keeps. [[L-0137]] So the booking is split into phases. A short transaction takes the lock for a moment, marks the seat as on hold (a status the seats table would need a column for), and commits. The customer then pays with no transaction open. What happens after the payment belongs to a separate design, built around that hold. [[L-0161 L-0162]]
+
+<Figure id="fig-4b" max={720} no="Fig 4·b" k="L-0135 L-0137 L-0161 L-0162" caption="Lock for a moment, hold for ten minutes. A short transaction puts the seat on hold, a status in the row, and commits; the payment happens outside any transaction. One long transaction across the payment is the thing you never do.">
+<Desk><HoldNotLock /></Desk>
+<Phone><HoldNotLock layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="So do relational databases scale or not?" crumb="4.3 Scale">
+
+One MySQL went from 1.7 seconds to 147 milliseconds for 120 concurrent bookings, with two words of plain SQL and no exotic tuning. So where does “relational databases don’t scale” come from? Don’t believe generic statements like that. At high request rates a relational database is a champion, as long as you know its constructs. [[L-0124 L-0165]]
+
+What one node is not built for is a data set too large for it. Then you partition or shard, and relational systems do that at very large scale: Vitess, a clustering system for MySQL, served all of YouTube’s database traffic for over five years. You will split a store across machines yourself at the end of this lecture. [[L-0124 L-0165]]
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="And if the payment never comes?" crumb="4.4 Next build">
+
+Then the hold has to end by itself. Ten minutes after it was placed, the seat must be free again, without anyone deleting anything. Keep that question; it is the shape of the second build. A value that has to vanish on its own after a set time is what a key-value store with a TTL is for. The green dot in <LectureLink lec="lec04" sec="s2">Lecture 1</LectureLink> relied on exactly that: every heartbeat wrote a key with a 30-second TTL, and you picked Redis or DynamoDB to do the expiring. DynamoDB can take days to delete an expired item, so the dot also checked `expires_at` on every read.
+
+The second build opens that box. You will build a key-value store yourself, `GET`, `PUT`, `DELETE` and keys that expire, on one MySQL table. On a relational database every part of a key-value store becomes an ordinary SQL clause you can read and cost, so building one teaches both what a key-value store has to do and what a relational database does when you ask it. [[L-0005 L-0346]]
+
+The fight over seats is mostly behind you. The check-in’s cost was a double-booked seat; this store’s costs are quieter: a full table scan where an index would do, a large value sent across the network only to be thrown away, a disk write that changes nothing. What carries over is the habit the check-in taught: read a query one clause at a time and ask what each clause does. [[L-0223]]
+
+</Section>

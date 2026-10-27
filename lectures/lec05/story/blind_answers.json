@@ -1,0 +1,848 @@
+[
+ {
+  "id": "Q001",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q002",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q003",
+  "answer": "NOT ON PAGE",
+  "evidence": "ch9 §9.6 only says the store 'inherited everything relational databases are strict about'",
+  "found": false
+ },
+ {
+  "id": "Q004",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q005",
+  "answer": "Indexes make lookups/range scans cheap, but every write to an indexed column also has to update the index.",
+  "evidence": "'every write of expired_at also updates the index' (ch7 §7.4 table)",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "Lock the row before you go on and hold the lock until commit (pessimistic locking). Flow: begin, SELECT … FOR UPDATE (read and lock), UPDATE, COMMIT (commit releases the locks).",
+  "evidence": "'take a lock on the row before you go on, and hold it until you commit. That is pessimistic locking.' (ch2 intro); 'Read and lock with SELECT … FOR UPDATE, update, commit' (§9.5)",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "Two readers clap on a post at 100 at the same instant; both read 100 and both write 101, so one clap is lost silently. Read-then-write isn't one step, so the critical section needs a lock to get 102.",
+  "evidence": "'both read 100, both write 101, and one clap disappears' (overview, Where you are); 'Two claps on a post at 100 that must make 102' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Lock where correctness matters more than throughput (claps that must add up, a seat with one passenger); skip locks where nobody minds an occasional wrong value.",
+  "evidence": "'So lock where correctness matters more than throughput… Where nobody minds an occasional wrong value, skip it.' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "T1 holds seat/row 2 and wants row 1; T2 holds row 1 and wants row 2. Each waits for the other: a cycle T1→row1→T2→row2→T1.",
+  "evidence": "'T1 holds seat 2’s row, T2 holds seat 1’s, and each now asks for the other’s' (§3.5)",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Check whether two code paths can take the same locks in different orders, and arrange them so they always lock in one consistent order (e.g. lower seat number first).",
+  "evidence": "'check whether two paths can take the same locks in different orders, and arrange them so they can’t' (§3.5)",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "When a lock request must wait, the DB checks the wait-for graph for a cycle (InnoDB immediately, Postgres after deadlock_timeout 1s) and rolls back a victim. InnoDB rolls back the smaller transaction; Postgres makes no promise which; Oracle rolls back just one statement.",
+  "evidence": "'InnoDB rolls back a whole transaction and prefers the smaller one; PostgreSQL makes no promise…' (§3.5)",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "Because a deadlock never ends on its own: neither transaction can move, so the database would stall; it detects the cycle and breaks it by rolling back a victim so it never stalls.",
+  "evidence": "'Neither can move… MySQL, PostgreSQL and Oracle don’t let one last… So the database never stalls' (§3.5)",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "Start MySQL, open two terminals, set autocommit = 0, begin a transaction in each and take shared/exclusive locks by hand; crossing two rows produces the deadlock error.",
+  "evidence": "'open two terminals, set autocommit = 0… crossing two rows produces the deadlock error' (§3.5)",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Shared lock = read lock, taken with FOR SHARE; exclusive lock = write lock, taken with FOR UPDATE.",
+  "evidence": "'FOR SHARE, takes a shared lock (a read lock)'; 'An exclusive lock (a write lock)' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "(1) Many transactions can hold a shared lock on the same row at once; (2) none may modify it while others hold theirs; (3) use it when rows you read must not change before commit (e.g. parent row exists); (4) if two shared holders both try to update, each waits for the other: deadlock.",
+  "evidence": "Go deeper: FOR SHARE (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "Both can take shared locks, including on row 6, and both can read their rows. Neither may modify row 6 while the other holds a shared lock: if T2 tries to update row 6 it waits for T1 (and if both try, deadlock).",
+  "evidence": "'Many transactions can hold a shared lock on the same row… none of them may modify it while the others hold theirs' (§2.2 Go deeper)",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Many readers can hold it at once (no queue among readers) while guaranteeing the rows you read won't change before you commit, e.g. checking a parent row exists before inserting a child.",
+  "evidence": "§2.2 Go deeper: FOR SHARE",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "It must wait while other transactions hold shared locks on the row; if they also try to modify it, deadlock. (Page doesn't say what happens if it is the only holder.)",
+  "evidence": "'none of them may modify it while the others hold theirs. If two shared holders both try to update the row, each waits for the other' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "Nobody else may modify these rows or take a lock on them until the holder commits/aborts; the holder can read and modify. Plain SELECTs are not blocked; they read the last committed version.",
+  "evidence": "'An exclusive lock (a write lock) means: nobody else may modify these rows, or take a lock on them, until I am done. Plain SELECTs are not blocked.' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "T2 blocks/waits until T1 commits or aborts, because of row 6 alone. If T2 asked only for rows 3 and 4 it would finish at once.",
+  "evidence": "'T2’s statement doesn’t complete until T1 commits or aborts… Had T2 asked for rows 3 and 4 only, it would have finished at once.' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Cost is throughput: only one transaction at a time gets through a locked row (everyone queues). Use them when correctness matters more than throughput, e.g. read-decide-write like the seat booking.",
+  "evidence": "'Locking costs throughput; only one transaction at a time gets through a locked row.' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "SKIP LOCKED leaves rows locked by someone else out of the result and carries on with the rest. T2 gets rows 3 and 4 (skips 6).",
+  "evidence": "'SKIP LOCKED leaves row 6 out and carries on with rows 3 and 4' (Fig 3·c, §3.4)",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "When you need a particular row: ordinary transactional work where the skipped row might be the one you needed, or a user who chose a specific seat (seat 67).",
+  "evidence": "'wrong for ordinary transactional work, where the row you skipped might be the one you needed' (§3.1); §3.3",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "NOWAIT: if any row the query wants is locked, the statement fails immediately instead of waiting. Error: ERROR 3572: Do not wait for lock.",
+  "evidence": "'fails at once… ERROR 3572: Do not wait for lock' (§3.4)",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "If someone else holds the row, someone else is dealing with it, so waiting is pointless ('existential crisis'); failing fast lets the product tell the user at once, and avoids tying up a connection until a long lock timeout (50s InnoDB, forever in PG).",
+  "evidence": "'someone else picked this row and will process it, so why should it wait?' (§3.4)",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Don't build the whole system; build only the part you want to understand (the database part) as a small prototype, and build it yourself.",
+  "evidence": "'You don’t build the airline: you build only the part you want to understand, the database part, as a small prototype.' (overview, Before you start)",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Everyone has already booked and paid and only picks a seat; every flight has 120 seats; all 120 passengers check in at the same moment; airlines have flights, flights have trips, a passenger takes one seat on one trip; admin opens seats with user_id NULL.",
+  "evidence": "§1 intro, §1.1",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "airlines(id,name), flights(id, airline_id→airlines), trips(id, flight_id→flights, fly_time), users(id,name), seats(id, name, trip_id→trips, user_id→users).",
+  "evidence": "Fig 1·b (§1.1)",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "Passengers use a check-in service that reads/writes seats in MySQL; an admin service run by the airline also writes to MySQL: adds flights and trips and, when a trip opens, creates one seat row per seat with user_id NULL.",
+  "evidence": "Fig 0·a (overview)",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "120 passengers checking in at the same moment on one flight with 120 seats; every seat must go to exactly one passenger.",
+  "evidence": "overview / ch1 intro",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "No screens/UI, no payments, no CRUD for flights; just the seat-booking part.",
+  "evidence": "'no screens, no payments, no CRUD for flights' (§1.1)",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "Go's goroutines make running 120 concurrent bookers easy; in another language you'd use threads.",
+  "evidence": "'Go makes that kind of concurrency easy'; 'any language with threads works the same way' (§1.1, overview)",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Passenger names a seat and the program books it with an unchecked UPDATE; nothing checks if the seat is taken, so last one wins and two passengers can hold the same seat.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "The system picks a random seat instead of the passenger; still the same unchecked UPDATE, and a random function can return the same seat twice.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "120 goroutines, one per passenger, all booking a random seat at once. Most of the plane stayed empty and some seats (7E, 12E) were booked by two passengers; never 120.",
+  "evidence": "Fig 1·c, §1.2",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "SELECT id, name, trip_id, user_id FROM seats WHERE trip_id = 1 AND user_id IS NULL ORDER BY id LIMIT 1; then UPDATE seats SET user_id=? WHERE id=<seat>; COMMIT.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "They all read at the same instant before anyone wrote, so user_id on 1A reads NULL for all of them; nothing prevents two transactions acting on the same value; last write wins.",
+  "evidence": "'Because they all read at the same instant, before any of them wrote.' (§1.3)",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "Because of ORDER BY id: every transaction sees seat 1 first, so every one picks seat 1.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "Only a handful of seats: three on one run, four on the next, two after (2–4 per run), filled in seat order with 1A handed out again and again.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Some (slower) transactions read after another's commit; at REPEATABLE READ a transaction sees commits that landed before its first read, so WHERE user_id IS NULL skipped 1A and they got 1B etc.",
+  "evidence": "§1.4",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Only two words added at the end of the SELECT: FOR UPDATE.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Waiting is not a deadlock; a deadlock needs a cycle. The holder of 1A waits for nobody: it books, commits and leaves.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "Isolation only goes as far as the isolation level allows; at the default levels (REPEATABLE READ/READ COMMITTED) read-then-book is a race, ACID being on doesn't rule it out.",
+  "evidence": "§1.4",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "Yes, SERIALIZABLE would prevent the double booking, but via extra locking (MySQL shared locks → deadlocks/rollbacks) or aborts (PG), requiring retries and costing throughput, so it's not the default.",
+  "evidence": "§1.4",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "The engine must re-evaluate the same statement when the lock is released, not 'take the next row': the range query then moves to the next free seat, but a pointed query WHERE id = 67 finds the seat taken and matches nothing. One rule covers both.",
+  "evidence": "§2.3 'You are the database engineer'",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "All 120 seats filled on every run, in 1.25–1.8 s over three runs, in seat order (1A wasn't user 1's).",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "All match 1A; one gets its lock, the other 119 wait with no row; on commit the lock is released and waiters are signalled, re-evaluate the statement, find 1A taken, move to 1B; one locks it, rest wait again, and so on.",
+  "evidence": "§2.3 Fig 2·c",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "No. Whichever transaction the engine schedules first takes the next seat; 1A didn't go to user 1.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Everyone queues; worst case N(N+1)/2 = 7,260 evaluations inside the DB for 120, ~1.7 s.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Add SKIP LOCKED (FOR UPDATE SKIP LOCKED). All 120 seats in 147 ms vs ~1.7 s: about 10x faster.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "It skips the locked row and moves to the next matching row, locking that instead; nobody waits.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Don't believe generic statements like that; with two words one MySQL went 1.7 s→147 ms; at high request rates a relational DB is a champion if you know its constructs. Only a data set too large needs sharding (e.g. Vitess for YouTube).",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "0: passenger picks seat, no check; 1: random seat, no check; 2: 120 goroutines random → double bookings, empty seats; 3: first free seat (IS NULL ORDER BY LIMIT 1) → 2–4 seats; 4: + FOR UPDATE → all 120, correct, ~1.7 s; 5: + SKIP LOCKED → all 120 in 147 ms.",
+  "evidence": "ch1–3, §4 intro",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "Fixed inventory + contention = locking. Check-in: 120 seats (fixed inventory), 120 people booking at once (contention).",
+  "evidence": "§4.1 'The rule to keep'",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "CoWIN vaccine slots, IRCTC train booking, BookMyShow cinema seats, flash sales.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "With locking: on a relational DB exactly like the check-in (SKIP LOCKED-style on slots), or with an optimistic lock / atomic instruction.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "IRCTC: relational version would lean on SKIP LOCKED and exclusive locks for throughput. BookMyShow: users pick specific seats, so the seat-67 case: whoever gets the lock proceeds, others wait.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q059",
+  "answer": "Not a SQL lock: a short transaction locks the seat momentarily, sets status HOLD and commits; payment happens with no transaction open; the hold is application state. Later phases a separate design.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "No SKIP LOCKED; use plain FOR UPDATE on that seat id. The loser waits, re-checks, finds user_id not NULL, gets no rows: 'seat's gone' (or use NOWAIT to fail at once).",
+  "evidence": "§3.3, §3.4",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Open two MySQL terminals, autocommit=0, begin transactions and take FOR SHARE / FOR UPDATE locks by hand to watch sessions block.",
+  "evidence": "§3.5",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "No. The lock goes away on abort, user_id is still NULL, and the next statement picks seat 2 (first due to ORDER BY).",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "Build things yourself and make your own mistakes; know how your database actually does its work.",
+  "evidence": "'Building it yourself is where the surprises show up' (§3.5); 'Write it yourself and make your own mistakes' (§9.6)",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "N(N+1)/2 (7,260 for 120): every waiter re-checks after every commit: N + (N−1) + … + 1.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "An UPDATE takes an exclusive lock on the rows it changes on its own; explicitly you take one with SELECT … FOR UPDATE (or FOR SHARE).",
+  "evidence": "§2.2 'Two more facts'",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "There is no unlock call; committing (or aborting) the transaction releases all its locks.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "No busy loop: waiters sit in a wait queue and are signalled when the lock is released (condition variables), then re-check.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "'Relational databases don't scale' — don't believe generic statements like that.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Don't start with leader election, Paxos or Raft; build a single node, sort its details, scale out only when load demands.",
+  "evidence": "§5 intro",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "GET, PUT, DELETE on a key plus per-key TTL in seconds; 'infinitely scalable'; distributed; storage is a relational DB. Real system: Redis (stores expiry same way) / page doesn't name one built on RDBMS.",
+  "evidence": "§5 intro",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q072",
+  "answer": "A string type with a deliberately chosen fixed size, e.g. VARCHAR(16); the key type fixes what keys the store supports, and changing it on a large live table means a full rebuild.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "How anyone may read/query values; here only lookups by key so value is a black box: BLOB.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Key marked as primary key (pk); value as BLOB. (Board annotations not given.)",
+  "evidence": "Fig 5·a 'key (pk)'",
+  "found": false
+ },
+ {
+  "id": "Q075",
+  "answer": "Store created_at and ttl per key, and a background job deletes rows where now - created_at >= ttl.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Condition computed per row from two columns and clock; index on created_at can't be used; full scan every run, forever.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Store absolute expired_at instead of created_at+ttl, index it; cleanup DELETE WHERE expired_at <= UNIX_TIMESTAMP() is an index range.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "is_deleted column set true on delete, plus a second periodic job DELETE WHERE is_deleted = true: extra column on every row and two jobs.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "UPDATE store SET expired_at = -1 WHERE key = k AND expired_at > UNIX_TIMESTAMP(); batch job removes it later.",
+  "evidence": "§6.2–6.3",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "The existing cleanup query (expired_at <= now) matches deleted rows too: one job, one query, index keeps it cheap; saves a column and second job; GET hides -1 automatically.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "INSERT INTO store VALUES ('k1','v1', e).",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Key is the primary key, so the second insert fails with duplicate key.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "Every put becomes a get plus a put: extra network round trip (4 crossings vs 2), possibly shipping a large value, a transaction around both, and a race where two puts of a new key both read absent and one fails.",
+  "evidence": "§7.1–7.2",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "One atomic statement that inserts the row or updates it if the key exists; DB does the check; one round trip, no transaction around read+write, no race.",
+  "evidence": "§7.1–7.2",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "Postgres: INSERT … ON CONFLICT (key) DO UPDATE (or MERGE). MySQL: INSERT … ON DUPLICATE KEY UPDATE (REPLACE INTO works but deletes+inserts).",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "DB reads e.g. 10 MB off disk, ships it over the network, API server throws it away.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "SELECT * FROM store WHERE key='k1' AND expired_at > UNIX_TIMESTAMP(); saves the disk read of large values and network bandwidth of DB and API server.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Relational DB (MySQL) storage, one table, single node first.",
+  "evidence": "§5 intro",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "Don't add it out of habit (ORMs like it); nothing would use it; add a column only when needed.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Store only key, value, expired_at: no ttl/created_at pair and no is_deleted column (delete = -1), no id column.",
+  "evidence": "§6.2, §5.1",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "A cron/batch job every 10 min: DELETE FROM store WHERE expired_at <= UNIX_TIMESTAMP(), using the index; because per-key deletes on disk are expensive scattered work; one sweep does it in one statement.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Key new → insert; key exists → update value (and expiry). Use an upsert instead.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Nothing to build: the upsert takes an exclusive row lock, so they serialize, last wins. If put reads and decides, use SELECT … FOR UPDATE (existing key) or NOWAIT to fail fast.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "A cron job every t (10) minutes hard-deletes rows with expired_at <= now; between runs expired rows remain on disk.",
+  "evidence": "§5.3 Fig 5·c",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "GET must not return them: add AND expired_at > UNIX_TIMESTAMP() so expired rows never match; saves disk read and network transfer of the value.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "When a read finds its key expired, delete it right there and report not found; suitable for in-memory DBs (Redis).",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "In memory a delete just unlinks a hash bucket entry and frees memory (microseconds); on disk it changes a page and every index entry, maybe page merges.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Keys that expire and are never read again stay in memory forever; still need a periodic job.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "With millions expired, a run would take long, and the single main thread can't serve GET/PUT meanwhile.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Take 20 keys with a TTL; delete the expired ones; if more than ~10% of the batch was expired, repeat; stop when a batch comes back mostly live or CPU time budget runs out.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "A random sample stands for the population: the fraction expired in 20 keys estimates the fraction across all TTL keys.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "15% > 10%, so delete the 3 and sample again.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Speed over completeness: leaks some memory (expired keys linger, ~10%) to keep cleanup short so the main thread keeps serving.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q105",
+  "answer": "Add AND expired_at > UNIX_TIMESTAMP() to the delete; already-expired keys match nothing; saves a row write and an index write per such delete.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "DELETE: UPDATE store SET expired_at=-1 WHERE key=k AND expired_at > UNIX_TIMESTAMP(); cleanup: DELETE FROM store WHERE expired_at <= UNIX_TIMESTAMP(); GET: SELECT * FROM store WHERE key=k AND expired_at > UNIX_TIMESTAMP().",
+  "evidence": "§6.1–6.3, §9 Fig 9·a",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "A deleted key must disappear now; its expiry is still in the future (never for no-TTL keys), so without marking GET keeps returning it and cleanup never touches it.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q109",
+  "answer": "One node can't handle load (QPS, data size, disk IO, network). D-08: users → LB → KV API servers → one MySQL, with a batch cleanup job beside.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Add API servers first, assuming MySQL keeps up; then look at metrics: which queries are fired most.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "When reads dominate (99:1). Master: writes, deletes, consistent reads (and cleanup); replicas: reads that can be slightly stale.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Scale master vertically; when that runs out, shard.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "Two masters by key range (a–m, n–z), each with own replica and cleanup job; API servers hold connections to all and the routing.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "API servers. Google → master 1 (a–m), Zomato → master 2 (n–z).",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Few systems add/remove shards on the fly; shard count changes ~once a quarter; split range when needed; ~90% of sharded DBs work this way.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "Build locally: two MySQL servers, one API server connected to both, routing logic, HTTP endpoint; skip cleanup; add a replica with binlog/WAL and route consistent reads to master.",
+  "evidence": "§9.6",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "User delete should only touch live keys (expired ones are left to cleanup to avoid useless write); cleanup removes everything whose expiry has passed, including -1.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "Matches nothing, no write/disk IO; the cleanup removes it.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Within a shard yes; across shards no, unless a distributed transaction (expensive).",
+  "evidence": "§9.4",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "On your laptop: run multiple MySQL servers locally, no cloud.",
+  "evidence": "§9.6",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Expired keys (not deleted), measured on the sampled batch of keys with a TTL; threshold ~10%.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "20 random keys on disk = 20 random disk reads each fetching its own page: slow; disk prefers a sequential index sweep.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "Yes: you must run inside an explicit transaction (autocommit=0 / BEGIN) so the lock is held until commit; under autocommit each statement commits and releases the lock at once.",
+  "evidence": "inferred: 'set autocommit = 0, begin a transaction' (§3.5); 'Committing… releases every lock' (§2.2)",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "No; they are evaluations the engine does, not queries the application sends.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "Locked rows are skipped rather than waited on, so nobody re-checks after commits; each transaction just locks the next free row: ~120 evaluations.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q127",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q128",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q129",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q130",
+  "answer": "NOT ON PAGE",
+  "evidence": "page only: 'Go makes that kind of concurrency easy'",
+  "found": false
+ },
+ {
+  "id": "Q131",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q132",
+  "answer": "It avoids hauling the value back but still costs a whole network round trip; upsert saves that too.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "A transaction waited longer than the lock timeout because the holder didn't commit/abort in time: long work under the lock, forgot to commit/abort, a transaction left open in another session, or a long queue on a hot row.",
+  "evidence": "§3.4",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "On disk each delete is real work (page + index entries + merges), scattered per-key; batching does it in one indexed sweep.",
+  "evidence": "§5.3, §6.2",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "The job may cost more than the delete (freeing takes microseconds; queuing is work too), and delayed delete keeps dead data in memory (noeviction would refuse writes).",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q136",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q137",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q138",
+  "answer": "No; Redis keeps data in memory and DynamoDB isn't relational; MySQL is a teaching vehicle.",
+  "evidence": "§5 intro, §9.6",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "So you write it yourself and make your own mistakes; that's where understanding comes from. (Not explicitly about sharing code.)",
+  "evidence": "§9.6",
+  "found": false
+ },
+ {
+  "id": "Q140",
+  "answer": "A database is a foundational layer giving raw building blocks and staying out of app space; built-in soft delete would need its own cleanup process and ambiguity about whether a read row is really there.",
+  "evidence": "§6.2 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q141",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ }
+]

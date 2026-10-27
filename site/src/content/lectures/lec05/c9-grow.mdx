@@ -1,0 +1,138 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { OneMysql, ReadReplicas, RangeShards, CrossShardTxn } from '../../../figures/lec05/s5-distributed';
+import { SoFarStore } from '../../../figures/lec05/so-far';
+
+{/* Chapter 9 "One MySQL can't keep up. What do you add first?" Story rewrite: when to distribute, more API servers →
+    read replicas → range shards with routing in the API → ACID per shard → what you can now do, recall, build it,
+    and the hand-off to Lecture 4. */}
+
+<Section id="s9" no="9" title="One MySQL can’t keep up. What do you add first?" crumb="9 Grow it" meta="About 9 min">
+
+The problem statement said *distributed*, and you built one node on purpose: a table, three clauses, an upsert and a cleanup job, each detail sorted out where it was cheap to see. Now the traffic grows. Grow the store the same way you built it, one bottleneck at a time, adding a piece only when the one before it runs out. [[L-0170 L-0290]]
+
+<Figure id="fig-9-sofar" max={640} no="Fig 9·a" caption="The store on one node, complete: GET filters expired keys, DELETE marks live keys with −1, PUT is one upsert, and a cleanup job sweeps every 10 minutes.">
+<Desk><SoFarStore stage={4} /></Desk>
+<Phone><SoFarStore stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="When do you distribute at all?" crumb="9.1 When">
+
+When one node can’t handle the load. “Load” can be any of: queries per second, data size, disk IO or network traffic. Any one of them can be the limit. [[L-0270]]
+
+The single-node store already has a shape that grows. Users reach a load balancer, which spreads requests over the key-value API servers, and everything that talks to MySQL goes through those servers. Beside them, the cleanup job keeps firing its query. As long as MySQL keeps up, more traffic just means more API servers. [[L-0271 L-0272]]
+
+<Figure id="fig-9a2" max={760} no="Fig 9·b" k="L-0271 L-0272" caption="The single-node store in production: a load balancer, a fleet of key-value API servers, one MySQL, and the cleanup job beside them. While MySQL keeps up, you grow by adding API servers.">
+<Desk><OneMysql /></Desk>
+<Phone><OneMysql layout="phone" /></Phone>
+</Figure>
+
+When MySQL is the one struggling, don’t reach for a design yet. Look at your metrics first: which queries are fired most, the selects, the upserts, the updates or the deletes? The answer decides what you add. [[L-0273]]
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="The metrics say 99 reads for every write" crumb="9.2 Read replicas">
+
+If reads dominate, add read replicas: copies of the database that serve reads. The price is staleness. Changes reach the replicas asynchronously, so a replica can be a moment behind, and for some reads that is fine. Writes, deletes and reads that must see the latest value still go to the master. [[L-0274 L-0275]]
+
+<Figure id="fig-9b" max={850} no="Fig 9·c" k="L-0274 L-0275 L-0276" caption="Writes, deletes and reads that must be current go to the master. Reads that can be a little stale go to a replica, which pulls changes from the master asynchronously.">
+<Desk><ReadReplicas /></Desk>
+<Phone><ReadReplicas layout="phone" /></Phone>
+</Figure>
+
+This is the split you met in <LectureLink lec="lec01">Lecture 2</LectureLink>. The simplest way to build it adds no new box: each API server opens connections to the master and to the replicas, and picks one per request, depending on the kind of read the client asked for. A central proxy can come later, if it is ever needed. [[L-0275 L-0276]]
+
+</Section>
+
+<Section id="s9-3" no="9.3" title="Then the master can’t take the writes" crumb="9.3 Range shards">
+
+Replicas don’t help with writes; every write still lands on the one master. When it can’t keep up, first make it bigger: scale vertically. When that runs out, shard. Each database then holds its own exclusive part of the data, disjoint from all the others. [[L-0277 L-0278]]
+
+For a key-value store, the simplest split is by key range. With string keys, one master owns A to M and another owns N to Z. Each master can have its own replicas, and each runs its own cleanup job, independently of the other. [[L-0279 L-0280]]
+
+<Figure id="fig-9c" max={880} no="Fig 9·d" k="L-0279 L-0280 L-0282 L-0283 L-0285 L-0289" caption="The distributed store: two masters, each owning a key range, with its own replica and its own cleanup job. The API servers hold the routing: which range lives where.">
+<Desk><RangeShards /></Desk>
+<Phone><RangeShards layout="phone" /></Phone>
+</Figure>
+
+A `GET` for the key `google` arrives. The API server sees it starts with g, looks up which range holds it, and sends the query down its connection to master 1. A request for `zomato` goes to master 2. The routing table lives in the API servers, which hold connections to every master and replica. Cutting down that many connections is a separate problem. [[L-0281 L-0282 L-0283 L-0285]]
+
+Fixed ranges sound too simple to be real. In one engineer’s experience, most sharded databases (by his estimate about 90%) work this way, because few real systems need to add or remove shards on the fly; the number of shards changes about once a quarter, and when two shards can’t take the load you add a node and split the range into three. [[L-0286 L-0287 L-0288]] Hot ranges and consistent hashing come in <LectureLink lec="lec07" sec="s6">Lecture 9</LectureLink>.
+
+</Section>
+
+<Section id="s9-4" no="9.4" title="One operation touches four keys on two shards" crumb="9.4 ACID per shard">
+
+On one MySQL node, every single-key operation of the store inherits MySQL’s ACID guarantees. MySQL itself offers more: one transaction over several rows, all or nothing, the way a booking could take four seats at once. Suppose you want that through the store, four keys changed together. After the split, three of them live on master 1 and one on master 2. [[L-0295 L-0296]]
+
+<PauseAndThink k="L-0296 L-0297 L-0298"
+  q="Can the sharded store still make that four-key operation all-or-nothing?"
+  choices={[{ label: 'Yes: each master is ACID, so the whole thing is' }, { label: 'Only inside one shard; across shards it needs a distributed transaction', correct: true }]}
+  right="Right."
+  wrong="Each master’s guarantees stop at its own data.">
+
+Each master is ACID about its own keys. Nothing makes two masters commit together unless you add a distributed transaction.
+
+</PauseAndThink>
+
+<Figure id="fig-9d" max={560} no="Fig 9·e" k="L-0296 L-0297 L-0298" caption="Three of the four keys share master 1, where ACID holds. The fourth lives on master 2, and across the two shards it doesn’t.">
+<Desk><CrossShardTxn /></Desk>
+<Phone><CrossShardTxn layout="phone" /></Phone>
+</Figure>
+
+Distributed transactions exist, and they are expensive. DynamoDB, for example, offers them, but does two underlying writes per item, one to prepare and one to commit, and fails them on conflicts. Systems that offer them use them sparingly. [[L-0297]] The practical rule: keep the keys that one operation must change together on the same shard, where a transaction and its row locks still work exactly as they did for the 120 passengers. [[L-0298]]
+
+</Section>
+
+<Section id="s9-5" no="9.5" title="What you can now do" crumb="9.5 What you can do">
+
+- **Book fixed inventory under contention.** Read and lock with `SELECT … FOR UPDATE`, update, commit. Add `SKIP LOCKED` when any free item will do (seats, slots, jobs): in the demo, 1.7 s became 147 ms for 120 bookings. Use a plain pointed `FOR UPDATE` when the user chose the item, and `NOWAIT` when waiting is pointless.
+- **Tell waiting from deadlock.** A wait ends when the holder commits. A deadlock is a cycle; the database rolls back a victim, so retry, and take locks in one consistent order.
+- **Never hold a lock across a payment.** Lock for a moment, mark the item on hold, commit.
+- **Store expiry as an absolute, indexed time** (`expired_at`), give keys with no TTL a far-future value, and clean up in batches on disk.
+- **Make each clause pay.** Filter expiry in the query, not in the app. Delete by setting `expired_at = -1`, only while the key is live (`AND expired_at >` `UNIX_TIMESTAMP()`). Replace read-then-write with one upsert: one network round trip instead of two.
+- **In memory, delete on access and sample the rest;** hand work to a background job only when doing it now is expensive.
+- **Grow one bottleneck at a time:** more API servers, then read replicas, then range shards with routing in the API. ACID holds inside a shard, not across shards.
+
+<RecallQuestions>
+  <RecallItem q="Approach 3 (first free seat, no lock) filled a handful of seats out of 120. Why more than one, and why not all?" k="L-0088 L-0091">
+
+Every transaction that read before any commit saw seat 1A free and booked it; the last write won. Only a transaction whose read came after someone else’s commit was moved on by `WHERE user_id IS NULL` to the next seat. How many reads landed after a commit varies from run to run, and so does the count.
+
+  </RecallItem>
+  <RecallItem q="With FOR UPDATE, 119 transactions wait on 1A. When its holder commits, what does each waiter do, and why must it be that rule rather than “take the next row”?" k="L-0109 L-0115 L-0116">
+
+It is woken and re-evaluates its own statement against the current data: 1A no longer matches, so the scan moves on, and one waiter locks the next free seat. “Take the next row” would break a pointed query like `WHERE id = 67`, which must instead match nothing and report the seat gone.
+
+  </RecallItem>
+  <RecallItem q="Why is DELETE … WHERE created_at + ttl_sec <= UNIX_TIMESTAMP() a bad cleanup query, and what replaces it?" k="L-0191 L-0194 L-0195">
+
+The condition is computed per row, so no index on `created_at` can find the expired rows, and every run scans the whole table. Store the absolute expiry, `expired_at`, index it, and clean up with `DELETE FROM store` `WHERE expired_at <=` `UNIX_TIMESTAMP()`: a range on the index.
+
+  </RecallItem>
+  <RecallItem q="Name two costs a single upsert removes compared with “GET the key, then INSERT or UPDATE”." k="L-0215 L-0328">
+
+A network round trip (one instead of two, and no large value shipped back for the check), and the transaction you would otherwise hold open around the read and the write.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s9-6" no="9.6" title="Build it, then ask what else a store can be" crumb="9.6 Next">
+
+Build it once and the routing will stop being a diagram. On your laptop, no cloud needed: run two MySQL servers, one API server connected to both, the routing logic, and an HTTP endpoint that sends each key to its range. Skip the cleanup job for this. As a last step, add a local replica, with MySQL binlog replication or PostgreSQL WAL streaming, and route the reads that must be current to the master. Write it yourself and make your own mistakes; that is where the understanding comes from. [[L-0291 L-0292 L-0293 L-0350]]
+
+One more thing to notice before you move on. You used a relational database to build a key-value store so that every decision showed up as a SQL clause, and that store inherited everything relational databases are strict about. But the stores people actually run for key-value data look nothing like this inside: Redis keeps everything in memory, and DynamoDB is not a relational database at all. They and their relatives gave up some of that strictness on purpose, each in a different way, to get something back. [[L-0345 L-0346]]
+
+So what exactly did Redis and DynamoDB give up to be fast and big, and when is that trade worth it? <LectureLink lec="lec02">Lecture 4, “Slack in real time”</LectureLink> starts there, with the non-relational families (document, key-value, column-oriented and graph) and when you would still pick SQL. Then it asks the question of Slack: one message, every member of a channel, the moment it is sent. [[L-0358]]
+
+</Section>

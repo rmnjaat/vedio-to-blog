@@ -1,34 +1,50 @@
-import MarginNote from '../../../components/MarginNote.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { CheckinArch } from '../../../figures/lec05/s2a-check-in';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec05.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec05.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 03 · week 2, day 1 · running cases: airline check-in, a key-value store on MySQL"
-      title: Locking the airline seats
-      dek: "See pessimistic locking work live on an airline check-in, then build a key-value store on top of MySQL."
-      contents: 1 Locks, in theory · 2 Building the airline check-in · 3 A key-value store on MySQL ·
-                4 If it were in memory: how Redis expires keys · 5 Making it distributed · 6 Craft, opinions, and what to keep.
-    The outline gives the header no figure. "Where we are" teaches nothing new, so it carries no ids. */}
+{/* Lecture 03 (lec05) overview body: the hook, the two builds, what you will be able to do. Story rewrite, see
+    lectures/lec05/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+A flight has 120 seats. All 120 passengers reach the airport at the same moment, walk up to 120 kiosks and tap “check in” together. Each kiosk has to give its passenger one seat, and no seat may end up with two passengers. [[L-0069 L-0063]]
 
-This is day 1 of week 2. The day is about relational databases: a brief look at them, since everyone has used one, and most of the time on locking, pessimistic locking in particular. [[L-0001]]
+You will write that booking code, and the first versions will look correct. Run them with 120 people at once and they aren’t. This lecture finds out why, and fixes it one SQL clause at a time.
 
-The class ran in this order, and so does this page: first the theory of locking, then a live demo in which an airline check-in system is actually coded to show how locking changes everything, then a short break, then a long build of a key-value store on top of a relational database. [[L-0004]]
+<Figure id="fig-0a" max={620} no="Fig 0·a" k="L-0065 L-0066" caption="The brief, in one picture. Passengers book through a check-in service; the airline’s admin service opens each trip by creating one seat row per seat, all empty.">
+<Desk><CheckinArch /></Desk>
+<Phone><CheckinArch layout="phone" /></Phone>
+</Figure>
 
-That second half goes deep on the implementation side: the performance decisions inside a relational database, what, when, why and how, with detours into how Redis does the same things. [[L-0166]] From here on, almost every system in the course is brainstormed with the reasons behind each decision, instead of being handed over as a finished answer, and chapter 3 is written that way. [[L-0167]]
+### Where you are
 
-Pre-reads assumed: the course’s four articles on A, C, I and D, and its video on how indexes make database reads faster. A video on why databases use B+ trees was due out the day after the class. [[L-0015]]
+<LectureLink lec="lec04">Lecture 1</LectureLink> built a green dot and a blog on top of a database, and treated that database mostly as a place to put rows. <LectureLink lec="lec01">Lecture 2</LectureLink> showed the first crack: two readers clap on a post at the same instant, both read 100, both write 101, and one clap disappears without an error, because reading a value and writing it back is not one step. You saw the general cure, a lock around the critical section, and that the database has guarantees of its own. [[L-0022 L-0018]]
 
-**How to use this page.** Don’t build the whole airline system. Implement only the core you want to understand, here the database part, as small prototypes, without writing CRUD for everything. [[L-0059]]
+This lecture opens the database up. What exactly does it give you when many transactions reach for the same rows, what does each tool cost, and which one fits which job?
 
-</MarginNote>
+### What you’ll build
 
-### Where we are
+**Build 1, the airline check-in (chapters 1–4).** Six small versions of one booking program, each run with 120 passengers at once. You watch the early ones fail, find the gap they fail in, and change the query a few words at a time until it is correct, and then until it is fast. Then you look at where else the same shape turns up. [[L-0070 L-0125]]
 
-Lecture 2 left Medium’s clap counter with a race: two readers clap at the same instant, both read the same count, both write back count + 1, and one clap is lost. That lecture gave the race a short taste and promised the depth later. This one takes it into the database, where the real tools live: row locks, the ways not to wait for them, deadlocks and isolation levels.
+**Build 2, a key-value store on one MySQL table (chapters 5–9).** The check-in leaves one loose end: a seat held while someone pays has to be released by itself if the payment never comes. Values that must vanish on their own after a set time are what a key-value store with a TTL is for. <LectureLink lec="lec04">Lecture 1</LectureLink>’s green dot leaned on one. Here you build one, `GET`, `PUT`, `DELETE` and per-key expiry, on a single MySQL table, so that every decision inside it shows up as a SQL clause you can read and cost. Row fights are no longer the main danger. The danger is quieter: a query that reads every row to find a few, a 10 MB value sent across the network for nothing, a disk write that buys nothing. [[L-0005 L-0168 L-0172 L-0346]]
 
-Then the lecture swaps Medium for two fresh running cases. The first is an airline check-in, where 120 passengers pick seats at the same moment and two SQL words at a time take the program from double-booking to correct to fast. The second is a key-value store built on one MySQL table, where every clause of every query is costed before it is kept, and the store is then grown across machines. Lecture 1’s soft delete and its online indicator come back along the way.
+The first build teaches what one SQL clause can do to correctness and speed. The second makes that a habit: before you accept a query, ask what each part of it costs.
+
+### What you’ll be able to do
+
+- Make “give each person any free item” correct under heavy concurrency, then fast, and say when a request must wait for one specific item instead.
+- Tell waiting from deadlock, and know what the database does when transactions lock each other out.
+- Recognise the systems that need locking before you write a line of them.
+- Design per-key expiry on a disk-based table so that cleanup stays cheap.
+- Count the network trips and disk writes behind a query, and remove the ones you don’t need.
+- Grow a single-node store with replicas and range shards, and say what still holds once it is split.
+
+### Before you start
+
+You need SQL basics (`SELECT`, `UPDATE`, primary keys, indexes) and what a transaction is: begin, commit, abort. The check-in demo is a small Go program that runs one goroutine per passenger; any language with threads works the same way. [[L-0071]]
+
+Everything here runs on a laptop: one MySQL server for both builds, and two (plus a replica) for the last exercise. You don’t build the airline: you build only the part you want to understand, the database part, as a small prototype. [[L-0059]] Each chapter opens with a small map of the design so far. When a “Pause and think” box asks you something, commit to an answer before you open it.
 
 </div>

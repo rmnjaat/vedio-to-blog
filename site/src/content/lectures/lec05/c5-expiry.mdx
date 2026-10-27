@@ -1,0 +1,102 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import { IndexCantHelp } from '../../../figures/lec05/s3a-kv-store';
+import { CronBatch } from '../../../figures/lec05/s3b-kv-store';
+import { SoFarStore } from '../../../figures/lec05/so-far';
+
+{/* Chapter 5 "Build a key-value store on one table. How does a key expire?" Story rewrite (revision 2): the hold that
+    must lapse → the brief and single node first → key and value columns → created_at + ttl vs expired_at (index) →
+    the batch cleanup job, why batch, and the window it leaves. */}
+
+<Section id="s5" no="5" title="Build a key-value store on one table. How does a key expire?" crumb="5 Key-value store" meta="About 7 min">
+
+The question chapter 4 left behind, a value that must vanish by itself after a set time, is this build’s whole brief. A key-value store with `GET`, `PUT` and `DELETE` on a key, plus a TTL: each key may be given its own lifetime in seconds, after which it disappears on its own. It should be infinitely scalable, as everything is asked to be, and the problem statement says *distributed*. The storage underneath is a relational database. [[L-0168 L-0171 L-0172 L-0189]]
+
+Two warnings before you start. First, that word *distributed* is there because people love it. When asked to design something distributed, don’t start with leader election, Paxos or Raft. Build a single node, sort out its details, and scale out only when the load demands it. [[L-0169 L-0170]] Second, real key-value stores aren’t built on MySQL. Redis keeps its data in memory, and DynamoDB doesn’t sit on a relational database. MySQL is the teaching vehicle: a persistent key-value store differs from this one mainly in its storage layer, and everything above that layer is the same design. [[L-0345 L-0346 L-0348]]
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="Where the store starts: a client, a key-value API server, and one MySQL table with the key and the value. How keys get deleted and how they expire is still open.">
+<Desk><SoFarStore stage={0} /></Desk>
+<Phone><SoFarStore stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="What goes in the table?" crumb="5.1 Key and value">
+
+Call the table `store`. The key is the primary key, so every lookup by key uses its index. That part is easy. The type of the key is not, because it fixes what keys the store supports: integer keys only means an integer column; strings mean you must decide how long. [[L-0176 L-0178]]
+
+You might be tempted not to care about size. It is a database: always care. Pick a size from your requirements, say `VARCHAR(16)`, deliberately small, or 24, or larger, and treat it as fixed. Changing the key column later is possible, but on a large live table it usually means a full rebuild, so decide up front. [[L-0177 L-0179 L-0180]]
+
+The value’s type follows a different rule: not what the values hold, but how anyone may read them. This store only ever looks things up by key, so the value is a black box: a `BLOB`, which holds any bytes. [[L-0183 L-0187]]
+
+<MarginNote title="Go deeper: typing the value" why="skip unless values need querying" k="L-0182 L-0184 L-0186">
+
+If users may query inside a value, say a field of a JSON document, the column needs a type that understands it, such as MySQL’s native `JSON` type; to index a field inside it, index a generated column that extracts the field. A `BLOB` comes in size classes, so pick one on purpose: `BLOB` stops at 64 KB, `MEDIUMBLOB` at 16 MB and `LONGBLOB` at 4 GB.
+
+</MarginNote>
+
+And no auto-increment `id` column, the one most tables get out of habit (ORMs like having it). Nothing here would ever use it. Add a column only when something needs it. [[L-0229]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Every key lives its own number of seconds. What do you store?" crumb="5.2 Storing expiry">
+
+The first design most people reach for stores the two facts they were given: when the key was written, and how long it lives. A background job then deletes the keys whose time is up: [[L-0188 L-0189 L-0190]]
+
+```sql
+-- columns: key, value, created_at, ttl_sec   (created_at in epoch seconds)
+DELETE FROM store
+WHERE created_at + ttl_sec <= UNIX_TIMESTAMP();
+```
+
+<PauseAndThink k="L-0190 L-0191"
+  q="The table is large and has an index on <code>created_at</code>. The cleanup job runs this query every 10 minutes, forever. What does each run cost?"
+  choices={[{ label: 'Only the expired rows: the index finds them' }, { label: 'A read of every row in the table', correct: true }]}
+  right="Right."
+  wrong="The index can’t help here.">
+
+The condition is computed per row, from two columns and the clock. An index on `created_at` is sorted by `created_at`, not by `created_at + ttl_sec`, so the database can’t use it to find the expired rows. It scans every row, on every run.
+
+</PauseAndThink>
+
+That makes it about the worst query you can write for a job that runs forever. [[L-0191]]
+
+The root problem is the computation. Get rid of it by storing its answer. When a key is written with a TTL, store the absolute moment it expires, `expired_at`, instead of `created_at` and the TTL, and put an index on it. Cleanup becomes a range on that index, and the database reads only rows that have actually expired: [[L-0192 L-0193 L-0194 L-0195]]
+
+```sql
+-- columns: key, value, expired_at   (expired_at indexed)
+DELETE FROM store
+WHERE expired_at <= UNIX_TIMESTAMP();
+```
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0191 L-0195" caption="Why the index can’t help, and what does. Left: a condition computed from two columns and the clock, so the job reads every row. Right: a stored expired_at turns cleanup into a range on an index: start at the oldest key, stop at the current time. Here now_s stands for UNIX_TIMESTAMP(), the current epoch time.">
+<Desk><IndexCantHelp /></Desk>
+<Phone><IndexCantHelp layout="phone" /></Phone>
+</Figure>
+
+Redis stores expiry the same way, as an absolute Unix timestamp. Do the same here: store `expired_at` as a signed integer of epoch seconds (`BIGINT`), and compare it with `UNIX_TIMESTAMP()`, the current epoch time; never with `NOW()`, which returns a date-time, not a number of seconds. Chapter 6 shows why an integer beats a `TIMESTAMP` column here. And decide now what a key with no TTL holds: not NULL, but a far-future value, so that every comparison with the clock still gives the right answer. [[L-0194 L-0263]]
+
+Some databases can index an expression instead: PostgreSQL, and MySQL from 8.0.13, can index `created_at + ttl_sec` directly, as long as the query is written as `created_at + ttl_sec <= …`. Storing the absolute expiry is still the simpler fix, one plain column with one plain index. [[L-0191]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Who removes the expired rows, and when?" crumb="5.3 The cleanup job">
+
+The simplest answer is a cron job. Every 10 minutes it fires the cleanup query, one hard `DELETE` that removes every row whose time has passed, using the index on `expired_at`. [[L-0236]]
+
+Why in batches, rather than deleting each key at the exact moment it expires? Because on a disk-based store a delete is real work: the row’s page changes, and so does every index entry for the key, and a page left under-full may be merged with its neighbour. Deleting each key as it expires means a separate statement per key, each doing that work somewhere on the disk. InnoDB only marks a deleted row and purges it later in the background, but the work still happens. One indexed sweep every 10 minutes does it in one statement. [[L-0232 L-0240 L-0241]]
+
+<Figure id="fig-5c" max={880} no="Fig 5·c" k="L-0236 L-0201" caption="Batch deletion with a cron job. Each run hard-deletes every expired row. Between runs, an expired row is still on disk.">
+<Desk><CronBatch /></Desk>
+<Phone><CronBatch layout="phone" /></Phone>
+</Figure>
+
+The batch has a cost of its own, and it shows up immediately. A key that expires at 12:02, with the next run at 12:10, sits in the table for eight minutes after its time is up. [[L-0201]]
+
+A `GET` for that key arrives at 12:04. The row is right there on disk. What should it return?
+
+</Section>

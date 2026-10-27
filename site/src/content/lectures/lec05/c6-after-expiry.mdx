@@ -1,0 +1,100 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import { SoFarStore } from '../../../figures/lec05/so-far';
+
+{/* Chapter 6 "The key expired at 12:02. The cleanup runs at 12:10." Story rewrite (revision 2): GET filters expiry in
+    SQL (and why NULL would break it) → DELETE as expired_at = -1, one cleanup for both → the extra clause that skips
+    already-expired keys, shown by the clip. */}
+
+<Section id="s6" no="6" title="The key expired at 12:02. The cleanup runs at 12:10." crumb="6 Between runs" meta="About 7 min">
+
+Batching the cleanup was the right call for the disk, and it leaves a window. For up to ten minutes after a key expires, its row is still in the table. Every operation that touches a key has to behave correctly inside that window, and the cheapest way to do it turns out to be one clause each.
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="The store so far. Marked new: the indexed expired_at column, and the cleanup job that deletes expired rows every 10 minutes.">
+<Desk><SoFarStore stage={1} /></Desk>
+<Phone><SoFarStore stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="What should a GET at 12:04 return?" crumb="6.1 GET">
+
+Nothing: the key has expired, so as far as the user is concerned it doesn’t exist. The question is where your code finds that out. [[L-0201]]
+
+<PauseAndThink k="L-0220 L-0221 L-0222"
+  q="The key’s value is 10 MB. Where should the expiry check live?"
+  choices={[{ label: 'In the API server: SELECT the row by key, compare expired_at with the clock, return “not found”' }, { label: 'In the query: add AND expired_at > UNIX_TIMESTAMP() to the SELECT', correct: true }]}
+  right="Right."
+  wrong="That works, and it is expensive.">
+
+In the query. An expired row then never matches.
+
+</PauseAndThink>
+
+Checking in the API server gives the right answer at a silly price: the database reads 10 MB off disk, ships it over the network, and the API server throws it away. The clause saves all of that: the disk time spent reading a large value, and the network bandwidth of both the database and the API server. The bigger the values, the more it saves. [[L-0220 L-0221 L-0222]]
+
+```sql
+SELECT * FROM store
+WHERE `key` = 'k1'                  -- key is a reserved word in MySQL, hence the backticks
+  AND expired_at > UNIX_TIMESTAMP(); -- expired rows never leave the database
+```
+
+This is where NULL would have bitten. `NULL > UNIX_TIMESTAMP()` is never true, so if keys without a TTL stored NULL, every one of them would vanish from `GET`. The far-future value from chapter 5 keeps them visible. [[L-0263]]
+
+That is the whole game in this build. Everyone writes inserts and simple selects; the performance is in the details of every single line, and in the curiosity to ask what each one costs. [[L-0223]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="A user deletes a key. Do you remove the row now?" crumb="6.2 DELETE">
+
+You already decided to remove rows in batches; that is what the cleanup job is for. So a user’s `DELETE` should only mark the key, and leave the removal itself to that job. The mark is a write too, the row and its index entry, but the delete, with its purge and any page merge, happens in the next sweep. [[L-0196]]
+
+The obvious mark is a soft-delete column: add `is_deleted`, set it to true on delete, and run a second periodic job, `DELETE … WHERE is_deleted = true`. That is a new column on every row and two background jobs instead of one. [[L-0197]]
+
+There is a neater way. You already have a column that means “this key is gone after this moment”. On delete, set it to a moment that has already passed: [[L-0198 L-0199]]
+
+```sql
+UPDATE store SET expired_at = -1 WHERE `key` = 'k1';
+```
+
+Look at what that buys. The cleanup job you already run, `DELETE …` `WHERE expired_at <=` `UNIX_TIMESTAMP()`, now matches deleted rows as well as expired ones: one job and one query for both, and the index on `expired_at` keeps it cheap. You save a column’s space and a second job’s CPU, disk reads and writes. And the `GET` clause from 6.1 already hides deleted keys, because −1 is never greater than the current time. [[L-0200 L-0202 L-0231]]
+
+This is why `expired_at` is a signed integer (`BIGINT`, not `UNSIGNED`). A MySQL `TIMESTAMP` can’t hold −1 or anything before 1970; with a date column you would pick some impossible early date instead. Any magic value works if it is always in the past. [[L-0199 L-0265]]
+
+You might ask why the delete has to write anything. Why not let the batch job notice? Because a deleted key must disappear now, and its expiry is still in the future; for a key with no TTL it never comes. Unless the delete marks it, `GET` keeps returning it and the cleanup never touches it. [[L-0264]]
+
+<MarginNote title="Go deeper: why doesn’t the database offer soft delete itself?" why="skip unless you design storage engines" k="L-0353 L-0354 L-0357">
+
+A database is a foundational layer. It gives raw building blocks, `FOR UPDATE`, `FOR SHARE`, `SKIP LOCKED`, `NOWAIT`, and stays out of the application’s space; built-in soft delete would also need its own cleanup process and leave every developer wondering whether a row they read is really there. Knowing what you won’t build matters as much as knowing what you will. The SQL standard does have something close, opt-in: system-versioned temporal tables keep deleted rows in a history table.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="What if the key being deleted has already expired?" crumb="6.3 One more clause">
+
+A user deletes `k2` at 12:05. It expired at 12:02. The `UPDATE` above still finds the row and rewrites `expired_at` from 12:02 to −1, which changes nothing that matters, yet still costs a row write and an index write. The cleanup at 12:10 would have removed it either way. So add one more clause to the delete: [[L-0258]]
+
+```sql
+UPDATE store
+SET expired_at = -1
+WHERE `key` = 'k2'
+  AND expired_at > UNIX_TIMESTAMP();   -- only keys that are still live
+```
+
+<AnimationClip clip="l05-expiry-window" no="Clip 6·1" k="L-0236 L-0258 L-0259 L-0263"
+  lead="Three keys, the window from 12:00 to 12:10, and every operation with its clause. Watch what the DELETE of k2 at 12:05 writes."
+  caption="Between expiry and the next cleanup the row is still on disk, so GET filters it in SQL. Deleting an already-expired key matches nothing and writes nothing; one cleanup query removes expired and deleted rows alike." />
+
+That is two writes saved per such delete: the row, and its entry in the `expired_at` index, which moves whenever the column changes. (The engine buffers page changes before they reach the disk, but they are still work.) [[L-0259 L-0260 L-0266]] Heads or tails, you win: a live key gets marked, and an expired one is left for the cleanup, which would remove it anyway. [[L-0259 L-0294]] The far-future value earns its keep here too: with NULL, `expired_at > UNIX_TIMESTAMP()` would never be true, and deleting a key with no TTL would silently do nothing. [[L-0258]]
+
+One engineer met this clause while reading Apache Ignite’s source and couldn’t see why it was there, until he mimicked the load and saw what it saves. The principle behind it: do disk IO only when it is needed. [[L-0261 L-0262]]
+
+Three operations now behave correctly inside the window, each with one clause. The fourth, `PUT`, hasn’t been looked at since it was a bare `INSERT`, and the first time a user writes the same key twice, it breaks. [[L-0205]]
+
+</Section>

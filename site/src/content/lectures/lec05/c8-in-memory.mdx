@@ -1,0 +1,78 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { DiskVsMemory } from '../../../figures/lec05/s4-redis-expiry';
+import { SoFarStore } from '../../../figures/lec05/so-far';
+
+{/* Chapter 8 "What if the store lived in memory?" Story rewrite: lazy deletion and why memory allows it → the keys
+    nobody reads: Redis's sampling (classic rule in the clip, current rule stated once) → why sampling fails on disk. */}
+
+<Section id="s8" no="8" title="What if the store lived in memory?" crumb="8 In memory" meta="About 6 min">
+
+Keep the same store, the same per-key TTL, the same four operations, and change one fact: the data lives in a hash table in memory, served by a single main thread, the way Redis works. The batch job, the clause on every read and the −1 marker were all answers to the cost of the disk. Which of them survive?
+
+<Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="The store on disk, as chapter 7 left it. Marked new: PUT is one upsert. This chapter asks what would change if the table lived in memory.">
+<Desk><SoFarStore stage={3} /></Desk>
+<Phone><SoFarStore stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="Would you still wait for a cleanup job?" crumb="8.1 Lazy deletion">
+
+On disk, a `GET` for an expired key filters the row out and leaves it for the next batch. In memory you can do better: when a read finds its key expired, delete the key right there, and tell the client it doesn’t exist. Redis does exactly that. It is called **lazy deletion**, and almost every in-memory database does it. [[L-0237 L-0238]]
+
+The difference is the price of one delete. On disk it touches a page and every index entry for the key. In memory it unlinks the entry from its hash-table bucket and frees the memory: no tree, no pages, no network trip, microseconds for an ordinary value. [[L-0239 L-0338]]
+
+<Figure id="fig-8b" max={640} no="Fig 8·b" k="L-0239 L-0240 L-0241 L-0338" caption="On disk, deleting one key touches its page and every index, and an under-full page may be merged, so you batch. In memory, an expired key is unlinked from its bucket and freed on the spot.">
+<Desk><DiskVsMemory /></Desk>
+<Phone><DiskVsMemory layout="phone" /></Phone>
+</Figure>
+
+You might ask why Redis doesn’t hand those deletes to a background job, the way the disk store does. Because the job might well cost more than the delete. Freeing an object takes microseconds; queuing it for later is work too. And a delayed delete keeps dead data in memory. When Redis fills up, under the default `noeviction` policy it starts refusing writes, while expired keys that could have been freed are still sitting there. [[L-0337 L-0339 L-0340]]
+
+That gives you a general rule worth more than the Redis detail. Hand work to a later job only when doing it now is expensive. If it is cheap, do it right there. (Redis can hand a very large value to a background thread, the one case where freeing isn’t cheap, which proves the rule.) [[L-0339 L-0241 L-0239]]
+
+So the disk store’s answers change. The `GET` clause becomes this lazy delete. The −1 marker disappears: in memory a user’s `DELETE` simply removes the key. Only the periodic job survives, in a new form. [[L-0242]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="What about the keys nobody reads again?" crumb="8.2 Sampling">
+
+Lazy deletion only fires when somebody reads the key. A key that expires and is never read again stays in memory forever, so a periodic job is still needed. It only has to deal with the keys nobody asks for. [[L-0243]]
+
+Its natural form, deleting every expired key on every run, is out. With millions of them, a run would take a long time, and every millisecond spent cleaning is a millisecond the single main thread isn’t serving `GET` and `PUT`. [[L-0245 L-0252 L-0253]]
+
+<PauseAndThink k="L-0247 L-0250"
+  q="The job may only look at a few keys per round. It checks 20 keys with a TTL, and 3 of them turn out to be expired. What can you say about all the keys with a TTL?"
+  choices={[{ label: 'Nothing: 20 keys say nothing about millions' }, { label: 'Roughly 15% of them are probably expired too', correct: true }]}
+  right="Right."
+  wrong="A sample is how you estimate a population.">
+
+A sample stands for the population. If about 15% of the sample is expired, about 15% of all the keys with a TTL probably are, and the job can decide whether to keep going from 20 keys instead of counting millions.
+
+</PauseAndThink>
+
+That is how Redis’s periodic job works. It checks keys with a TTL 20 at a time, deletes the expired ones among them, and goes again while more than about 10% of a batch was expired. It stops when a batch comes back with 10% or fewer expired, or when its CPU time budget runs out, which aims to keep expired keys under about a tenth of those with a TTL. [[L-0247 L-0249 L-0250 L-0254]]
+
+<AnimationClip clip="l05-redis-sampling" no="Clip 8·1" k="L-0243 L-0244 L-0247 L-0249 L-0250 L-0251 L-0252 L-0301"
+  lead="Keys with a TTL, about 15% of them expired. How many rounds before the job stops, and what does it leave behind?"
+  caption="Check 20 keys with a TTL, delete the expired ones, and go again while more than 10% were expired. Leftovers are deleted lazily on their next read. One example run; the counts vary." />
+
+Notice what it never does: count the expired keys in the whole database. That count would itself be a slow scan. It works only on the batch in front of it, and it accepts some expired keys staying in memory for a while, because the batch says there aren’t many. Redis chooses speed over completeness, leaking a little memory to keep cleanup short. [[L-0249 L-0252 L-0301]] <LectureLink lec="lec07" sec="s3">Lecture 9</LectureLink> builds a Redis-like cache and comes back to expiry.
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Why not sample on disk too?" crumb="8.3 Not on disk">
+
+If sampling is so cheap, why didn’t the MySQL store use it? You don’t have to read every row to check 20. But 20 keys scattered across the key space means 20 reads from anywhere on the disk, each fetching its own page, and that is slow. In memory, reaching a key anywhere costs almost nothing. [[L-0302 L-0303]]
+
+On disk, the cheap shape is the opposite: one sequential sweep through an index, deleting whatever has expired, which is exactly the batch job from chapter 5. [[L-0304]] So the two stores end up with mirror-image designs from the same question, what does one delete cost? On disk, batch the deletes. In memory, delete right there and sample for the rest. [[L-0241]]
+
+Both stores still run on one machine. The next question is the one the problem statement asked at the start, and that you set aside: what happens when one machine isn’t enough?
+
+</Section>

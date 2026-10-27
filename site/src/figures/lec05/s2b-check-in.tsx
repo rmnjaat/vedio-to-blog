@@ -30,7 +30,7 @@ export function WaitSignal({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   </>;
   return (
     <Fig id={id} w={W} h={636} title="Wait, signal, re-check"
-      desc="Swim lanes for three transactions, the database engine and, on wide screens, the seats; time runs down. 1: T1, T2 and T3 all run SELECT … ORDER BY id LIMIT 1 FOR UPDATE. The engine grants T1 the lock on 1A; T2 and T3 get no row yet and wait. 2: T1 updates 1A and commits, releasing its lock, and the engine signals the waiters. 3: T2 and T3 re-evaluate the same statement inside the engine; 1A no longer has user_id NULL, so the scan moves on and T2 locks 1B while T3 waits again. 4: T2 commits, T3 is signalled, re-checks and locks 1C. 5: in the worst case every waiter re-checks after every commit: 3 + 2 + 1 = 6 evaluations for 3 transactions, N(N+1)/2, which is 7,260 for 120 passengers.">
+      desc="Swim lanes for three transactions, the database engine and, on wide screens, the seats; time runs down. 1: T1, T2 and T3 all run SELECT … ORDER BY id LIMIT 1 FOR UPDATE. The engine grants T1 the lock on 1A; T2 and T3 get no row yet and wait. 2: T1 updates 1A and commits, releasing its lock, and the engine signals the waiters. 3: T2 and T3 re-evaluate the same statement inside the engine; 1A no longer has user_id NULL, so the scan moves on and T2 locks 1B while T3 waits again. 4: T2 commits, T3 is signalled, re-checks and locks 1C. 5: in the worst case every waiter re-checks after every commit: 3 + 2 + 1 = 6 evaluations for 3 transactions, N(N+1)/2.">
       {[T1, T2, T3].map((x, i) => <Tx key={i} x={x} y={40} label={`T${i + 1}`} seed={s('tx' + i)} size={T} />)}
       <Box x={E - 36} y={22} w={72} h={34} label="engine" seed={s('eng')} labelSize={T - 0.5} />
       <Label kind="mono" muted x={E} y={76} size={13.5}>lock table</Label>
@@ -89,7 +89,6 @@ export function WaitSignal({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
         <Num x={NX} y={580} n={5} size={T} />
         <Label kind="mono" anchor="start" x={NX + 18} y={585} size={T}>evaluations: 3 + 2 + 1 = 6</Label>
         <Label kind="mono" muted anchor="start" x={NX + 18} y={605} size={T}>= N(N+1)/2 for N = 3</Label>
-        <Label tone="red" anchor="start" x={NX + 18} y={627} size={T}>for 120 passengers: 7,260</Label>
       </Step>
     </Fig>
   );
@@ -131,7 +130,7 @@ export function SeatSixtySeven() {
 /* ------------------------------------------------------------------ Fig 2·g: lock for a moment, hold for ten minutes */
 
 const HOLD_TITLE = 'Lock for a moment, hold for ten minutes';
-const HOLD_DESC = 'A time axis from 0 to 10 minutes. At 0, a transaction lasting a moment locks the seat, sets its status to HOLD and commits. For the next 10 minutes the seat is on hold: a status in the row, with no lock held, while the user pays. The later phases, after the payment, are not drawn in detail: the class split the booking into phases and left the rest for the flash-sale design. Below, struck out in red: one transaction held open for the whole 10 minutes, which would collapse the database’s throughput.';
+const HOLD_DESC = 'A time axis from 0 to 10 minutes. At 0, a transaction lasting a moment locks the seat, sets its status to HOLD and commits. For the next 10 minutes the seat is on hold: a status in the row, with no lock held, while the user pays. The later phases, after the payment, belong to a separate design and are not drawn in detail. Below, struck out in red: one transaction held open for the whole 10 minutes, which would collapse the database’s throughput.';
 
 export function HoldNotLock({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   if (layout === 'phone')
@@ -150,7 +149,7 @@ export function HoldNotLock({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
         <Box x={86} y={250} w={92} h={30} label="payment" seed="f2g-p-pay" labelSize={14} />
         <Mark tone="green" weight="heavy" a={[34, 480]} b={[60, 480]} seed="f2g-p-s2" />
         <Label kind="mono" tone="green" anchor="start" x={68} y={478} size={13}>later phases:</Label>
-        <Label kind="mono" tone="green" anchor="start" x={68} y={494} size={13}>with flash sale</Label>
+        <Label kind="mono" tone="green" anchor="start" x={68} y={494} size={13}>a separate design</Label>
         <Line tone="red" weight="heavy" pts={[[270, 60], [270, 480]]} seed="f2g-p-bad" />
         <Cross x={270} y={330} size={26} seed="f2g-p-x" />
         <Label kind="mono" tone="red" x={300} y={160} rotate={90} size={13}>one transaction for 10 min</Label>
@@ -171,7 +170,7 @@ export function HoldNotLock({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
       <Label kind="mono" tone="green" anchor="start" x={56} y={66} size={13}>txn: lock seat → HOLD → commit</Label>
       <Line weight="thin" tone="green" pts={[[62, 72], [62, 110]]} seed="f2g-lead1" />
       <Mark tone="green" weight="heavy" a={[658, 112]} b={[658, 146]} seed="f2g-s2" />
-      <Label kind="mono" tone="green" anchor="end" x={664} y={66} size={13}>later phases: with flash sale</Label>
+      <Label kind="mono" tone="green" anchor="end" x={664} y={66} size={13}>later phases: a separate design</Label>
       <Line weight="thin" tone="green" pts={[[658, 72], [658, 110]]} seed="f2g-lead2" />
       <Line tone="red" weight="heavy" pts={[[62, 210], [658, 210]]} seed="f2g-bad" />
       <Label kind="mono" tone="red" x={360} y={198} size={13}>one transaction for 10 minutes</Label>

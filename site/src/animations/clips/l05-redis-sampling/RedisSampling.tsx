@@ -1,5 +1,5 @@
 // Clip l05-redis-sampling — "Twenty keys at a time": the classic Redis expiry job samples 20 keys with a TTL, deletes
-// the expired ones, and goes again while more than 25% of the sample was expired (35%, 30%, then 20%: stop). Expired
+// the expired ones, and goes again while more than 10% of the batch was expired (20%, 15%, then 5%: stop). Expired
 // keys stay behind; a later GET deletes one on the spot (lazy deletion). Poster note: one example run (the 6.0 rule is in the caption line only).
 // Storyboard: lectures/lec05/animations/l05-redis-sampling/storyboard.{yaml,md}.
 // Ledger: L-0243, L-0244, L-0247, L-0249, L-0250, L-0251, L-0252, L-0301 (SN-12 note at the end).
@@ -214,18 +214,18 @@ export const RedisSampling: React.FC<RedisSamplingProps> = ({theme, layout = 'wi
         {/* ===== static figure (frame 0): field, its labels, the empty sample frame ===== */}
         <Write x={G.fieldLbl.x} y={G.fieldLbl.y} text="keys with an expiry" size={S} />
         {field}
-        <Write x={G.shareLbl.x} y={G.shareLbl.y} text="≈ 30% expired" size={S} opacity={1 - ramp(frame, EV.shareOut, 10, EASE_FADE)} />
+        <Write x={G.shareLbl.x} y={G.shareLbl.y} text="≈ 15% expired" size={S} opacity={1 - ramp(frame, EV.shareOut, 10, EASE_FADE)} />
         <Ink d={G.trayD} dash="13 10" width={STROKE.ink} />
         <Write x={G.trayLbl.x} y={G.trayLbl.y} text="sample of 20" size={S} anchor="middle" />
 
         {/* ===== B1–B2: rounds ===== */}
         {rings}
         {tray}
-        <Write x={L.x} y={L.hy} text="again if > 25%" size={S} progress={ramp(frame, ...at(EV.rule))} />
+        <Write x={L.x} y={L.hy} text="again if > 10%" size={S} progress={ramp(frame, ...at(EV.rule))} />
         {rows}
 
         {/* ===== B3: leftovers ===== */}
-        <Write x={G.shareLbl.x} y={G.shareLbl.y} text="≈ 23% still expired" size={S} color="red" weight={600} progress={ramp(frame, ...at(EV.share2))} />
+        <Write x={G.shareLbl.x} y={G.shareLbl.y} text="≈ 11% still expired" size={S} color="red" weight={600} progress={ramp(frame, ...at(EV.share2))} />
 
         {/* ===== B4: a GET deletes a leftover ===== */}
         <Write x={G.getLbl.x} y={G.getLbl.y} text="GET" variant="mono" size={S} color="blue" anchor="middle" progress={ramp(frame, ...at(EV.getLbl))} />
@@ -234,8 +234,8 @@ export const RedisSampling: React.FC<RedisSamplingProps> = ({theme, layout = 'wi
         <Write x={G.getNote.x} y={G.getNote.y} text="deleted on read" size={S} color="green" weight={600} anchor="end" progress={ramp(frame, ...at(EV.getNote))} />
 
         {/* ===== B5: the current rule is in the caption line; the sheet only marks this as one example run (C-17) ===== */}
-        <Write x={G.note.tx} y={G.note.l1} text="one example run: the picks are" size={S} color="ink2" progress={ramp(frame, ...at(EV.note1))} />
-        <Write x={G.note.tx} y={G.note.l2} text="random, so the counts vary" size={S} color="ink2" progress={ramp(frame, ...at(EV.note2))} />
+        <Write x={G.note.tx} y={G.note.l1} text="one example run:" size={S} color="ink2" progress={ramp(frame, ...at(EV.note1))} />
+        <Write x={G.note.tx} y={G.note.l2} text="the counts vary" size={S} color="ink2" progress={ramp(frame, ...at(EV.note2))} />
       </Stage>
       <Captions top={G.CAPTION_TOP} layout={layout} />
     </Sheet>

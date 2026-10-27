@@ -1,7 +1,7 @@
 // Single source of timing for clip l05-redis-sampling. Mirrors storyboard.yaml (beats B0..B5).
 // Pure TS (no JSX) so scripts/check.mts can import it with plain `node`.
-// One story: sample 20 keys, delete the expired ones, go again while more than 25% were expired (35%, 30%, 20%),
-// stop with some expired keys left; a later GET deletes one of them on the spot; since Redis 6.0 the threshold is ~10%.
+// One story: check 20 keys, delete the expired ones, go again while more than 10% were expired (20%, 15%, 5%),
+// stop with some expired keys left; a later GET deletes one of them on the spot. Current Redis rule (6.0+).
 
 export const FPS = 30;
 export const DURATION = 1030; // 34.3 s
@@ -9,8 +9,8 @@ export const DURATION = 1030; // 34.3 s
 /** Beat start frames (= caption cue frames). */
 export const BEAT = {
   intro: 0,
-  round1: 120, // sample 20, 7 expired, delete, 35% > 25% -> again
-  again: 330, // round 2 (6/20 = 30%, again) and round 3 (4/20 = 20%)
+  round1: 120, // sample 20, 4 expired, delete, 20% > 10% -> again
+  again: 330, // round 2 (3/20 = 15%, again) and round 3 (1/20 = 5%)
   stop: 600, // stop; leftovers stay
   lazy: 750, // a GET deletes a leftover
   end: 880, // since Redis 6.0
@@ -28,10 +28,10 @@ export const ROUNDS: Round[] = [
 
 /** Event frames: [start, dur] tuples or single frames. */
 export const EV = {
-  rule: [216, 20] as const, // log header "again if > 25%"
+  rule: [216, 20] as const, // log header "again if > 10%"
   leftRed: [640, 16] as const, // leftovers re-inked red
   shareOut: 662, // "≈ 30% expired" removed (10 f) ...
-  share2: [674, 24] as const, // ... "≈ 23% still expired" written in its place
+  share2: [674, 24] as const, // ... "≈ 11% still expired" written in its place
   getLbl: [760, 14] as const,
   get: [778, 30] as const, // blue pen + packet to the leftover
   getDel: [810, 12] as const, // leftover -> green tick
@@ -44,12 +44,12 @@ export const EV = {
 export type Cue = {from: number; step?: number; color?: 'blue' | 'red' | 'green' | 'ink'; text: string};
 
 export const CAPTIONS: Cue[] = [
-  {from: BEAT.intro, text: 'Example: keys with a TTL. About 30% expired but still in memory.'},
-  {from: BEAT.round1, text: 'Sample 20 keys. 7 expired: delete them. 35% > 25%, so go again.'},
-  {from: BEAT.again, text: 'Again, and again, until a sample comes back mostly live.'},
+  {from: BEAT.intro, text: 'Example: keys with a TTL. About 15% expired but still in memory.'},
+  {from: BEAT.round1, text: 'Check 20 keys. 4 expired: delete them. 20% > 10%, so go again.'},
+  {from: BEAT.again, text: 'Again, and again, until a sample is 10% expired or less.'},
   {from: BEAT.stop, text: 'Stop. Some expired keys stay: time spent cleaning is time not serving.'},
   {from: BEAT.lazy, text: 'The next read of a leftover deletes it on the spot.'},
-  {from: BEAT.end, text: 'Classic rule. Redis 6.0+: again above ~10%, within a time budget.'},
+  {from: BEAT.end, text: 'It also stops when its CPU time budget runs out.'},
 ];
 
 // Chapter marks sit 10 frames into the beat, so a seek lands on a settled frame with its caption fully up.
@@ -58,7 +58,7 @@ export const CHAPTERS = [
   {label: 'again', frame: BEAT.again + 10},
   {label: 'stop', frame: BEAT.stop + 10},
   {label: 'lazy read', frame: BEAT.lazy + 10},
-  {label: 'since 6.0', frame: BEAT.end + 10},
+  {label: 'one example', frame: BEAT.end + 10},
 ];
 
 /** Stills for the render check: end of each beat (= reduced-motion stills), mid-motion frames, poster. */
@@ -93,5 +93,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    "An example population of 200 keys with an expiry, about 30% of them expired but still in memory. Redis's periodic job (the classic rule) samples 20 of these keys and deletes the expired ones in the sample: 7 of 20, 35%, more than 25%, so it samples again. The second sample has 6 of 20 expired (30%), so it goes again; the third has 4 of 20 (20%), below 25%, so the job stops. Some expired keys stay in memory, about 23% in this example, because time spent cleaning is time not spent serving commands. Later, a GET reads one of those leftover keys and Redis deletes it on the spot (lazy deletion). Since Redis 6.0 the job keeps going while more than about 10% of a batch is expired, within a time budget.",
+    "An example population of 200 keys with an expiry, about 15% of them expired but still in memory. Redis's periodic job checks 20 of these keys and deletes the expired ones among them: 4 of 20, 20%, more than 10%, so it goes again. The second batch has 3 of 20 expired (15%), so it goes again; the third has 1 of 20 (5%), below 10%, so the job stops. It would also stop if its CPU time budget ran out. Some expired keys stay in memory, about 11% in this example, because time spent cleaning is time not spent serving commands. Later, a GET reads one of those leftover keys and Redis deletes it on the spot (lazy deletion). The picks are one example; the counts vary.",
 };

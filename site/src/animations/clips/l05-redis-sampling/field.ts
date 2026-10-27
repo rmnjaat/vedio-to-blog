@@ -6,11 +6,11 @@ import {handPoly, type Pt} from '../../lib/hand';
 export const COLS = 20;
 export const ROWS = 10;
 export const N = COLS * ROWS; // 200 keys with an expiry
-export const N_EXPIRED = 59; // ≈ 30%
+export const N_EXPIRED = 30; // ≈ 15%
 /** The leftover the GET reads in B4: row 0, last column (never sampled). */
 export const GET_KEY = COLS - 1;
-/** Expired keys per sample (example numbers): 7/20 = 35%, 6/20 = 30%, 4/20 = 20%. */
-export const SAMPLE_EXPIRED = [7, 6, 4] as const;
+/** Expired keys per sample (example numbers): 4/20 = 20%, 3/20 = 15%, 1/20 = 5%. */
+export const SAMPLE_EXPIRED = [4, 3, 1] as const;
 export const SAMPLE_SIZE = 20;
 
 const order = (seed: string) => [...Array(N).keys()].sort((a, b) => random(`${seed}${a}`) - random(`${seed}${b}`));
@@ -44,7 +44,7 @@ export const SAMPLES: number[][] = (() => {
 
 /** Round (0, 1, 2) in which a key was deleted by the sampling job, or -1. */
 export const deletedInRound = (i: number) => SAMPLES.findIndex((smp) => smp.includes(i) && EXPIRED.has(i));
-/** Expired keys the job leaves behind (re-inked red in B3); 42 of 183. */
+/** Expired keys the job leaves behind (re-inked red in B3); 22 of 192. */
 export const LEFTOVERS = [...EXPIRED].filter((i) => deletedInRound(i) < 0);
 
 const f = (n: number) => Math.round(n * 10) / 10;

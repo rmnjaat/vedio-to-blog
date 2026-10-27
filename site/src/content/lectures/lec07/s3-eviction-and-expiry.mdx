@@ -210,7 +210,7 @@ Before configuring LRU or LFU, spend time understanding your application and you
 
 Expiry answers to the same budget as everything else in an in-memory cache: every design decision must use the bare minimum of bytes. If handling TTLs required storing a lot of data, it would be futile, spending a lot of memory on something that is not that critical. [[L-0210]]
 
-Key expiry is not new. Lecture 3 built it for the key-value store and looked at how Redis does it; the same apparatus is reused here. <ForwardChip label="back in" when="Lecture 3" lec="lec05" sec="s4-1" k="L-0211">how Redis expires keys</ForwardChip> [[L-0211]]
+Key expiry is not new. Lecture 3 built it for the key-value store and looked at how Redis does it; the same apparatus is reused here. <ForwardChip label="back in" when="Lecture 3" lec="lec05" sec="s8-1" k="L-0211">how Redis expires keys</ForwardChip> [[L-0211]]
 
 First, store the minimum: the key’s absolute expiry time, in the per-key object, next to the LRU bits. [[L-0213]] The obvious way to clean up is a priority queue of keys ordered by expiry, freed from the head. The board gave it its due, simple and consistent, but it is an additional data structure that needs a lot of pointers, so it is out. [[L-0214]]
 

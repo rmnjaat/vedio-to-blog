@@ -1,0 +1,137 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { CheckinSchema, AfterApproach2, FirstFreeSeat } from '../../../figures/lec05/s2a-check-in';
+import { SoFarSeats } from '../../../figures/lec05/so-far';
+
+{/* Chapter 1 "120 passengers tap check in at the same moment". Story rewrite: the seats table → approaches 0–2
+    (no checks) → approach 3 (first free seat) and its failure → why any second seat fills, and why ACID didn't stop it. */}
+
+<Section id="s1" no="1" title="120 passengers tap “check in” at the same moment" crumb="1 Same moment" meta="About 7 min">
+
+Everyone on this flight has already booked and paid. At the kiosk they only pick a seat. That makes the problem small enough to see clearly: 120 seats, 120 people, one moment, and a database that has to hand out every seat exactly once. [[L-0068 L-0069]]
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="Where the check-in starts: 120 kiosks, one check-in service, one MySQL database, and a booking query that writes a seat with no checks at all.">
+<Desk><SoFarSeats stage={0} /></Desk>
+<Phone><SoFarSeats stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="What does a kiosk actually write?" crumb="1.1 The seats table">
+
+The data is the airline world you already travel in. There are airlines (Air India, IndiGo, Go Air), each airline has flights, each flight flies many trips, and a passenger takes one seat on one trip. Every flight here has 120 seats, a deliberate simplification. [[L-0062]]
+
+Of the five tables (airlines, flights, trips, users, seats), only one matters here. `seats` has a row for every seat of a trip, named the way a real plane is, 1A to 1F, then 2A and on, and a `user_id` saying who sits there. When the airline opens a trip, its admin service creates all those rows with `user_id` set to NULL. Filling the NULLs is the check-in’s whole job. [[L-0064 L-0066 L-0073]]
+
+<Figure id="fig-1b" max={880} no="Fig 1·b" k="L-0064 L-0066 L-0073" caption="The check-in schema. Each table points at the one above it by id. The booking code only ever writes one column, seats.user_id; on a new trip every one of them starts NULL.">
+<Desk><CheckinSchema /></Desk>
+<Phone><CheckinSchema layout="phone" /></Phone>
+</Figure>
+
+To see where locking comes in, you don’t need the whole airline: no screens, no payments, no CRUD for flights. You need a program that books seats and a way to run 120 copies of it at once. The demo is a small Go program that starts one goroutine per passenger; Go makes that kind of concurrency easy. [[L-0059 L-0071 L-0079]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="What if the passenger picks, or the system picks at random?" crumb="1.2 No checks">
+
+Start with the simplest thing that could work. **Approach 0:** the passenger names a seat and the program books it. [[L-0072 L-0074]]
+
+```go
+// books the given seat for the given user
+// last one wins
+func book(userID, seatID int) error {
+	txn, _ := db.Begin()
+	var id int
+	// reads the seat, but never looks at user_id
+	txn.QueryRow("SELECT id FROM seats WHERE id = ?", seatID).Scan(&id)
+	txn.Exec("UPDATE seats SET user_id = ? WHERE id = ?", userID, seatID)
+	return txn.Commit()
+}
+```
+
+The comment is honest. Nothing checks whether the seat is taken, so a second passenger can book the same seat and the system won’t stop them. Two boarding passes get printed for one seat, and the chaos moves onto the plane. [[L-0075 L-0076]]
+
+Taking the choice away from the passenger doesn’t help by itself. **Approach 1:** let the system pick a random seat from the whole plane and write it with the same unchecked `UPDATE`, and nothing stops a random function from returning the same seat twice. [[L-0077 L-0078]]
+
+**Approach 2** runs it the way the morning really happens: 120 goroutines, one per passenger, all booking a random seat at once. [[L-0079]]
+
+<Figure id="fig-1c" wide={false} max={340} no="Fig 1·c" k="L-0081 L-0082" caption="One run of approach 2, as the demo’s terminal showed it. Most of the plane is still empty, and 7E and 12E were each “booked” by two passengers.">
+<AfterApproach2 />
+</Figure>
+
+A random function called 120 times doesn’t return 120 different seats. In the run shown, most of the plane stayed empty and two passengers each held a pass for 7E. The exact count changes from run to run; it is never 120. [[L-0081 L-0082]] Randomness was never going to work. The program has to look for a seat that is actually free.
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="What if everyone gets the first free seat?" crumb="1.3 First free seat">
+
+**Approach 3:** ask the database for the first seat nobody holds, book it, commit. Every passenger runs this, all 120 at once: [[L-0083]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL   -- only free seats
+ORDER BY id
+LIMIT 1;                                -- the first one
+-- then: UPDATE seats SET user_id = ? WHERE id = <that seat>; COMMIT;
+```
+
+<PauseAndThink k="L-0088 L-0093"
+  q="120 passengers run this at the same moment: find the first free seat, update it, commit. How many of the 120 seats end up booked?"
+  choices={[{ label: 'All 120: each takes the next free seat' }, { label: 'Exactly one' }, { label: 'A handful, different on every run', correct: true }]}
+  right="Right."
+  wrong="Not what the runs showed.">
+
+Three seats on one run, four on the next, two on the one after. They fill in seat order, and the log shows one seat handed out again and again.
+
+</PauseAndThink>
+
+The query does check `user_id`, so why would two passengers get the same seat? Follow the whys down. [[L-0084 L-0085]]
+
+Why the same seat? Because for every one of them, `user_id` on 1A reads NULL. Why NULL? Because nobody has booked it yet. Why hasn’t anybody? Because they all read at the same instant, before any of them wrote. And why 1A for all of them, rather than different free seats? Because of `ORDER BY id`: every transaction sees seat 1 first, so every transaction picks seat 1. Two transactions running at the same moment can see exactly the same value and act on it. Nothing in this query prevents that. [[L-0084 L-0085 L-0090]]
+
+<StepThrough id="fig-1d" no="Fig 1·d" label="First free seat"
+  k="L-0084 L-0085 L-0087 L-0088 L-0091"
+  stepK={['L-0084 L-0085 L-0090', 'L-0088 L-0090', 'L-0087 L-0091 L-0092', 'L-0088 L-0093']}
+  caption="Three kiosks standing in for 120. Time runs down. The box on the seats lane is what the row holds at that moment."
+  steps={[
+    'All three read at the same moment. All three see seat <code>1A</code> as free: nobody has committed anything yet.',
+    'p1 books 1A and commits; then p2 books 1A and commits. <span class="term red">The last write wins</span>, and p1 holds a pass for a seat that is now p2’s.',
+    'p3 is a little slower. Its read comes after p2’s commit, so <code>user_id IS NULL</code> skips 1A and returns <span class="term green">1B</span>.',
+    'A few seats fill, in order, and 1A has been handed to many passengers. How many fill depends on how many commits land before other reads.',
+  ]}>
+  <Desk><FirstFreeSeat /></Desk>
+  <Phone><FirstFreeSeat layout="phone" /></Phone>
+</StepThrough>
+
+If all 120 read before anyone commits, all 120 book 1A and 119 of those bookings are overwritten. [[L-0090]]
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="Why did a second seat fill at all?" crumb="1.4 Commit and isolation">
+
+The slow passenger moved on to 1B because its read came after a commit. That makes commit the hinge of the whole story. [[L-0091]]
+
+Once a transaction commits, any transaction that reads afterwards sees its write. In MySQL’s default isolation level, each transaction reads the database as it stood at its first read. Here that first read is the `SELECT`. A commit that landed before it is visible; one that landed after it is not. The handful of seats you saw are exactly the reads that happened to come after someone’s commit. [[L-0092]]
+
+Relational databases grew up around money, where a transaction can’t be lost or corrupted and many people update the same data, which is why transactions sit at their core. [[L-0013 L-0014]] You might object, then: these were transactions, and MySQL is ACID. Isn’t the I in ACID supposed to keep them apart? [[L-0100]]
+
+It only goes as far as the isolation level allows. The strictest level, SERIALIZABLE, guarantees the outcome of some one-at-a-time order, and the double booking couldn’t happen. Databases get there either with extra locking or by aborting conflicting transactions. MySQL turns every plain read into a shared lock, so two bookers who read the same seat deadlock and one is rolled back; PostgreSQL lets them run and aborts one with a serialization failure. Either way your code must retry, and it costs throughput. So it isn’t the default: MySQL’s InnoDB runs at REPEATABLE READ and PostgreSQL at READ COMMITTED, because a passenger booking seat 100 shouldn’t have to wait for someone booking seat 1. [[L-0102 L-0103 L-0104 L-0105]]
+
+At those default levels, “read the free seat, then book it” is a race. ACID being on doesn’t rule it out. [[L-0100]] It is the lost update from <LectureLink lec="lec01">Lecture 2</LectureLink>’s clap counter, with seats instead of claps: the bug lives in the gap between reading a row and writing it.
+
+<MarginNote title="Go deeper: count++ and a single UPDATE" why="skip if the clap counter is fresh" k="L-0018">
+
+An application that reads a value and then writes value + 1 is not atomic. A single `UPDATE … SET count = count + 1` is, because the database locks the row for that statement. The check-in is the other pattern: it reads to choose a seat, decides, and only then writes. That read-then-write is what races at the default isolation levels.
+
+</MarginNote>
+
+The system was supposed to fill all 120 seats and filled a handful. What it needs is a way to say, at the moment it reads seat 1A: this row is mine until I commit. [[L-0093]]
+
+</Section>

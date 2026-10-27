@@ -1,5 +1,5 @@
 // Clip l05-expiry-window — "Expired, hidden, then gone": between a key's expiry and the next cron run its row is
-// still on disk, so GET and delete both carry `AND expired_at > now()`; the cron's `expired_at <= now()` then removes
+// still on disk, so GET and delete both carry `AND expired_at > UNIX_TIMESTAMP()`; the cron's `expired_at <= UNIX_TIMESTAMP()` then removes
 // expired and soft-deleted rows in one query.
 // Storyboard: lectures/lec05/animations/l05-expiry-window/storyboard.{yaml,md}.
 // Ledger: L-0201, L-0221, L-0222, L-0236, L-0199, L-0258, L-0259, L-0263, L-0202.
@@ -40,10 +40,10 @@ const ROWS = [
 // The query strip under the table: who runs it, then three SQL lines; line 3 is the clause (blue) when there is one.
 type Strip = {who: string; lines: [string, string, string]; at: readonly [number, number]; out: number};
 const STRIPS: Strip[] = [
-  {who: 'GET k1', lines: ['SELECT * FROM store', "WHERE key = 'k1'", 'AND expired_at > now()'], at: EV.strip1, out: EV.stripOut1},
-  {who: 'DELETE k2', lines: ['UPDATE store SET expired_at = -1', "WHERE key = 'k2'", 'AND expired_at > now()'], at: EV.strip2, out: EV.stripOut2},
-  {who: 'DELETE k3', lines: ['UPDATE store SET expired_at = -1', "WHERE key = 'k3'", 'AND expired_at > now()'], at: EV.strip3, out: EV.stripOut3},
-  {who: 'cron', lines: ['DELETE FROM store', 'WHERE expired_at <= now()', ''], at: EV.strip4, out: Infinity},
+  {who: 'GET k1', lines: ['SELECT * FROM store', "WHERE `key` = 'k1'", 'AND expired_at > UNIX_TIMESTAMP()'], at: EV.strip1, out: EV.stripOut1},
+  {who: 'DELETE k2', lines: ['UPDATE store SET expired_at = -1', "WHERE `key` = 'k2'", 'AND expired_at > UNIX_TIMESTAMP()'], at: EV.strip2, out: EV.stripOut2},
+  {who: 'DELETE k3', lines: ['UPDATE store SET expired_at = -1', "WHERE `key` = 'k3'", 'AND expired_at > UNIX_TIMESTAMP()'], at: EV.strip3, out: EV.stripOut3},
+  {who: 'cron', lines: ['DELETE FROM store', 'WHERE expired_at <=', 'UNIX_TIMESTAMP()'], at: EV.strip4, out: Infinity},
 ];
 
 // ---------- geometry per layout (canvas px) ----------
@@ -255,7 +255,7 @@ export const ExpiryWindow: React.FC<ExpiryWindowProps> = ({theme, layout = 'wide
                 ) : null,
               )}
               {k === 0 ? (
-                <Pen d={handLine([G.SX[1] - 4, G.SY[3] + 10], [G.SX[1] + 22 * G.CH, G.SY[3] + 10], 'clause')} progress={ramp(frame, ...at(EV.clause))} color="blue" />
+                <Pen d={handLine([G.SX[1] - 4, G.SY[3] + 10], [G.SX[1] + 33 * G.CH, G.SY[3] + 10], 'clause')} progress={ramp(frame, ...at(EV.clause))} color="blue" />
               ) : null}
             </g>
           );

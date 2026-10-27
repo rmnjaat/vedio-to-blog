@@ -87,7 +87,7 @@ function KeySq({ x, y, s, state, seed }: { x: number; y: number; s: number; stat
 function DiskPanel({ ox, oy, seed }: { ox: number; oy: number; seed: string }) {
   return (
     <g>
-      <BTree x={ox + 12} y={oy + 10} w={276} seed={seed + '-bt'} struck={1} rebalance="rebalance?" />
+      <BTree x={ox + 12} y={oy + 10} w={276} seed={seed + '-bt'} struck={1} rebalance="merge?" />
       <Label kind="mono" muted anchor="start" x={ox + 186} y={oy + 25}>B+ tree</Label>
       <Label x={ox + 150} y={oy + 196}>so batch the deletes</Label>
       <Label kind="title" x={ox + 150} y={oy + 228}>on disk</Label>
@@ -120,7 +120,7 @@ export function DiskVsMemory({ layout = 'wide' }: { layout?: Layout }) {
   const P = layout === 'phone';
   const id = P ? 'l5-fig4a-p' : 'l5-fig4a';
   const title = 'Deleting on disk vs in memory';
-  const desc = 'On disk, the keys live in a B+ tree. Deleting one entry from a leaf can push the tree out of shape and force a rebalance of neighbouring leaves, so a disk-based store batches its deletes. In memory, a key lives in a hash table: deleting an expired key unlinks its entry from the bucket and frees the memory, which takes microseconds, so it is done right there.';
+  const desc = 'On disk, the keys live in a B+ tree. Deleting one entry changes its leaf page and every index that holds the key, and a page left under-full may be merged with a neighbour, so a disk-based store batches its deletes. In memory, a key lives in a hash table: deleting an expired key unlinks its entry from the bucket and frees the memory, which takes microseconds, so it is done right there.';
   if (P)
     return (
       <Fig id={id} w={300} h={490} title={title} desc={desc}>

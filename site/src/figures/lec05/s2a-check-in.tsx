@@ -167,7 +167,7 @@ export function FirstFreeSeat({ layout = 'wide' }: { layout?: 'wide' | 'phone' }
     <RowBox x={S + 8} y={y} w={BW} h={24} label={label} tone={tone} seed={s(k)} size={T - 0.5} />;
   return (
     <Fig id={id} w={W} h={612} title="Three kiosks, one first seat"
-      desc="Swim lanes for three passengers, standing in for 120, and the seats table; time runs down. 1: all three run SELECT … WHERE user_id IS NULL ORDER BY id LIMIT 1 at the same moment and all three get seat 1A. 2: p1 updates 1A and commits, then p2 updates 1A and commits; the last write wins and p1’s booking is overwritten. 3: p3 reads after p2’s commit, so user_id IS NULL skips 1A and it gets 1B. 4: a handful of seats fill, in order, and the log shows 1A given to many passengers; 2 to 4 seats filled in class.">
+      desc="Swim lanes for three passengers, standing in for 120, and the seats table; time runs down. 1: all three run SELECT … WHERE user_id IS NULL ORDER BY id LIMIT 1 at the same moment and all three get seat 1A. 2: p1 updates 1A and commits, then p2 updates 1A and commits; the last write wins and p1’s booking is overwritten. 3: p3 reads after p2’s commit, so user_id IS NULL skips 1A and it gets 1B. 4: a handful of seats fill, in order, and the log shows 1A given to many passengers; 2 to 4 seats filled per run.">
       {L.map((x, i) => <Actor key={i} x={x} y={20} s={0.85} seed={s('a' + i)} />)}
       {L.map((x, i) => <Label key={'n' + i} kind="mono" x={x} y={84} size={T}>{`p${i + 1}`}</Label>)}
       {L.map((x, i) => <Label key={'k' + i} muted x={x} y={100} size={T - 0.5}>{`kiosk ${i + 1}`}</Label>)}
@@ -215,7 +215,7 @@ export function FirstFreeSeat({ layout = 'wide' }: { layout?: 'wide' | 'phone' }
         <Num x={NX} y={564} n={4} size={T} />
         <SeatMap x={NX + 42} y={564} rows={1} booked={['1A', '1B']} dx={16} aisle={10} seed={s('map')} />
         <Label kind="mono" anchor="start" x={NX + 150} y={569} size={T}>log: 1-A × many</Label>
-        <Label anchor="start" x={NX + 18} y={600} size={T}>a handful, in order: 2 to 4 in class</Label>
+        <Label anchor="start" x={NX + 18} y={600} size={T}>a handful, in order: 2 to 4 per run</Label>
       </Step>
     </Fig>
   );

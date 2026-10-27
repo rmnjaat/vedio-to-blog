@@ -1,0 +1,123 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import { ExclusiveLocks } from '../../../figures/lec05/s1-locks-fig-1bc';
+import { WaitSignal } from '../../../figures/lec05/s2b-check-in';
+import { SoFarSeats } from '../../../figures/lec05/so-far';
+
+{/* Chapter 2 "Add two words to the query. What happens to the 120?" Story rewrite: FOR UPDATE and the run →
+    what an exclusive (and a shared) lock lets others do → how a waiter moves on (signal, re-evaluate) → the cost. */}
+
+<Section id="s2" no="2" title="Add two words to the query. What happens to the 120?" crumb="2 Two words" meta="About 8 min">
+
+The first-free-seat query was right about *which* seat to want and wrong about owning it. Between reading 1A and writing it, nothing stopped anyone else from reading the same 1A. Every relational database, MySQL, PostgreSQL and Oracle alike, gives you a construct for exactly this gap: take a lock on the row before you go on, and hold it until you commit. That is pessimistic locking. [[L-0017 L-0019]]
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The check-in so far. Marked new: the query that picks the first free seat, which still double-books under load.">
+<Desk><SoFarSeats stage={1} /></Desk>
+<Phone><SoFarSeats stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="Same query, two more words" crumb="2.1 FOR UPDATE">
+
+**Approach 4** is approach 3 line for line, with two words added at the end of the `SELECT`: [[L-0094]]
+
+```sql
+SELECT id, name, trip_id, user_id
+FROM seats
+WHERE trip_id = 1 AND user_id IS NULL
+ORDER BY id
+LIMIT 1
+FOR UPDATE;   -- the two new words
+```
+
+`FOR UPDATE` asks for an exclusive lock on every row the query returns. Still 120 passengers, still the same instant. [[L-0047]]
+
+<PauseAndThink k="L-0095 L-0096 L-0106 L-0107 L-0112"
+  q="Approach 3 plus <code>FOR UPDATE</code>, run with 120 passengers at once. What happens?"
+  choices={[{ label: 'It deadlocks: everyone waits on seat 1A' }, { label: 'Only 1A ever gets booked' }, { label: 'Somewhere between 1 and 120, depending on scheduling' }, { label: 'All 120 get a seat', correct: true }]}
+  right="Right."
+  wrong="Plausible, but the run said otherwise.">
+
+All 120 seats filled, on every run, in 1.25 to 1.8 seconds over three runs. They filled in seat order, 1A, 1B, 1C and on, though 1A didn’t go to user 1.
+
+</PauseAndThink>
+
+The deadlock guess is worth taking apart, because it is such a natural one. Everyone does wait on 1A at first. But waiting is not a deadlock. A deadlock needs a cycle: you wait for a row held by someone who is, in turn, waiting for a row you hold. Here the holder of 1A is waiting for nobody. It books, commits and leaves. [[L-0095 L-0096]]
+
+The “only 1A” guess pictures all 120 transactions getting row 1A back and then fighting over it. That never happens. The database doesn’t hand a row to a transaction until the transaction holds the row’s lock. When the engine finds the row the query is iterating over locked by someone else, it makes the transaction wait, with no row yet. [[L-0114]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="What exactly did those two words lock?" crumb="2.2 Exclusive and shared">
+
+Strip away the seats for a moment and take a table of six rows. T1 runs a `SELECT … FOR UPDATE` that matches rows 1, 2 and 6, and now holds exclusive locks on all three. T2 asks for rows 3, 4 and 6, also `FOR UPDATE`. [[L-0047 L-0048]]
+
+<Figure id="fig-2b" max={760} no="Fig 2·b" k="L-0047 L-0048" caption="Two exclusive lock requests that overlap on one row. T1 holds rows 1, 2 and 6. T2 wants 3, 4 and 6 and waits for T1 to commit or abort, because of row 6 alone.">
+<Desk><ExclusiveLocks /></Desk>
+<Phone><ExclusiveLocks layout="phone" /></Phone>
+</Figure>
+
+T2’s statement doesn’t complete until T1 commits or aborts, and the reason is one row. Had T2 asked for rows 3 and 4 only, it would have finished at once. An exclusive lock (a write lock) means: nobody else may modify these rows, or take a lock on them, until I am done. Plain `SELECT`s are not blocked. MySQL, PostgreSQL and Oracle let them read the last committed version of the row without waiting. What waits is anyone who wants to change the row or lock it. [[L-0046 L-0048]]
+
+Its sibling, `FOR SHARE`, takes a **shared lock** (a read lock) instead, which many readers can hold at once; the check-in doesn’t need it. [[L-0037 L-0038]]
+
+<MarginNote title="Go deeper: FOR SHARE" why="skip unless you check parent rows" k="L-0041 L-0042 L-0043">
+
+Many transactions can hold a shared lock on the same row at the same time, and none of them may modify it while the others hold theirs. Other transactions can still read a row you hold a shared lock on, and if you modify it yourself the database upgrades your lock to an exclusive one automatically, granted only once nobody else holds a shared lock on that row. [[L-0044]] You use it when the rows you read must not change before you commit, for example checking that a parent row exists before inserting its child. If two shared holders both try to update the row, each waits for the other: a deadlock, which chapter 3 takes apart.
+
+</MarginNote>
+
+Two more facts complete the picture. An `UPDATE` always takes an exclusive lock on the rows it changes, on its own. You write `SELECT … FOR UPDATE` when you read, decide in your code, and then write, so the row can’t change in between: precisely the check-in’s gap. And there is no unlock call. Committing (or aborting) the transaction releases every lock it holds. [[L-0158 L-0159 L-0160]]
+
+Locking costs throughput; only one transaction at a time gets through a locked row. So lock where correctness matters more than throughput. Two claps on a post at 100 that must make 102 (Lecture 2), or a seat that must have one passenger, qualify. Where nobody minds an occasional wrong value, skip it. [[L-0021 L-0023 L-0049]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="How does a waiting transaction move on?" crumb="2.3 Signal and re-check">
+
+Here is the puzzle the run leaves behind. 119 transactions are waiting on 1A. When its holder commits, 1A is no longer free. Yet the waiters don’t fail and don’t book 1A: they end up in 1B, 1C and onwards. Who moved them? [[L-0108]]
+
+<PauseAndThink k="L-0109 L-0115 L-0116 L-0139" label="You are the database engineer"
+  q="You’re writing the engine. A transaction is blocked on seat 1A’s lock, and the lock is released. 1A is now taken. Your rule must also work for a query like <code>WHERE id = 67</code>, which has no “next seat”. What does the engine do with the waiter?"
+  choices={[{ label: 'Hand it the next row in the table' }, { label: 'Re-check its WHERE clause against the current data', correct: true }]}
+  right="Right."
+  wrong="That rule breaks on the pointed query.">
+
+Re-evaluate the same statement. The range query then finds 1A no longer matching and moves on to the next free seat; the pointed query finds seat 67 taken and matches nothing. One rule covers both.
+
+</PauseAndThink>
+
+<StepThrough id="fig-2c" no="Fig 2·c" label="Wait, signal, re-check"
+  k="L-0113 L-0114 L-0115 L-0116 L-0148 L-0155 L-0163"
+  stepK={['L-0113 L-0114', 'L-0115', 'L-0115 L-0116 L-0148', 'L-0113 L-0163', 'L-0155']}
+  caption="Three transactions standing in for 120, the database engine and the seats. Time runs down. A lock mark is a row lock; an hourglass is a transaction waiting, which is not a failure."
+  steps={[
+    'T1, T2 and T3 run the same <code>… FOR UPDATE</code>. T1 gets the lock on 1A. T2 and T3 get nothing back yet.',
+    'T1 updates 1A and <span class="term green">commits</span>. Its lock is released, and the engine wakes the waiters.',
+    'Each waiter re-checks its WHERE against the row as it is now. 1A is taken, so the scan moves on: <span class="term green">T2 locks 1B</span>, and T3 waits again.',
+    'Again: commit, signal, re-check, and T3 locks 1C. Nobody spins in a loop; the waiters sleep until they are signalled.',
+    'In the worst case every waiter re-checks after every commit: 3 + 2 + 1 = 6 evaluations for three transactions, <code>N(N+1)/2</code>.',
+  ]}>
+  <Desk><WaitSignal /></Desk>
+  <Phone><WaitSignal layout="phone" /></Phone>
+</StepThrough>
+
+Three details make this work. The waiters aren’t polling. They sit in a wait queue and are signalled when the lock is released, the condition-variable machinery from an operating-systems course. [[L-0163 L-0164]] Re-evaluation happens inside the engine: the application doesn’t fire anything again, and the statement isn’t evaluated just once up front either; it is re-checked each time its transaction is woken. [[L-0116 L-0148]] And nobody is assigned a seat by arrival order. Whichever transaction the engine schedules first takes the next seat, which is why 1A didn’t go to user 1. [[L-0117]] PostgreSQL behaves the same way at its default, READ COMMITTED; at its stricter levels the waiter gets an error instead and the application must retry. [[L-0156]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="What did being correct cost?" crumb="2.4 The cost">
+
+Count the work. Scale the stepper’s three transactions to 120: all of them wait on 1A, one wins; 119 re-check and wait on 1B, one wins; and so on. In the worst case that is N + (N − 1) + … + 1 = N(N+1)/2 evaluations inside the database: 7,260 for one flight. They are evaluations the engine does, not queries your application sends. [[L-0155]]
+
+That is a lot of work for the database, and the clock shows it: about 1.7 seconds on a typical run to seat 120 people. But every passenger got exactly one seat, every time. Correctness first, then make it fast. [[L-0118 L-0121 L-0125]]
+
+Making it fast starts with a question about the passengers. In the queue at 1A, 119 people are waiting for a seat none of them asked for. Does a passenger who wanted *any* free seat care that it is 1A?
+
+</Section>

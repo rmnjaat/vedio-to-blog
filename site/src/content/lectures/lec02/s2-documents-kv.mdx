@@ -32,7 +32,7 @@ That is this page’s framing; the class answered the same question in general. 
   dek="The family closest to relational: JSON you can query inside and update one field at a time."
   meta="About 3 min · class 00:08–00:11">
 
-<LectureLink lec="lec05" sec="s3">Lecture 03’s key-value store</LectureLink> kept its value as JSON, and the wish that came up next was to query inside that JSON. That is exactly what a document database gives you. [[L-0028]]
+<LectureLink lec="lec05" sec="s5">Lecture 03’s key-value store</LectureLink> kept each value as an opaque blob, and the wish that comes up next is to store JSON there and query inside it. That is exactly what a document database gives you. [[L-0028]]
 
 Of the non-relational families, document databases are the one closest to the relational world, in the lecture’s view. The famous examples are MongoDB and Elasticsearch. [[L-0027]] They are mostly JSON-based. There is no hard and fast rule about that, but mostly JSON. [[L-0029]]
 
@@ -137,11 +137,11 @@ This is the beauty of computer science: every single thing is a trade-off. You g
   dek="“Key-value” describes how you use a store, not how it stores. Two key-value stores can behave nothing alike."
   meta="About 3 min · class Q&A 00:47–00:48, 00:51–00:53">
 
-<LectureLink lec="lec05" sec="s3">Lecture 03</LectureLink> built a key-value store on a relational database, and key-value stores have no relations. Is that what decides whether a key-value store goes on SQL or on a non-relational database? No. Key-value stores are databases in their own league. Key-value is an access pattern, and it does not define the store underneath. [[L-0139]]
+<LectureLink lec="lec05" sec="s5">Lecture 03</LectureLink> built a key-value store on a relational database, and key-value stores have no relations. Is that what decides whether a key-value store goes on SQL or on a non-relational database? No. Key-value stores are databases in their own league. Key-value is an access pattern, and it does not define the store underneath. [[L-0139]]
 
 DynamoDB and Redis are both key-value stores, with different storage engines: Redis keeps the data in memory, DynamoDB on disk. What changes is the storage layer under the same access pattern. [[L-0140]] Memory doesn’t have to mean volatile. Redis can persist with RDB snapshots, on by default, or an append-only file; with the AOF’s default policy of syncing every second you can lose about one second of writes in a crash <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/">redis.io</Cite>. <LectureLink lec="lec04" sec="s3">Lecture 01 (§3, “Redis or DynamoDB?”)</LectureLink> compared the two for the online indicator. [[L-0140]]
 
-So for a key-value use case, once correctness is settled, you can pick a specialised store such as DynamoDB or Redis if its features fit. Understand the features you need, because you may not need to build a key-value store from scratch the way <LectureLink lec="lec05" sec="s3">Lecture 03 (§3)</LectureLink> did. [[L-0141]]
+So for a key-value use case, once correctness is settled, you can pick a specialised store such as DynamoDB or Redis if its features fit. Understand the features you need, because you may not need to build a key-value store from scratch the way <LectureLink lec="lec05" sec="s5">Lecture 03 (§5)</LectureLink> did. [[L-0141]]
 
 Would a key-value store on a relational database, DynamoDB and Redis then all scale the same? No. It depends on what you store, how you access it, the throughput, and how you partition and shard the data, among a ton of other factors. You can’t use a database as a black box. [[L-0142]] For example, store massive blob values, say 4 MB each, and relational databases would “cry their heart out”, while DynamoDB would work better. [[L-0143]]
 

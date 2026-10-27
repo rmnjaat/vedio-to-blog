@@ -11,7 +11,7 @@ const CW = TEXT.mono * 0.6; // Recursive MONO: one character is 0.6 em wide
 
 /** One transaction's query, written as on the board. The `6` of the IN list can get the board's red dash. */
 function Query({ x, y, ids, clause, dash, seed }: { x: number; y: number; ids: string; clause: string; dash?: boolean; seed: string }) {
-  const head = `WHERE user_id IN (${ids.slice(0, -1)}`; // "(1,2," — the 6 is drawn on its own so it can be marked
+  const head = `WHERE id IN (${ids.slice(0, -1)}`; // "(1,2," — the 6 is drawn on its own so it can be marked
   const x6 = x + head.length * CW;
   return (
     <g>
@@ -78,14 +78,14 @@ function Locks({ mode, layout }: { mode: Mode; layout: 'wide' | 'phone' }) {
           {/* a plain hand note beside row 6, as 1·b's "both may read row 6": the lecture's one bubble is fig 3·b's */}
           {P ? (
             <>
-              <Label muted anchor="start" x={LX + 34} y={ry(6) - 22}>can nobody</Label>
-              <Label muted anchor="start" x={LX + 34} y={ry(6) - 4}>even read</Label>
-              <Label muted anchor="start" x={LX + 34} y={ry(6) + 14}>row 6?</Label>
+              <Label muted anchor="start" x={LX + 34} y={ry(6) - 22}>plain SELECTs</Label>
+              <Label muted anchor="start" x={LX + 34} y={ry(6) - 4}>still read</Label>
+              <Label muted anchor="start" x={LX + 34} y={ry(6) + 14}>row 6</Label>
             </>
           ) : (
             <>
-              <Label muted anchor="end" x={TX - 32} y={ry(6) - 4}>can nobody even</Label>
-              <Label muted anchor="end" x={TX - 32} y={ry(6) + 14}>read row 6?</Label>
+              <Label muted anchor="end" x={TX - 32} y={ry(6) - 4}>plain SELECTs</Label>
+              <Label muted anchor="end" x={TX - 32} y={ry(6) + 14}>still read row 6</Label>
             </>
           )}
         </>
@@ -113,14 +113,14 @@ function Locks({ mode, layout }: { mode: Mode; layout: 'wide' | 'phone' }) {
 
 export function SharedLocks({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   const title = 'Two shared locks on overlapping rows';
-  const desc = 'A six-row table. T1 runs SELECT … WHERE user_id IN (1,2,6) FOR SHARE and holds shared locks on rows 1, 2 and 6. T2 runs the same with IN (3,4,6) FOR SHARE and also gets its locks, row 6 included, so row 6 carries two shared locks and both may read it. When T2 then tries to update row 6, it waits for T1.';
+  const desc = 'A six-row table. T1 runs SELECT … WHERE id IN (1,2,6) FOR SHARE and holds shared locks on rows 1, 2 and 6. T2 runs the same with IN (3,4,6) FOR SHARE and also gets its locks, row 6 included, so row 6 carries two shared locks and both may read it. When T2 then tries to update row 6, it waits for T1.';
   const P = layout === 'phone';
   return <Fig id={P ? 'l5-fig1b-p' : 'l5-fig1b'} w={P ? 340 : 760} h={P ? 535 : 330} title={title} desc={desc}><Locks mode="share" layout={layout} /></Fig>;
 }
 
 export function ExclusiveLocks({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   const title = 'Two exclusive locks on overlapping rows';
-  const desc = 'The same six-row table. T1 runs SELECT … WHERE user_id IN (1,2,6) FOR UPDATE and holds exclusive locks on rows 1, 2 and 6, to read and modify them. T2 asks for rows 3, 4 and 6 FOR UPDATE and waits, because row 6, ringed in red, is locked by T1; without row 6 in its list, T2 would finish with rows 3 and 4.';
+  const desc = 'The same six-row table. T1 runs SELECT … WHERE id IN (1,2,6) FOR UPDATE and holds exclusive locks on rows 1, 2 and 6, to read and modify them. T2 asks for rows 3, 4 and 6 FOR UPDATE and waits, because row 6, ringed in red, is locked by T1; without row 6 in its list, T2 would finish with rows 3 and 4. Plain SELECTs by others still read row 6’s last committed version; only writers and locking reads wait.';
   const P = layout === 'phone';
   return <Fig id={P ? 'l5-fig1c-p' : 'l5-fig1c'} w={P ? 340 : 760} h={P ? 535 : 330} title={title} desc={desc}><Locks mode="update" layout={layout} /></Fig>;
 }

@@ -1,0 +1,103 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import { TwoOrFourTrips } from '../../../figures/lec05/s3b-kv-store';
+import { SoFarStore } from '../../../figures/lec05/so-far';
+
+{/* Chapter 7 "PUT k1 v1, then PUT k1 v2. What breaks?" Story rewrite: the failing INSERT and the fixes people reach
+    for → upsert and the trips it saves → two puts at once (Build 1's locks again) → every clause and what it saves. */}
+
+<Section id="s7" no="7" title="PUT k1 v1, then PUT k1 v2. What breaks?" crumb="7 PUT" meta="About 7 min">
+
+`GET` and `DELETE` each got their clause. `PUT` is still the first thing anyone writes: an `INSERT` with the three columns, the key, the value and its expiry. [[L-0204]]
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="The store so far. Marked new: GET filters expired keys in SQL, and DELETE sets expired_at to −1 only for keys that are still live.">
+<Desk><SoFarStore stage={2} /></Desk>
+<Phone><SoFarStore stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="What does the second PUT do?" crumb="7.1 Second PUT">
+
+```sql
+-- ? = the key's expiry, in epoch seconds
+INSERT INTO store VALUES ('k1', 'v1', ?);   -- PUT k1 v1: inserted
+INSERT INTO store VALUES ('k1', 'v2', ?);   -- PUT k1 v2: fails, k1 already exists
+```
+
+The key is the primary key, so the second insert is rejected. But a put is supposed to replace the old value. [[L-0205 L-0206]]
+
+The repairs people reach for first all go through a read. Mark the old row expired and insert a new one beside it? The primary key forbids two rows with one key, and you would still have to find the old row first. Read the key, then `UPDATE` if it exists and `INSERT` if it doesn’t? That mostly works. It turns every put into a get plus a put, and two puts of a new key can both read “absent” and both insert, so one fails on the primary key: chapter 1’s race in a new shape. [[L-0207 L-0209]] You will find production systems that do exactly that, because people forget the alternative. Drawing a box labelled “KV store” hides it; writing the code shows you what it costs. [[L-0210 L-0331]]
+
+<PauseAndThink k="L-0208 L-0211 L-0212"
+  q="A put must insert the key if it is new and replace its value if it exists. Can you do it without reading the key first?"
+  choices={[{ label: 'No: something has to check first' }, { label: 'Yes: one statement that inserts, or updates on conflict', correct: true }]}
+  right="Right."
+  wrong="Your application doesn’t have to do the check.">
+
+An **upsert**: one statement, atomic, that inserts the row or, if the key already exists, updates it. The database does the check itself.
+
+</PauseAndThink>
+
+Every database you are likely to use has one, each spelled its own way. In MySQL it is `INSERT … ON DUPLICATE KEY UPDATE`. `REPLACE INTO` also works, but it deletes the old row and inserts a new one: a delete and an insert where one update would do. PostgreSQL writes `INSERT … ON CONFLICT (key) DO UPDATE`, and `MERGE` is another option. [[L-0213 L-0216]]
+
+```sql
+-- MySQL 8.0.19+; older versions write VALUES(value) instead of new.value
+INSERT INTO store (`key`, value, expired_at) VALUES ('k1', 'v2', ?) AS new
+ON DUPLICATE KEY UPDATE value = new.value, expired_at = new.expired_at;
+```
+
+`PUT k1 v1` stores v1; a later `PUT k1 v2` replaces it with v2, and its expiry with the new one. [[L-0214]]
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="What does one statement save?" crumb="7.2 Round trips">
+
+The database still has to look at the row; an upsert doesn’t make that free. What disappears is everything around it. [[L-0215]]
+
+<Figure id="fig-7b" max={880} no="Fig 7·b" k="L-0207 L-0215 L-0328 L-0329 L-0330" caption="Two round trips or one. Read-then-write makes two (four crossings), and the reply to the read may carry a large value. The upsert makes one.">
+<Desk><TwoOrFourTrips /></Desk>
+<Phone><TwoOrFourTrips layout="phone" /></Phone>
+</Figure>
+
+Read-then-write is a round trip for the read, then a round trip for the write: four crossings of the network. The upsert is one round trip. The database spends very little time evaluating either statement; the bulk of the time is the network. [[L-0328 L-0329]] There is no transaction to hold open around a read and a write, either. [[L-0215]]
+
+One production habit tries to meet halfway: check existence with `SELECT 1 FROM store` ``WHERE `key` = ?`` `LIMIT 1` (SQL Server spells it `SELECT TOP 1 1`), then insert or update. That does avoid hauling a large value back to the client, but it still costs a whole round trip. The upsert saves that one too. [[L-0328 L-0330]] Native upserts keep the database’s throughput high and its load at a bare minimum. [[L-0218]]
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="Two PUTs hit the same key at the same moment" crumb="7.3 Two PUTs at once">
+
+Here is the check-in again, in miniature: two writers, one row. Do you need to build anything for it? [[L-0233]]
+
+No. The database already gives these guarantees, so don’t reimplement them. A single-statement upsert, like any `UPDATE`, takes an exclusive lock on the row it changes, so two puts on the same key run one after the other on their own, and the last one wins. [[L-0233 L-0234]]
+
+You reach for the explicit tools from chapters 2 and 3 when a put is more than a blind overwrite: when it reads the current value and decides something in code before writing. Then `SELECT … FOR UPDATE` closes the gap for a key that already exists, exactly as it did for the seat. A key that doesn’t exist yet has no row to lock, so for a new key let the upsert do the check. If a second writer should give up rather than wait, add `NOWAIT`, and it fails at once while someone else holds the key. Waiting, skipping or failing: there is no single right choice. It depends on the guarantee you want your store to give. [[L-0234 L-0235]]
+
+Don’t expect to get this right on paper. One engineer’s first build of a store like this hit a string of transactional deadlocks, then throughput problems, each fixed in turn; those mistakes taught more than any diagram. [[L-0351]]
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="What did each clause buy?" crumb="7.4 What each clause saves">
+
+The store started as two columns and a bare `INSERT`. Every change since was one column or one clause, and each removed a specific cost:
+
+<TradeoffTable caption="Every decision in the store, what it replaced, and what it saves"
+  k="L-0191 L-0195 L-0200 L-0215 L-0222 L-0260 L-0236"
+  columns={[{ label: 'Replaces' }, { label: 'Saves' }, { label: 'Catch' }]}
+  rows={[
+    { label: 'expired_at, indexed', cells: ['created_at + ttl_sec, computed per row', 'a full scan on every cleanup run', 'every write of expired_at also updates the index'], k: 'L-0191 L-0195' },
+    { label: 'Cleanup in batches', cells: ['deleting each key the moment it expires', 'scattered single deletes on disk', 'expired rows linger until the next run'], k: 'L-0236' },
+    { label: 'AND expired_at > UNIX_TIMESTAMP() on GET', cells: ['checking expiry in the API server', 'the disk read and network transfer of an expired value', 'keys with no TTL need a far-future value, not NULL'], k: 'L-0222' },
+    { label: 'DELETE sets expired_at = −1', cells: ['an is_deleted column and a second job', 'a column, and a whole background job', 'expired_at must be an integer'], k: 'L-0200' },
+    { label: 'AND expired_at > UNIX_TIMESTAMP() on DELETE', cells: ['rewriting rows that already expired', 'a row write and an index write per such delete', 'relies on the index on expired_at'], k: 'L-0260' },
+    { label: 'Upsert', cells: ['GET, then INSERT or UPDATE', 'a network round trip, a transaction around both, and the race on a new key', 'spelled differently in every database'], k: 'L-0215' },
+  ]} />
+
+Look down the “Saves” column and every entry is the same kind of thing: a disk read, a disk write, a network trip. They were all shaped by one fact about this store, that its data lives on disk behind a network connection. Change that fact and several of the answers change with it.
+
+</Section>
