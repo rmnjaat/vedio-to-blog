@@ -6,7 +6,7 @@ import { Actor, Arrow, Bracket, Box, Client, Cyl, Fig, Label, Num } from '../kit
 import { CacheDot, Cloud, Cube, Disk, SpanBracket } from './s1-parts';
 
 const DESC =
-  'One blue request route from a reader through seven numbered places that can answer it: 1 the browser (assets, some responses), 2 the CDN (near-static responses), 3 the load balancer or API gateway (responses, with a TTL), 4 the API server’s RAM (hot stories), 5 the API server’s disk (rendered stories), 6 Redis (shared hot keys), 7 the database’s materialized views (pre-joined stats). Stops 1 to 3 mean the request never reaches your servers; stops 4 and 5 need no network hop.';
+  'One blue request route from a reader through seven numbered places that can answer it: 1 the browser (assets, some responses), 2 the CDN (near-static responses), 3 the reverse proxy or API gateway (responses, with a TTL), 4 the API server’s RAM (hot stories), 5 the API server’s disk (rendered stories), 6 Redis (shared hot keys), 7 the database’s materialized views (pre-joined stats). Stops 1 to 3 mean the request never reaches your servers; stops 4 and 5 answer without calling a shared service.';
 const NOTES: [string, string][] = [
   ['assets, some', 'responses'], ['near-static', 'responses'], ['responses', '(ttl)'],
   ['hot', 'stories'], ['rendered', 'stories'], ['shared', 'hot keys'], ['pre-joined', 'stats'],
@@ -24,7 +24,7 @@ export function CacheRoute({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
       <SpanBracket x0={30} x1={268} y={40} seed={s('b1')} />
       <Label x={149} y={30} size={13}>never reaches your servers</Label>
       <SpanBracket x0={318} x1={426} y={40} seed={s('b2')} />
-      <Label x={372} y={30} size={13}>no network hop</Label>
+      <Label x={372} y={30} size={13}>no shared service</Label>
       {X.map((x, i) => <Num key={i} x={x} y={64} n={i + 1} tone="blue" />)}
 
       {/* the route (drawn first; glyphs sit on it) */}
@@ -55,7 +55,7 @@ export function CacheRoute({ layout = 'desk' }: { layout?: 'desk' | 'phone' }) {
       <Cyl cx={628} top={92} rx={26} ry={7} h={38} seed={s('db')} />
 
       <Label kind="mono" x={60} y={166}>browser</Label>
-      <Label kind="mono" x={252} y={166}>lb /</Label>
+      <Label kind="mono" x={252} y={166}>proxy /</Label>
       <Label kind="mono" x={252} y={181}>api gw</Label>
       <Label kind="mono" x={374} y={166}>api server</Label>
       <Label kind="mono" x={528} y={166}>redis</Label>
@@ -76,7 +76,7 @@ function CacheRoutePhone({ title }: { title: string }) {
   const GX = 82; // glyph column
   const TX = 136; // text column
   const Ys = [92, 166, 236, 304, 372, 446, 520]; // stop centres
-  const names = ['browser', 'cdn', 'lb / api gw', 'api · ram', 'api · disk', 'redis', 'db · mat. view'];
+  const names = ['browser', 'cdn', 'proxy / api gw', 'api · ram', 'api · disk', 'redis', 'db · mat. view'];
   const notes = ['assets, some responses', 'near-static responses', 'responses (ttl)', 'hot stories', 'rendered stories', 'shared hot keys', 'pre-joined stats'];
   return (
     <Fig id="f1f-p" w={340} h={572} title={title} desc={DESC}>
@@ -109,7 +109,7 @@ function CacheRoutePhone({ title }: { title: string }) {
         </g>
       ))}
       <Bracket x={318} y0={70} y1={252} tone="ink" label="never reaches your servers" seed={s('b1')} size={14} />
-      <Bracket x={318} y0={282} y1={394} tone="ink" label="no network hop" seed={s('b2')} size={14} />
+      <Bracket x={318} y0={282} y1={394} tone="ink" label="no shared service" seed={s('b2')} size={14} />
     </Fig>
   );
 }

@@ -3,7 +3,7 @@
 import React from 'react';
 import { Actor, Arrow, Box, Cyl, Fig, Label, Line, Pipe, Worker } from '../kit/Kit';
 
-const TITLE = "Medium's blog count via SQS";
+const TITLE = "The blog count, delegated";
 const DESC =
   'The users table keeps a total_blogs column, stored pre-computed so the profile needs no join. When a writer publishes, the API server drops an ON_PUBLISH message into SQS (dashed: asynchronous) and answers. Three workers take messages from SQS and each runs total_blogs++ in the database. An ON_DELETE event does total_blogs-- the same way.';
 

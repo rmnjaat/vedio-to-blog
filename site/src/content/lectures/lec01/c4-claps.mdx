@@ -1,0 +1,87 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Cite from '../../../components/Cite.astro';
+import { TrafficSignal } from '../../../figures/lec01/fig-4c';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
+
+{/* Chapter 4 "Two readers clap at the same instant". Story rewrite: the lost clap (pause, then the count-race clip) →
+    locks in your code, and why they sit in the wrong place → let the database do the +1 → lost vs double count. */}
+
+<Section id="s4" no="4" title="Two readers clap at the same instant" crumb="4 Claps" meta="About 5 min">
+
+Readers clap for posts they like, and each post keeps a running count. A post with 100 claps is open on two screens, and both readers press the button in the same instant.
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The blog so far. Marked new: publish events go into Kafka, where a counter consumer and a search consumer each read them at their own pace.">
+<Desk><SoFarMedium stage={3} /></Desk>
+<Phone><SoFarMedium stage={3} layout="phone" /></Phone>
+</Figure>
+
+Those two claps arrive at two API servers, or two threads of one server, at the same moment. That is normal: servers run many requests at once on many threads, which is how one machine earns its keep. It is called **concurrency**, and it has to give you both correct data and high throughput, which is what makes it hard. It brings two kinds of trouble: threads must tell each other things (“I’ve handled this one, don’t do it again”), and they must not trip over a resource they share. The claps are about to hit the second. [[L-0217 L-0218 L-0219]]
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Where did the clap go?" crumb="4.1 Lost clap">
+
+Each clap request reads the post’s count, adds one, and writes it back.
+
+<PauseAndThink k="L-0230 L-0219"
+  q="The count is 100. Two clap requests run at the same instant, each doing read, add one, write. What can the count end at?"
+  choices={[{ label: '102, always' }, { label: '102, or 101', correct: true }]}
+  right="Right. One clap can vanish."
+  wrong="Not always. One clap can vanish.">
+
+Both requests read 100 before either writes. Each adds one and writes 101; the second write lands on top of the first. Two claps went in and the row says 101. Whether you get 101 or 102 depends only on timing.
+
+</PauseAndThink>
+
+The culprit is that `count++` looks like one operation and isn’t. It is three steps: read, add, write. When two threads interleave those steps, one thread’s write silently erases the other’s. This is a textbook race condition, and it has nothing to do with databases: two threads that each run `count++` a thousand times on a shared integer should reach 2,000. [[L-0219]]
+
+<AnimationClip clip="l01-count-race" no="Clip 4·1" k="L-0219 L-0230 L-0231"
+  lead="Before you play it: two threads, a thousand increments each. How many of the 2,000 do you expect to lose?"
+  caption="Two threads, 1,000 increments each, on one counter. Slowed down, two claps on 100 give 101. At full speed it happens a few times, silently, and the counter stops near 1,997. With each increment made one indivisible step, it lands on 2,000." />
+
+Nothing crashed and nothing logged an error. That is what makes a lost update dangerous: the number is simply wrong.
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Can a lock in your code fix it?" crumb="4.2 A lock">
+
+The standard answer is a **lock** that protects the *critical section*, the few lines where the shared value is read and written. Picture a traffic signal at a crossroads: the middle of the junction is the critical section, one road gets green at a time, and every other road waits at red. [[L-0221 L-0224]]
+
+<Figure id="fig-4b" no="Fig 4·b" wide={false} k="L-0224 L-0225" caption="The junction is the critical section. One road has green; the other three wait at red.">
+<Desk><TrafficSignal /></Desk>
+<Phone><TrafficSignal layout="phone" /></Phone>
+</Figure>
+
+That is **pessimistic locking**: shut everyone else out while one thread uses the resource, with a mutex, then let the next one in. Correct, but every thread waiting at red is throughput you gave up. **Optimistic locking** takes no lock: it lets both threads work, checks at write time whether anyone changed the value underneath (a version number, say), and retries if so. [[L-0221 L-0225 L-0227]]
+
+<MarginNote title="Go deeper: semaphores, atomics, CRDTs" why="other tools for the same race" k="L-0223 L-0228">
+
+A semaphore works as a lock only with a single permit; one that admits two threads would not protect `count++`. A single counter can skip locking with an atomic increment (Java’s `AtomicInteger`). Data replicated across machines can use CRDTs, data types that merge concurrent updates without coordination.
+
+</MarginNote>
+
+For the clap, none of these lives in the right place. The two claps may land on two different API servers, and a mutex in one server’s memory can’t be seen by another. The one place both requests meet is the row.
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Who should do the +1?" crumb="4.3 The +1">
+
+So give the problem to the row’s owner: the database. Don’t read the count into your code and write it back. Ask the database to do the addition:
+
+```sql
+UPDATE blogs SET claps = claps + 1 WHERE id = 42;
+```
+
+The database applies that update to the latest committed value of the row, so two concurrent claps on 100 end at 102 <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>. Wrapping your own read-then-write in an ordinary transaction is not enough: under the default isolation level, both transactions can still read 100 and both write 101. If your code truly must read first and decide, lock the row while you do, with `SELECT … FOR UPDATE`. [[L-0231]]
+
+Put this next to the end of chapter 3 and you have two different ways a counter goes wrong. A **lost update** comes from two writers racing, and the atomic `+1` fixes it. A **double count** comes from a message delivered twice, and the atomic `+1` does nothing for it, because each delivery is a perfectly correct increment; that one is fixed by making the write safe to repeat. [[L-0195 L-0196]]
+
+The count is now right. But the reader on the other screen still sees 100, and will until they press refresh.
+
+</Section>

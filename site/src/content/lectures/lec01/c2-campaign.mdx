@@ -1,0 +1,128 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { CapacitySpike } from '../../../figures/lec01/fig-2d';
+import { F2fLag } from '../../../figures/lec01/fig-2f';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
+
+{/* Chapter 2 "Marketing is about to message every user". Story rewrite: what scaling means → the vertical ceiling →
+    horizontal, capacity math, the spike → the cascade (clip) → growing the database: replicas, lag, sharding. */}
+
+<Section id="s2" no="2" title="Marketing is about to message every user" crumb="2 Campaign" meta="About 9 min">
+
+The marketing team has a campaign ready: a push notification and an SMS to every user, inviting them back to read. When it goes out, people don’t trickle in over a day. They arrive together, in one sudden spike. [[L-0091]]
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The blog so far. Marked new: copies along the whole route, in the browser, at the CDN and the reverse proxy, and in each API server’s RAM and disk.">
+<Desk><SoFarMedium stage={1} /></Desk>
+<Phone><SoFarMedium stage={1} layout="phone" /></Phone>
+</Figure>
+
+That is the real meaning of scaling: the ability to handle a large number of *concurrent* requests. A million requests spread over a day is easy. A million at the same moment is what breaks things, and that is what a campaign produces. [[L-0078]]
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="Why not just buy a bigger machine?" crumb="2.1 Bigger machine">
+
+The first move needs no code. Open the cloud console and pick a bigger machine type: more CPU, more RAM, more disk. That is **vertical scaling**, making one machine bulkier, like the Hulk. A database can go from 16 GB of RAM to 32, then 64, 128, 256, 512 GB, 1 TB, 2 TB, 4 TB. [[L-0073 L-0079 L-0080]]
+
+<PauseAndThink k="L-0081 L-0082 L-0083 L-0084"
+  q="Say you need a machine with twice the largest memory your cloud offers. Supercomputers exist. What actually stops you?"
+  choices={[{ label: 'The cloud just doesn’t list a bigger option' }, { label: 'The hardware itself tops out', correct: true }]}
+  right="Right. Under the software, it is all physical parts."
+  wrong="That describes the symptom, not the cause.">
+
+Parts of a machine talk to each other over buses: memory in its slot, a disk or a network card on the motherboard, a USB stick in its port. Both sides must speak the same hardware protocol, and a part that can’t address more memory or a larger disk simply won’t. A phone whose card slot supports 256 GB doesn’t recognise a 512 GB card. Going one step up means different hardware, and a data centre either has it or doesn’t.
+
+</PauseAndThink>
+
+“The console doesn’t show a bigger option” is the strangest answer to this, and it explains nothing. [[L-0081]] In practice you usually stop earlier for two duller reasons: the largest machines cost far more per unit of capacity, and one machine, however big, is still one machine that can fail. [[L-0084]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="How many machines, and when?" crumb="2.2 How many">
+
+The other direction is **horizontal scaling**: add more machines, like a crowd of Minions, and spread the traffic across them behind a load balancer. With no shared bottleneck it scales linearly, which is called **linear amplification**. [[L-0075 L-0087]] Your API servers are easy to multiply this way because they keep no state of their own; any server can answer any request. [[L-0120]] You also gain fault tolerance, since losing one machine no longer loses the service, and you pay with a more complex architecture and a network between machines that can split. [[L-0076]]
+
+That arithmetic needs one number you can’t guess: what one machine of your configuration can actually serve. There is no formula that says a 32 GB machine handles 5,000 requests a second. Only a load test tells you. [[L-0094]] With it, capacity planning is division: if a load test says one server handles 100 requests a second and the campaign’s peak needs 500, you need five. [[L-0088]] Before Amazon’s Prime Day, business teams forecast the orders; divide the forecast peak by one machine’s tested capacity and you know whether you have enough. [[L-0089]]
+
+<Figure id="fig-2b" max={880} no="Fig 2·b" k="L-0089 L-0090 L-0091 L-0094" caption="Capacity math and the spike. (a) Machines needed = forecast peak ÷ one machine’s load-tested capacity. (b) The campaign’s readers arrive before reactive autoscaling catches up; raising capacity first (green) avoids the gap. The curves are illustrative.">
+<Desk><CapacitySpike /></Desk>
+<Phone><CapacitySpike layout="phone" /></Phone>
+</Figure>
+
+Can’t autoscaling handle the campaign? An autoscaling group adds instances behind the load balancer when a rule you wrote fires, say “add a node when average CPU passes 60%”. [[L-0131 L-0132]] That works for gentle growth. For a sudden spike it is too slow: new instances have to launch and warm up, and the users are already there. [[L-0090 L-0093]] So scale for the spike first, then let marketing send. AWS supports this directly: scheduled scaling raises capacity at a set time, and warm pools keep pre-started instances ready to join <Cite href="https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-warm-pools.html">docs.aws.amazon.com</Cite>. A campaign is a team sport: if marketing doesn’t tell engineering in advance, the result is an outage, unhappy users and lost business. [[L-0091 L-0092]]
+
+None of this is a reason to build a fleet on day one: a young product scales vertically, because many machines make deployment harder, and moves to horizontal scaling when it has to; anything earlier is premature optimization. The blog went past that stage in Lecture 1; it already runs three servers behind a load balancer. [[L-0095 L-0096 L-0097]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Five API servers now. Who feels it?" crumb="2.3 Who feels it">
+
+The campaign goes out, and the fleet is ready: five API servers. Didn’t chapter 1 protect the database? Its caches absorb what they hold, but every request they can’t answer still lands on the database, and a spike brings many of those. There is a catch: every request an API server accepts, it passes on to whatever it depends on: the database, the shared cache, other services. [[L-0099]]
+
+<AnimationClip clip="l01-cascade" no="Clip 2·1" k="L-0099 L-0101 L-0102"
+  lead="Before you play it: the campaign goes out and five API servers are ready. Which box gives out first?"
+  caption="Five API servers send all their queries to one database that was never scaled. It saturates, the servers time out waiting on it, and the site goes down with it. (The clip starts from a single server to keep the picture small.)" />
+
+One component falls over, everything waiting on it fails, then everything waiting on *those*, until users can’t load a page. That chain is a **cascading failure**, and it sits behind a large share of major outages; Google’s SRE book treats it as a failure class of its own, most often set off by overload <Cite href="https://sre.google/sre-book/addressing-cascading-failures/">sre.google</Cite>. [[L-0101]]
+
+So scale from the bottom up. Before a big campaign, make sure the database and every service you depend on can take the load, then scale the API servers, then let users in. Teams you depend on should write down how they scale. [[L-0100]] And the bottom of the stack is the database: the most critical and most brittle part of your system. When it goes down, everything goes down. [[L-0102]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="How does a database grow?" crumb="2.4 Database">
+
+There are three common moves, in this order: a bigger machine, read replicas, and sharding. [[L-0121]] The bigger machine comes first because it is a console click, and it hits the same ceiling as before. [[L-0103]]
+
+Then look at what the traffic is. Most applications read far more than they write, often 90:10 or 99:1, though logging, metrics and chat can be the other way round, so measure yours. A blog is the clear case: many more people read a post than write one. [[L-0104 L-0105]] Since you can’t cache all of it, serve those reads from copies of the database. [[L-0106 L-0382]]
+
+A **read replica** is a second database that keeps a copy of the master (also called the primary). The replica connects to the master and asks for changes from where it left off, and the master streams them over that connection, asynchronously. Every write still goes to the master. [[L-0107 L-0109]] The database won’t route queries for you. In the plainest version your API server holds two connections, one to the master and one to the replica, and every handler picks: showing a profile uses the replica, publishing a post uses the master. [[L-0110 L-0111]]
+
+<StepThrough id="fig-2c" no="Fig 2·c" label="Replication lag"
+  k="L-0107 L-0109 L-0110 L-0113"
+  caption="Time runs down. Lanes are the API server, the master and the replica; the red bracket is the window in which a replica read is stale."
+  steps={[
+    'The writer presses Publish. The API server sends the <code>INSERT</code> over its master connection, because every write goes to the master.',
+    'The master commits and replies. The writer sees <span class="term green">published</span>. The replica does not have the row yet.',
+    'The writer reloads their profile, and story reads use the replica connection. The replica returns <span class="term red">nothing</span>: a <strong>stale read</strong>.',
+    'The replica asks the master for everything after its last position, and the new row arrives. The time between commit and apply is the <span class="term red">replication lag</span>.',
+    'The same read now <span class="term green">finds the story</span>. Nothing changed in the read path; the lag closed.',
+  ]}>
+<Desk><F2fLag /></Desk>
+<Phone><F2fLag layout="phone" /></Phone>
+</StepThrough>
+
+<PauseAndThink k="L-0112 L-0113"
+  q="In a banking app, which read can go to a replica: the user’s profile, or their account balance?"
+  choices={[{ label: 'Both: replicas are only milliseconds behind' }, { label: 'Only the profile', correct: true }]}
+  right="Right. You decide which reads may be a little old."
+  wrong="Milliseconds are enough to scare someone.">
+
+You send money, and your balance read lands on a replica that hasn’t caught up, so it still shows the old amount. The balance is a critical read and goes to the master.
+
+</PauseAndThink>
+
+Which reads can tolerate that window is a decision you make for each read in your code, not a database setting. [[L-0112]]
+
+Replicas take the reads off the master. They do nothing for writes. When the master still can’t take its writes even on the biggest machine, with the replicas taking the reads, you **shard**: split the data into exclusive subsets, a third of the users on each of three databases, each one a master with its own replicas. Shards are not copies; each holds only its own rows. [[L-0115 L-0116 L-0128 L-0330]] In the plainest version the API server routes: it hashes the user’s ID to pick a shard and keeps a connection pool to each. Many vendor database clusters do this for you: a cluster is horizontal scaling that looks like one database while splitting the data across machines. With plain MySQL or PostgreSQL, which don’t shard natively, the routing is yours to write (or an add-on’s). [[L-0356 L-0357 L-0358]]
+
+Hashing with `hash(user_id) % N` has a trap: change N and almost every user moves, so real routers use consistent hashing or fixed buckets, which <LectureLink lec="lec07">Lecture 9</LectureLink> builds. [[L-0117 L-0118 L-0127]]
+
+There is no formula for how to shard; you study the data and how it is read, then decide. [[L-0373]] Letting replicas accept writes too, multi-master, brings write conflicts whose resolution depends entirely on the use case, which is why sharding is the usual way to scale writes. [[L-0388 L-0389 L-0390]]
+
+<MarginNote title="Go deeper: how many replicas, and who takes over?" why="limits worth knowing" k="L-0122 L-0325 L-0326 L-0328">
+
+Every replica costs the master some CPU and network to feed it, so you don’t hang dozens off one master. About five per master is a common rule of thumb (the real limit depends on write rate and machine size; RDS MySQL caps it at 15). To reach 15, build a tree: five replicas that each feed two more. If the master dies, someone must promote a replica: RDS read replicas are promoted by you, while Aurora promotes one automatically, usually within a minute <Cite href="https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html">docs.aws.amazon.com</Cite>.
+
+</MarginNote>
+
+The campaign lands and the site holds. Reads now have many places to go. Every write still lands on one master, though, so look closely at what a write request asks for. The most important write on a blog is a writer pressing Publish.
+
+</Section>

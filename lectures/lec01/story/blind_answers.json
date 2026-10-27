@@ -1,0 +1,656 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Caching (where else to keep a copy), scaling, delegation (async work via queues/streams), concurrency, communication (polling/WebSocket/SSE/push).",
+  "evidence": "overview: chapter list 1-6 'Where else could you keep a copy?... Marketing... Publishing... Two readers clap... see the clap without refreshing'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Page gives no reason; it only implies locks are handled in depth in Lecture 3 (airline check-in).",
+  "evidence": "ch6 \u00a76.4 'Lecture 3 opens the database to see how locks hold that together'",
+  "found": false
+ },
+ {
+  "id": "Q003",
+  "answer": "A hit never leaves the process, so it saves the network call to the shared cache (the expensive part).",
+  "evidence": "ch1 \u00a71.2 'A hit never leaves the process, so it saves the network call to the shared cache'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Size capped by memory the app leaves free; vanishes when the process restarts; each server holds a different copy (inconsistency).",
+  "evidence": "ch1 \u00a71.2 'It has three costs: its size is capped..., it vanishes when the process restarts, and each server holds a different copy'",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "Nobody can see another server's memory; each server fills its own copy at different times, so after an edit one server may still serve stale v1 while another has v2: two readers, two answers.",
+  "evidence": "ch1 \u00a71.2 Fig 1b 'A still serves v1: two readers, two answers'",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "Sticky sessions: the load balancer sends a user to the same server every time, so that server can keep the user's data (rebuilt elsewhere if it dies).",
+  "evidence": "ch1 \u00a71.2 'With sticky sessions, the load balancer sends a user to the same server every time'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "Nearly static data where a slightly old copy hurts nobody, e.g. published posts/stories (also rarely-changing configs).",
+  "evidence": "ch1 \u00a71.2 'A published post is the second case: it almost never changes'",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Give every local entry an expiry and the cache a memory cap.",
+  "evidence": "ch1 \u00a71.2 'Give every local entry an expiry and the cache a memory cap'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "A stored query result inside the database (e.g. pre-joined stats); it saves re-running an expensive join/query.",
+  "evidence": "ch1 \u00a71.6 'materialized view..., a stored query result' / fig 'pre-joined stats'",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "It has to be refreshed; it pays off only when its data changes rarely.",
+  "evidence": "ch1 \u00a71.6 'has to be refreshed and pays off only when its data changes rarely'",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Images, static assets, some API responses; localStorage holds ~5 MiB of strings per site, larger data in IndexedDB.",
+  "evidence": "ch1 \u00a71.4 'A browser caches images and static assets, and it can keep some API responses too'",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q013",
+  "answer": "That a CDN is only for images and video; it is a proxy, everything is bytes, so it can cache API responses too.",
+  "evidence": "ch1 \u00a71.5 'Most people think a CDN is for images and video. It is a proxy...'",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Near-static responses that are the same for every reader (e.g. /popular list); Giphy caches results of its most popular searches.",
+  "evidence": "ch1 \u00a71.5 'Giphy does this for the results of its most popular searches'",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Reader -> CDN -> (only on miss) API server -> database. On a hit the CDN answers from the edge and the request never reaches your API servers or shared cache.",
+  "evidence": "ch1 \u00a71.5 Fig 1d 'only on a miss does the CDN go on to the API server'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "A cache is anything that saves an expensive computation or an expensive I/O.",
+  "evidence": "ch1 \u00a71.1/\u00a71.3 'a cache is anything that saves an expensive computation or an expensive I/O'",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "The disk is mostly empty (20 GB, only 2-3 GB used) and already paid for; a local disk read replaces a network call; hot files are served from the OS page cache in RAM.",
+  "evidence": "ch1 \u00a71.3 'every cloud VM ships with a disk that mostly holds nothing, already paid for'",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "No central view, so two requests can get two answers (inconsistency between servers).",
+  "evidence": "ch1 \u00a71.3 'Same warning as for RAM: no central view, so two requests can get two answers'",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "Page lists seven stops: browser, CDN, reverse proxy/API gateway, API server RAM, API server disk, shared cache (Redis), materialized view in DB.",
+  "evidence": "ch1 \u00a71.6 'the browser, the CDN, the reverse proxy or gateway, the API server's RAM, its disk, the shared cache, ... materialized view'",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "Scaling is the ability to handle a large number of concurrent requests; 'concurrent' (at the same moment) is the stressed word.",
+  "evidence": "ch2 \u00a72 'the ability to handle a large number of concurrent requests'",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Vertical = the Hulk (one bulkier machine): simple console click, but hits a hardware ceiling, costly, single machine can fail. Horizontal = Minions: scales linearly, fault tolerant, but more complex architecture and network that can split.",
+  "evidence": "ch2 \u00a72.1-2.2 'like the Hulk' / 'like a crowd of Minions... You also gain fault tolerance... pay with a more complex architecture'",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "Hardware protocol/bus compatibility: parts must speak the same protocol and a part that can't address more memory won't; analogy: a phone slot supporting 256 GB doesn't recognise a 512 GB card.",
+  "evidence": "ch2 \u00a72.1 'A phone whose card slot supports 256 GB doesn't recognise a 512 GB card'",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "Term not named on page. Closest: every request an API server accepts it passes on to its dependencies, so scaling to five API servers sends five times the queries to the same database.",
+  "evidence": "ch2 \u00a72.3 'five times the queries converge on it'",
+  "found": false
+ },
+ {
+  "id": "Q024",
+  "answer": "New instances must launch and warm up while users are already there; scale for the spike first (scheduled scaling/warm pools), and marketing must tell engineering in advance, then send.",
+  "evidence": "ch2 \u00a72.2 'For a sudden spike it is too slow... So scale for the spike first, then let marketing send'",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "Only a load test tells you; there is no formula.",
+  "evidence": "ch2 \u00a72.2 'Only a load test tells you'",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Capacity raised before the campaign is sent, so the spike fits under it (vs autoscaler lagging); rule: scale first, then send.",
+  "evidence": "ch2 Fig 2b 'scaled first, then sent'",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Every request an API server accepts it passes to its dependencies (DB, cache, services), so adding API servers overloads the DB; rule: scale from the bottom up, DB and dependencies first.",
+  "evidence": "ch2 \u00a72.3 'So scale from the bottom up'",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Cascading failures.",
+  "evidence": "ch2 \u00a72.3 'That chain is a cascading failure, and it sits behind a large share of major outages'",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "90:10 or 99:1.",
+  "evidence": "ch2 \u00a72.4 'often 90:10 or 99:1'",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "No; the replica connects and asks for changes from where it left off, and the master streams them over that connection asynchronously.",
+  "evidence": "ch2 \u00a72.4 'The replica connects to the master and asks for changes from where it left off'",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "API server holds two connections (master and replica) and each handler picks: e.g. profile read on replica, publish on master.",
+  "evidence": "ch2 \u00a72.4 'your API server holds two connections... every handler picks'",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "Profile can go to a replica; account balance (critical) must go to the master.",
+  "evidence": "ch2 \u00a72.4 Pause and think 'The balance is a critical read and goes to the master'",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "When the master can't take its writes even on the biggest machine, or serving replicas weighs on it; sharding = splitting data into exclusive subsets, each a master with its own replicas.",
+  "evidence": "ch2 \u00a72.4 'you shard: split the data into exclusive subsets'",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "In the API server: it hashes the user ID to pick a shard and keeps a connection pool to each shard.",
+  "evidence": "ch2 \u00a72.4 'the API server routes: it hashes the user's ID to pick a shard'",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Page doesn't describe a board diagram; its three moves are a bigger machine, read replicas (master + replicas), and sharding (data split across three masters each with replicas).",
+  "evidence": "ch2 \u00a72.4 'three common moves... a bigger machine, read replicas, and sharding'",
+  "found": false
+ },
+ {
+  "id": "Q036",
+  "answer": "Someone must promote a replica: RDS read replicas are promoted manually by you; Aurora promotes automatically, usually within a minute.",
+  "evidence": "ch2 \u00a72.4 Go deeper 'If the master dies, someone must promote a replica'",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "Yes: the API server keeps a separate connection to master and replica and a connection pool to each shard, since each is a separate database.",
+  "evidence": "ch2 \u00a72.4 'keeps a connection pool to each'",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "No; shards are not copies, each holds only its own rows.",
+  "evidence": "ch2 \u00a72.4 'Shards are not copies; each holds only its own rows'",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "Horizontal: the autoscaling group adds instances behind the LB when a rule you wrote fires; you write the rule and must pre-scale for spikes.",
+  "evidence": "ch2 \u00a72.2 'An autoscaling group adds instances behind the load balancer when a rule you wrote fires'",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "Whatever does not need to be done in real time should not be done in real time.",
+  "evidence": "ch3 \u00a73.1 'whatever does not need to be done in real time should not be done in real time'",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Updating the author's total_blogs story count on every publish.",
+  "evidence": "ch3 \u00a73 'a total_blogs column on the users table... add one every time the author publishes'",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Not as numbered arrows; the pattern: API server records a task in the broker and replies at once; workers read the broker, do the heavy lifting and update the database.",
+  "evidence": "ch3 \u00a73.2 'the API server records a task in a buffer called a broker and replies at once'",
+  "found": false
+ },
+ {
+  "id": "Q043",
+  "answer": "ON_PUBLISH; workers take messages from SQS and run total_blogs++ in the DB (ON_DELETE does total_blogs--).",
+  "evidence": "ch3 Fig 3b",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "Consumers running the same code take messages out; one consumer at a time, hidden while processed; consumer deletes after processing; visibility timeout returns it on crash; DLQ; at-least-once delivery.",
+  "evidence": "ch3 \u00a73.3",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Both at 74; worker does count++ -> 75; crashes before ES write (75 vs 74); message retried, both writes rerun: count 76, search 75, still inconsistent.",
+  "evidence": "ch3 \u00a73.4 Fig 3c",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Two teams share one worker's code, so one team's change blocks the other's deploy.",
+  "evidence": "ch3 \u00a73.4 'one team's change blocks the other's deploy'",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "A queue takes messages out (consumer deletes them, one consumer each); a stream keeps them until retention expires and consumers iterate with their own positions, nobody deletes.",
+  "evidence": "ch3 \u00a73.5 'A message stream... doesn't take messages out'",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "Publish event into Kafka once; counter consumer and search consumer each read every event at their own pace with their own code/team; if ES is down only search waits.",
+  "evidence": "ch3 \u00a73.5 Clip 3.1",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Long-running jobs (launching a server, encoding video), heavy queries, writes that can be batched, anything allowed to be eventually right.",
+  "evidence": "ch3 \u00a73.1 'long-running jobs..., heavy queries, writes that can be batched, and anything allowed to be eventually right'",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "A topic is split into partitions; each message carries a key that Kafka hashes to choose the partition (key by user_id -> same partition).",
+  "evidence": "ch3 \u00a73.6",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Ordered only within a partition; no global order across partitions.",
+  "evidence": "ch3 \u00a73.6 'That order holds only within a partition'",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Not named as 'biggest limitation'; closest: parallelism within a group equals number of partitions (extra consumers idle), and partitions must be chosen up front.",
+  "evidence": "ch3 \u00a73.6 'Parallelism equals the number of partitions'",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "The consumer tells Kafka how far its group has read; Kafka stores that position (offset), committed in batches.",
+  "evidence": "ch3 \u00a73.7 'It commits: it tells Kafka how far its group has read'",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "At least once: consumers commit in batches, so a crash after processing but before commit re-reads from the last commit.",
+  "evidence": "ch3 \u00a73.7 'Kafka delivers at least once by default'",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Choose partition count up front: adding partitions later makes keys land elsewhere (the hash isn't consistent), and you can't remove them.",
+  "evidence": "ch3 \u00a73.6 'add partitions later and keys start landing elsewhere'",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "Not directly answered; page implies it doesn't need to: Kafka assigns partitions to consumers in a group, and other consumers (or the same one, if fewer consumers) read the other partitions.",
+  "evidence": "ch3 \u00a73.6 'Kafka decides which one reads which partition... one consumer reads several'",
+  "found": false
+ },
+ {
+  "id": "Q057",
+  "answer": "Cost: SQS bills per request while a stream runs all the time (Kinesis bills per shard-hour, Kafka cluster always running); one small job belongs on a queue.",
+  "evidence": "ch3 \u00a73.5 'SQS bills per request, while a stream runs all the time'",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "The consumer never deletes it; the visibility timeout (30 s default) runs out and it reappears for another consumer; DLQ catches repeated failures.",
+  "evidence": "ch3 \u00a73.3",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Queue: delete the message when done. Stream: commit the position.",
+  "evidence": "ch3 \u00a73.7 'In a queue you delete... In a stream you commit'",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q061",
+  "answer": "Should be 2,000; you get about 1,997 because count++ is read-add-write and interleaved threads overwrite each other (race condition).",
+  "evidence": "ch4 \u00a74.1 Clip 4.1 'Expected 2,000. Got about 1,997'",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Correct data and high throughput; a lock (mutex) around the critical section ensures correctness.",
+  "evidence": "ch4 \u00a74 'it has to give you both correct data and high throughput' / \u00a74.2",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "A traffic signal at a crossroads: junction = critical section, one road green at a time.",
+  "evidence": "ch4 \u00a74.2",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "Pessimistic locking (mutex), optimistic locking (version check + retry), plus semaphores, atomic increments, CRDTs, and DB atomic update.",
+  "evidence": "ch4 \u00a74.2 + Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "102; let the DB do UPDATE blogs SET claps = claps + 1 (or SELECT ... FOR UPDATE if you must read first).",
+  "evidence": "ch4 \u00a74.3",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "An endpoint isn't REST just because it speaks HTTP; REST is an architectural style with constraints.",
+  "evidence": "ch5 \u00a75.1",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Request/response: client asks, server does heavy lifting and answers; like ordering a burger.",
+  "evidence": "ch5 \u00a75.1 'like ordering a burger'",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Client asks again every few seconds; examples: AWS console server launch status, Cricbuzz live scores.",
+  "evidence": "ch5 \u00a75.2",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "6 million per minute (~100,000/s).",
+  "evidence": "ch5 \u00a75.2",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Client asks once, server holds the request until something new; far fewer requests but server holds one open request per client; timeouts (~30 s) then reconnect.",
+  "evidence": "ch5 \u00a75.3",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Short polling: repeated requests each returning 'in progress' for the whole launch; long polling: one request answered the moment the server is ready.",
+  "evidence": "ch5 \u00a75.2-5.3",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "A persistent two-way channel; it starts as an HTTP request that asks to be upgraded, then carries WebSocket frames, not HTTP (wss:// encrypted).",
+  "evidence": "ch5 \u00a75.4",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Either side can send any time, server can speak first, no per-message setup so cheap exchanges; cost: connections are state (routing, which server holds whom, reconnect storms), most costly to operate.",
+  "evidence": "ch5 \u00a75.4-5.5",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Chat, stock tickers, multiplayer games, live meeting chat, live claps/likes.",
+  "evidence": "ch5 \u00a75.4",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "MQTT not on page; protocols need a reliable stream, usually TCP (HTTP/3 over QUIC/UDP exception).",
+  "evidence": "ch6 \u00a76.2 'these protocols need a reliable stream, which is usually TCP'",
+  "found": false
+ },
+ {
+  "id": "Q076",
+  "answer": "SSE: one-way channel, client opens once, only server sends (a never-ending HTTP response). Naming mistake not on page.",
+  "evidence": "ch5 \u00a75.5",
+  "found": false
+ },
+ {
+  "id": "Q077",
+  "answer": "Stock/price tickers, deployment logs, remote terminal output, LLM token streaming; simpler than WebSockets but one-way only.",
+  "evidence": "ch5 \u00a75.5",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Reader-API: HTTP; API-DB: persistent TCP with DB wire protocol; API-Redis: RESP; reader-likes service: WebSocket.",
+  "evidence": "ch6 \u00a76.2 Fig 6c",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "It does scale: a held request is close to a persistent connection, and an event-driven server can hold many; park the request rather than loop.",
+  "evidence": "ch5 \u00a75.3 'Does it scale? Yes.'",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "The connection breaks and the client asks again; harmless for a score, needs thought for a payment.",
+  "evidence": "ch5 \u00a75.3",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "No: 10,000 prices x 4 bytes = 40 KB/s, fine per client, so send all and filter in browser; at a million clients (40 GB/s) server filtering pays.",
+  "evidence": "ch5 \u00a75.5",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "No; you can imitate it with SSE while the app is open but can't build push that way; push goes via FCM/APNs.",
+  "evidence": "ch6 \u00a76.1 'You can imitate it with SSE... but you can't build it that way'",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "The database's own wire protocol (MySQL protocol, PostgreSQL frontend/backend, MongoDB wire protocol), not WebSocket; Redis uses RESP.",
+  "evidence": "ch6 \u00a76.2",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q085",
+  "answer": "Page: SNS in front of several SQS queues copies every event into one queue per team, but nothing keeps history for replay, so it doesn't fully mimic a stream.",
+  "evidence": "ch3 \u00a73.5 'SNS in front of several SQS queues does exactly that), but nothing keeps the history'",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "Mostly by the timer (TTL); some gateways also let you flush entries.",
+  "evidence": "ch1 \u00a71.5",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q088",
+  "answer": "Snapshots to S3 (or CDN for mobile), app memory, and local disk copy; possible because configs rarely change.",
+  "evidence": "ch1 \u00a71.6 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q090",
+  "answer": "Yes, each replica costs the master CPU and network; you don't hang dozens; RDS MySQL caps at 15 per source; for more, replicas feed replicas (a tree).",
+  "evidence": "ch2 \u00a72.4 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "That it's time to shard.",
+  "evidence": "ch2 \u00a72.4 'when serving the replicas starts to weigh on it, you shard'",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q093",
+  "answer": "A few Kafka consumers copy each message into SQS where ~100 workers do the slow work; common in notification systems.",
+  "evidence": "ch3 \u00a73.6 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "LB must understand the HTTP upgrade (nginx forward headers), watch idle timeouts with pings; LB going down not on page.",
+  "evidence": "ch5 Go deeper",
+  "found": false
+ },
+ {
+  "id": "Q095",
+  "answer": "Netflix places its own cache servers inside ISPs' networks; possible because a show doesn't change once live.",
+  "evidence": "ch1 \u00a71.5",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q097",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q098",
+  "answer": "Yes, Kinesis works the same (partitions called shards). Reason two can't share a partition not given beyond 'each partition goes to exactly one consumer'.",
+  "evidence": "ch3 \u00a73.6",
+  "found": false
+ },
+ {
+  "id": "Q099",
+  "answer": "No; the stream never made two writes atomic; when two stores must agree at every moment you still need a distributed transaction.",
+  "evidence": "ch3 \u00a73.5",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Browser caches images/static assets/some API responses; data via localStorage (~5 MiB) or IndexedDB. How to inspect not on page.",
+  "evidence": "ch1 \u00a71.4",
+  "found": false
+ },
+ {
+  "id": "Q101",
+  "answer": "No; study the data and how it's read, then decide.",
+  "evidence": "ch2 \u00a72.4 'There is no formula for how to shard'",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "All its clients reconnect at once, a storm; it's the expensive part, clients should reconnect with randomised back-off.",
+  "evidence": "ch5 \u00a75.4",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Not stated; SSE is a single HTTP response that never ends; EventSource reconnects if it drops.",
+  "evidence": "ch5 \u00a75.5",
+  "found": false
+ },
+ {
+  "id": "Q104",
+  "answer": "Use read replicas: serve reads from copies of the database since you can't cache everything; route per read.",
+  "evidence": "ch2 \u00a72.4 'Since you can't cache all of it, serve those reads from copies of the database'",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Yes, the TCP connection could carry both ways; SSE just gives the client no way to send.",
+  "evidence": "ch5 \u00a75.5",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "Multi-master; it brings write conflicts whose resolution depends on the use case, so sharding is the usual way to scale writes.",
+  "evidence": "ch2 \u00a72.4",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q108",
+  "answer": "Page says SSE for claps is a common, valid pattern and used by LLM APIs; teacher's specific production remark not on page.",
+  "evidence": "ch5 \u00a75.5",
+  "found": false
+ },
+ {
+  "id": "Q109",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ }
+]

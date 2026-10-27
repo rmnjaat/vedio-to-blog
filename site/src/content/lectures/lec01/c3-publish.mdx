@@ -1,0 +1,170 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Cite from '../../../components/Cite.astro';
+import { BlogCountSqs } from '../../../figures/lec01/fig-3c';
+import { TwoWritesCrash } from '../../../figures/lec01/fig-3e';
+import { Fig3g } from '../../../figures/lec01/fig-3g';
+import { Fig3j } from '../../../figures/lec01/fig-3j';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
+
+{/* Chapter 3 "Publishing a story does too much". Story rewrite: the total_blogs counter → what must happen in the
+    request → delegate and respond → queues → search wants it too, 74/75/76 → streams → Kafka partitions and groups →
+    commits and at-least-once (the double count that sets up chapter 4). Section ids kept for links from other lectures. */}
+
+<Section id="s3" no="3" title="Publishing a story does too much" crumb="3 Publishing" meta="About 10 min">
+
+Every author’s profile should show how many stories they have written. You store the number in a `total_blogs` column on the users table, so a profile view needs no join, and add one on every publish. [[L-0141 L-0142]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="The blog so far. Marked new: five API servers instead of three, and read replicas that pull changes from the database.">
+<Desk><SoFarMedium stage={2} /></Desk>
+<Phone><SoFarMedium stage={2} layout="phone" /></Phone>
+</Figure>
+
+The obvious place for that `+1` is inside the publish request, right after the story is saved.
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="What has to happen before the writer sees “published”?" crumb="3.1 Before published">
+
+One `+1` is cheap, but it is never just one. Today the count, tomorrow the search index, then an email notification; each job added inline slows every publish and lands one more write on the database at the same instant as everyone else’s. At a campaign peak, those writes pile onto the one master that chapter 2 called the most brittle part of the system. [[L-0142 L-0156 L-0149 L-0150]]
+
+So decide which work belongs in the request. In a talk in 2020, a VP of engineering at the Indian streaming service Hotstar described the rule its API side lives by to handle massive scale: **whatever does not need to be done in real time should not be done in real time.** [[L-0136 L-0137]]
+
+“Real time” here means inside the request, which ends the moment the client gets its response. [[L-0138 L-0145]] Saving the story is essential; the count on the profile is not. Nobody is hurt if it says 74 for a few seconds after the 75th story goes up. [[L-0143]] The writes still reach the database; what changes is when, and who sets the pace. [[L-0139]]
+
+The same test sorts most work: long-running jobs (launching a server, encoding a video), heavy queries, writes that can be batched, and anything allowed to be eventually right belong outside the request. [[L-0171]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Who does the rest, and when?" crumb="3.2 Who does it">
+
+The pattern is **delegate and respond**: the API server records a task in a buffer called a **broker** and replies at once, and **workers** read the broker, do the heavy lifting and update the database. [[L-0144 L-0146]]
+
+<Figure id="fig-3b" max={704} no="Fig 3·b" k="L-0141 L-0147 L-0153" caption="The blog count, delegated. The API server drops an ON_PUBLISH message into a queue and answers; whichever worker takes the message runs total_blogs++.">
+<Desk><BlogCountSqs /></Desk>
+<Phone><BlogCountSqs layout="phone" /></Phone>
+</Figure>
+
+For the blog: the author publishes, the API server puts an `ON_PUBLISH` message into a broker such as SQS or RabbitMQ, and a worker picks it up and runs the update:
+
+```sql
+UPDATE users SET total_blogs = total_blogs + 1 WHERE id = :author;
+```
+
+A deleted story sends `ON_DELETE`. The price is a delay: the author sees the new count on the next refresh. [[L-0147 L-0153 L-0148]]
+
+Treat the database like a new, expensive phone: put a cover on it. [[L-0150 L-0151]] The broker is the heart of the pattern, and it comes in two kinds: message queues and message streams. [[L-0152 L-0154]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="What holds the work in between?" crumb="3.3 Queue">
+
+In a **message queue** such as SQS or RabbitMQ, consumers that all run the same code take messages out. [[L-0155 L-0157]] Each message goes to one consumer at a time, hidden from the others; when done, the consumer deletes it, a delete you write after the processing. If the consumer crashes first, the message’s **visibility timeout** runs out (30 seconds by default in SQS) and it reappears for another consumer. A dead-letter queue, if you configure one, catches a message that keeps failing <Cite href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">docs.aws.amazon.com</Cite>. [[L-0159 L-0161 L-0210 L-0212]]
+
+Notice the guarantee: SQS standard queues deliver each message *at least once*. A copy can occasionally arrive twice, so every consumer has to cope with seeing a message again <Cite href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html">docs.aws.amazon.com</Cite>. [[L-0161]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="Search wants the same event" crumb="3.4 Search too">
+
+Next the search team wants every new story indexed in Elasticsearch. The quickest change: the worker already receives `ON_PUBLISH`, so let it bump the count *and* write the index entry. [[L-0163]]
+
+Two teams now share one worker’s code, and one team’s change blocks the other’s deploy. [[L-0164]] Then the machine problem; predict both numbers before each click.
+
+<StepThrough id="fig-3c" no="Fig 3·c" label="Two writes, one crash"
+  k="L-0163 L-0165 L-0166 L-0167 L-0169"
+  stepK={['L-0163', 'L-0165', 'L-0165', 'L-0166', 'L-0167']}
+  caption="Time runs down. The lanes are one worker, the database’s total_blogs and the search index’s count; the red rings mark a count and an index that disagree."
+  steps={[
+    'A new story is published. Both numbers read 74, and one <code>ON_PUBLISH</code> message reaches the worker, which must now do two writes.',
+    'Write 1 succeeds: <code>total_blogs</code> is <span class="term green">75</span>.',
+    'The worker <span class="term red">crashes</span> before indexing. Count 75, search 74.',
+    'The message comes back and both writes run again. Search is now right at 75, but the count says <span class="term red">76 for 75 stories</span>.',
+    'Doing two things in one shot is always a problem in a distributed system.',
+  ]}>
+<Desk><TwoWritesCrash /></Desk>
+<Phone><TwoWritesCrash layout="phone" /></Phone>
+</StepThrough>
+
+Any machine can die between two writes, and making two stores’ writes atomic needs a costly distributed transaction. [[L-0167]] The deeper fault is one worker owning two teams’ jobs; each should see every event and fail alone. [[L-0169]] Splitting them won’t stop a retry repeating a write (that returns in 3.7), but it stops one team’s failure re-running the other’s work.
+
+</Section>
+
+<Section id="s3-5" no="3.5" title="What would let each job go at its own pace?" crumb="3.5 Own pace">
+
+A single queue can’t give you that: each message goes to one consumer at a time, which deletes it when done, so only one kind of job ever processes it. [[L-0209]] You could copy every event into one queue per team (SNS in front of several SQS queues does exactly that), but nothing keeps the history for a consumer that wants to go back. [[L-0306 L-0307]] A **message stream**, such as Kafka or Amazon Kinesis, doesn’t take messages out. They stay in the stream until a retention period you choose runs out (seven days by default in Kafka), and consumers *iterate* over them; nobody deletes anything. [[L-0162 L-0168 L-0172 L-0173 L-0174]]
+
+<AnimationClip clip="l01-queue-vs-stream" no="Clip 3·1" k="L-0173 L-0174 L-0175 L-0176"
+  lead="Before you play it: Elasticsearch goes down for ten minutes. In the stream, does the counter have to wait for search?"
+  caption="The same five ON_PUBLISH events go to a queue and to a stream. The queue hands each to one worker, which deletes it. The stream keeps them, and the search and counter consumers each move at their own pace; when Elasticsearch is down only search waits." />
+
+A queue suits identical consumers doing one job; a stream suits different consumers that each want every message. [[L-0170 L-0175 L-0176]] On the blog, the publish event goes into Kafka once, and the counter service and the search service each read it with their own code, owned by their own team. [[L-0178]]
+
+Notice what the stream did not do: it never made the two writes atomic. It works because the count and the index are independent jobs that may lag and catch up. When two stores must agree at every moment, you still need a distributed transaction. [[L-0362 L-0363]]
+
+Why not a stream for everything? Cost: SQS bills per request, while a stream runs all the time (Kinesis bills per shard-hour), so one small job belongs on a queue. [[L-0204 L-0205 L-0206]] When several kinds of consumer need the same events, Kafka is the usual default, but it isn’t salt to sprinkle on every system. [[L-0198 L-0200]] Labels blur, too: RabbitMQ, known as a queue, now has persistent streams, so check what a tool does today rather than repeating “X can’t do Y”. [[L-0395 L-0396]]
+
+</Section>
+
+<Section id="s3-6" no="3.6" title="How does one topic spread over many machines?" crumb="3.6 Partitions">
+
+In Kafka, messages go to a **topic**, here `ON_PUBLISH`, split into **partitions**; Kafka hashes each message’s key to choose one. Key by `user_id` and every story from one author lands in the same partition, in the order published. [[L-0181 L-0182 L-0183 L-0184]] That order can justify a stream even for one job. One team moved from SQS to Kinesis because their standard SQS queue handed several messages about one record to different workers at once; with a key, all of a record’s events reach one consumer, in order, which can also cache and batch them. [[L-0310 L-0312 L-0313]]
+
+<Figure id="fig-3d" max={760} no="Fig 3·d" k="L-0181 L-0182 L-0183 L-0184 L-0188 L-0201" caption="The ON_PUBLISH topic with three partitions. The key is hashed, so both of u7’s stories land in p1.">
+<Desk><Fig3g /></Desk>
+<Phone><Fig3g layout="phone" /></Phone>
+</Figure>
+
+That order holds only *within* a partition; across partitions there is no global order. [[L-0188 L-0201]] (Size the count to the consumption rate you expect, and choose it up front: add partitions later and keys start landing elsewhere, and you can’t remove them.) [[L-0207]]
+
+Consumers of one kind form a **consumer group**, and Kafka decides which one reads which partition. [[L-0186 L-0359]]
+
+<PauseAndThink k="L-0187 L-0189 L-0190 L-0191 L-0361"
+  q="The topic has 3 partitions. Search is slow, so you start 5 search consumers in one group. What do consumers 4 and 5 do?"
+  choices={[{ label: 'They share the load with the other three' }, { label: 'Nothing', correct: true }]}
+  right="Right. They sit idle."
+  wrong="They get no messages at all.">
+
+In a consumer group each partition goes to exactly one consumer, so with 3 partitions at most 3 consumers work. Parallelism equals the number of partitions.
+
+</PauseAndThink>
+
+Why not two consumers per partition? Kafka would have to track who took which message and could no longer keep the partition in order, so a classic group gives each partition one owner. [[L-0361]] The cap applies per group, and fewer consumers than partitions is fine: one consumer reads several. Kinesis works the same way and calls partitions shards. [[L-0191 L-0192 L-0197]]
+
+<MarginNote title="Go deeper: when three workers aren’t enough" why="a common shape" k="L-0336 L-0337 L-0338 L-0190">
+
+Notification systems often have a few Kafka consumers copy messages into SQS, where a hundred workers do the slow sending.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s3-7" no="3.7" title="A consumer crashes mid-batch. What comes back?" crumb="3.7 Crash">
+
+How does a consumer resume after a restart? It **commits**: it tells Kafka how far its group has read, and Kafka stores that position. Consumers commit in batches, in your code or through auto-commit settings you chose. [[L-0193 L-0208 L-0214]]
+
+<StepThrough id="fig-3e" no="Fig 3·e" label="Commit, crash, resume"
+  k="L-0193 L-0194 L-0195 L-0196 L-0213"
+  stepK={['L-0193', 'L-0194', 'L-0194', 'L-0194 L-0195 L-0196', 'L-0213']}
+  caption="One partition read by the counter consumer. The green caret is the group’s committed position; blue marks what was read and processed."
+  steps={[
+    'The consumer reads offsets 0–3, processes them (<code>total_blogs</code> +4) and commits. Kafka records the group’s position: <span class="term green">4</span>.',
+    'It reads 4–7 and processes all four (<code>total_blogs</code> +4 again).',
+    'The consumer <span class="term red">crashes before committing</span>. The committed position is still 4.',
+    'A new consumer resumes from the last commit, 4, and processes 4–7 a second time: <code>total_blogs</code> gets <span class="term red">+4 twice</span>.',
+    'In a queue you delete a message when you are done. In a stream you commit.',
+  ]}>
+<Fig3j />
+</StepThrough>
+
+Kafka delivers **at least once** by default. It offers exactly-once processing only between Kafka topics; a write into your own database needs your help, by making the write safe to repeat or storing the position with the data <Cite href="https://kafka.apache.org/42/design/design/">kafka.apache.org</Cite>. [[L-0194 L-0195 L-0196 L-0213]] The simple rule: every consumer must be fine seeing the same message twice. For the counter, that can mean storing the consumer’s position in the same database transaction as the `+1`, so a replay can tell those messages were already counted.
+
+So the counter can still count a story twice. A second way to get a count wrong needs no crash at all. It shows up on a number readers change all the time: claps.
+
+</Section>

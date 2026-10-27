@@ -1,0 +1,99 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { PushPath } from '../../../figures/lec01/fig-5g';
+import { MediumHops } from '../../../figures/lec01/fig-5h';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
+
+{/* Chapter 6 "The app is closed. Can you still reach the reader?" Story rewrite: push notifications as a different
+    channel → what each hop of the blog speaks → the blog at the end of the lecture, what you can now do, recall,
+    and the hand-off to Lecture 3. */}
+
+<Section id="s6" no="6" title="The app is closed. Can you still reach the reader?" crumb="6 Closed app" meta="About 7 min">
+
+Every channel in chapter 5 needs a live connection from the reader’s page to your servers. A phone puts apps to sleep in the background, and a sleeping app holds no socket. Yet calendar reminders and “someone replied to you” banners arrive on a locked phone all day.
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="The blog so far. Marked new: a WebSocket between each reader and the real-time likes service on the server side, which carries live claps.">
+<Desk><SoFarMedium stage={5} /></Desk>
+<Phone><SoFarMedium stage={5} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Who delivers to a sleeping phone?" crumb="6.1 Push">
+
+Not you. Remember marketing’s campaign in chapter 2? Every push notification it sent took this path. **Push notifications** go through a service run by the platform: Firebase Cloud Messaging for Android (GCM’s successor; Google deprecated GCM in 2018 and announced its removal for April 2019), Apple’s APNs for iPhones. Your server hands the notification to that service, and the phone’s operating system keeps one connection to it, shared by every app, and wakes the right app when something arrives. One shared connection is what makes it efficient; keeping a separate connection open for every app would be very wasteful. [[L-0284 L-0286 L-0288]]
+
+<Figure id="fig-6b" no="Fig 6·b" k="L-0284 L-0285 L-0286" caption="The push path. Your server hands the notification to a push service you don’t run; the phone keeps one connection to it for all apps. A calendar reminder never leaves the phone.">
+<Desk><PushPath /></Desk>
+<Phone><PushPath layout="phone" /></Phone>
+</Figure>
+
+So push is a different thing from WebSockets and SSE, with different guarantees and a protocol you don’t control. Delivery is best-effort: APNs keeps only one pending notification per app and may drop or reorder them <Cite href="https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns">developer.apple.com</Cite>. You can imitate it with SSE or periodic checks while the app is open, but you can’t build it that way. [[L-0284 L-0286]] The calendar reminder is the exception that proves it: the app scheduled a local notification on the phone itself, so it fires with no network at all. [[L-0285]]
+
+Services such as OneSignal and Twilio now turn this into an API call; one team in 2015 had to build it directly on GCM and APNs because SNS delivered badly and OneSignal had only just started. Integrate with FCM once anyway, from its documentation; you will understand what those services do for you. [[L-0287 L-0288]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="What does each hop of the blog speak?" crumb="6.2 Each hop">
+
+Count the kinds of connection the blog now uses: HTTP from the browser, pooled connections to the database and to Redis, a socket for live claps, the phone’s link to FCM. They are not the same thing. The reader talks to the API server in HTTP, over TCP. The API server talks to the database over a TCP connection it keeps open, the pooled kind you met in Lecture 1, and not a WebSocket: each database has its own wire protocol, the MySQL protocol, PostgreSQL’s frontend/backend protocol, MongoDB’s wire protocol. Redis has its own too, called RESP. Live claps travel over a WebSocket to the likes service. [[L-0273 L-0290 L-0294 L-0274]]
+
+<Figure id="fig-6c" max={860} no="Fig 6·c" k="L-0273 L-0274 L-0275 L-0290 L-0294" caption="The blog, hop by hop. Each hop speaks its own protocol; only the live claps need a channel the server can push on.">
+<Desk><MediumHops /></Desk>
+<Phone><MediumHops layout="phone" /></Phone>
+</Figure>
+
+A protocol is an agreement on how to lay a message out in bytes so both ends can read it. A database wire protocol says how a SQL query is framed on the connection. MySQL’s, for example, sends a length, a sequence number, a command byte, then the query text. HTTP, WebSocket and SSE each define their own message format the same way. [[L-0291 L-0293]] And HTTP/1.1 connections are persistent too: they stay open by default and are reused, until one side says `Connection: close` or the idle timeout ends them. [[L-0289]] Underneath, these protocols need a reliable stream, which is usually TCP; HTTP/3 is the notable exception, running over QUIC on UDP. [[L-0264]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="What you can now do" crumb="6.3 What you can do">
+
+<Figure id="fig-6d" max={640} no="Fig 6·d" caption="The blog at the end of this lecture. Marked new: a push service for readers whose app is closed.">
+<Desk><SoFarMedium stage={6} /></Desk>
+<Phone><SoFarMedium stage={6} layout="phone" /></Phone>
+</Figure>
+
+- **Keep copies all along the route.** Browser, CDN, reverse proxy or gateway, API-server RAM, API-server disk, shared cache, materialized view. Local copies give up consistency between servers, so use them for data that rarely changes, with an expiry and a size cap.
+- **Plan capacity by division.** Machines = forecast peak ÷ one machine’s load-tested capacity. Raise capacity before a known spike; reactive autoscaling arrives late.
+- **Scale from the bottom up.** The database and every dependency first, then the API servers. Grow the database with a bigger machine, then read replicas, then shards. Decide which reads are critical, such as an account balance, and send those to the master; everything that can be a little old goes to a replica.
+- **Keep the request to the bare minimum.** Delegate the rest through a broker: a queue for one kind of work, a stream when several consumers each need every event. Expect every message at least once.
+- **Let the database add.** `claps = claps + 1` in SQL prevents lost updates; a write that is safe to repeat prevents double counts.
+- **Pick the channel by the conversation.** Short polling is simple and costs requests; long polling holds one request per client; a WebSocket is two-way and stateful; SSE is one-way and simple; push reaches a closed app through the platform.
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="What comes next?" crumb="6.4 Next">
+
+<RecallQuestions>
+  <RecallItem q="Why can each API server keep a published post in its own memory, but not the post’s clap count?">
+
+Each server holds its own copy and no server sees the others’. A published post almost never changes, so two slightly different copies for the length of an expiry hurt nobody. A clap count changes constantly, so different servers would show different numbers.
+
+  </RecallItem>
+  <RecallItem q="A load test says one API server handles 100 requests a second, and marketing forecasts 500 a second at the campaign’s peak. What do you do, and in what order?">
+
+Five API servers. But first make sure the database and every other dependency can take the queries that 500 requests a second bring, or the extra servers just pass the overload down and the whole site cascades. Raise capacity before the message goes out, then let marketing send.
+
+  </RecallItem>
+  <RecallItem q="A topic has 3 partitions and you run 5 search consumers in one group. Then one consumer crashes after processing a batch but before committing. What happens in each case?">
+
+Two of the five get no messages, because each partition goes to one consumer in a group. After the crash, the batch is read again from the last commit, so its messages are processed twice: at-least-once delivery.
+
+  </RecallItem>
+  <RecallItem q="Name the two ways a counter goes wrong in this lecture and the fix for each.">
+
+A lost update: two writers read the same value and one write erases the other; fix it with an atomic update in the database, `claps = claps + 1`. A double count: a message is delivered or processed twice; fix it by making the write safe to repeat.
+
+  </RecallItem>
+</RecallQuestions>
+
+The claps came out right because the database added one to one row in one step. Most real problems are not that kind. A whole flight of passengers checking in at the same moment all want seats, and each one has to see what is free before taking one. <LectureLink lec="lec05">Lecture 3</LectureLink> opens the database to see how locks hold that together, watching them work live on an airline check-in, then builds a key-value store on top of MySQL. [[L-0222 L-0229 L-0296]]
+
+</Section>

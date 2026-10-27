@@ -1,0 +1,110 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { LongPolling } from '../../../figures/lec01/fig-5c';
+import { ServerSentEvents } from '../../../figures/lec01/fig-5e';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
+
+{/* Chapter 5 "Can the other reader see the clap without refreshing?" Story rewrite: request-response and what REST
+    is → short polling and its cost (pause) → long polling → WebSockets (clip: three ways to hear "ready") →
+    server-sent events. Section ids kept for links from other lectures (s5, s5-5). */}
+
+<Section id="s5" no="5" title="Can the other reader see the clap without refreshing?" crumb="5 Live" meta="About 9 min">
+
+Two people are reading the same post. One claps. The product team wants the other to see it happen, a little animation and the count ticking up, without touching anything. Twitter does this with likes on a celebrity’s post, Instagram with hearts on a live video. [[L-0274 L-0275]]
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="The blog so far. Marked new: a clap is one atomic step in the database, claps = claps + 1.">
+<Desk><SoFarMedium stage={4} /></Desk>
+<Phone><SoFarMedium stage={4} layout="phone" /></Phone>
+</Figure>
+
+This is a question about communication, the most neglected part of system design. Most designs expose an endpoint and stop there, as if that were the only way a client and a server can talk. [[L-0232]]
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="How does a browser hear about anything?" crumb="5.1 Hearing">
+
+The usual way is request and response. The client asks, the server does the heavy lifting (reads the database, computes, checks who you are) and answers, like ordering a burger: you ask, the kitchen works, the food comes out. [[L-0236 L-0237]] (An endpoint isn’t REST just because it speaks HTTP; REST is an architectural style with its own constraints <Cite href="https://www.ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm">ics.uci.edu</Cite>.) [[L-0233]]
+
+The limit is built into the shape: the server only ever *answers*. It can’t speak first. So how does a page learn that something changed?
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="What does asking every ten seconds cost?" crumb="5.2 Asking">
+
+The simplest way is to keep asking. Launch a server in the AWS console and its status says “in progress”, then turns to “ready” while you watch; live cricket scores on Cricbuzz update the same way. The page’s JavaScript does what you would do by hand: it asks again every few seconds. That is **short polling**, the simplest tool there is and the usual one for watching a long-running job. The catch is what it costs. [[L-0238 L-0239 L-0240 L-0241 L-0242]]
+
+<PauseAndThink k="L-0243"
+  q="A million readers have a post open, and each page polls for new claps every 10 seconds. How many requests reach your servers per minute?"
+  choices={[{ label: '600,000' }, { label: '6 million', correct: true }, { label: '60 million' }]}
+  right="Right."
+  wrong="Not quite.">
+
+Every 10 seconds is 6 requests a minute per reader. A million readers make 6 million requests a minute, about 100,000 a second.
+
+</PauseAndThink>
+
+And nearly all of them are wasted. A server launch that takes an hour gets an hour of requests that each return the same “in progress”; a post that nobody claps for gets the same count back every time. The server handles a flood of requests to say “nothing new”. [[L-0245]] Each one is a full HTTP request with its headers; HTTP/1.1 reuses the open connection between polls, so the cost is the sheer number of requests rather than new handshakes <Cite href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Connection_management_in_HTTP_1.x">developer.mozilla.org</Cite>. [[L-0244]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="What if the server waited before answering?" crumb="5.3 Waiting">
+
+Turn it around. The client asks once, and the server doesn’t answer until it has something new. That is **long polling**. Ask for the server’s status after the launch is acknowledged and the reply comes the moment it is ready; ask for the score and the reply comes when the next ball is bowled. [[L-0246 L-0249 L-0250]]
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0246 L-0249 L-0250" caption="Long polling, time running down. One request; the server holds it until something changes, then answers. On a timeout the client asks again.">
+<Desk><LongPolling /></Desk>
+<Phone><LongPolling layout="phone" /></Phone>
+</Figure>
+
+Requests drop sharply, but the work moves to the server, which now holds one open request per waiting client: for the million readers, about a million held requests instead of 100,000 new ones a second. [[L-0248]] Hold it the right way: a well-built server parks the request and wakes it when the event arrives, instead of running a loop per request that keeps checking. Keep the wait modest, too, because proxies cut off requests that hang too long; RFC 6202 suggests about 30 seconds, after which the client simply asks again <Cite href="https://www.rfc-editor.org/rfc/rfc6202">rfc-editor.org</Cite>. [[L-0248 L-0277]]
+
+Does it scale? Yes. A held request is close to a persistent connection, and an event-driven server can hold a great many. [[L-0277]] The part nobody hands you is the “has it changed?” logic: what counts as new for a server launch, a cricket score or a chat is yours to write. [[L-0247]] And if the server dies mid-wait, the connection breaks and the client asks again, which is harmless for a score and needs thought for a payment. [[L-0280]]
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="What if the line stayed open?" crumb="5.4 Open line">
+
+Lecture 1’s connection pool kept TCP connections open so a server didn’t pay to open and close one for every query. Do the same between the browser and the server and you have a **WebSocket**: one persistent, two-way channel. [[L-0253 L-0254]] It begins life as an ordinary HTTP request that asks to be upgraded; once the server agrees, the same connection carries WebSocket frames, not HTTP, and `wss://` is the encrypted version, as HTTPS is to HTTP <Cite href="https://www.rfc-editor.org/rfc/rfc6455">rfc-editor.org</Cite>. [[L-0255]]
+
+Because the line stays open, either side can send at any time. The server can finally speak first. [[L-0256]] That is how chat works: when a user sends a message, the server pushes it to the recipient, who never asks “anything new for me?”. Stock tickers, multiplayer games and live meeting chat are built the same way, and so are the live claps. Claps travel both ways, since every reader both sends claps and receives everyone else’s, so the blog gives each reader one WebSocket to a small real-time likes service: a clap goes up the socket, the count is updated, and the new number goes down every other reader’s socket. [[L-0251 L-0257 L-0261 L-0262 L-0274]] No setup per message makes every exchange cheap. [[L-0260]]
+
+<AnimationClip clip="l01-polling" no="Clip 5·1"
+  k="L-0238 L-0243 L-0245 L-0246 L-0248 L-0250 L-0256 L-0265"
+  lead="Before you play it: a job is ready at 60 seconds. How many requests does each approach make before the browser knows?"
+  caption="One piece of news, ready at 60 s, heard three ways: a short poll every 10 s, one held long-poll request, and an open connection the server pushes on." />
+
+The price is that connections are now state. An idle WebSocket mostly costs memory and a file handle, and one server can hold a very large number of them: WhatsApp reported over 2 million per server <Cite href="https://blog.whatsapp.com/1-million-is-so-2011">blog.whatsapp.com</Cite>. What is expensive is everything around them: knowing which server holds which reader, and surviving a server crash when all its clients reconnect at once, which they should do with randomised back-off so they don’t arrive as one storm. [[L-0258 L-0374 L-0375]] Scaling WebSockets properly is where <LectureLink lec="lec02">Lecture 4</LectureLink> starts, with Slack. [[L-0259]]
+
+</Section>
+
+<Section id="s5-5" no="5.5" title="What if only the server has anything to say?" crumb="5.5 One way">
+
+Look at the stock ticker again. The browser never sends anything; prices only flow down. You don’t need a two-way channel for that. **Server-sent events** (SSE) give you a one-way one: the client opens the connection once, and from then on only the server sends. [[L-0265]] Under the hood it is a single HTTP response that never ends, and the browser’s `EventSource` reconnects by itself if it drops and, if the server gave its events IDs, tells the server the last one it saw <Cite href="https://developer.mozilla.org/en-US/docs/Web/API/EventSource">developer.mozilla.org</Cite>. [[L-0265 L-0385]]
+
+<Figure id="fig-5c" no="Fig 5·c" k="L-0265 L-0267 L-0385" caption="Server-sent events. The client subscribes once; after that only the server sends.">
+<Desk><ServerSentEvents /></Desk>
+<Phone><ServerSentEvents layout="phone" /></Phone>
+</Figure>
+
+The TCP connection underneath could carry data both ways; the SSE protocol just gives the client no way to send on it. [[L-0385]] What you get in exchange is simplicity: MDN’s working example, server and page together, fits on one screen. [[L-0270 L-0271]] It fits anything that streams one way: price tickers, deployment logs scrolling in a browser, a remote terminal’s output, and the token-by-token replies of today’s LLM APIs. [[L-0267 L-0269]]
+
+A ticker also shows how to think before filtering. Should each client get only the stocks on its watchlist? Do the arithmetic: if every one of about 10,000 listed companies’ prices changes once a second, 10,000 × 4 bytes is 40 KB a second. One client handles that easily, so send everything and filter in the browser. Stay away from complication you don’t need. [[L-0281 L-0282]] At a million clients the same stream is 40 GB a second of outbound traffic, and then filtering on the server starts to pay. [[L-0281]]
+
+Could the claps use SSE instead of the WebSocket? Yes: a clap goes up as an ordinary POST, the page updates its own count straight away, and new counts come down over SSE. It is a common, valid pattern; <LectureLink lec="lec02">Lecture 4</LectureLink> picks the channel for Slack. [[L-0279]] The blog keeps one socket because claps flow both ways, but there is no universal winner. WebSockets cost the most to operate (routing, reconnect storms), short polling suffers in a surge, long polling suits waits of a few seconds; choose by the conversation you have. [[L-0278]] Then build the hello-world version of each, because until you do, it is just boxes on a diagram. [[L-0272]]
+
+<MarginNote title="Go deeper: a WebSocket behind a load balancer" why="if you deploy one" k="L-0341 L-0386 L-0391">
+
+A WebSocket starts as an HTTP request, so the load balancer must understand the upgrade (nginx needs the headers forwarded explicitly). Once upgraded, each connection stays pinned to one server for its life, so plain WebSockets need no sticky sessions; libraries that fall back to long polling do. Watch idle timeouts too (60 s by default on AWS’s ALB and in nginx): send pings to keep quiet connections alive <Cite href="https://nginx.org/en/docs/http/websocket.html">nginx.org</Cite>.
+
+</MarginNote>
+
+Every one of these channels needs the reader’s page open and connected to you. Close the tab, or let the phone lock the app, and none of them can reach the reader.
+
+</Section>

@@ -1,96 +1,97 @@
 ---
-title: Medium under load
-kicker: "Lecture 02 · week 1, day 2 · running case: Medium"
-dek: "Caching at every level, then the rest of the framework (scaling, delegation, concurrency and communication), each worked through on Medium."
-description: "Lecture 02: caching at every level, then scaling, delegation, concurrency and communication, each worked through on Medium."
-reviewed: 13 Oct 2026
+title: "Medium under load"
+kicker: "Lecture 2 · the blog from Lecture 1, now popular"
+dek: "The viral post sits in one shared cache, yet every view still crosses your network. Follow the same blog as it gets popular: more readers than your machines can take, a publish button that does too much, two claps in the same instant, and readers who want to watch the count move."
+description: "Lecture 2: caches along the whole request route, scaling servers and the database, delegating work to queues and Kafka, the lost update on a clap counter, and polling, WebSockets, server-sent events and push, all on one Medium-like blog."
+reviewed: 27 Oct 2026
 status: published
-ledger: learn/lec01/ledger/ledger.jsonl
+ledger: lectures/lec01/ledger/ledger.jsonl
+origin: "One blog, under load"
+footnote: "facts checked against primary sources, linked where they come from outside this lecture."
 contents:
   - no: "1"
-    title: Caching at every level
+    title: "Where else could you keep a copy?"
     href: "#s1"
     children:
-      - { no: "1.1", title: Where can a cache go?, href: "#s1-1" }
-      - { no: "1.2", title: The API server’s own memory, href: "#s1-2" }
-      - { no: "1.3", title: The API server’s disk, href: "#s1-3" }
-      - { no: "1.4", title: "Closer to the reader: the browser", href: "#s1-4" }
-      - { no: "1.5", title: "The CDN, and caches closer still", href: "#s1-5" }
-      - { no: "1.6", title: The load balancer and the API gateway, href: "#s1-6" }
-      - { no: "1.7", title: "Inside the database: materialized views", href: "#s1-7" }
-      - { no: "1.8", title: "One route, every layer", href: "#s1-8" }
+      - { no: "1.1", title: "Is the shared cache the only place?", href: "#s1-1" }
+      - { no: "1.2", title: "What if each server kept its own copy?", href: "#s1-2" }
+      - { no: "1.3", title: "What else is on the box?", href: "#s1-3" }
+      - { no: "1.4", title: "Can the reader’s browser answer?", href: "#s1-4" }
+      - { no: "1.5", title: "Can the request stop before it reaches you?", href: "#s1-5" }
+      - { no: "1.6", title: "Every stop on one route", href: "#s1-6" }
   - no: "2"
-    title: Scaling
+    title: "Marketing is about to message every user"
     href: "#s2"
     children:
-      - { no: "2.1", title: What scaling means, href: "#s2-1" }
-      - { no: "2.2", title: "Vertical, horizontal, and the hardware ceiling", href: "#s2-2" }
-      - { no: "2.3", title: Spikes you can see coming, href: "#s2-3" }
-      - { no: "2.4", title: Scaling the database, href: "#s2-4" }
+      - { no: "2.1", title: "Why not just buy a bigger machine?", href: "#s2-1" }
+      - { no: "2.2", title: "How many machines, and when?", href: "#s2-2" }
+      - { no: "2.3", title: "Five API servers now. Who feels it?", href: "#s2-3" }
+      - { no: "2.4", title: "How does a database grow?", href: "#s2-4" }
   - no: "3"
-    title: Delegation
+    title: "Publishing a story does too much"
     href: "#s3"
     children:
-      - { no: "3.1", title: Not everything belongs in the request, href: "#s3-1" }
-      - { no: "3.2", title: Medium’s total_blogs counter, href: "#s3-2" }
-      - { no: "3.3", title: Message queues, href: "#s3-3" }
-      - { no: "3.4", title: When one worker does two jobs, href: "#s3-4" }
-      - { no: "3.5", title: Message streams, href: "#s3-5" }
-      - { no: "3.6", title: "Kafka essentials: topics, partitions, consumer groups", href: "#s3-6" }
-      - { no: "3.7", title: "Committing, and why messages come back", href: "#s3-7" }
-      - { no: "3.8", title: "Choosing: queue, stream, or broadcast", href: "#s3-8" }
+      - { no: "3.1", title: "What has to happen before the writer sees “published”?", href: "#s3-1" }
+      - { no: "3.2", title: "Who does the rest, and when?", href: "#s3-2" }
+      - { no: "3.3", title: "What holds the work in between?", href: "#s3-3" }
+      - { no: "3.4", title: "Search wants the same event", href: "#s3-4" }
+      - { no: "3.5", title: "What would let each job go at its own pace?", href: "#s3-5" }
+      - { no: "3.6", title: "How does one topic spread over many machines?", href: "#s3-6" }
+      - { no: "3.7", title: "A consumer crashes mid-batch. What comes back?", href: "#s3-7" }
   - no: "4"
-    title: Concurrency
+    title: "Two readers clap at the same instant"
     href: "#s4"
     children:
-      - { no: "4.1", title: Why bother with concurrency, href: "#s4-1" }
-      - { no: "4.2", title: The lost update, href: "#s4-2" }
-      - { no: "4.3", title: "Locks, lock-free, and letting the database do it", href: "#s4-3" }
+      - { no: "4.1", title: "Where did the clap go?", href: "#s4-1" }
+      - { no: "4.2", title: "Can a lock in your code fix it?", href: "#s4-2" }
+      - { no: "4.3", title: "Who should do the +1?", href: "#s4-3" }
   - no: "5"
-    title: Communication
+    title: "Can the other reader see the clap without refreshing?"
     href: "#s5"
     children:
-      - { no: "5.1", title: "The usual way, and what REST isn’t", href: "#s5-1" }
-      - { no: "5.2", title: Short polling, href: "#s5-2" }
-      - { no: "5.3", title: Long polling, href: "#s5-3" }
-      - { no: "5.4", title: WebSockets, href: "#s5-4" }
-      - { no: "5.5", title: Server-sent events, href: "#s5-5" }
-      - { no: "5.6", title: Push notifications are a different thing, href: "#s5-6" }
-      - { no: "5.7", title: "Medium, hop by hop", href: "#s5-7" }
-  - { no: "6", title: What to keep, href: "#s6" }
-# one page per chapter (the summaries are the chapter openers' deks)
+      - { no: "5.1", title: "How does a browser hear about anything?", href: "#s5-1" }
+      - { no: "5.2", title: "What does asking every ten seconds cost?", href: "#s5-2" }
+      - { no: "5.3", title: "What if the server waited before answering?", href: "#s5-3" }
+      - { no: "5.4", title: "What if the line stayed open?", href: "#s5-4" }
+      - { no: "5.5", title: "What if only the server has anything to say?", href: "#s5-5" }
+  - no: "6"
+    title: "The app is closed. Can you still reach the reader?"
+    href: "#s6"
+    children:
+      - { no: "6.1", title: "Who delivers to a sleeping phone?", href: "#s6-1" }
+      - { no: "6.2", title: "What does each hop of the blog speak?", href: "#s6-2" }
+      - { no: "6.3", title: "What you can now do", href: "#s6-3" }
+      - { no: "6.4", title: "What comes next?", href: "#s6-4" }
 chapters:
   - no: "1"
     slug: 1-caching
-    parts: [s1-caching]
-    summary: "Before buying more machines, stop doing the same work twice. Every box on a Medium request’s route can keep a copy of something."
+    parts: [c1-copies]
+    summary: "Lecture 1’s homework, answered: every place along a reader’s route where a copy could live, and what each one gives up."
   - no: "2"
     slug: 2-scaling
-    parts: [s2-scaling]
-    summary: "More readers than one box can serve. What scaling means, the two directions, the spikes you can see coming, and why the database goes first."
+    parts: [c2-campaign]
+    summary: "A campaign is about to send every user to the site at once. How many machines it needs, what more servers do to everything behind them, and how a database grows."
   - no: "3"
     slug: 3-delegation
-    parts: [s3a-delegation, s3b-delegation]
-    summary: "Publishing a story does too much inside one request. What to take out of the request, the two kinds of broker, and the Kafka essentials you need to design with."
+    parts: [c3-publish]
+    summary: "An author’s story count has to go up on every publish. What belongs in the request, and what happens to the rest when a worker crashes."
   - no: "4"
     slug: 4-concurrency
-    parts: [s4-concurrency]
-    summary: "Two readers clap at the same instant. A short taste of what goes wrong when two workers touch one number, and of the tools that keep it right."
+    parts: [c4-claps]
+    summary: "A post with 100 claps gets two more in the same instant. Where does the count end up?"
   - no: "5"
     slug: 5-communication
-    parts: [s5-communication]
-    summary: "Show claps live to every co-reader. Request-response, polling, long polling, WebSockets and server-sent events, and which hop in Medium uses which."
+    parts: [c5-live]
+    summary: "A reader claps, and another reader of the same post should see it without refreshing. The ways a server can tell a browser that something changed, and what each one costs."
   - no: "6"
-    slug: 6-what-to-keep
-    parts: [s6-keep]
-    summary: "The heuristics that recur in every section, and where this lecture stops."
+    slug: 6-closed-app
+    parts: [c6-reach]
+    summary: "Reaching a reader whose app is asleep, and what each hop of the blog speaks."
 ---
 import Header from './lec01/s0-header.mdx';
 
-{/* Lecture 01. This body is the lecture overview page (/lectures/lec01/): the header block (About this class,
-    Medium so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec01/<slug>/), built from the
-    parts listed under `chapters` in the frontmatter, in outline order. Section ids: #s1 … #s6 (§4's opening is
-    #s4-1; the chapter page adds #s4 as an anchor on it), subsections #s<n>-<m>. A link to a section on another
-    chapter page is written as a plain #id: the page template sends it to the right chapter. */}
+{/* Lecture 02 (lec01) overview page: the hook and what happens to the blog. Chapters are their own pages (see
+    `chapters`). Story rewrite; see lectures/lec01/story/NOTES.md. Section ids s1-1 … s5-5 keep the numbers other
+    lectures link to (caching 1, scaling 2, delegation 3, concurrency 4, communication 5). */}
 
 <Header />

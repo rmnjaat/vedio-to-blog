@@ -1,39 +1,49 @@
-import MarginNote from '../../../components/MarginNote.astro';
 import Figure from '../../../components/Figure.astro';
-import Cite from '../../../components/Cite.astro';
-import { MediumSoFar } from '../../../figures/lec01/fig-1a';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec01.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec01.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 02 · week 1, day 2 · running case: Medium"
-      title: Medium under load
-      dek: "Caching at every level, then the rest of the framework (scaling, delegation, concurrency and communication), each worked through on Medium."
-      contents: 1 Caching at every level (#s1; children 1.1 #s1-1 … 1.8 #s1-8), 2 Scaling, 3 Delegation, 4 Concurrency, 5 Communication, 6 What to keep.
-    §1 children titles: Where can a cache go? · The API server’s own memory · The API server’s disk · Closer to the reader: the browser ·
-      The CDN, and caches closer still · The load balancer and the API gateway · Inside the database: materialized views · One route, every layer */}
+{/* Lecture 02 (lec01) overview body: the hook (Lecture 1's homework), what happens to the blog, what you will be able
+    to do. Story rewrite, see lectures/lec01/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+<LectureLink lec="lec04">Lecture 1</LectureLink> ended on a viral post. Every reader who opened it made the database run the same join, so you put one copy of the result in a cache that every API server can reach, and the database’s load from that post fell to almost nothing. Then came a question to take away: along the whole path a reader’s request travels, where else could you keep a copy? (The blog is a Medium-style site: writers publish stories, and readers read them and clap.)
 
-This is day 2 of week 1. It finishes the course framework that day 1 started, and every part of it is worked through on one running case, Medium, with attention to how things are actually implemented and what they buy you in performance. [[L-0001]]
+This lecture opens with the answer, and then keeps going, because the blog is popular now and popularity doesn’t arrive as one problem. It arrives as more readers than your machines can serve, a publish button that does too much while the writer waits, two readers clapping for the same post in the same instant, and readers who want to watch the claps arrive without pressing refresh.
 
-The class went through caching at different levels, then scaling, delegation, concurrency and communication, in that order, and this page follows it. Delegation before concurrency works well here: the counter that delegation builds is exactly the thing concurrency breaks. [[L-0007]]
+Each of those breaks something in the design you have. Each fix adds a box to the picture below, and each box has a price that sets up the next chapter. [[L-0001]]
 
-Concurrency gets only a short taste here. Week 2, day 1 goes deep on how concurrency in a database falls apart, with practical examples. The whole course runs 8 weeks, 16 sessions, kept focused on engineering. Security is not part of it: it is not high-level architecture, and the course website lists the exact topics the course does cover. [[L-0008 L-0005 L-0351]]
-
-**How to use this page.** There is no reading list after the class, and the order of topics changes from cohort to cohort. When a term catches your eye, look it up and read the primary documentation yourself. The class’s example was MySQL’s documentation on how it stores datetimes. Curated links go stale; you go looking for one thing and land on something far more interesting, and that is how you get better. [[L-0003 L-0004]]
-
-</MarginNote>
-
-### Medium so far
-
-Here is Medium’s picture as this class starts. A reader’s browser sends a request to an API server, the API server reads the story from one database, and the answer goes back the same way. There are two API servers, and next to the database sits one shared cache, a Redis instance that every API server can call. [[L-0013]]
-
-That picture works until a story goes viral. This page grows it, one box at a time. Each section starts from something Medium is struggling with right now and ends with a rule you can take to any other system.
-
-<Figure id="fig-1a-sofar" max={300} k="L-0013" caption="Medium so far: a reader, two API servers, one database and a shared Redis alongside. The dot in each API server’s corner is its own local memory; §1.2 puts it to work. Redrawn from the class board at 00:30.">
-<MediumSoFar />
+<Figure id="fig-0a" max={640} no="Fig 0·a" caption="Where Lecture 1 left the blog: a reader, three API servers, one shared cache in front of the database. Every chapter opens on this map as it grows.">
+<Desk><SoFarMedium stage={0} /></Desk>
+<Phone><SoFarMedium stage={0} layout="phone" /></Phone>
 </Figure>
+
+### What happens to the blog
+
+**Readers keep coming back to the same posts (chapter 1).** You find every place along the route that can answer before the database does, and what each one gives up.
+
+**Marketing is about to message every user (chapter 2).** You work out how many machines a spike needs, what adding API servers does to everything behind them, and how a database grows when one machine isn’t enough.
+
+**Publishing does too much (chapter 3).** A writer presses Publish, and the request that saves the post is asked to do more and more besides. You decide what can happen later, who does it, and what happens when that worker crashes halfway.
+
+**Two readers clap at once (chapter 4).** A count of 100 receives two claps. Where it ends up is the lesson.
+
+**Readers want to see claps live (chapters 5 and 6).** You compare the ways a server can tell a browser that something changed, from asking every few seconds to keeping a line open, and finish with what each hop of the blog speaks.
+
+### What you’ll be able to do
+
+- Place a cache at the right stop on a request’s route and say what it saves and what it gives up.
+- Estimate how many machines a spike needs, scale in the order that doesn’t cause an outage, and route each read to a primary or a replica on purpose.
+- Take work out of a request with a queue or a stream, and say which one a job needs and what happens when a worker crashes halfway.
+- Spot a lost update on a counter and let the database make it safe.
+- Pick short polling, long polling, a WebSocket, server-sent events or a push notification from the shape of the conversation.
+
+### Before you start
+
+You need <LectureLink lec="lec04">Lecture 1</LectureLink>: the blog’s tables, connection pools, and what a cache is. Each chapter opens with the blog’s map so far, with the piece the last chapter added marked “new”. When a “Pause and think” box asks you something, commit to an answer before you open it.
+
+Most of what follows can be tried on a laptop: a local Redis, two copies of a tiny API server, a queue. Building even the hello-world version of each idea is what shows you where it bends. [[L-0039 L-0272]]
 
 </div>

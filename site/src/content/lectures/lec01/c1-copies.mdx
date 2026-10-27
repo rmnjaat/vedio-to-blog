@@ -1,0 +1,144 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoCopies } from '../../../figures/lec01/fig-1b';
+import { ApiServerSpace } from '../../../figures/lec01/fig-1c';
+import { CdnAndIsp } from '../../../figures/lec01/fig-1d';
+import { CacheRoute } from '../../../figures/lec01/fig-1f';
+import { SoFarMedium } from '../../../figures/lec01/so-far';
+
+{/* Chapter 1 "Where else could you keep a copy?" Story rewrite: Lecture 1's homework answered, walking from the API
+    server (RAM, then the disk punchline) out to the browser, the CDN and the load balancer, then the whole route. */}
+
+<Section id="s1" no="1" title="Where else could you keep a copy?" crumb="1 Copies" meta="About 9 min">
+
+The viral post now lives in one shared cache, and the database barely notices it. But look at what a hit still costs: the request crosses the internet to an API server, which makes a network call to the shared cache, and the post travels all the way back. The database is spared; the network is not. And the post hasn’t changed by a single character since it was published.
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="The blog as Lecture 1 left it: three API servers, one shared cache, one database. This chapter adds copies everywhere else on the route.">
+<Desk><SoFarMedium stage={0} /></Desk>
+<Phone><SoFarMedium stage={0} layout="phone" /></Phone>
+</Figure>
+
+This chapter answers Lecture 1’s question one stop at a time, starting where the request already is, on the API server, and moving out towards the reader. (The blog is a Medium-style site, so its posts are “stories”; in the database the table is `blogs`.)
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Is the shared cache the only place?" crumb="1.1 Only place?">
+
+Ask an engineer to “add a cache” and almost everyone draws the same box: one Redis next to the database. Assuming it is the only option leaves most of the good places unused, including the ones that make your infrastructure cheaper. [[L-0017 L-0318]]
+
+Asked where to cache, many people say “at several layers, to reduce latency”. That names no layer. A real answer has three parts: what you keep, exactly where it sits, and what it spares you. “Each API server keeps the rendered post in its own memory, so it skips the call to the shared cache” is an answer. [[L-0011 L-0012]]
+
+Lecture 1 gave you the test for the last part: a cache is anything that saves an expensive computation or an expensive I/O. A copy is worth keeping only when reading it is cheaper than the work it replaces. [[L-0058 L-0066]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="What if each server kept its own copy?" crumb="1.2 Own copy">
+
+Every API server already has RAM. The simplest cache there is a hash map in the server’s own memory, sitting in front of the shared cache. A hit never leaves the process, so it saves the network call to the shared cache, which is the expensive part. Startups lean on it as a cheap hack, and large applications keep in-process caches too. [[L-0013 L-0019 L-0022]]
+
+It has three costs: its size is capped by the memory the application leaves free, it vanishes when the process restarts, and each server holds a different copy, because nobody else can see a server’s memory. [[L-0014 L-0018]] Watch what that does to one post (Medium calls them stories).
+
+<StepThrough id="fig-1b" no="Fig 1·b" label="Two servers, two copies"
+  k="L-0014 L-0015 L-0018 L-0021 L-0023 L-0025"
+  stepK={['L-0018', 'L-0018', 'L-0015', 'L-0014 L-0015 L-0021', 'L-0023 L-0025']}
+  caption="Time runs down. Lanes are a reader, two API servers each with a local cache, and the database. The red ring is a stale copy."
+  steps={[
+    'A reader asks for story 42 and lands on server <strong>A</strong>. A’s cache is empty, so it reads the database and keeps <code>v1</code>.',
+    'The next request lands on <strong>B</strong>. B never saw A’s copy, so it misses too and fills its own <code>v1</code>.',
+    'The writer edits the story. The database now holds <code>v2</code>; both caches still hold <code>v1</code>.',
+    'B’s entry expires first and B fetches <code>v2</code>. A still serves <span class="term red">v1</span>: two readers, two answers.',
+    '<span class="term green">Fine for a published story</span>, which almost never changes. <span class="term red">Not fine for a clap count</span>, which changes all the time.',
+  ]}>
+<Desk><TwoCopies /></Desk>
+<Phone><TwoCopies layout="phone" /></Phone>
+</StepThrough>
+
+The shared cache exists to avoid this: every server reads the same copy. Go local and you trade that away for the hop you save. [[L-0016 L-0021]] Two situations make the trade safe. With **sticky sessions**, the load balancer sends a user to the same server every time, so that server can keep the user’s data (if it dies, the user moves and the data is rebuilt elsewhere). Or the data is nearly static, so a slightly old copy for a while hurts nobody. [[L-0020 L-0023]]
+
+A published post is the second case: it almost never changes, so the blog can keep published posts in API-server memory. [[L-0025]]
+
+It isn’t local *or* shared. Real systems layer them: a small local cache on each server, the shared cache behind it. Give every local entry an expiry and the cache a memory cap, because an API server has little RAM to spare. [[L-0026 L-0027 L-0028]] Making many local copies agree the moment a post changes is a harder problem; it needs the servers to tell each other about changes, a publish/subscribe channel like the one <LectureLink lec="lec02">Lecture 4</LectureLink> builds for Slack. [[L-0046]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="What else is on the box?" crumb="1.3 The box">
+
+RAM is the scarce part of that server: of 8 GB, the operating system, the application and other jobs take most, and a cache gets what is left. [[L-0060]]
+
+<PauseAndThink k="L-0057 L-0058 L-0059 L-0061"
+  q="The same API server came with a 20 GB disk. The operating system, the app’s packages and its jar files fill 2–3 GB; the rest is empty. Is a copy of the post on that disk worth keeping?"
+  choices={[{ label: 'No: a cache has to be in memory to be fast' }, { label: 'Yes', correct: true }]}
+  right="Right. The test is what the copy saves, not where it sits."
+  wrong="Run the test from 1.1: what does a read from that disk save?">
+
+A read from the server’s own disk replaces a network call to the shared cache or the database. A cache is anything that saves an expensive I/O, and the network call is the expensive one.
+
+</PauseAndThink>
+
+Few teams think of it, because a cache “should be in memory”. Yet every cloud VM ships with a disk that mostly holds nothing, already paid for. [[L-0059 L-0061]]
+
+<Figure id="fig-1c" max={640} no="Fig 1·c" k="L-0059 L-0060 L-0061" caption="Left: on one API server, RAM is nearly all spoken for while the disk is mostly empty. Right: classic latency numbers on a log scale; the network round trip is the one a local copy avoids.">
+<Desk><ApiServerSpace /></Desk>
+<Phone><ApiServerSpace layout="phone" /></Phone>
+</Figure>
+
+Why it wins: Linux keeps recently read files in its page cache, built from RAM the applications aren’t using, so a disk cache that is read often is served from memory without calling a shared service <Cite href="https://www.kernel.org/doc/html/latest/admin-guide/mm/concepts.html">kernel.org</Cite>. One caveat: on AWS the default disk is an EBS volume, itself network-attached; the host’s own disks, called instance store, are what AWS recommends for caches <Cite href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/InstanceStorage.html">docs.aws.amazon.com</Cite>. [[L-0059 L-0061]]
+
+Same warning as for RAM: no central view, so two requests can get two answers. [[L-0062 L-0067]]
+
+Lecture 1 told of an engineer at a large bank who came out of this same where-else-can-I-cache exercise with an idea, took it to work and got a large speed-up. This was the idea: the API servers’ own disks, used as a cache. [[L-0063]] Everyone had taken the disk for granted. Question every component on the route. [[L-0064 L-0065]]
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="Can the reader’s browser answer?" crumb="1.4 Browser">
+
+A browser caches images and static assets, and it can keep some API responses too, so the request is never sent. Open a post a second time and the images appear at once: that is the browser’s own cache, not a fast network. [[L-0042 L-0368]]
+
+For data you choose to keep, `localStorage` holds a modest amount, about 5 MiB of strings per site; larger data belongs in IndexedDB <Cite href="https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria">developer.mozilla.org</Cite>. [[L-0045 L-0367 L-0370]] To see it, open developer tools: the Network tab marks responses served from its cache, and the Application panel in Chrome (Storage in Firefox) shows what a site keeps in `localStorage`. [[L-0369 L-0371]]
+
+</Section>
+
+<Section id="s1-5" no="1.5" title="Can the request stop before it reaches you?" crumb="1.5 Before you">
+
+Between the reader and your servers sits a CDN. Most people think a CDN is for images and video. It is a proxy between the reader and your backend, and to a proxy everything is bytes, so it can cache API responses too. [[L-0051]] It follows the response’s cache headers and its own defaults (Cloudflare won’t cache JSON until you add a rule <Cite href="https://developers.cloudflare.com/cache/concepts/default-cache-behavior/">developers.cloudflare.com</Cite>), and anything personal must be marked `private` so it is never served to another reader.
+
+A near-static response is a perfect fit. The blog’s `/popular` list is the same for every reader and rarely changes; cache it at the CDN and the request never reaches your API servers or your shared cache. Giphy does this for the results of its most popular searches. [[L-0053 L-0055 L-0056 L-0054]]
+
+Behind the CDN, in front of your servers, sits one more stop: the reverse proxy or API gateway. nginx and API gateways can cache whole responses (a plain load balancer such as AWS’s ALB only routes and caches nothing). These caches live mostly by their timer: how long a response stays is your main lever, though some gateways also let you flush entries <Cite href="https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-caching.html">docs.aws.amazon.com</Cite>. [[L-0068 L-0308 L-0309]]
+
+<Figure id="fig-1d" max={640} no="Fig 1·d" k="L-0051 L-0053 L-0055 L-0056 L-0344 L-0347" caption="Left: GET /popular is answered at the edge; only a miss goes on to the API server. Right: a very popular show answered by the reader’s internet provider before the CDN is even asked.">
+<Desk><CdnAndIsp /></Desk>
+<Phone><CdnAndIsp layout="phone" /></Phone>
+</Figure>
+
+Out past the CDN, towards the reader, it can go closer still. A popular show doesn’t change once it is live, so Netflix places its own cache servers inside internet providers’ networks, and viewers stream from there without touching the CDN <Cite href="https://about.netflix.com/en/news/how-netflix-works-with-isps-around-the-globe-to-deliver-a-great-viewing-experience">about.netflix.com</Cite>. [[L-0344 L-0347]] <LectureLink lec="lec09">Lecture 7</LectureLink> builds with a CDN in earnest.
+
+</Section>
+
+<Section id="s1-6" no="1.6" title="Every stop on one route" crumb="1.6 The route">
+
+Put the stops in a line and you have the answer to Lecture 1’s homework: the browser, the CDN, the reverse proxy or gateway, the API server’s RAM, its disk, the shared cache, and inside the database the materialized view you met in Lecture 1, a stored query result that has to be refreshed and pays off only when its data changes rarely. [[L-0070 L-0036 L-0037]]
+
+<Figure id="fig-1e" max={700} no="Fig 1·e" k="L-0070 L-0042 L-0053 L-0068 L-0013 L-0059 L-0031" caption="One request for a post, every place it can be answered. The earlier a stop answers, the less of your infrastructure the request touches.">
+<Desk><CacheRoute /></Desk>
+<Phone><CacheRoute layout="phone" /></Phone>
+</Figure>
+
+For every box on your own route, ask: can I keep something here, and would it make the system better? [[L-0069]] Each answer is a trade. Local copies give up strong consistency between servers. When the data rarely changes and a slightly stale copy for a while is acceptable, that trade is well worth making. [[L-0071]]
+
+<MarginNote title="Go deeper: a cache that can’t afford a miss" why="a real multi-level design" k="L-0314 L-0315 L-0316 L-0317 L-0319 L-0320 L-0321">
+
+One team ran a configuration service where adding more than 3 ms to a read was unacceptable. Changes were snapshotted to S3, or to a CDN for mobile apps; apps loaded them into memory and saved a copy to disk. Reads always hit memory, a background thread pulled the latest, and since memory is empty at every start, the disk path ran on every boot. The general lesson: a fallback that rarely runs is never tested, so make it part of the normal path, as this design did. Configs that rarely change made this depth safe.
+
+</MarginNote>
+
+These copies save work you would repeat. None helps with new work: a writer publishing, a reader clapping, or simply more people arriving at once than your servers can take. That last one is on its way: marketing is about to send a notification to every user.
+
+</Section>
