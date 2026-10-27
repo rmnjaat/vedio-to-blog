@@ -217,7 +217,7 @@ function TapPanel({ id }: { id: string }) {
 export function OneSet({ layout = 'wide' }: Layout) {
   const P = layout === 'phone';
   const id = P ? 'fig5d-p' : 'fig5d';
-  const desc = 'Per user, keep only a set of senders. The board’s separate newly_unread_count is struck out: the set already knows its size. A message from C to B changes nothing, because C is already in B’s set {C, D}; a message from E adds E. The badge shows the size of the set, 3, an O(1) read. One tap deletes the set, and the badge is gone.';
+  const desc = 'Per user, keep only a set of senders. A separate newly_unread_count is struck out: the set already knows its size. A message from C to B changes nothing, because C is already in B’s set {C, D}; a message from E adds E. The badge shows the size of the set, 3, an O(1) read. One tap deletes the set, and the badge is gone.';
   return (
     <Fig id={id} w={P ? 340 : 880} h={P ? 680 : 226} title="One set per user" desc={desc}>
       <g transform={at(P ? 0 : 0, 0)}><SetPanel id={id + '-1'} /></g>
