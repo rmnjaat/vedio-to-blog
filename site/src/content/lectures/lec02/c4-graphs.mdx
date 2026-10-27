@@ -1,0 +1,111 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { AdjacencyList, Cohort, FraudEdge, ThreeHopsGraph, ThreeHopsSql } from '../../../figures/lec02/s4-graphs';
+import { SoFarGuide } from '../../../figures/lec02/so-far';
+
+{/* Chapter 4 "Who follows whom: a job for a graph database?" Story rewrite: follow/following and the wrong instinct
+    (pause, adjacency list, Hulk, FlockDB) → what graph databases are for: degrees, cohorts, fraud in 200 ms → joins
+    vs traversal (recursive CTE stated once), single writer → SQL or not: the broad rule → hand-off: where Slack's
+    messages go, and why storing them is the easy part. */}
+
+<Section id="s4" no="4" title="Who follows whom, and where would Slack keep its messages?" crumb="4 Graphs, then the choice" meta="About 6 min">
+
+Build Twitter’s follow/following. There are users, there are edges between them, and you can draw the whole thing as a graph. So the instinct is to reach for a graph database. [[L-0083]]
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The field guide so far. Marked new: column-oriented storage.">
+<Desk><SoFarGuide stage={3} /></Desk>
+<Phone><SoFarGuide stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="It can be drawn as a graph. Is that the reason?" crumb="4.1 The instinct">
+
+<PauseAndThink k="L-0083 L-0087 L-0088 L-0089"
+  q="Follow/following is literally a graph: people are nodes, follows are edges. Is that a good reason to store it in a graph database?"
+  choices={[{ label: 'Yes: the data is a graph, so use a graph database' }, { label: 'No: almost anything can be drawn as a graph', correct: true }]}
+  right="Right."
+  wrong="That is the most common way to get graph databases wrong.">
+
+A follow list is a lookup by user. Being drawable as a graph doesn’t mean you need what a graph database is built for, and you pay a lot for it.
+
+</PauseAndThink>
+
+Graph databases are among the most misunderstood databases, and this instinct is where it starts. At its core, one takes the adjacency list from your data-structures course, stores it as is, and puts data APIs on top. [[L-0083 L-0084]]
+
+<Figure id="fig-4b" wide={false} max={340} no="Fig 4·b" k="L-0084 L-0090" caption="The graph on top is stored as the adjacency list underneath: each node with the list of nodes it connects to. Bottom right: using a graph database only to keep follow lists.">
+<AdjacencyList />
+</Figure>
+
+What they specialise in is sophisticated graph algorithms, and a follow list needs none. Graph databases tend to be memory hungry and hard to scale, so using one here works but costs far more than it should: the Hulk opening a glass jar. Twitter kept who-follows-whom in FlockDB, a store for plain adjacency lists that listed multi-hop queries as an explicit non-goal <Cite href="https://github.com/twitter-archive/flockdb">FlockDB</Cite>. [[L-0085 L-0087 L-0088 L-0090]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Then what is a graph database for?" crumb="4.2 Algorithms">
+
+For questions about the shape of the graph itself. Open someone’s profile on LinkedIn and it tells you whether they are a 1st, 2nd or 3rd connection: that is a graph algorithm. [[L-0086]]
+
+Recommendations are another. Collaborative filtering starts from cohorts: everyone who bought an iPhone is a set of similar buyers, so when one buys AirPods, the rest are a good audience for AirPods. Real cohorts go two or three levels deep, which is hard to model without a graph. Not every recommender works this way: Amazon’s moved to item-to-item filtering, recomputed daily, offline <Cite href="https://www.amazon.science/the-history-of-amazons-recommendation-algorithm">amazon.science</Cite>. [[L-0091 L-0093 L-0094 L-0095 L-0096]]
+
+<Figure id="fig-4c" wide={false} max={352} no="Fig 4·c" k="L-0093 L-0094 L-0095" caption="Everyone joined to the iPhone node is one cohort. When u3 buys AirPods (blue), the dashed arrows suggest AirPods to the other four. One level deep; real cohorts go further.">
+<Cohort />
+</Figure>
+
+The use that shows a graph database’s real power is fraud detection. A card holder buying a software subscription triggered the one-time password, and right away his bank called to ask whether it was him; only after he said yes did the payment go through. How did they work it out so fast? [[L-0097 L-0098]]
+
+Suppose every transaction a customer has ever made was domestic, and suddenly one is international. In graph terms it is a new edge outside the closely knit cluster of their history, and a graph database can tell very quickly that it is suspicious. As one bank’s engineering lead described it, each transaction is categorised along some 50 or 60 parameters into a graph per customer, and the automated decision to hold the payment and route it to a person must come within 200 milliseconds; the call comes after that decision. [[L-0099 L-0100 L-0101 L-0102 L-0103]]
+
+<Figure id="fig-4d" max={880} no="Fig 4·d" k="L-0099 L-0100 L-0101 L-0103" caption="A sudden overseas payment is a new red edge outside a tight cluster of domestic merchants. The check runs between the one-time password and the decision, inside one bank’s 200 ms budget; the call comes after.">
+<Desk><FraudEdge /></Desk>
+<Phone><FraudEdge layout="phone" /></Phone>
+</Figure>
+
+<RuleBox label="The rule to keep" rule="Use a graph database when you need ==core graph algorithms==, not because the data ==looks like a graph==." k="L-0089">
+
+Degrees of connection, cohorts, a new edge outside a cluster: those are graph algorithms. A list of who follows whom is not.
+
+</RuleBox>
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Why not do it with joins?" crumb="4.3 Joins">
+
+How would you walk that cohort two or three levels deep on a relational database? In a graph database it is one traversal. In SQL you have two options. Written level by level, it is a self-join per level, rewritten whenever the depth changes and slow on huge tables. Or one recursive query, `WITH RECURSIVE`, which walks any depth <Cite href="https://www.postgresql.org/docs/current/queries-with.html">postgresql.org</Cite> and is the first thing to try for a tree, such as a multi-level-marketing hierarchy ten levels deep. [[L-0132 L-0133 L-0393 L-0394]]
+
+<Figure id="fig-4e" panels={2} no="Fig 4·e" k="L-0132 L-0133" caption="The same three hops, A to D: one traversal in a graph; in SQL written level by level, one copy of the edges table per hop, joined in a chain.">
+<Panel><ThreeHopsGraph /></Panel>
+<Panel><ThreeHopsSql /></Panel>
+</Figure>
+
+Graph databases make deep traversals simpler to write and often faster. They don’t make writes easier to spread, though: most keep a single writer per graph and scale reads with replicas, as Amazon Neptune does <Cite href="https://docs.aws.amazon.com/neptune/latest/userguide/intro.html">docs.aws.amazon.com</Cite>. [[L-0132 L-0134]]
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="So, SQL or not?" crumb="4.4 SQL or not">
+
+That completes the guide. Now use it on the biggest question of all, answered in a very broad sense rather than as a law. [[L-0125]]
+
+When the correctness of your data is the most important feature of the application, you need ACID, so go for SQL and don’t look beyond it. SQL hands you the tooling to keep the data from ever reaching an incorrect state: foreign keys, check constraints and the like. It doesn’t apply them for you; you have to. [[L-0119 L-0120]]
+
+When you have gigantic amounts of data to ingest at a fast pace, a flood of chat messages, posts, logs, metrics, a non-relational store built for it fits better. Those workloads can live with a missing attribute or an unchecked row, though not with lost data: Cassandra, a wide-column store and the usual example, shards out of the box, drops the constraints, and still writes every write to an on-disk commit log first <Cite href="https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html">cassandra.apache.org</Cite>. With SQL you would build that sharding yourself. [[L-0121 L-0122 L-0123 L-0124]]
+
+</Section>
+
+<Section id="s4-5" no="4.5" title="Where would Slack keep its messages?" crumb="4.5 Next build">
+
+Back to the design review from chapter 1. Your team stores every message of a chat app; should it be NoSQL? [[L-0144]]
+
+For Instagram Messenger, where everyone chit-chats all day, a store built for a high ingestion rate such as Cassandra makes sense. Slack is an enterprise product: people are there to work, not everyone sends hundreds and thousands of messages, and the rate stays modest. You store messages and let people scroll back, which a relational database does very well as long as it is sharded, because one node couldn’t hold them all. Any database you can shard will do, even SQL. [[L-0182 L-0183 L-0185 L-0187 L-0189 L-0311 L-0312]]
+
+That is what Slack runs. MySQL has stored all of Slack’s data from the start, and from 2017 Slack moved it onto Vitess, which shards MySQL; by 2020 Vitess served 99% of Slack’s query load, about 2.3 million queries a second at peak <Cite href="https://slack.engineering/scaling-datastores-at-slack-with-vitess/">slack.engineering</Cite>. The choice came from the product, not from an affinity for a stack. [[L-0183 L-0186]]
+
+So the review’s question has an easy answer here, and it isn’t “NoSQL because messaging”. What makes Slack hard isn’t where a message is stored. It is that a message has to appear, the moment it is sent, on the screen of every member of a channel, wherever those members happen to be connected. Two things carry over into that build: shard by the key that every operation uses, and choose each piece by the guarantee you owe, not by habit.
+
+</Section>

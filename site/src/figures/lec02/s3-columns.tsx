@@ -8,7 +8,7 @@ type Layout = { layout?: 'wide' | 'phone' };
 
 /* ------------------------------------------------------------------ Fig 3·a (D-01) */
 
-const HEAD = ['symbol', 'price', 'name', 'exchange', 'timestamp'];
+const HEAD = ['symbol', 'price', 'name', 'exchange', 'ts'];
 
 function RowPanel({ ox, oy, id, cw }: { ox: number; oy: number; id: string; cw: number }) {
   const s = (k: string) => `${id}-row-${k}`;
@@ -48,7 +48,7 @@ function ColPanel({ ox, oy, id, cw, names }: { ox: number; oy: number; id: strin
 
 export function RowVsColumn({ layout = 'wide' }: Layout) {
   const title = 'Row-oriented vs column-oriented on disk';
-  const desc = 'The table stock_ticks has five columns: symbol, price, name, exchange, timestamp. In a row store, the five values of each row, R1, R2 and R3, are stored next to each other as one long strip. In a column store, the values of each column are stored together, c1 symbol through c5 timestamp, so row 1 is one cell in every column block.';
+  const desc = 'The table stock_ticks has five columns: symbol, price, name, exchange, ts. In a row store, the five values of each row, R1, R2 and R3, are stored next to each other as one long strip. In a column store, the values of each column are stored together, c1 symbol through c5 ts, so row 1 is one cell in every column block.';
   if (layout === 'phone') {
     const id = 'l02-fig3a-p';
     return (
@@ -139,7 +139,7 @@ function Warehouse({ x, y, w, h, id }: { x: number; y: number; w: number; h: num
 
 export function PrimaryToWarehouse({ layout = 'wide' }: Layout) {
   const title = 'Primary store → job → warehouse';
-  const desc = 'Applications write to their primary databases, such as MySQL behind an API server and another service’s DynamoDB: transactional work that reads whole rows. An ingest job copies the data asynchronously into a column-oriented warehouse such as BigQuery or Redshift, just for analytics. An analyst’s SELECT avg(price) query reads only the warehouse, which, as taught, is never the primary copy.';
+  const desc = 'Applications write to their primary databases, such as MySQL behind an API server and another service’s DynamoDB: transactional work that reads whole rows. An ingest job copies the data asynchronously into a column-oriented warehouse such as BigQuery or Redshift, just for analytics. An analyst’s SELECT avg(price) query reads only the warehouse, which is never the primary copy.';
   if (layout === 'phone') {
     const id = 'l02-fig3c-p';
     return (

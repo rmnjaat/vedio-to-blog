@@ -1,0 +1,105 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoConnections } from '../../../figures/lec02/s7-sending-fig-7a';
+import { GreyThenBlack } from '../../../figures/lec02/s7-sending-fig-7b';
+import { SoFarSlack } from '../../../figures/lec02/so-far';
+
+{/* Chapter 6 "You press send. Which road does the message take?" Story rewrite: receive needs push, send is a
+    separate decision → tempting reasons (overhead, frequency, it's open) → grey then black → Slack's guarantee:
+    saved, then shown (enterprise record) → a WhatsApp-like app: shown, then saved via Kafka; Zoom chat: shown only
+    (pause + clip) → different guarantees, different architecture → keep the edge server dumb. */}
+
+<Section id="s6" no="6" title="You press send. Which road does the message take?" crumb="6 Send" meta="About 6 min">
+
+A types “standup in 5” in #general and presses Enter. A’s Slack app already holds an open WebSocket, and every message from everyone else arrives on it. The tempting answer is that this message leaves on it too. [[L-0191 L-0192]]
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="Slack so far. Marked new: the four tables, sharded by channel_id.">
+<Desk><SoFarSlack stage={1} /></Desk>
+<Phone><SoFarSlack stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="The socket is already open. Should the send use it?" crumb="6.1 Which road">
+
+Separate the two directions first. Receiving has to be pushed: without a channel the server can push on, the client would keep polling and refreshing, which is a poor experience for something as real-time as chat. <LectureLink lec="lec01" sec="s5">Lecture 2</LectureLink> covered the push channels; here it is a WebSocket. Sending is a different decision, and having the socket open doesn’t make it for you. Just because you have it doesn’t mean you have to use it. [[L-0192 L-0193 L-0200]]
+
+Every user holds two connections: plain HTTP to the API servers, and a WebSocket to the WebSocket servers. Either could carry the send. [[L-0194]]
+
+<Figure id="fig-6b" max={760} no="Fig 6·b" k="L-0187 L-0194 L-0314" caption="Every user holds HTTP to the API servers and a WebSocket to the WebSocket servers; either could carry a send. Messages go to the shard chosen by channel id.">
+<Desk><TwoConnections variant="conn" /></Desk>
+<Phone><TwoConnections layout="phone" variant="conn" /></Phone>
+</Figure>
+
+The usual arguments for the socket are about overhead: a REST call costs a handshake, and chat is frequent. Neither holds up. Repeated HTTP/1.1 calls reuse one persistent connection by default, so there is no new handshake per message <Cite href="https://www.rfc-editor.org/rfc/rfc9112.html#section-9.3">RFC 9112 §9.3</Cite>. And Slack isn’t as chatty as Instagram Messenger. If the WebSocket were always better, nobody would run ordinary API servers. [[L-0195 L-0197 L-0199]]
+
+So look at the product instead of guessing. Send yourself a message on Slack and watch it: it shows grey for a moment, then turns black. Sending is not instant, and it isn’t trying to be. [[L-0198 L-0202]]
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0202 L-0203" caption="Grey, then black. A message you send on Slack shows grey for a moment, then black.">
+<Desk><GreyThenBlack /></Desk>
+<Phone><GreyThenBlack layout="phone" /></Phone>
+</Figure>
+
+That delay is a hint, not a proof, about what happens in between. To read it, start from the other end: what does Slack owe you once you press send? [[L-0201 L-0203]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="What does Slack owe you once you press send?" crumb="6.2 Saved, then shown">
+
+Slack’s customers are companies, and for them a message being on record matters far more than shaving overhead off each send. A message that reaches people and then turns out never to have been saved is a very bad experience in an enterprise tool. It costs credibility, because now people can misquote each other: “No, I received this message, it was right here.” [[L-0196 L-0207 L-0208]]
+
+So the promise this build makes, and the likeliest reading of Slack’s, is: **a message is shown to others only after it is saved.** The flow that keeps it is synchronous. A sends over HTTP to an API server; the API server writes the message to its shard; only then does it hand the message, as an event, to the WebSocket server, which pushes it to everyone in the channel. Sending is plain HTTP, receiving is the WebSocket, and nobody ever has to refresh. [[L-0206 L-0209 L-0210]]
+
+Slack’s engineers describe the same two roads: a send is an HTTP call to Slack’s web API, and messages reach clients through servers holding their WebSockets <Cite href="https://slack.engineering/real-time-messaging/">slack.engineering</Cite>. Slack doesn’t publish whether the save finishes first; this design makes it so, because the promise demands it. [[L-0209 L-0228]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="What if the app showed it first and saved it later?" crumb="6.3 Three promises">
+
+Now picture a chat app where every phone keeps its own copy of every message, the way WhatsApp keeps yours on your device, and the backend copy is only a backup. Slack’s road would feel slow there. Call the alternative the phone-first road: the message goes over the open WebSocket to the WebSocket server, which pushes it straight to the other user and drops it onto Kafka; workers pull it from Kafka and store it later, in batches. Nothing waits on the database, and that is safe because the phone already holds a copy. [[L-0211 L-0212 L-0214 L-0215 L-0216 L-0217]]
+
+<PauseAndThink k="L-0214 L-0218 L-0219 L-0389 L-0390"
+  q="Now run Slack on the phone-first road. The workers lag ten minutes. B sees “standup in 5” at once, then refreshes the channel. What is on B’s screen?"
+  choices={[{ label: 'The message: it was already delivered' }, { label: 'Not the message', correct: true }]}
+  right="Right."
+  wrong="Delivery did happen. Ask where a Slack refresh reads from.">
+
+A Slack refresh loads the channel from the database, and for ten minutes the database doesn’t have it. The message isn’t delivered late; it is delivered now and stored late, so a refresh hides a message B has already seen.
+
+</PauseAndThink>
+
+A third app cares only about real time. In Zoom’s in-meeting chat, by default, whoever is in the meeting gets the message and nothing is kept: leave and rejoin, and the earlier messages are gone. (Zoom does offer a continuous meeting chat that persists them, once an admin turns it on <Cite href="https://www.zoom.com/en/blog/continuous-meeting-chat">zoom.com</Cite>.) [[L-0220 L-0221]]
+
+<AnimationClip clip="l02-three-ways-to-persist" no="Clip 6·1"
+  k="L-0204 L-0206 L-0209 L-0210 L-0214 L-0218 L-0219 L-0220 L-0221 L-0389 L-0390"
+  lead="One message, three roads. Watch what a refresh during the lag shows on each."
+  caption="One message sent three ways: ① saved, then shown; ② shown at once and saved after the Kafka lag, so a refresh inside the lag hides it; ③ shown and never saved." />
+
+Saved then shown, shown then saved, shown only: synchronous storage, asynchronous storage and none. They are three ways to build the same system, and which one is right depends on how critical it is that a message is saved. A bad idea for Slack is fine for a phone-first app. [[L-0204 L-0218 L-0219 L-0222 L-0318]]
+
+<RuleBox label="The rule to keep" rule="Different guarantees, ==different architecture==." k="L-0219 L-0222 L-0186">
+
+Choose the road by what you promise about a message, not by which connection happens to be open, and pick the store underneath by the product, not by your affinity to a stack.
+
+</RuleBox>
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="Why not let the WebSocket server save it?" crumb="6.4 Dumb edge">
+
+There is one more reason Slack’s send doesn’t go through the WebSocket. If a message arriving on the WebSocket server had to be saved, that server would call the database, and you want to avoid that. [[L-0223]]
+
+The servers that hold users’ WebSockets have a name: **edge servers** (not a CDN edge; just the servers everyone connects to). An edge server already holds a ton of TCP connections, so database calls add load right where it hurts. It sits on the internet, so a database connection string on it is almost public, and if it is compromised, you are gone. And if it goes down, all real-time communication goes with it. [[L-0223 L-0224 L-0233 L-0234 L-0235]]
+
+So many companies keep the edge server dumb: it relays messages and holds no database connection; database writes belong on a backend server. A WebSocket is a persistent *connection*, not database persistence. [[L-0225 L-0231 L-0232]]
+
+Sending is settled: HTTP to an API server, saved, then handed to the WebSocket server to push. Receiving goes over the WebSocket. Which raises the question this whole design was really about: the members of #general aren’t all connected to the same WebSocket server.
+
+</Section>

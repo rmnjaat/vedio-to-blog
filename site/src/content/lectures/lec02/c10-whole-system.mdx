@@ -1,0 +1,155 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { GuaranteesDial } from '../../../figures/lec02/s9-whole-system-figs';
+import { DeleteOnDevices, DeleteInStore, OutOfOrder } from '../../../figures/lec02/s10-deleting-ordering-figs';
+import { SoFarSlack } from '../../../figures/lec02/so-far';
+
+{/* Chapter 10 "Does the design survive two features nobody planned?" Story rewrite: one WebSocket per product (true
+    reasons only) → the whole architecture and the persistence dial (Kafka drawn as the dial's second setting) →
+    deleting a message: where the copies live → ordering: challenge the requirement, the database clock, design
+    realistic systems → what you can now do, recall, build it, hand-off to Lecture 5. */}
+
+<Section id="s10" no="10" title="Step back, then try to break it: delete and reorder" crumb="10 The whole system" meta="About 7 min">
+
+Every piece is in place: tables, a send road, servers joined through Redis, a Balancer, and an answer for each thing that goes wrong. Step back and put it on one page, then try to break it with two features nobody designed for: deleting a message, and putting messages in order.
+
+<Figure id="fig-10-sofar" max={640} no="Fig 10·a" caption="Slack so far. Marked new: the timed fetch, three replicas, no credentials on the edge.">
+<Desk><SoFarSlack stage={5} /></Desk>
+<Phone><SoFarSlack stage={5} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s10-1" no="10.1" title="Chat, a badge and a typing dot: one socket or three?" crumb="10.1 One socket">
+
+One. Every user keeps one WebSocket open to the backend, carrying anything and everything real-time: messages, notifications, typing indicators, or a live video’s chat and floating hearts. Any service that wants to reach users sends through the edge servers rather than opening its own socket. [[L-0319 L-0323 L-0327 L-0328 L-0330]]
+
+Why not one per feature? Each extra socket is another long-lived connection for the server to hold and another for the client to re-establish when it drops. [[L-0327 L-0329]]
+
+</Section>
+
+<Section id="s10-2" no="10.2" title="What does the whole system look like?" crumb="10.2 Whole system">
+
+Two halves, split by one question: is it pushed? Everything real-time travels over the WebSocket to the edge servers, which share messages through a clustered Redis Pub/Sub, with the Balancer deciding who connects where. Everything not pushed, loading a channel, scrolling history, opening a muted channel, goes over plain HTTP to API servers that read the partitioned database, whose schema still rests on its first idea: a DM is a channel with two people. [[L-0335 L-0339 L-0310]]
+
+<Figure id="fig-10b" max={640} no="Fig 10·b" k="L-0335 L-0338 L-0339 L-0310" caption="The whole design on this build’s road: send over HTTP, save, then push. Everything not pushed (loading or scrolling a channel) goes over HTTP to the same API servers.">
+<Desk><SoFarSlack stage={6} /></Desk>
+<Phone><SoFarSlack stage={6} layout="phone" /></Phone>
+</Figure>
+
+Only one part of that picture changes from product to product: how the message gets saved. Turn it to the asynchronous setting and the edge server does three things when A sends to B: it puts the message in Kafka, finds B in its local pool and sends it to B, while workers save it later. That is the phone-first road, and you can build Slack that way too, paying with the refresh gap from 6.3. Zoom chat’s setting skips saving. The real-time Pub/Sub, the Balancer and the database stay exactly as they are; the edge servers only gain a write to Kafka. [[L-0236 L-0338 L-0340]]
+
+<RuleBox label="The rule to keep" rule="One architecture covers almost every messaging system: ==change only the guarantees==." k="L-0340 L-0005">
+
+Swap the persistence road, synchronous, asynchronous or none, and keep the rest. That is how one design gives you something like Slack, something like a phone-first app such as WhatsApp, or something like Zoom chat. There is no single best version: build your own plate from the guarantees you give your customers. [[L-0331 L-0392]]
+
+<Desk><GuaranteesDial /></Desk>
+<Phone><GuaranteesDial layout="phone" /></Phone>
+
+</RuleBox>
+
+</Section>
+
+<Section id="s10-3" no="10.3" title="A user deletes a message. What has to happen?" crumb="10.3 Deleting">
+
+Does deletion need new machinery to keep the push and the refresh in step? Start from where the message lives. [[L-0395 L-0399]]
+
+WhatsApp deletes a message from its servers once it is delivered; an undelivered one is held, encrypted, for up to 30 days while delivery is retried <Cite href="https://www.whatsapp.com/legal/privacy-policy">whatsapp.com</Cite>. The copies that matter are on the phones, so a delete is just one more message, “delete this message permanently”, and each phone drops its own copy. On Slack the message lives in the backend, so you delete the stored row, then tell the channel’s users in real time that it is gone. [[L-0396 L-0397 L-0398]]
+
+<Figure id="fig-10c" panels={2} no="Fig 10·c" k="L-0396 L-0397 L-0398 L-0399" caption="Left: the copies live on the phones, so a delete event goes to the other phone and each drops its copy. Right: the row is deleted in the backend, then everyone is told in real time.">
+<Panel><DeleteOnDevices /></Panel>
+<Panel><DeleteInStore /></Panel>
+</Figure>
+
+No new boxes, only a different guarantee: on this design, deletion is a rough estimate of a few hundred lines of backend. What takes time at WhatsApp’s scale is deciding whether and how to do it and rolling it out. [[L-0401 L-0402]]
+
+</Section>
+
+<Section id="s10-4" no="10.4" title="Two messages arrive out of order. Whose clock wins?" crumb="10.4 Ordering">
+
+A sends “hey”, then “standup in 5”, and network delay brings the second to B first. Do you need strict ordering on screen? Nobody said it is required. Ordering matters where messages are processed one after another; a screen isn’t a pipeline, and it can insert a message in the middle of a list. [[L-0404 L-0405]]
+
+<PauseAndThink k="L-0412 L-0413 L-0414 L-0415"
+  q="Which timestamp should decide the stored order: one the sender’s device attaches, or the database’s own?"
+  choices={[{ label: 'The device’s: the sender knows when they pressed send' }, { label: 'The database’s insertion time', correct: true }]}
+  right="Right."
+  wrong="Ask who controls the device’s clock.">
+
+The device’s clock belongs to the user, and anyone can set it to 1 January 1970 if they like, so a client timestamp can’t be trusted. You don’t need its precision either: a person never sends two messages at exactly the same instant.
+
+</PauseAndThink>
+
+The screen then has two easy options. Show messages in the order they arrive, or keep the list ordered by timestamp and insert a late message in its place, accepting a brief flicker. Either way, the stored order is the truth, and a refresh, or the client’s timed fetch of the last 50, puts the screen right. [[L-0406 L-0407 L-0410 L-0411]]
+
+<StepThrough id="fig-10d" no="Fig 10·d" label="Out-of-order messages" grow k="L-0406 L-0407 L-0410 L-0411 L-0412 L-0413 L-0415"
+  caption="Time runs down. Lanes are user A, the database and B’s screen. Messages m1 “hey” and m2 “standup in 5”; t1 and t2 are the database’s insertion times."
+  stepK={['L-0410 L-0412', 'L-0406', 'L-0406 L-0411', 'L-0407', 'L-0407', 'L-0412 L-0413 L-0415']}
+  steps={[
+    'A sends 1 then 2. The database stores them in that order, by its own clock: <code>t1 &lt; t2</code>.',
+    'Case 1: message 2 arrives first. Show them in the order they arrive.',
+    'A refresh, or a job that fetches the last 50, puts them in the database’s order.',
+    'Case 2: keep the screen’s list ordered by timestamp. Message 2 arrives first.',
+    'Message 1 arrives late and is inserted in place, above 2, with a brief flicker.',
+    'The order is the database’s insertion time, never a client clock.',
+  ]}>
+  <Desk><OutOfOrder /></Desk>
+  <Phone><OutOfOrder layout="phone" /></Phone>
+</StepThrough>
+
+The database’s clock works here for two reasons. On the save-first road the insert happens at send time, not minutes later in a batch. And all of a channel’s messages are written on one shard (chapter 5), so one clock orders them; Slack’s `ts` is likewise unique within a channel <Cite href="https://docs.slack.dev/messaging/retrieving-messages">docs.slack.dev</Cite>. Clocks kept per client and merged (vector clocks) still can’t say which of two messages came first without a tie-break, and they cost every client extra work. You don’t re-architect for one edge case. [[L-0412 L-0416 L-0417 L-0419]]
+
+Design realistic systems. In theory you can find a hundred loopholes in any design; in practice there are a few, and it is fine to live with them. For each, ask how likely it is and whether you really need it. If yes, build it. [[L-0418]]
+
+</Section>
+
+<Section id="s10-5" no="10.5" title="What you can now do" crumb="10.5 What you can do">
+
+- **Answer “NoSQL scales”**: which database, for what workload, what did it give up? Without foreign keys, relational data spreads the same way. The usual trade is CAP’s consistency, not ACID’s.
+- **Pick a family, or a layout, by its trade.** Key-value: one key per operation, thousands of partitions. Document: queries and partial updates inside, fewer partitions. Column layout: 2 of 100 columns read, analytics only. Graph: real graph algorithms only.
+- **Choose SQL or not**: correctness first, SQL; a gigantic ingestion rate, a store built for it. For Slack’s messages, any database you can shard, sharded by the key every operation uses (`channel_id`).
+- **Model chat without special cases**: a DM is a channel with two people; `membership` holds the checkpoint behind unread counts.
+- **Decide the send road by the guarantee**: saved then shown, shown then saved, or shown only. No database credentials on the edge.
+- **Scale WebSocket servers**: one link per server to a real-time Pub/Sub, one Redis channel per Slack channel, a Balancer that keeps an organisation together. A timed fetch covers lost pushes; the database’s clock sets the order.
+
+<RecallQuestions>
+  <RecallItem q="Why does a key-value store split into thousands of partitions more easily than a document database?" k="L-0042 L-0043 L-0044 L-0046">
+
+Every key-value operation names one key, so it lands on one shard. A document database allows ranges and `IN`, which can touch many shards and wait for all of them.
+
+  </RecallItem>
+  <RecallItem q="Slack sends a message over HTTP even though a WebSocket is open. Give two reasons." k="L-0206 L-0218 L-0223">
+
+The guarantee this build gives: a message is shown only after it is saved, since a refresh reads the database and an enterprise needs the record. And the edge server stays dumb: saving through it would put database calls and credentials on a busy, internet-facing server.
+
+  </RecallItem>
+  <RecallItem q="Four WebSocket servers in a mesh, four users each. How many of WS1’s connections serve users, and what replaces the mesh?" k="L-0276 L-0277 L-0278 L-0280">
+
+Four of its seven; at 100 servers the fleet holds 4,950 links. A real-time Pub/Sub in the middle replaces the mesh: one link per server.
+
+  </RecallItem>
+  <RecallItem q="WS2 is disconnected from Redis for the second A posts. Is the message lost, and how does E get it?" k="L-0284 L-0344 L-0345 L-0379">
+
+It is stored, because the save happened first; only the push is lost, since Redis keeps nothing. E’s client catches up on its next timed fetch of the last 50, or when E opens the channel.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s10-6" no="10.6" title="Build it, then open the load balancer" crumb="10.6 Next">
+
+Don’t take any of this at face value; the devil lies in the details. Write the hello worlds: a Socket.IO server, a Balancer that hands out addresses, and a local Redis with three clients subscribed. Disconnect one, publish, reconnect it, and watch the message never arrive. Every single thing in system design is implementable, though a real first version takes time: one team of three needed three and a half months for its real-time text chat, with this analysis already done. [[L-0343 L-0348 L-0351 L-0400 L-0441]]
+
+One box in this design was never opened. Load balancers sat in front of the API servers, and one may sit in front of the edge servers, but each was only ever a rectangle. Building a basic one is surprisingly simple, and satisfying. <LectureLink lec="lec08">Lecture 5</LectureLink> opens that box, starting from one process on a laptop that copies bytes between two connections. So what does the program inside that rectangle actually do with each byte, and what happens to your users when the machine running it dies? [[L-0349 L-0350]]
+
+</Section>

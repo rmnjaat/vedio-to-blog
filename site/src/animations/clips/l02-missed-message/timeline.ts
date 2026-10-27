@@ -56,7 +56,7 @@ export type Cue = {from: number; step?: number; color?: 'blue' | 'red' | 'green'
 
 export const CAPTIONS: Cue[] = [
   {from: BEAT.intro, text: 'A posts in C1. E is on WS2, across Redis.'},
-  {from: BEAT.persist, text: 'The message is persisted through Kafka, as always.'},
+  {from: BEAT.persist, text: 'The message is persisted (here through Kafka).'},
   {from: BEAT.lost, text: 'WS2 is disconnected right then: Redis pushes to no one, keeps nothing.'},
   {from: BEAT.back, text: "WS2 is back, but nothing replays. E doesn't see it."},
   {from: BEAT.timer, text: "On a timer, E's client fetches the last 50 and renders what it missed."},
@@ -103,5 +103,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    "User A posts 'standup in 5' in channel c1 on edge server ws1; user E is on edge server ws2, across a Redis Pub/Sub. The message is persisted as always: ws1 puts it in Kafka, a worker pulls it and saves it in the database. At the moment ws1 publishes it to Redis, ws2's connection to Redis is broken, so Redis pushes it to no one and, keeping nothing, loses it. ws2 reconnects but nothing is replayed, so E's screen is missing the message. Then a timer on E's client fires, a correction job: it fetches the channel's last 50 messages from the API, which reads the database, and the missing message appears. Persistence is guaranteed; the real-time push is not.",
+    "User A posts 'standup in 5' in channel c1 on edge server ws1; user E is on edge server ws2, across a Redis Pub/Sub. The message is persisted, here through Kafka (chapter 6’s phone-first road): ws1 puts it in Kafka, a worker pulls it and saves it in the database. At the moment ws1 publishes it to Redis, ws2's connection to Redis is broken, so Redis pushes it to no one and, keeping nothing, loses it. ws2 reconnects but nothing is replayed, so E's screen is missing the message. Then a timer on E's client fires, a correction job: it fetches the channel's last 50 messages from the API, which reads the database, and the missing message appears. Persistence is guaranteed; the real-time push is not.",
 };

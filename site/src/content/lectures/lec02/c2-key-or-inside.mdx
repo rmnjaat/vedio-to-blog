@@ -1,0 +1,106 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { PartialUpdate, OneKeyVsIn } from '../../../figures/lec02/s2-documents-kv';
+import { SoFarGuide } from '../../../figures/lec02/so-far';
+
+{/* Chapter 2 "Get a value by its key, or ask inside it?" Story rewrite: Lecture 3's opaque value → document
+    databases (query inside, partial update) → key-value stores (one key per op, read-modify-write) → what that buys:
+    no cross-shard queries, thousands of partitions → the lines are blurry (DynamoDB, MongoDB ACID, distributed
+    transactions) → key-value is an access pattern → Go deeper: the NAND gate. */}
+
+<Section id="s2" no="2" title="Get a value by its key, or ask inside it?" crumb="2 Key or inside" meta="About 5 min">
+
+The store you built in <LectureLink lec="lec05" sec="s5">Lecture 3</LectureLink> treated a value as something it stores and returns without looking inside. The wish that comes up next is natural: put JSON in that value and query inside it. Two families of database sit on either side of that wish, and the side you pick decides how far your data can be split. [[L-0028]]
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The field guide so far. Marked new: relational databases.">
+<Desk><SoFarGuide stage={1} /></Desk>
+<Phone><SoFarGuide stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What if you could query inside the value?" crumb="2.1 Documents">
+
+Then you have a document database, MongoDB being the famous example. Documents are mostly JSON, and you can query on their attributes: “give me every document whose theme is dark”. You can run aggregations too, and you can make partial updates, changing one attribute of one document and nothing else. [[L-0029 L-0030 L-0033 L-0034]]
+
+```js
+// every user whose theme is dark: a query on an attribute inside the document
+db.users.find({ "settings.theme": "dark" })
+
+// change one field of one document, in place
+db.users.updateOne({ _id: 7 }, { $set: { "settings.tz": "IST" } })
+```
+
+That is not quite as powerful as a relational database, but it is close, which is why a team moving a general relational schema off SQL typically lands on a document database. You will almost never see one jump straight to a key-value store. [[L-0031]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="What if every operation named one key?" crumb="2.2 Key-value">
+
+Then you have a key-value store: Redis, DynamoDB, Aerospike. Every operation is key-wise, whether it reads, writes or deletes: get a key, put a key, delete a key, add a member to the set at a key. You never peek into the value. [[L-0026 L-0041 L-0032]]
+
+That is restrictive. To change one field, you read the whole value, change it in your code and write the whole value back; a plain key-value store has no partial update. Some add structure for it: a Redis hash lets `HSET` set one field without rewriting the others <Cite href="https://redis.io/docs/latest/commands/hset/">redis.io</Cite>. [[L-0035]]
+
+<Figure id="fig-2b" max={760} no="Fig 2·b" k="L-0034 L-0035" caption="Left: the document database changes one field in place. Right: the key-value store only knows whole values, so the API server gets the value, changes it and puts it all back.">
+<Desk><PartialUpdate /></Desk>
+<Phone><PartialUpdate layout="phone" /></Phone>
+</Figure>
+
+A key-value store is no use unless your use case fits that access pattern exactly. So why would anyone accept the restriction? [[L-0032]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="What does one key per operation buy?" crumb="2.3 Partitions">
+
+<PauseAndThink k="L-0042 L-0043 L-0044"
+  q="Your data is split over three databases. A query asks for <code>WHERE id IN (1, 2, 3)</code>, and the three ids live on three different databases. What does that cost, and could a key-value store ever be asked it?"
+  choices={[{ label: 'Nothing special: each database answers its own id' }, { label: 'It touches all three and waits for the slowest; a key-value store never gets that query', correct: true }]}
+  right="Right."
+  wrong="Each database does answer its own id, but someone has to ask all three and wait for all three.">
+
+A query that can touch many shards has to ask them all and wait for the slowest. A key-value store only ever offers “here is a key, give me the value”, so every operation lands on exactly one shard.
+
+</PauseAndThink>
+
+Cross-shard queries come from range operations and `IN`, and they are very expensive. A key-value store rules them out, which is the whole point: you can partition it heavily, thousands of partitions, and no query ever waits on two machines. Redis Cluster splits keys over 16,384 hash slots and runs every single-key command, while a multi-key command works only when all its keys hash to the same slot <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">redis.io</Cite>. [[L-0042 L-0043 L-0044]]
+
+<Figure id="fig-2c" wide={false} max={340} no="Fig 2·c" k="L-0042 L-0043 L-0044 L-0047" caption="A get by key touches one shard. An IN over three ids may touch three, and the caller waits for the slowest. The ids are placed one per shard for the example.">
+<OneKeyVsIn />
+</Figure>
+
+Document databases support cross-partition operations, but those get really expensive, so they can’t run thousands of partitions the same way. A key-value store is the other extreme: by limiting access, it gets massive parallelism, every database answering its own queries without waiting for the others. Every single thing is a trade-off. [[L-0046 L-0047 L-0048 L-0049]]
+
+So that is the core of what Redis and DynamoDB gave up, the question Lecture 3 ended on: questions about the inside of a value, which each bends a little (2.4). What they got back is that every operation lands on one shard.
+
+<RuleBox label="The rule to keep" rule="The more complex the queries, ==the less you can distribute the data==." k="L-0045">
+
+Complex queries cross shards, and cross-shard queries are expensive. Key-wise access never crosses a shard, so the data can be split thousands of ways.
+
+</RuleBox>
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Where does one family end and the next begin?" crumb="2.4 Blurry lines">
+
+Nowhere in particular. The people building these databases keep entering each other’s space. DynamoDB is a key-value store that also supports a document model: you can filter on nested attributes, though the filter runs after the items are read, so an efficient query still needs the key or an index <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.FilterExpression.html">docs.aws.amazon.com</Cite>. Pick by the features you need, such as complex queries or partial updates, and the database that gives them. [[L-0036 L-0037 L-0038]]
+
+Generic statements also expire: MongoDB started out “BASE, not ACID” and now supports ACID transactions, though across shards they are distributed transactions that cost throughput, so use them only when you need them <Cite href="https://www.mongodb.com/docs/manual/core/transactions/">mongodb.com</Cite>. [[L-0039 L-0040 L-0136 L-0137]]
+
+And “key-value” describes how you use a store, not how it stores. Redis keeps its data in memory, DynamoDB on disk: same access pattern, different storage engines, as <LectureLink lec="lec04" sec="s3">Lecture 1</LectureLink> found when it weighed the two. So they don’t scale the same; it depends on what you store, how you access it and how you partition, and no database is a black box. [[L-0139 L-0140 L-0142]]
+
+<MarginNote title="Go deeper: the NAND gate of databases" why="skip unless you like first principles" k="L-0128 L-0129">
+
+Every logic gate can be built from NAND gates. In the same way, every database can be modelled on top of a key-value store, though maybe not as performantly. CockroachDB is a working example: its SQL layer turns statements into key-value operations on a sorted map split into ranges <Cite href="https://docs.cockroachlabs.com/docs/stable/architecture/overview">cockroachlabs.com</Cite>.
+
+</MarginNote>
+
+Documents and key-value stores differ in how you address a row. The next family keeps the table exactly as it is and changes something else: how the table sits on the disk.
+
+</Section>

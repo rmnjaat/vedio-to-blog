@@ -26,7 +26,7 @@ Context only: L-0282 (Pub/Sub keeps nothing, 8.4), L-0333 (channel click loads i
 | # | Frames | Caption | What moves |
 |---|---|---|---|
 | B0 | 0–90 | A posts in C1. E is on WS2, across Redis. | Nothing. Reduced Fig 9·b in graphite. |
-| B1 | 90–280 | The message is persisted through Kafka, as always. | `standup in 5` written by A; square A → ws1 → `kafka` (stays); worker pulls a copy; → `db`; green `saved ✓`. |
+| B1 | 90–280 | The message is persisted (here through Kafka). | `standup in 5` written by A; square A → ws1 → `kafka` (stays); worker pulls a copy; → `db`; green `saved ✓`. |
 | B2 | 280–490 | WS2 is disconnected right then: Redis pushes to no one, keeps nothing. | WS2's link breaks (red dashed), `disconnected`; `PUBLISH c1`; square rides ws1 → pipe → its ws2 end, fades into a red ring ✕; `lost: keeps nothing`. |
 | B3 | 490–610 | WS2 is back, but nothing replays. E doesn't see it. | Link redrawn graphite; `reconnected` replaces `disconnected`; red `?` in E's empty slot. |
 | B4 | 610–870 | On a timer, E's client fetches the last 50 and renders what it missed. | Clock hand sweeps; `correction job`; E → api (`GET last 50 (c1)`) → db; green list returns db → api → E; `standup in 5` ✓ replaces `?`. |

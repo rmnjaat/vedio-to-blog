@@ -1,0 +1,129 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Cite from '../../../components/Cite.astro';
+import { RequirementsCard, MessageDrafts, SlackSchema, Sidebar, OpenChannel } from '../../../figures/lec02/s6-slack-schema';
+import { SoFarSlack } from '../../../figures/lec02/so-far';
+
+{/* Chapter 5 "“Design Slack.” Where do you even start?" Story rewrite: scope cut to real-time text chat →
+    requirements → schema first (not a database choice) → membership as a noun → the messages drafts (pause, stepper)
+    → a DM is a channel with two people (Slack's API), type → checkpoint, unread counts, no replay over the socket →
+    shard by channel_id. */}
+
+<Section id="s5" no="5" title="“Design Slack.” Where do you even start?" crumb="5 Slack’s rows" meta="About 6 min">
+
+“Design Slack” means the whole product, every feature of it, and that is too much to design well. Pick one part and do it really well: Slack’s real-time communication, text only, the kind of messages you also see on Teams or Instagram. Kept this small, every building block and every decision stays visible. [[L-0145 L-0146 L-0147]]
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="Where Slack starts: users and a sharded message store, and nothing in between yet.">
+<Desk><SoFarSlack stage={0} /></Desk>
+<Phone><SoFarSlack stage={0} layout="phone" /></Phone>
+</Figure>
+
+The requirements fit on a card: [[L-0148]]
+
+<Figure id="fig-5b" wide={false} max={340} no="Fig 5·b" k="L-0147 L-0148" caption="The whole brief: five requirements, text only.">
+<RequirementsCard />
+</Figure>
+
+What you build here also powers multiplayer games and live polls. But don’t start with WebSockets; start with the simplest thing, the schema, for these features only. A schema names entities and attributes; it doesn’t commit you to a relational database. [[L-0149 L-0151 L-0152 L-0153]]
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Who is in which channel?" crumb="5.1 Membership">
+
+A first sketch has three tables: `users` with an id, a name and an optional nickname; `channels` with an id and the organisation it belongs to; and `messages`, each holding the id of the channel it was sent in. It can’t answer one question yet: which users are part of which channel? That has to be stored somewhere, in a table that joins users to channels. [[L-0154 L-0155]]
+
+Most people would call it `user_channel`. But what *is* a user channel? And if tomorrow you map three things, is it `user_channel_message`? Call it **`membership`**. A noun gives the table a persona, and a thing with a persona naturally grows attributes: how far this user has read, whether they muted the channel. With `user_channel` you never think of adding a column. [[L-0156 L-0157 L-0158]] That pays off in 5.4.
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="A message goes to a channel or to one person. What does the row hold?" crumb="5.2 Direct messages">
+
+Who sent it and the text, certainly. The destination is the hard part, because a message goes either to a channel or to a single user.
+
+<PauseAndThink k="L-0159 L-0161 L-0165"
+  q="Give <code>messages</code> both a nullable <code>channel_id</code> and a nullable <code>receiver_id</code>, exactly one of them filled. Is that a sound design?"
+  choices={[{ label: 'Yes: one column is always null, and that’s fine' }, { label: 'No: it invites broken rows and special cases', correct: true }]}
+  right="Right."
+  wrong="It works on the happy path. Look at the unhappy one.">
+
+If either column may be null, nothing stops a row where both are, inserted by some glitch: an orphan message that belongs nowhere. And every query and every piece of business logic now has to ask which column is set.
+
+</PauseAndThink>
+
+Draft 1 you just judged. The other obvious drafts each fail for a reason of their own. Step through them: [[L-0161]]
+
+<StepThrough id="fig-5c" no="Fig 5·c" label="Drafts of the messages table" k="L-0159 L-0160 L-0161 L-0162 L-0163 L-0164 L-0165 L-0166 L-0167 L-0168"
+  caption="Six drafts of the messages table, with the rejected part in red and the reason beside it."
+  stepK={['L-0159 L-0161', 'L-0160 L-0162', 'L-0163', 'L-0164 L-0165', 'L-0166']}
+  steps={[
+    'Draft 1, the one you just judged: <span class="term red">an orphan row</span> when both columns are null.',
+    'Drafts 2 and 3: two tables, <code>channel_messages</code> and <code>direct_messages</code>, mean <span class="term red">every new column is two migrations</span>. A <code>receiver_ids</code> array <span class="term red">breaks as soon as someone joins</span> the channel.',
+    'Draft 4: one <code>to</code> column holding <code>CH-42</code> or <code>usr-7</code>. Every query must <span class="term red">parse the id to know which table to join</span>.',
+    'Draft 5: add a type enum, <code>ch</code> or <code>u</code>. Still <span class="term red">no foreign key on <code>to</code></span>, and the business logic fills with ifs and elses.',
+    'Draft 6: the message doesn’t store where it goes, and routing is left to code. Then <span class="term red">how do you render a channel</span>?',
+  ]}>
+  <Desk><MessageDrafts /></Desk>
+  <Phone><MessageDrafts layout="phone" /></Phone>
+</StepThrough>
+
+Every draft treats a direct message as a special case, and special cases are where the trouble comes from. Ifs and elses are the worst thing you can build into how data is stored. [[L-0165 L-0171]]
+
+<PauseAndThink k="L-0167 L-0168"
+  q="Every draft failed by treating a direct message as special. What if it weren’t special at all?"
+  choices={[{ label: 'Keep a separate table for DMs, just better designed' }, { label: 'Make a DM a channel with two people in it', correct: true }]}
+  right="Right."
+  wrong="A separate table is still a special case.">
+
+Give the two people a common channel. Every message then has exactly one `channel_id`, whether it was sent to #general or to one person.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="What kind of row is a chat between two people?" crumb="5.3 DMs are channels">
+
+That piggybacks on what already exists, channels and messages, instead of special-casing anything. (Making that two-person channel a pub/sub topic as well would be an unnecessary complication.) [[L-0167 L-0168]]
+
+It is how Slack’s API works: every channel-like thing is a *conversation*, whether a public channel, a private one or a DM (`is_im`), and `conversations.open` opens or resumes a DM and returns its channel ID <Cite href="https://docs.slack.dev/reference/objects/conversation-object">docs.slack.dev</Cite>. The UI renders it as a direct message; underneath, it is a channel. A DM and a channel message are both just a message with a sender and a destination. Only the rendering differs. [[L-0169 L-0170]]
+
+The rendering is why the channel gets a `type`: `reg`, `grp` or `user`, the last meaning a DM, which puts channels in the top half of the sidebar and DMs below. Why not call a two-person private channel a DM? Because a private channel can gain members later and a DM can’t, so the UI must tell them apart. Messages also carry `created_at`, so scrolling a channel means walking its messages in time order. [[L-0172 L-0173 L-0431 L-0432 L-0433]]
+
+<Figure id="fig-5d" max={880} no="Fig 5·d" k="L-0168 L-0172 L-0174 L-0175" caption="The schema: users, channels with a type, membership with a checkpoint, and messages, each with its own id, that always point at one channel. The + marks the two lines added last. membership.user_id references users; membership.channel_id and messages.channel_id reference channels.">
+<Desk><SlackSchema /></Desk>
+<Phone><SlackSchema layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="You open a channel with 100 new messages. Where do you land?" crumb="5.4 Checkpoint">
+
+Exactly where you stopped reading. That is the payoff of the noun. Because `membership` doesn’t restrict you, it can hold a **checkpoint**: for this user in this channel, how far they have read, as a timestamp or a message id, whichever granularity you choose. Opening a channel moves it to the newest message. [[L-0175 L-0177 L-0178]]
+
+From that one column come the unread badge, the “you last read until here” line and the jump to it. Slack exposes the same thing as a conversation’s `last_read`, moved by `conversations.mark` <Cite href="https://docs.slack.dev/reference/methods/conversations.mark">docs.slack.dev</Cite>. Muted, favourited, notification settings: all describe how one user relates to one channel, so they go on membership too, the key table of the system. [[L-0176 L-0179 L-0180]]
+
+<Figure id="fig-5e" panels={2} no="Fig 5·e" k="L-0172 L-0175 L-0176 L-0177" caption="Left: the type decides the half of the sidebar, and the unread badge comes from the checkpoint. Right: the “last read” line and the jump come from the same column.">
+<Panel><Sidebar /></Panel>
+<Panel><OpenChannel /></Panel>
+</Figure>
+
+It also explains what Slack doesn’t do. Back from a vacation, you see something like 200 unread messages, none replayed over a socket: the app loads them with ordinary API calls, and the checkpoint says where the unread part begins. WhatsApp keeps messages on your phone, so it has to deliver them there. [[L-0437 L-0438 L-0439]]
+
+<RuleBox label="The rule to keep" rule="Name tables as ==nouns==, and ==piggyback== on what you have instead of writing ifs and elses." k="L-0181 L-0157">
+
+The noun let membership grow a checkpoint, mutes and favourites without a new table. Piggybacking made a DM a channel with two people, so messages need no special case.
+
+</RuleBox>
+
+</Section>
+
+<Section id="s5-5" no="5.5" title="Which shard does a message go to?" crumb="5.5 Shard key">
+
+A workspace has many channels and each channel has many messages, so shard by `channel_id`: a channel’s messages sit in one database, and scrolling never crosses shards. Slack chose the same key for message data when it moved to Vitess, to spread the load more evenly <Cite href="https://slack.engineering/scaling-datastores-at-slack-with-vitess/">slack.engineering</Cite>. Because a DM is a channel, that one rule places every message. Now someone presses send. [[L-0313 L-0314 L-0315]]
+
+</Section>

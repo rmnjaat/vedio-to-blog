@@ -1,0 +1,98 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { Exposed, BehindLb, AckAfterReplication } from '../../../figures/lec02/s9-whole-system-figs';
+import { SoFarSlack } from '../../../figures/lec02/so-far';
+
+{/* Chapter 9 "WS2 blinked while A posted. Where is the message?" Story rewrite: persisted vs pushed, at-most-once
+    Redis (clip), the correction fetch, idempotent consumers → a node dies mid-write: the storage engine replicates,
+    ack after the copies → the internet-facing edge: expose or put behind a load balancer, no database credentials,
+    least-privilege Kafka credential, DDoS → a client that claims a channel: broken access control, check server-side. */}
+
+<Section id="s9" no="9" title="WS2 blinked while A posted. Where is the message?" crumb="9 What goes wrong" meta="About 5 min">
+
+Redis pushes a message to whoever is connected at that moment and keeps nothing. Now suppose WS2’s connection to Redis drops for one second, and that is the second A posts in C1. [[L-0284 L-0344]]
+
+<Figure id="fig-9-sofar" max={640} no="Fig 9·a" caption="Slack so far. Marked new: the real-time Pub/Sub and the Balancer.">
+<Desk><SoFarSlack stage={4} /></Desk>
+<Phone><SoFarSlack stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="What is promised, and what isn’t?" crumb="9.1 Lost push">
+
+Split the message’s journey in two. The save happened before anything was pushed, so the message is in the database: once accepted, it will always be persisted. The push is a different matter. Redis sends it to the servers connected at that instant, WS2 isn’t one of them, and nothing is kept to send later. So in this system the message is guaranteed to be stored, and the real-time notification is not. For an enterprise product, guaranteed persistence is the part that matters more. [[L-0332 L-0344 L-0379]]
+
+<AnimationClip clip="l02-missed-message" no="Clip 9·1"
+  k="L-0344 L-0379 L-0332 L-0334 L-0345"
+  lead="WS2 blinked for one second while A posted. When does E see the message?"
+  caption="The clip draws the save on the phone-first road, through Kafka. On this build’s road the API server saves first; the push through Redis is lost exactly the same way. E’s client catches up with a timed fetch of the last 50." />
+
+A missing message can’t simply stay missing, and the fix uses what you already have. The channel’s history is one REST call away, the same one that loads it when E clicks the channel. So run a small correction job on the client: every so often, fetch the channel’s last 50 messages, compare them with the screen, and render whatever was missed, as if the push had arrived. Fifty covers a blink; a longer gap is filled when the user opens the channel, which loads from the checkpoint (5.4). When sockets drop for longer, another option is to buffer undelivered pushes in Kafka and replay them once the sockets are back. [[L-0333 L-0334 L-0345]]
+
+<MarginNote title="Go deeper: saving the same message twice" why="skip unless you run Kafka consumers" k="L-0332">
+
+On the road through Kafka, a worker that crashes after saving a batch but before recording its position makes its replacement read the batch again, as <LectureLink lec="lec01" sec="s3-7">Lecture 2</LectureLink> showed. Write each message under its unique id, and the repeat is a harmless overwrite <Cite href="https://kafka.apache.org/43/design/design/">kafka.apache.org</Cite>.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="A database node dies mid-write. Is the message gone?" crumb="9.2 Durability">
+
+A sharded store by itself has no spare copy: if the one node holding a shard dies, so does its data. Important data is stored with standby nodes, typically a replication factor of three, so each write lands on three data nodes and, if one goes down, the others serve it. [[L-0420 L-0421]]
+
+Who makes those copies? Not the API server (or, on the phone-first road, the worker) pushing each message to three database instances itself; that is worse. The database’s storage engine does it: the write arrives at one node and is replicated from there. And the database doesn’t say “done” until the copies it requires have the write. A write lost before that point was never accepted, so nobody was told it succeeded. So whoever writes holds the message and retries until the database says done: on this build’s road the API server answers A only after that ack, and on the phone-first road the worker keeps the message until it commits; if the worker dies, the message is read from Kafka again, and the unique id makes the repeat harmless. [[L-0423 L-0424 L-0425]]
+
+<Figure id="fig-9b" no="Fig 9·b" k="L-0421 L-0424 L-0425" caption="Ack after replication. The writer sends the message to one node, which copies it to the others; once the copies the database requires have it, the write is acknowledged. A write lost before that point was never accepted.">
+<AckAfterReplication />
+</Figure>
+
+How many copies count as enough is the database’s rule: DynamoDB acknowledges once two of its three replicas have the write <Cite href="https://www.usenix.org/system/files/atc22-elhemali.pdf">usenix.org</Cite>, while asynchronous replication, PostgreSQL’s default, acknowledges earlier and can lose the newest writes on failover <Cite href="https://www.postgresql.org/docs/current/warm-standby.html">postgresql.org</Cite>. Durability comes from the database’s own replicas, not from re-reading Kafka. [[L-0422 L-0424]]
+
+</Section>
+
+<Section id="s9-3" no="9.3" title="What may an internet-facing server hold?" crumb="9.3 The edge">
+
+An edge server is nothing exotic, a Node.js process running Socket.IO, say, and users connect to it from the internet. Can clients connect to its address directly? Many people expose edge servers that way. You can also put them behind a load balancer, as Slack does: it terminates WebSocket connections on Envoy proxies in regions close to users <Cite href="https://slack.engineering/migrating-millions-of-concurrent-websockets-to-envoy/">slack.engineering</Cite>. [[L-0352 L-0353]]
+
+The trade is latency against attack surface. A load balancer adds a hop, a few milliseconds in one engineer’s experience, which matters for ultra-low-latency uses such as streaming a live class; behind it, each WebSocket still stays on one server for its whole life. If the latency is acceptable, use the load balancer; if not, expose the servers. Both are fine, until private channels need a server-side check (9.4). [[L-0355 L-0356 L-0382]]
+
+<Figure id="fig-9c" panels={2} no="Fig 9·c" k="L-0353 L-0355 L-0356 L-0357 L-0358 L-0359 L-0375" caption="Left: exposed, hardened, holding at most a Kafka credential and never a database one. Right: behind a load balancer, a few milliseconds more, and free to ask a membership API.">
+<Panel><Exposed /></Panel>
+<Panel><BehindLb /></Panel>
+</Figure>
+
+An exposed server faces a ton of threats, so it is hardened: route tables changed, ports hidden, SSH blocked. And one rule doesn’t bend: **an internet-facing server holds no database credentials.** The edge server never talks to the database and doesn’t even know what it is. On this build’s road it needs no credential at all; if it feeds Kafka, as on the phone-first road, the most it holds is a Kafka credential, and that is still a secret, so make it least-privilege: allowed to write to one topic and nothing else, with the consumers checking what they read <Cite href="https://kafka.apache.org/43/security/security-overview/">kafka.apache.org</Cite>. Losing it is far less damaging than losing a database password. [[L-0357 L-0358 L-0359 L-0383]]
+
+With nothing valuable on the box, the main risk left is a denial-of-service attack; a rate limiter stops some floods, the big ones must be absorbed upstream <Cite href="https://docs.aws.amazon.com/whitepapers/latest/aws-best-practices-ddos-resiliency/infrastructure-layer-attacks.html">docs.aws.amazon.com</Cite>. [[L-0360]]
+
+</Section>
+
+<Section id="s9-4" no="9.4" title="Can the edge believe the channels a client claims?" crumb="9.4 Membership">
+
+Recall how a server learned which channels its users are in: the users told it, right after connecting. Now private channels exist. [[L-0373]]
+
+<PauseAndThink k="L-0368 L-0373 L-0374 L-0375"
+  q="Each WebSocket server learns a user’s channels from what the client sends after connecting. Is that good enough to decide who receives a private channel’s messages?"
+  choices={[{ label: 'Yes: the client knows which channels it’s in' }, { label: 'No: the server has to check', correct: true }]}
+  right="Right."
+  wrong="A client can claim anything.">
+
+A malicious user can simply send “I’m in this channel, give me everything” and start receiving messages they should never see. That is an authorisation flaw, what OWASP calls broken access control: the client’s word isn’t proof.
+
+</PauseAndThink>
+
+The baseline is to deny by default anything that isn’t public, and check membership on the server side <Cite href="https://top10.owasp.org/2021/A01_2021-Broken_Access_Control">owasp.org</Cite>. Trusting the client is fine while membership isn’t sensitive. When it is, the edge server asks a backend membership API which channels its users really belong to, and it can only do that as a private server behind a load balancer, because calling an internal API takes credentials an internet-facing server must not hold, which is the right-hand panel of Fig 9·c. [[L-0368 L-0374 L-0375]]
+
+Each failure had an answer built from pieces already on the page: a timed fetch, the database’s own replicas, nothing worth stealing on the edge, and a server-side check. Time to step back and look at the whole thing.
+
+</Section>

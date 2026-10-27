@@ -1,0 +1,93 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { RowVsColumn, PrimaryToWarehouse, WhyCompress } from '../../../figures/lec02/s3-columns';
+import { SoFarGuide } from '../../../figures/lec02/so-far';
+
+{/* Chapter 3 "One average over 10,000 rows. How much does the disk read?" Story rewrite: stock_ticks, row vs column
+    layout (naive one file per column) → the average-price query, pause + clip → why not everything is columnar:
+    transactional SELECT *, warehouses, heavy inserts, never the primary copy → compression. */}
+
+<Section id="s3" no="3" title="One average over 10,000 rows. How much does the disk read?" crumb="3 Columns" meta="About 4 min">
+
+Take a table called `stock_ticks` that records the price of every listed stock: `symbol`, `price`, `name`, `exchange` and `ts`, the timestamp. Keep it small: one row per company per day. You want one number from it, the average price of the whole market for one day. About 10,000 companies are listed, so that day has about 10,000 rows. [[L-0052 L-0056 L-0057]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="The field guide so far. Marked new: document and key-value stores.">
+<Desk><SoFarGuide stage={2} /></Desk>
+<Phone><SoFarGuide stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="How does a table sit on disk?" crumb="3.1 Rows or columns">
+
+In a row-oriented database a row is stored the way you draw it: its five values sit one after another and are persisted as one row. [[L-0051 L-0053]] A column-oriented database stacks the other way: the values of one column, across many rows, sit together. A crude, naive picture is one file per column, line 1 of every file holding row 1’s value. Real column stores are smarter, but the picture is enough to see which files a query must open. [[L-0054 L-0055]]
+
+<Figure id="fig-3b" max={760} no="Fig 3·b" k="L-0051 L-0052 L-0053 L-0054" caption="Left: a row store keeps each row’s five values in one strip. Right: a column store keeps each column’s values together.">
+<Desk><RowVsColumn /></Desk>
+<Phone><RowVsColumn layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Does naming two columns make the read smaller?" crumb="3.2 One query">
+
+The query only needs two of the five columns:
+
+```sql
+SELECT avg(price) FROM stock_ticks
+WHERE ts >= '2026-10-27' AND ts < '2026-10-28';
+```
+
+<PauseAndThink k="L-0053 L-0057 L-0058 L-0059 L-0071"
+  q="The query names only <code>price</code> and <code>ts</code>. Does that make a row store read less from disk?"
+  choices={[{ label: 'Yes: it reads only the two columns it was asked for' }, { label: 'No: it still reads every column of every row', correct: true }]}
+  right="Right."
+  wrong="Naming columns changes what comes back, not what the disk reads in a row store.">
+
+The row is the unit on disk. To reach the next row’s price, the engine has to pass over this row’s symbol, name and exchange, because it can’t know where the row ends without reading it. It reads everything and then picks out the two columns you asked for.
+
+</PauseAndThink>
+
+<AnimationClip clip="l02-column-scan" no="Clip 3·1" k="L-0053 L-0056 L-0057 L-0058 L-0059 L-0062"
+  lead="Five columns, 10,000 rows. How much does each layout read to answer one average?"
+  caption="SELECT avg(price) on 10,000 rows: the row store reads every row whole and discards three columns; the column store opens two files. With 100 columns it is 100 against 2." />
+
+So the row store reads all 50,000 values to use 20,000; the column store reads exactly those 20,000. Real analytics tables are far wider than five columns. Redshift’s documentation gives the arithmetic: a query that uses 5 of 100 columns reads only about 5% of the data in a column store <Cite href="https://docs.aws.amazon.com/redshift/latest/dg/c_columnar_storage_disk_mem_mgmnt.html">docs.aws.amazon.com</Cite>. [[L-0058 L-0060 L-0062]]
+
+Only the way the data sits on disk changed, and that alone gives a massive speed-up without touching any layer above it. That is what an abstraction in the right place buys you. [[L-0068]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="Then why isn’t every database columnar?" crumb="3.3 Analytics only">
+
+Because most applications read whole rows. You could build a blogging site on a column store, but you shouldn’t: rendering a profile reads all 10 or 15 of its columns together, almost always a `SELECT *`. Column stores thrive when a query touches a few columns out of hundreds, which is the typical analytics query, and that is why they power warehouses such as Amazon Redshift and Google BigQuery. File formats like Parquet use the same layout so that a job reads the bare minimum. [[L-0061 L-0063 L-0064 L-0065 L-0066]]
+
+Notice those are SQL warehouses. Column orientation is a way of laying a table on disk, not a separate non-relational family, and it is a different idea from the “wide-column” stores such as Cassandra. [[L-0050]]
+
+Writes are where it costs: inserts are heavy. ClickHouse, for example, creates a new storage part on disk for every insert, so it recommends inserting in batches of at least 1,000 rows <Cite href="https://clickhouse.com/docs/best-practices/selecting-an-insert-strategy">clickhouse.com</Cite>. You get some, you lose some, and for analytics the trade is fine. [[L-0072]]
+
+That is also why a column store is never the primary copy of an application’s data. The primary copy lives in MySQL, PostgreSQL, MongoDB, DynamoDB and the like, and a job copies it into the warehouse just to power the analytics. [[L-0073 L-0074]]
+
+<Figure id="fig-3c" max={760} no="Fig 3·c" k="L-0073 L-0074 L-0063" caption="Applications read and write whole rows in their primary databases. A job copies the data into the warehouse asynchronously (dashed), and analysts query only the warehouse.">
+<Desk><PrimaryToWarehouse /></Desk>
+<Phone><PrimaryToWarehouse layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="Why do column files get so small?" crumb="3.4 Compression">
+
+Because each column holds one kind of value, often from a small set. The `symbol` column repeats AAPL and GOOG over and over, so the store can keep a dictionary and write a small code for each value instead of the string, then collapse runs of the same code. Parquet does exactly this with dictionary and run-length encoding <Cite href="https://parquet.apache.org/docs/file-format/data-pages/encodings/">parquet.apache.org</Cite>. You pass ordinary strings; the engine compresses them for you. [[L-0075 L-0077 L-0079 L-0080]]
+
+<Figure id="fig-3d" wide={false} max={340} no="Fig 3·d" k="L-0075 L-0077" caption="Top: a homogeneous column becomes small codes, then runs. Bottom: a row mixes a symbol, a price, a name, an exchange and a time, which compresses less. Values are illustrative.">
+<WhyCompress />
+</Figure>
+
+A row mixes strings, numbers and timestamps, so it compresses far less. How much a column shrinks depends heavily on the data; someone who runs these warehouses reports gains of around 29 times as normal for his data. [[L-0076 L-0078]] Three trades down. The next one is the most misunderstood of all, and it starts with a mistake almost everyone makes.
+
+</Section>

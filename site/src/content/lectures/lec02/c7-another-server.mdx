@@ -1,0 +1,113 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import { FourConnections, TcpLinks, Mesh, SevenConnections } from '../../../figures/lec02/s8a-websockets-figs';
+import { SoFarSlack } from '../../../figures/lec02/so-far';
+
+{/* Chapter 7 "E is on another server. How does the message get there?" Story rewrite: toy numbers (4 connections
+    per server, C1 = A..E) → what each server knows (handshake, membership, eventually consistent) → local delivery,
+    E stranded → simplest thing: one TCP link (pause, stepper), F on WS3 → the mesh → its real cost: connections
+    (pause, 7 with 3 wasted), the dinosaur → hand-off. */}
+
+<Section id="s7" no="7" title="E is on another server. How does the message get there?" crumb="7 Another server" meta="About 5 min">
+
+E’s app connected a few seconds after the others and landed on a different WebSocket server. A posts. Before you fix that, notice why these servers deserve the care: whatever a company runs over WebSockets, Discord’s chat or video streaming, is among its most critical features, because the expensive TCP connection stays open instead of being set up again for every exchange. If the WebSocket servers go, real-time chat stops. [[L-0240 L-0241]]
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="Slack so far. Marked new: the send road, saved first, then pushed.">
+<Desk><SoFarSlack stage={2} /></Desk>
+<Phone><SoFarSlack stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="What does each server know?" crumb="7.1 Two servers">
+
+Start with numbers small enough to draw; change them later and you have the real case. Like every server, a WebSocket server can hold only so many connections. Say it has room for four users. Real servers hold far more. [[L-0239 L-0242]]
+
+Channel 1, C1, has five members: A, B, C, D and E. A to D connect first and fill WebSocket server 1. When E connects, WS1 is full, so E lands on WS2. When A posts in C1, B, C, D and E must all get it. [[L-0243 L-0244]]
+
+<StepThrough id="fig-7b" no="Fig 7·b" label="Four connections, five users"
+  k="L-0242 L-0243 L-0244 L-0245 L-0247 L-0248 L-0249 L-0250 L-0251 L-0252"
+  stepK={['L-0242', 'L-0243 L-0244', 'L-0250', 'L-0251 L-0252']}
+  caption="Each server’s strip is its connection slots, blue when a user holds one, with a red tick at the toy limit of four. Below the line: who each server knows is connected, and in which channels."
+  steps={[
+    'Assume a WebSocket server has room for <span class="term red">four users</span>. Real servers hold far more.',
+    'A, B, C and D fill WS1, so E connects to WS2.',
+    'A’s <code>standup in 5</code> for C1, saved by the API server, reaches WS1. WS1 knows who is in C1, skips the sender and sends it to B, C and D.',
+    'But E is in C1 too, on another server. How does it get the message?',
+  ]}>
+  <FourConnections />
+</StepThrough>
+
+How does WS1 know who is in C1? A WebSocket server built with Socket.IO or similar learns who is connected from the handshake and keeps a local pool. But a message is addressed to a channel, so right after connecting the client sends its membership, “I am in C1, C2 and C3”, and the server keeps it in memory, *eventually* consistent: the client reports every join and leave and resends its list now and then. [[L-0245 L-0247 L-0248 L-0249]]
+
+So delivery inside one server is a lookup. But nothing has told WS2 anything. Picture a group of friends having fun in one hotel room while two of them sit in another room down the corridor: how do those two get to be part of it? [[L-0250 L-0251 L-0252]]
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="What is the simplest thing that reaches E?" crumb="7.2 One link">
+
+<PauseAndThink k="L-0253 L-0256 L-0257 L-0258 L-0259"
+  q="A to D are on WS1, E is on WS2, all in C1. A posts. What is the simplest thing that gets the message to E?"
+  choices={[{ label: 'Put Kafka, or a relay service, between the servers' }, { label: 'Open one plain TCP connection from WS1 to WS2', correct: true }]}
+  right="Right."
+  wrong="That adds a hop, consumers and latency to a path that should be instant.">
+
+Two machines can simply talk to each other; you open TCP connections all the time. WS1 relays the message over the link, WS2 sees it is for C1, finds E and pushes it on.
+
+</PauseAndThink>
+
+Go to first principles. Routing through an API server would be slow; Kafka between the servers slows things too and needs consumers running; a relay server is one more machine between two that can already talk. The bare minimum is a normal TCP connection, not a WebSocket. [[L-0253 L-0255 L-0256 L-0257 L-0258 L-0259]]
+
+<StepThrough id="fig-7c" no="Fig 7·c" label="TCP links between WebSocket servers"
+  k="L-0258 L-0259 L-0260 L-0261"
+  stepK={['L-0258 L-0259 L-0260', 'L-0261']}
+  caption="Blue is the message, green a delivery; the red slot after a server’s cap tick is a connection it spends on another server."
+  steps={[
+    'WS1 opens one plain <code>tcp</code> connection to WS2 and relays the message. WS2 finds E and <span class="term green">delivers</span>. Each server spends one <span class="term red">slot</span> on the link.',
+    'F joins C1 on WS3. WS1 opens a second link, and everyone in C1 gets the message.',
+  ]}>
+  <TcpLinks />
+</StepThrough>
+
+<RuleBox label="The rule to keep" rule="Start with the problem, solve it with ==basic fundamentals==, then make it better." k="L-0264 L-0259">
+
+A TCP link between two machines is the bare minimum. Add nothing until the problem demands it.
+
+</RuleBox>
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="Every server linked to every other. What does that cost?" crumb="7.3 The mesh">
+
+Keep adding servers and keep linking. Any server may have a member of any channel, so every WebSocket server ends up linked to every other one, however many there are. That is a **mesh**. [[L-0265]]
+
+<Figure id="fig-7d" no="Fig 7·d" k="L-0265" caption="Four servers, every pair linked: six links, the four sides and both diagonals.">
+<Mesh />
+</Figure>
+
+<PauseAndThink k="L-0262 L-0267 L-0274 L-0276 L-0277"
+  q="Four servers in a mesh, each with four users. What is the real cost of the mesh?"
+  choices={[{ label: 'E and F get the message a little later' }, { label: 'Messages are lost when a server goes down' }, { label: 'A TCP handshake for every relayed message' }, { label: 'The links eat connections meant for users', correct: true }]}
+  right="Right."
+  wrong="That one isn’t it.">
+
+A WebSocket server exists to serve users, and every link in the mesh takes one of its limited connections to talk to another server instead.
+
+</PauseAndThink>
+
+You might also suspect latency, fault tolerance or handshakes. None of them is the cost. E and F do get the message a moment later, but it is still real time. A server going down is a fault-tolerance problem, not the cost of the mesh. And each link’s handshake happens once; after that, messages just flow over it. [[L-0262 L-0267 L-0270 L-0274]]
+
+<Figure id="fig-7e" no="Fig 7·e" k="L-0276 L-0277 L-0263" caption="Where WS1’s seven connections go: four serve users, three only reach other servers; under a real cap, that is three users it can’t take.">
+<SevenConnections />
+</Figure>
+
+Why do connections matter so much? Each one costs the server a file descriptor, memory and CPU, so it can keep only a finite number open; they all arrive on one listening port, so the port isn’t the limit, the machine is. You might object that a real server can hold something like a million connections, so a few links are nothing, and on capacity alone you would be right. The point is what they are for. Every new server needs a link to every existing one: 1 link for two servers, 6 for four, 4,950 for a hundred, 99 on each server. All of them are persistent connections held open purely so servers can talk among themselves, none of them serves a user, which is the server’s whole job, and the count grows with every server you add. [[L-0273 L-0275 L-0276 L-0277]]
+
+It is easy to chase small costs while the big one stands in plain view, like worrying about a small mouse while a dinosaur stands behind you, staring at you. Saying “overhead” isn’t enough: before you jump to a fix, say exactly what the overhead is. Here it is connections. So how do a hundred servers reach each other without spending 99 connections each? [[L-0269 L-0271]]
+
+</Section>

@@ -1,0 +1,932 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Two builds: (1) a field guide to non-relational database families and SQL-or-not; (2) Slack's real-time chat. The second is restricted to one part done well: real-time communication, text only.",
+  "evidence": "Overview 'two builds'; §5 'Slack's real-time communication, text only'",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "One architecture covers almost every messaging system; only the guarantees (persistence road) change, giving something like Slack, a phone-first app like WhatsApp, or Zoom chat.",
+  "evidence": "§10.2 rule 'One architecture covers almost every messaging system'",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "'NoSQL' throws everything not MySQL/Postgres/Oracle under one blanket (like 'technical/non-technical'); name the type/database. 'NoSQL scales' as blanket is wrong: you can build a non-relational DB that doesn't scale; those that scale, scale for a specific workload (Cassandra writes, DynamoDB key lookups).",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "They give up consistency to get scalability and availability.",
+  "evidence": "§1.4 'give up consistency to get scalability and availability'",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "ACID consistency (correctness: each transaction moves data valid state to valid state) and CAP consistency (visibility/linearizability: a read after a write returns it). NoSQL gives up the CAP one (strong consistency).",
+  "evidence": "§1.4 + Fig 1·d",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "A single relational primary without a standby takes everything down when it fails; data spread over replicated nodes keeps serving when one fails. Result: eventual consistency.",
+  "evidence": "§1.4 'In exchange you get availability…eventually consistent'",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "'NoSQL DBs scale does not mean SQL does not → anything that shards, scales.' Backed by Lecture 3's KV store on MySQL split by key range A–M / N–Z behind a router.",
+  "evidence": "§1.3, Fig 1·c note",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Never believe a generic statement at face value, not even this one; ask that it be specific and contextual, ask why it is said, look for a counter-example.",
+  "evidence": "§1.4 'The habit to keep'",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "Mostly JSON documents; query on attributes; aggregations; partial updates. Example: MongoDB (DynamoDB also supports a document model). Only one example clearly given as a document DB.",
+  "evidence": "§2.1, §2.4",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "A document database, because it is close to relational in power; you'll almost never see a jump straight to a KV store (too restrictive: no queries inside the value).",
+  "evidence": "§2.1 last paragraph",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Changing one attribute of one document and nothing else ($set). In a blob KV store you read the whole value, change it in code and write the whole value back.",
+  "evidence": "§2.1, §2.2, Fig 2·b",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "DynamoDB: a KV store that also supports a document model (filter on nested attributes). Focus on the features you need (complex queries, partial updates) and pick the DB that gives them.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "MongoDB started out 'BASE, not ACID' and now supports ACID transactions.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Only key-wise operations: get, put, delete a key, add member to set at a key; never peek into the value. Examples: Redis, DynamoDB, Aerospike.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Every KV operation names one key so lands on exactly one shard; richer queries (range, IN) may touch many shards and wait for the slowest, which is very expensive, so they can't be split thousands of ways.",
+  "evidence": "§2.3, Fig 2·c",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "Restrictive: only key-wise access, useless unless use case fits; in exchange massive partitioning/parallelism (thousands of partitions). 'The more complex the queries, the less you can distribute the data.'",
+  "evidence": "§2.2-2.3",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "stock_ticks with columns symbol, price, name, exchange, ts.",
+  "evidence": "§3",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Row store: R1's five values together, then R2, then R3 as one strip. Column store: values of each column together (c1 symbol…c5 ts); row 1 is one cell in each column block.",
+  "evidence": "Fig 3·b",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "One file per column, line 1 of every file holding row 1's value.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "SELECT avg(price) FROM stock_ticks for one day (filter on ts). Needs only price and ts.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "The row is the unit on disk: to reach the next row's price the engine must pass over this row's other columns since it can't know where the row ends; reads everything (100 columns to use 2) then picks columns.",
+  "evidence": "§3.2, clip text",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "Only the files of the needed columns (price and ts); no IO for the rest.",
+  "evidence": "§3.2 clip text",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "Analytics/data warehouses: Amazon Redshift, Google BigQuery; Parquet file format uses the same layout (ClickHouse mentioned).",
+  "evidence": "§3.3",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "Applications read whole rows: rendering a profile reads all 10-15 columns (SELECT *), so column layout gives no gain.",
+  "evidence": "§3.3",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q026",
+  "answer": "No. It reads the whole rows and then picks out the columns asked for.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Never as primary copy: primary data lives in MySQL/Postgres/Mongo/DynamoDB and a job copies it asynchronously (in batches) into the warehouse for analytics.",
+  "evidence": "§3.3, Fig 3·c",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Each column holds one kind of value often from a small set, so dictionary codes and run-length encoding shrink it; rows mix types. Around 29x is normal.",
+  "evidence": "§3.4",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "Dictionary encoding, run-length encoding; Huffman, Snappy, LZ.",
+  "evidence": "§3.4, Fig 3·d labels",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q031",
+  "answer": "Using a graph DB because data can be drawn as a graph; example: Twitter follow/following.",
+  "evidence": "§4, §4.1",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "They take the adjacency list (data-structures course) and store it as is, with data APIs on top.",
+  "evidence": "§4.1, Fig 4·b",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Showing whether someone is a 1st, 2nd or 3rd connection.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "Memory hungry and hard to scale, costs far more than needed; 'the Hulk opening a glass jar'.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Everyone who bought an iPhone is a cohort of similar users; when one buys AirPods, the rest are a good audience for AirPods. Real cohorts go 2-3 levels deep.",
+  "evidence": "§4.2, Fig 4·c",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "(Page anonymises it: a card holder buying a software subscription, bank called.) Customer's history is a tight cluster of domestic transactions; a sudden international one is a new edge outside the cluster, flagged as suspicious quickly; payment held and routed to an executive who calls.",
+  "evidence": "§4.2, Fig 4·d",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "50-60 parameters; decision within 200 ms.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "Page names Amazon Neptune (and FlockDB, Twitter's adjacency-list store). No explicit list of graph DB examples.",
+  "evidence": "§4.3, §4.1",
+  "found": false
+ },
+ {
+  "id": "Q039",
+  "answer": "Partly: no relations/foreign keys so nothing ties data together, data denormalized and spread; give up (CAP) consistency for scalability and availability. Beneath: 'NoSQL DBs scale does not mean SQL does not → anything that shards, scales.' No explicit three-item board list.",
+  "evidence": "§1.2-1.4, Fig 1·c",
+  "found": false
+ },
+ {
+  "id": "Q040",
+  "answer": "Insert: a message whose channel_id has no channel is rejected. Delete: deleting a channel that still has messages is blocked (default).",
+  "evidence": "§1.2, Fig 1·b",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Relational databases grew up around money, so they chose correctness over a very high write rate.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Don't use foreign keys; then partition it yourself (e.g., by key range) like a non-relational store.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "When to use SQL: correctness of data most important, need ACID. When NoSQL: gigantic amounts of data ingested fast (posts, logs, metrics), can tolerate missing attribute/unchecked row. Board lists not reproduced verbatim.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "When correctness is the most important feature (ACID). No: SQL gives tooling (FKs, check constraints) but doesn't apply them for you; you have to.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Gigantic data at fast ingestion: posts, logs, metrics (Cassandra example).",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Each node's adjacency list stored as is (A: B, C …) with data APIs on top.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Every logic gate can be built from NAND; likewise every database can be modelled on top of a KV store, maybe not as performantly (CockroachDB example).",
+  "evidence": "§2.4 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "NOT ON PAGE (page only shows a fraud check in a payment flow; no statement on transactional user-facing use).",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q049",
+  "answer": "Graph: one traversal. SQL: a self-join per level, query rewritten whenever depth changes, slow on huge tables (or WITH RECURSIVE).",
+  "evidence": "§4.3, Fig 4·e",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Across shards they are distributed transactions that cost throughput; use only when needed.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "No; 'key-value' describes how you use a store, not how it stores. Redis keeps data in memory, DynamoDB on disk: same access pattern, different storage engines.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Use a dedicated KV store such as Redis, DynamoDB or Aerospike (vs Lecture 3's MySQL table).",
+  "evidence": "§2.2, §2.4",
+  "found": false
+ },
+ {
+  "id": "Q053",
+  "answer": "No; depends on what you store, how you access it and how you partition (Redis memory vs DynamoDB disk). No specific example of teacher's beyond that.",
+  "evidence": "§2.4",
+  "found": false
+ },
+ {
+  "id": "Q054",
+  "answer": "Page lists five: one organisation with many users; many channels; DM a user or post in a channel; real time; scroll history (text only).",
+  "evidence": "Fig 5·b",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Multiplayer games and live polls; also Teams/Instagram-style messaging, WhatsApp-like and Zoom chat.",
+  "evidence": "§5, §10.2",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "No; a schema names entities and attributes, it doesn't commit you to a relational DB.",
+  "evidence": "§5",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "'user_channel' means nothing and grows into user_channel_message; a noun gives the table a persona that naturally grows attributes (checkpoint, mute).",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "Both columns could be null (orphan message belonging nowhere), and every query/business logic must check which column is set.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Every new column means two migrations (and a receiver array breaks when someone joins).",
+  "evidence": "§5.2 drafts",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Every query must parse the string id to know which table to join (string processing).",
+  "evidence": "§5.2 draft 4",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Still no foreign key on 'to', and business logic fills with ifs and elses.",
+  "evidence": "§5.2 draft 5",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Otherwise you can't render a channel (can't fetch a channel's messages); routing left to code.",
+  "evidence": "§5.2 draft 6",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "A DM is a channel with two people; every message has one channel_id. Slack's API: every channel-like thing is a conversation (public, private, DM is_im); conversations.open returns a channel ID for a DM.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "Piggyback on what exists instead of special-casing; avoid ifs and elses in how data is stored.",
+  "evidence": "§5.2-5.4 rule",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "users(id, name); channels(id, org, name, type grp/user/reg); membership(user_id, channel_id, checkpoint); messages(id, from, channel_id, created_at, msg).",
+  "evidence": "Fig 5·d",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "Rendering: reg/grp channels in top half of sidebar, type user (DM) below; distinguishes DM from private channel.",
+  "evidence": "§5.3, Fig 5·e",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "channel_id+receiver_id (one null) → two tables / receiver_ids array → single 'to' with prefixes → 'to' + type enum → no destination → final: channel_id only (DM as channel).",
+  "evidence": "Fig 5·c",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Per user per channel, how far they've read (timestamp or message id); enables unread badge, 'last read until here' line and jump to it (Slack last_read).",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Muted, favourited, notification settings.",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Name tables as nouns; piggyback on what you have instead of writing ifs and elses.",
+  "evidence": "§5.4 rule",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Any DB you can shard, even SQL (Slack runs sharded MySQL/Vitess); Slack is enterprise with modest message rate; storing and scrolling back is what relational does well, sharded.",
+  "evidence": "§4.5",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Instagram Messenger: everyone chit-chats all day, high ingestion rate.",
+  "evidence": "§4.5",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Just because you have it doesn't mean you have to use it; sending is a separate decision.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "HTTP/1.1 reuses persistent connections (no handshake per message); Slack isn't as chatty as Instagram Messenger; if WS were always better nobody would run API servers.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "A sent message shows grey for a moment then turns black.",
+  "evidence": "§6.1, Fig 6·c",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "1 synchronous persistence (saved then shown) = Slack; 2 asynchronous via Kafka (shown then saved) = phone-first/WhatsApp; 3 none (shown only) = Zoom chat.",
+  "evidence": "§6.3 clip, §10.2 dial",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "The servers that hold users' WebSockets, which everyone connects to (not a CDN edge).",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Enterprise customers need the record; a message shown then never saved costs credibility (people misquote); a refresh reads the DB so an unsaved message would disappear.",
+  "evidence": "§6.2-6.3",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "A sends over HTTP to API server → writes to shard → only then hands event to WebSocket server → pushes to everyone in the channel.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Sent over the open WebSocket to edge server, pushed straight to the other user and dropped onto Kafka; workers store it later in batches. Acceptable because phones keep their own copy (backend only a backup).",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Workers lag; a refresh reads DB which doesn't have it yet, so a message already seen disappears (delivered now, stored late).",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "No persistence: Zoom in-meeting chat (rejoin and history is gone).",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "Edge holds tons of TCP connections, DB calls add load there; it's on the internet so a DB connection string is almost public, compromise = gone; if it goes down all real-time goes with it. Keep it dumb.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q085",
+  "answer": "No: a WebSocket is a persistent connection, not database persistence.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "At most a Kafka credential (least privilege, write to one topic); never DB credentials.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Page draws: A sends HTTP to API, API saves to DB, API hands to WS, WS pushes to B (Fig 6·b/7·a). No exact sketch.",
+  "evidence": "Fig 6·b, 7·a",
+  "found": false
+ },
+ {
+  "id": "Q088",
+  "answer": "Page's final diagram uses the synchronous (Slack) road, not Kafka; it says only the persistence road changes (dial) and Kafka route is the phone-first setting.",
+  "evidence": "§10.2, Fig 10·b",
+  "found": false
+ },
+ {
+  "id": "Q089",
+  "answer": "WebSocket features are among the most critical features; the expensive TCP connection stays open instead of being set up per exchange.",
+  "evidence": "§7",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "A WS server holds only 4 connections (toy); channel C1 has A-E; A-D on WS1, E on WS2.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "From the handshake (Socket.IO etc.), keeping a local pool.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Right after connecting the client sends its membership ('I am in C1, C2, C3'); kept in memory.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Client reports every join and leave and resends its list now and then (plus new-channel notice via Redis); eventually consistent.",
+  "evidence": "§7.1, §8.2",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "B, C and D (skipping sender A).",
+  "evidence": "Fig 7·b",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Kafka slows things and needs consumers; first principles: the bare minimum is a TCP connection between machines that can already talk.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "WS1 opens a plain TCP connection to WS2 and relays; WS2 finds E.",
+  "evidence": "§7.2, Fig 7·c",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "WS1 opens a second TCP link to WS3.",
+  "evidence": "Fig 7·c",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Latency is still real time; a server going down is a fault-tolerance problem, not the cost of the mesh; handshake happens once. The real overhead is connections.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "No, once per link; then messages flow.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Every link uses one of the server's limited connections to talk to other servers instead of serving users (99 each at 100 servers; 4,950 total).",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "A real-time Pub/Sub (Redis) in the middle; one link per server (in practice a second for PUBLISH).",
+  "evidence": "§8.1-8.2",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "Pushes to everyone subscribed right now; stores nothing; at most once; a disconnected subscriber misses it for good.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Both have 'channels', so say Slack channel vs Redis channel; sending C1 to every server wastes work; only servers with C1 members should get it.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "The server subscribes, not the user, when a user connects and says 'I am in C1'.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "API saves → WS1 delivers to B,C,D → PUBLISH c1 → Redis pushes to WS2 (and back to WS1 which skips own) → WS2 delivers to E,F; WS3 (c2 only) gets nothing.",
+  "evidence": "Fig 8·b",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "No; Redis pushes, not pulled.",
+  "evidence": "Fig 8·b label 'pushed, not pulled'",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Run a Redis cluster with sharded Pub/Sub; reduce load with the Balancer keeping an organisation on one server (and per-channel subscriptions).",
+  "evidence": "§8.2-8.3",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Client asks a Balancer service 'where do I connect?', gets a server address, then connects.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Same organisation → same server; 20,000 connections are nothing, so their messages never need Redis.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Users lose connection, ask Balancer again, get another server; temporarily via Redis; later regrouped.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Write hello worlds: Socket.IO server, a Balancer, local Redis with three subscribed clients; disconnect one, publish, reconnect, watch message never arrive.",
+  "evidence": "§10.6",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "By channel_id: a channel's messages in one database, scrolling never crosses shards.",
+  "evidence": "§5.5",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "users, channels, membership, messages.",
+  "evidence": "Fig 5·d, 10·b",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "HTTP to API server → save → hand to WebSocket server → push to channel members.",
+  "evidence": "§6.2, §6.4",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q116",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q117",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q118",
+  "answer": "One WebSocket per user carrying everything real-time: messages, notifications, typing indicators, live video chat/hearts. (Reason given: extra sockets cost the server and reconnects; no browser limit mentioned.)",
+  "evidence": "§10.1",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Any service that wants to reach users sends through the edge servers rather than opening its own socket.",
+  "evidence": "§10.1",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "Client → HTTP → API servers → sharded DB (channel_id, 3 replicas); API → WS1 → push; WS servers joined via Redis Pub/Sub; Balancer tells clients where to connect; client timed fetch.",
+  "evidence": "Fig 10·b",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Page: synchronous (type 1) for Slack. REST: loading channel, scrolling history, opening muted channel (and send); WebSocket: real-time messages, notifications, typing.",
+  "evidence": "§10.2",
+  "found": false
+ },
+ {
+  "id": "Q122",
+  "answer": "Delivered now, stored late: asynchronously persisted messages aren't delivered late; a refresh during lag hides them.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "Loading a channel, scrolling history, opening a muted channel.",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "Client correction job: periodically fetch last 50 and render missed; opening channel loads from checkpoint; buffer undelivered pushes in Kafka and replay.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "Put message in Kafka, find B in local pool, send to B.",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Direct TCP link WS1→WS2 → mesh of all servers → real-time Pub/Sub in the middle → Redis channel per Slack channel → Balancer groups org.",
+  "evidence": "ch 7-8",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Not on page as example; by page's rule it subscribes to the union of its users' channels: c1, c2, c3, c4, c5.",
+  "evidence": "§8.2 (inferred)",
+  "found": false
+ },
+ {
+  "id": "Q128",
+  "answer": "A Node.js process running Socket.IO, say.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "Either; exposed = lower latency but bigger attack surface; LB adds a hop (3-5 ms), matters for ultra-low latency; behind LB allows membership check. Choose by latency need.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "Harden: change route tables, hide ports, block SSH; no DB creds; rate limiter, absorb DDoS upstream.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "Nothing valuable on the box: at worst a least-privilege Kafka credential (write one topic) leaks; main risk DoS. Mitigate with least privilege, consumers checking, rate limit.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "Client tells server joins/leaves; new channel: API updates DB, notice through Redis to edge servers, clients tell server, server SUBSCRIBEs; periodic meta call listing channels.",
+  "evidence": "§8.2, Fig 8·b",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "Edge server asks a backend membership API/DB which channels users belong to; only when it's a private server behind a load balancer.",
+  "evidence": "§9.4",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "Need real-time push to connected subscribers that stores nothing; Kafka retains and is pulled, slower; requirement is real-time Pub/Sub, any tool would do.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "Not stated as expiry; Redis Pub/Sub stores nothing—pushes and forgets.",
+  "evidence": "§8.1",
+  "found": false
+ },
+ {
+  "id": "Q136",
+  "answer": "Deny by default anything not public; check membership server-side via backend API/DB (requires edge behind LB).",
+  "evidence": "§9.4",
+  "found": true
+ },
+ {
+  "id": "Q137",
+  "answer": "A network call per message is far too expensive for real time; the server can hold that info itself.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q138",
+  "answer": "Persistence guaranteed once accepted; real-time notification not guaranteed.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "Redis Slack-channel ↔ Redis-channel mapping with servers subscribing only to needed channels; Redis cluster with sharded Pub/Sub; Balancer keeps org on one server.",
+  "evidence": "§8.2-8.3",
+  "found": true
+ },
+ {
+  "id": "Q140",
+  "answer": "Redis Pub/Sub: real-time push, keeps nothing. Kafka: retains for a period, consumers pull at own pace, for persistence. Neither superior; pick by need.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q141",
+  "answer": "No: delivered now, stored late.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q142",
+  "answer": "No single best: build your own plate from the guarantees you give your customers.",
+  "evidence": "§10.2",
+  "found": true
+ },
+ {
+  "id": "Q143",
+  "answer": "Not necessarily: a tree like MLM 10 levels deep — first try SQL WITH RECURSIVE.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q144",
+  "answer": "WhatsApp: copies on phones, send a 'delete permanently' message and each phone drops copy. Slack: delete stored row then notify channel users in real time.",
+  "evidence": "§10.3",
+  "found": true
+ },
+ {
+  "id": "Q145",
+  "answer": "Page: on this design deletion is a few hundred lines of backend; time at WhatsApp's scale is deciding whether/how and rolling out. (WhatsApp holds undelivered up to 30 days.)",
+  "evidence": "§10.3",
+  "found": true
+ },
+ {
+  "id": "Q146",
+  "answer": "Show in arrival order, or keep list sorted by timestamp and insert late one (flicker); refresh/last-50 fetch fixes.",
+  "evidence": "§10.4",
+  "found": true
+ },
+ {
+  "id": "Q147",
+  "answer": "Teams not on page. Order fixes itself via refresh or the client's timed fetch of the last 50 (stored order is truth).",
+  "evidence": "§10.4",
+  "found": false
+ },
+ {
+  "id": "Q148",
+  "answer": "The database's insertion timestamp.",
+  "evidence": "§10.4",
+  "found": true
+ },
+ {
+  "id": "Q149",
+  "answer": "Device clock belongs to the user; anyone can set it to 1 Jan 1970.",
+  "evidence": "§10.4",
+  "found": true
+ },
+ {
+  "id": "Q150",
+  "answer": "Vector clocks; still need tie-break, cost every client extra work; don't re-architect for one edge case.",
+  "evidence": "§10.4",
+  "found": true
+ },
+ {
+  "id": "Q151",
+  "answer": "Replication (factor 3) by the DB's storage engine, ack only after required copies; not the writer writing to 3 instances.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q152",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q153",
+  "answer": "A private channel can gain members later, a DM can't; UI must tell them apart (and sidebar halves).",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q154",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q155",
+  "answer": "No; Slack loads them with ordinary API calls from the checkpoint. WhatsApp keeps messages on the phone so it must deliver them there.",
+  "evidence": "§5.4",
+  "found": true
+ }
+]

@@ -75,9 +75,9 @@ export type Cue = {from: number; step?: number; color?: 'blue' | 'red' | 'green'
 export const CAPTIONS: Cue[] = [
   {from: BEAT.intro, text: 'One message, three paths: when saved, when shown?'},
   {from: BEAT.slack, step: 1, text: 'Slack (a hypothesis): over HTTP, saved first, then broadcast to B.'},
-  {from: BEAT.wa, step: 2, text: 'WhatsApp-like (hypothetical): shown at once, saved later via Kafka.'},
+  {from: BEAT.wa, step: 2, text: 'Phone-first (hypothetical): shown at once, saved later via Kafka.'},
   {from: BEAT.zoom, step: 3, text: 'Zoom chat: whoever is connected sees it. Rejoin later: no history.'},
-  {from: BEAT.refresh, text: 'If B reloads from the DB in the lag (Slack does): ① there, ② gone.'},
+  {from: BEAT.refresh, text: 'If B reloads from the DB in the lag (a Slack client can): ① there, ② gone.'},
   {from: BEAT.later, text: 'A worker saves it later; then a reload finds it. Stored late.'},
   {from: BEAT.end, text: 'Different guarantees, different architecture.'},
 ];
@@ -123,5 +123,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    'Three paths carry the same message, "standup in 5", from A to B. Path 1, Slack as the instructor\'s hypothesis: A sends it over HTTP to an API server, which saves it in the database and only then tells the edge server (the WebSocket server), which shows it to B: saved, then shown. Path 2, a hypothetical WhatsApp-like app: A sends it over the WebSocket to the edge server, which shows it to B at once and puts it on Kafka; a worker saves it to the database later, after a lag (the class\'s example: about 10 minutes). Path 3, Zoom chat by default: the edge server shows it to whoever is connected, nothing is saved, and a user who rejoins sees no history. Then B reloads the channel from the database during the lag, as a Slack client can: on path 1 the database has the message and it is still there; on path 2 the database does not have it yet, so the message B already saw disappears. Later a worker pulls it from Kafka and saves it, and a reload finds it again: the message was delivered at once and only stored late. Different guarantees, different architecture.',
+    'Three paths carry the same message, "standup in 5", from A to B. Path 1, Slack as this build reads it, saving first: A sends it over HTTP to an API server, which saves it in the database and only then tells the edge server (the WebSocket server), which shows it to B: saved, then shown. Path 2, a hypothetical phone-first app whose phones keep their own copy: A sends it over the WebSocket to the edge server, which shows it to B at once and puts it on Kafka; a worker saves it to the database later, after a lag (about 10 minutes in this example). Path 3, Zoom chat by default: the edge server shows it to whoever is connected, nothing is saved, and a user who rejoins sees no history. Then B reloads the channel from the database during the lag, as a Slack client can: on path 1 the database has the message and it is still there; on path 2 the database does not have it yet, so the message B already saw disappears. Later a worker pulls it from Kafka and saves it, and a reload finds it again: the message was delivered at once and only stored late. Different guarantees, different architecture.',
 };

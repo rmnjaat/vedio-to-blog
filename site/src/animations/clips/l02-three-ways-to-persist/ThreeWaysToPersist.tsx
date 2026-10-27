@@ -50,7 +50,7 @@ type Lane = {
 
 const TITLES = [
   {n: 1, title: 'Slack', sub: '(a hypothesis)'},
-  {n: 2, title: 'WhatsApp-like', sub: '(hypothetical)'},
+  {n: 2, title: 'Phone-first', sub: '(hypothetical)'},
   {n: 3, title: 'Zoom chat', sub: '(by default)'},
 ];
 

@@ -1,142 +1,142 @@
 ---
 title: "Slack in real time"
-kicker: "Lecture 04 · week 2, day 2 · running case: Slack"
-dek: "Tour the non-relational database families by what each gives up, then design how Slack gets one message to everyone in a channel in real time."
-description: "Lecture 04: document, key-value, column-oriented and graph databases and when to pick SQL, then Slack's real-time chat: schema, message guarantees, scaling WebSocket servers with a real-time Pub/Sub."
-reviewed: 14 Oct 2026
+kicker: "Lecture 4 · two builds: what non-relational databases give up, then Slack’s real-time chat"
+dek: "Your team is about to store every message of a chat app, and someone in the design review says “Use NoSQL, it scales.” Learn what to ask back, family by family. Then put a message on the screen of every member of a Slack channel the moment it is sent, even when they sit on different servers, and keep it there after a refresh."
+description: "Lecture 04: document, key-value, column-oriented and graph databases by what each gives up, and when to pick SQL; then Slack’s real-time text chat: the schema, the send path and its guarantees, WebSocket servers joined by a real-time Pub/Sub, a Balancer, lost pushes, and the edge."
+reviewed: 27 Oct 2026
 status: published
 ledger: lectures/lec02/ledger/ledger.jsonl
+origin: "Two builds, one story"
+footnote: "facts checked against primary sources, linked where they come from outside this lecture."
 contents:
   - no: "1"
-    title: "“NoSQL” is not one thing"
+    title: "“Use NoSQL. It scales.” What do you ask back?"
     href: "#s1"
     children:
-      - { no: "1.1", title: "Name the database, not the family", href: "#s1-1" }
-      - { no: "1.2", title: "Two meanings of consistency", href: "#s1-2" }
-      - { no: "1.3", title: "Relational databases scale too", href: "#s1-3" }
+      - { no: "1.1", title: "Which database, and for what?", href: "#s1-1" }
+      - { no: "1.2", title: "Why would dropping relations help anything scale?", href: "#s1-2" }
+      - { no: "1.3", title: "Can a relational database spread out too?", href: "#s1-3" }
+      - { no: "1.4", title: "Then what did they give up?", href: "#s1-4" }
   - no: "2"
-    title: "Documents and key-value stores"
+    title: "Get a value by its key, or ask inside it?"
     href: "#s2"
     children:
-      - { no: "2.1", title: "Document databases", href: "#s2-1" }
-      - { no: "2.2", title: "The lines are blurry", href: "#s2-2" }
-      - { no: "2.3", title: "Key-value stores: one key at a time", href: "#s2-3" }
-      - { no: "2.4", title: "Key-value is an access pattern", href: "#s2-4" }
+      - { no: "2.1", title: "What if you could query inside the value?", href: "#s2-1" }
+      - { no: "2.2", title: "What if every operation named one key?", href: "#s2-2" }
+      - { no: "2.3", title: "What does one key per operation buy?", href: "#s2-3" }
+      - { no: "2.4", title: "Where does one family end and the next begin?", href: "#s2-4" }
   - no: "3"
-    title: "Column-oriented databases"
+    title: "One average over 10,000 rows. How much does the disk read?"
     href: "#s3"
     children:
-      - { no: "3.1", title: "Rows and columns on disk", href: "#s3-1" }
-      - { no: "3.2", title: "One query, two layouts", href: "#s3-2" }
-      - { no: "3.3", title: "Analytics, never the primary copy", href: "#s3-3" }
-      - { no: "3.4", title: "Compression and cost", href: "#s3-4" }
+      - { no: "3.1", title: "How does a table sit on disk?", href: "#s3-1" }
+      - { no: "3.2", title: "Does naming two columns make the read smaller?", href: "#s3-2" }
+      - { no: "3.3", title: "Then why isn’t every database columnar?", href: "#s3-3" }
+      - { no: "3.4", title: "Why do column files get so small?", href: "#s3-4" }
   - no: "4"
-    title: "Graph databases"
+    title: "Who follows whom, and where would Slack keep its messages?"
     href: "#s4"
     children:
-      - { no: "4.1", title: "What a graph database is, and the wrong instinct", href: "#s4-1" }
-      - { no: "4.2", title: "Recommendations", href: "#s4-2" }
-      - { no: "4.3", title: "Fraud detection in 200 ms", href: "#s4-3" }
-      - { no: "4.4", title: "Graphs versus joins, and where a graph database sits", href: "#s4-4" }
+      - { no: "4.1", title: "It can be drawn as a graph. Is that the reason?", href: "#s4-1" }
+      - { no: "4.2", title: "Then what is a graph database for?", href: "#s4-2" }
+      - { no: "4.3", title: "Why not do it with joins?", href: "#s4-3" }
+      - { no: "4.4", title: "So, SQL or not?", href: "#s4-4" }
+      - { no: "4.5", title: "Where would Slack keep its messages?", href: "#s4-5" }
   - no: "5"
-    title: "Why they scale, and when to pick SQL"
+    title: "“Design Slack.” Where do you even start?"
     href: "#s5"
     children:
-      - { no: "5.1", title: "No relations, no checks", href: "#s5-1" }
-      - { no: "5.2", title: "Every database has a backstory", href: "#s5-2" }
-      - { no: "5.3", title: "SQL or NoSQL?", href: "#s5-3" }
+      - { no: "5.1", title: "Who is in which channel?", href: "#s5-1" }
+      - { no: "5.2", title: "A message goes to a channel or to one person. What does the row hold?", href: "#s5-2" }
+      - { no: "5.3", title: "What kind of row is a chat between two people?", href: "#s5-3" }
+      - { no: "5.4", title: "You open a channel with 100 new messages. Where do you land?", href: "#s5-4" }
+      - { no: "5.5", title: "Which shard does a message go to?", href: "#s5-5" }
   - no: "6"
-    title: "Slack: the problem and the schema"
+    title: "You press send. Which road does the message take?"
     href: "#s6"
     children:
-      - { no: "6.1", title: "One part of Slack, done well", href: "#s6-1" }
-      - { no: "6.2", title: "Who is in which channel: membership", href: "#s6-2" }
-      - { no: "6.3", title: "Where do direct messages go?", href: "#s6-3" }
-      - { no: "6.4", title: "A DM is a channel with two people", href: "#s6-4" }
-      - { no: "6.5", title: "The checkpoint", href: "#s6-5" }
+      - { no: "6.1", title: "The socket is already open. Should the send use it?", href: "#s6-1" }
+      - { no: "6.2", title: "What does Slack owe you once you press send?", href: "#s6-2" }
+      - { no: "6.3", title: "What if the app showed it first and saved it later?", href: "#s6-3" }
+      - { no: "6.4", title: "Why not let the WebSocket server save it?", href: "#s6-4" }
   - no: "7"
-    title: "Sending a message: guarantees first"
+    title: "E is on another server. How does the message get there?"
     href: "#s7"
     children:
-      - { no: "7.1", title: "Which database holds the messages", href: "#s7-1" }
-      - { no: "7.2", title: "Send over HTTP or over the WebSocket?", href: "#s7-2" }
-      - { no: "7.3", title: "Three ways to persist a message", href: "#s7-3" }
-      - { no: "7.4", title: "Keep the edge server dumb", href: "#s7-4" }
-      - { no: "7.5", title: "Why not UDP, and ten ways to build it", href: "#s7-5" }
+      - { no: "7.1", title: "What does each server know?", href: "#s7-1" }
+      - { no: "7.2", title: "What is the simplest thing that reaches E?", href: "#s7-2" }
+      - { no: "7.3", title: "Every server linked to every other. What does that cost?", href: "#s7-3" }
   - no: "8"
-    title: "Scaling WebSocket servers"
+    title: "A hundred servers, 99 links each. Now what?"
     href: "#s8"
     children:
-      - { no: "8.1", title: "One channel, two servers", href: "#s8-1" }
-      - { no: "8.2", title: "Start simple: one TCP link", href: "#s8-2" }
-      - { no: "8.3", title: "The mesh, and its real cost", href: "#s8-3" }
-      - { no: "8.4", title: "A real-time Pub/Sub in the middle", href: "#s8-4" }
-      - { no: "8.5", title: "Redis channels for Slack channels", href: "#s8-5" }
-      - { no: "8.6", title: "The Balancer", href: "#s8-6" }
+      - { no: "8.1", title: "What if each server kept just one link?", href: "#s8-1" }
+      - { no: "8.2", title: "Why should WS3 hear about channel 1 at all?", href: "#s8-2" }
+      - { no: "8.3", title: "How did A get WS1’s address?", href: "#s8-3" }
+      - { no: "8.4", title: "WS1 dies. Now what?", href: "#s8-4" }
   - no: "9"
-    title: "The whole system"
+    title: "WS2 blinked while A posted. Where is the message?"
     href: "#s9"
     children:
-      - { no: "9.1", title: "One WebSocket per product", href: "#s9-1" }
-      - { no: "9.2", title: "The overall architecture", href: "#s9-2" }
-      - { no: "9.3", title: "When a real-time message is lost", href: "#s9-3" }
-      - { no: "9.4", title: "Exposing the edge servers", href: "#s9-4" }
-      - { no: "9.5", title: "Durability, and a shared database", href: "#s9-5" }
+      - { no: "9.1", title: "What is promised, and what isn’t?", href: "#s9-1" }
+      - { no: "9.2", title: "A database node dies mid-write. Is the message gone?", href: "#s9-2" }
+      - { no: "9.3", title: "What may an internet-facing server hold?", href: "#s9-3" }
+      - { no: "9.4", title: "Can the edge believe the channels a client claims?", href: "#s9-4" }
   - no: "10"
-    title: "Deleting, ordering, and what to keep"
+    title: "Step back, then try to break it: delete and reorder"
     href: "#s10"
     children:
-      - { no: "10.1", title: "Deleting a message", href: "#s10-1" }
-      - { no: "10.2", title: "Who said messages arrive in order?", href: "#s10-2" }
-      - { no: "10.3", title: "What to keep", href: "#s10-3" }
+      - { no: "10.1", title: "Chat, a badge and a typing dot: one socket or three?", href: "#s10-1" }
+      - { no: "10.2", title: "What does the whole system look like?", href: "#s10-2" }
+      - { no: "10.3", title: "A user deletes a message. What has to happen?", href: "#s10-3" }
+      - { no: "10.4", title: "Two messages arrive out of order. Whose clock wins?", href: "#s10-4" }
+      - { no: "10.5", title: "What you can now do", href: "#s10-5" }
+      - { no: "10.6", title: "Build it, then open the load balancer", href: "#s10-6" }
 chapters:
   - no: "1"
-    slug: 1-nosql-is-not-one-thing
-    parts: [s1-nosql]
-    summary: "Name the database, not the family. The two meanings of consistency, what non-relational stores give up to scale, and why relational databases scale too."
+    slug: 1-what-to-ask-back
+    parts: [c1-ask-back]
+    summary: "A slogan in a design review, the database it hides, why dropping relations lets data spread, and which consistency gets traded."
   - no: "2"
-    slug: 2-documents-and-key-value
-    parts: [s2-documents-kv]
-    summary: "Two families defined by how you may touch the data: query inside a document, or only ever get and put by key, and what each restriction buys."
+    slug: 2-key-or-inside
+    parts: [c2-key-or-inside]
+    summary: "Two families that differ in how you may touch the data, and how far that one restriction lets the data be split."
   - no: "3"
-    slug: 3-column-stores
-    parts: [s3-columns]
-    summary: "Same table, two layouts on disk. Why an analytics query reads two files instead of every row, why warehouses compress so well, and why they are never the primary copy."
+    slug: 3-how-much-is-read
+    parts: [c3-column-read]
+    summary: "One analytics query, two ways to lay the same table on disk, and why warehouses pick one and applications the other."
   - no: "4"
-    slug: 4-graph-databases
-    parts: [s4-graphs]
-    summary: "The most misunderstood family. Not for anything you can draw as a graph, but for real graph algorithms: recommendations and fraud checks inside 200 ms (as relayed in class)."
+    slug: 4-graphs-and-the-choice
+    parts: [c4-graphs]
+    summary: "A follow list, a cohort and a fraud check in 200 ms; then SQL or not, and the first Slack decision."
   - no: "5"
-    slug: 5-sql-or-nosql
-    parts: [s5-sql-or-nosql]
-    summary: "No relations means no checks, so data can spread out. Every database has a backstory, and a broad rule for choosing between correctness and ingestion."
+    slug: 5-slack-rows
+    parts: [c5-slack-rows]
+    summary: "Cut Slack down to real-time text chat and build its tables: membership, direct messages, unread counts, the shard key."
   - no: "6"
-    slug: 6-slack-schema
-    parts: [s6-slack-schema]
-    summary: "Cut “design Slack” down to real-time text chat, then build the tables: a membership noun, direct messages as two-person channels, and a checkpoint for unread counts."
+    slug: 6-press-send
+    parts: [c6-press-send]
+    summary: "The WebSocket is open. Should the send use it? What a Slack-like app should promise about a sent message, and two other promises."
   - no: "7"
-    slug: 7-sending-a-message
-    parts: [s7-sending]
-    summary: "Where messages live, and how one gets there. Send over HTTP or the open WebSocket? Three ways to persist a message, Slack, WhatsApp and Zoom, and why the edge server stays dumb."
+    slug: 7-another-server
+    parts: [c7-another-server]
+    summary: "Five members, servers that hold four connections each: reach the one on another server, then count the cost."
   - no: "8"
-    slug: 8-scaling-websockets
-    parts: [s8a-websockets, s8b-websockets]
-    summary: "One channel's members land on different servers. A TCP link, then a mesh that eats each server's connections, then a real-time Pub/Sub and a balancer that keeps an organisation together."
+    slug: 8-hundred-servers
+    parts: [c8-hundred-servers]
+    summary: "Replace the links between servers, send each message only where needed, choose where users connect, survive a dead server."
   - no: "9"
-    slug: 9-the-whole-system
-    parts: [s9-whole-system]
-    summary: "One WebSocket per product, the overall architecture, what happens when a real-time message is lost, how exposed the edge servers can be, and how a write survives a dead node."
+    slug: 9-what-goes-wrong
+    parts: [c9-what-goes-wrong]
+    summary: "A lost push, a database node that dies mid-write, a server on the open internet, a client that lies."
   - no: "10"
-    slug: 10-deleting-and-ordering
-    parts: [s10-deleting-ordering]
-    summary: "Two follow-up features answered with the same blocks: deleting a message and putting messages in order. Then the habits to keep and where this lecture stops."
+    slug: 10-whole-system
+    parts: [c10-whole-system]
+    summary: "The whole system on one page, then two features it wasn’t designed for, and what comes next."
 ---
 import Header from './lec02/s0-header.mdx';
 
-{/* Lecture 04 (lec02). This body is the lecture overview page (/lectures/lec02/): the header block (About this
-    class, Slack so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec02/<slug>/), built from the
-    parts listed under `chapters` in the frontmatter, in outline order (chapter 8 = s8a + s8b). Section ids: #s1 … #s10,
-    subsections #s<n>-<m>. A link to a section on another chapter page is written as a plain #id: the page template
-    sends it to the right chapter. */}
+{/* Lecture 04 (lec02) overview page: the hook and the two builds. Chapters are their own pages (see `chapters`).
+    Story rewrite; see lectures/lec02/story/NOTES.md. */}
 
 <Header />

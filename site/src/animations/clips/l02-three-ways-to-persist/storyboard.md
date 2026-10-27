@@ -22,7 +22,7 @@ Static twin: Fig 7·c in its phone form (three strips, one per path, each with o
 | L-0220, L-0221 | Zoom chat: whoever is connected gets it; leave and come back, no history | ③ `shown only`; `rejoin` → red dashed outline, `✕ history gone` |
 | L-0219 | different guarantees, different architecture | B6 caption over the poster |
 
-**Not claimed:** Slack's real internals (A-MLA-03 is in prose); that WhatsApp stores messages in a backend; that WhatsApp's own clients reload from a DB (the lane-② reload is the class's "imagine Slack" case and the caption says "(Slack does)"); any timing other than the class's 10 minutes; batching (L-0216), Kafka retention, idempotent writes; that Zoom never persists chat (lane ③ says "by default", A-MLA-12).
+**Not claimed:** Slack's real internals (A-MLA-03 is in prose); that WhatsApp stores messages in a backend; that WhatsApp's own clients reload from a DB (the lane-② reload is the class's "imagine Slack" case and the caption says "(a Slack client can)"); any timing other than the class's 10 minutes; batching (L-0216), Kafka retention, idempotent writes; that Zoom never persists chat (lane ③ says "by default", A-MLA-12).
 
 ## 4. Beats
 
@@ -30,9 +30,9 @@ Static twin: Fig 7·c in its phone form (three strips, one per path, each with o
 |---|---|---|---|
 | B0 | 0–90 | One message, three paths: when saved, when shown? | hold on Fig 7·c |
 | B1 ① | 90–307 | Slack (a hypothesis): over HTTP, saved first, then broadcast to B. | blue packet A → api → db, green ✓ + `saved`; api → edge → B, bubble, `→ shown` |
-| B2 ② | 307–549 | WhatsApp-like (hypothetical): shown at once, saved later via Kafka. | ① ghosts; packet A → edge → B, bubble, `shown`; edge ⇢ kafka, square waits; `≈ 10 min lag` bar, `not to scale` |
+| B2 ② | 307–549 | Phone-first (hypothetical): shown at once, saved later via Kafka. | ① ghosts; packet A → edge → B, bubble, `shown`; edge ⇢ kafka, square waits; `≈ 10 min lag` bar, `not to scale` |
 | B3 ③ | 549–740 | Zoom chat: whoever is connected sees it. Rejoin later: no history. | ② ghosts; packet A → edge → B, `shown only`; `rejoin`, red dashed outline, `✕ history gone` |
-| B4 | 740–936 | If B reloads from the DB in the lag (Slack does): ① there, ② gone. | ①② return, ③ ghosts; `reload` + red tick in the lag; ① read → green packet, `✓ still there`; ② read → red packet, bubble → red outline, `✕ gone in the lag` |
+| B4 | 740–936 | If B reloads from the DB in the lag (a Slack client can): ① there, ② gone. | ①② return, ③ ghosts; `reload` + red tick in the lag; ① read → green packet, `✓ still there`; ② read → red packet, bubble → red outline, `✕ gone in the lag` |
 | B5 | 936–1120 | A worker saves it later; then a reload finds it. Stored late. | ① ghosts; worker pulls (blue), writes db, green ✓, lag end tick green, `→ saved`; reload again → green packet, bubble back |
 | B6 | 1120–1200 | Different guarantees, different architecture. | all lanes back to full strength; poster |
 

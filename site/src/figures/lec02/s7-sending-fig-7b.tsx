@@ -24,7 +24,6 @@ export function GreyThenBlack({ layout = 'wide' }: { layout?: Layout }) {
           <Label anchor="start" x={162} y={136}>a visible delay</Label>
           <ChatBubble x={70} y={176} w={160} text="standup in 5" seed={s('m2')} />
           <Label x={150} y={248}>sent</Label>
-          <Label x={150} y={300} size={15}>a hint, not proof</Label>
         </Fig>
       </Sized>
     );
@@ -40,7 +39,6 @@ export function GreyThenBlack({ layout = 'wide' }: { layout?: Layout }) {
         <Label x={240} y={90}>a visible delay</Label>
         <ChatBubble x={316} y={24} w={150} text="standup in 5" seed={s('m2')} />
         <Label x={391} y={100}>sent</Label>
-        <Label x={240} y={150} size={15}>a hint, not proof</Label>
       </Fig>
     </Sized>
   );

@@ -76,8 +76,8 @@ export function MessageDrafts({ layout = 'wide' }: { layout?: Layout }) {
   const b1 = w1[0], b2 = w1[0] + w1[1] + w1[2];
   const rh = 24, vy = T[0] + 20;
   return (
-    <Fig id={id} w={W} h={P ? 848 : 712} lane={!P} title="Five drafts of messages"
-      desc="Six steps through the class's drafts of the messages table, each rejected for a concrete reason, ending with one channel_id per message. Draft 1 has channel_id and receiver_id, one always null, so a row with both null is an orphan. Two tables double every migration and a receiver array breaks when someone joins. A to column with CH- or usr- prefixes needs string processing in every query. A type enum still leaves no foreign key on to and fills the code with ifs and elses. A message that doesn't know its destination can't be rendered by channel; a common channel for two people works, the pub/sub topic is unnecessary. What survives: from, channel_id, msg.">
+    <Fig id={id} w={W} h={P ? 670 : 590} lane={!P} title="Six drafts of messages"
+      desc="Six drafts of the messages table, each rejected for a concrete reason. Draft 1 has channel_id and receiver_id, one always null, so a row with both null is an orphan. Two tables double every migration and a receiver array breaks when someone joins. A to column with CH- or usr- prefixes needs string processing in every query. A type enum still leaves no foreign key on to and fills the code with ifs and elses. A message that doesn't store its destination can't be rendered by channel.">
       <Label muted anchor="start" x={X} y={24}>settled:</Label>
       <Label kind="mono" anchor="start" x={X + 62} y={24}>users · channels · membership</Label>
       <Line weight="thin" pts={[[X - 6, 36], [W - 10, 36]]} seed={id + '-hd'} />
@@ -143,24 +143,8 @@ export function MessageDrafts({ layout = 'wide' }: { layout?: Layout }) {
         <Cells x={X} y={T[4] + 4} seed={id + '-d6'} cells={[{ t: 'from' }, { t: 'msg' }]} />
         <Label tone="red" anchor="start" x={X + (P ? 104 : 120)} y={T[4] + 24}>then how do you</Label>
         <Label tone="red" anchor="start" x={X + (P ? 104 : 120)} y={T[4] + 43}>render a channel?</Label>
-        <Box x={X} y={T[4] + (P ? 64 : 58)} w={P ? 150 : 140} h={32} label="channel {A, B}" seed={id + '-ch'} />
-        {P
-          ? <Label tone="green" anchor="start" x={X} y={T[4] + 120}>give two people a common channel</Label>
-          : <g>
-              <Label tone="green" anchor="start" x={X + 156} y={T[4] + 70}>give two people</Label>
-              <Label tone="green" anchor="start" x={X + 156} y={T[4] + 88}>a common channel</Label>
-            </g>}
-        <Label kind="mono" tone="red" anchor="start" x={X} y={T[4] + (P ? 152 : 120)}>+ pub/sub topic</Label>
-        <Mark a={[X - 2, T[4] + (P ? 147 : 115)]} b={[X + (P ? 122 : 128), T[4] + (P ? 145 : 113)]} tone="red" weight="heavy" seed={id + '-ps'} />
-        <Label tone="red" anchor="start" x={X + (P ? 142 : 144)} y={T[4] + (P ? 152 : 120)}>unnecessary complication</Label>
       </Step>
 
-      <Step n={6}>
-        <Num x={NX} y={T[5] + 18} n={6} />
-        <Cells x={X} y={T[5] + 4} seed={id + '-d7'} tone="green" cells={[{ t: 'from' }, { t: 'channel_id' }, { t: 'msg' }]} />
-        <Tick x={X + (P ? 196 : 214)} y={T[5] + 24} s={8} seed={id + '-ok'} />
-        <Label anchor="start" x={P ? X : X + 232} y={T[5] + (P ? 56 : 23)}>one channel_id, always</Label>
-      </Step>
     </Fig>
   );
 }
@@ -189,14 +173,14 @@ export function SlackSchema({ layout = 'wide' }: { layout?: Layout }) {
   const P = layout === 'phone';
   const id = P ? 'l02-fig6c-p' : 'l02-fig6c';
   const title = 'The Slack schema';
-  const desc = 'Four tables: users (id, name); channels (id, org, name, type: grp, user or reg); membership (user_id, channel_id, checkpoint); messages (from, channel_id, created_at, msg). membership.user_id points at users, and membership.channel_id and messages.channel_id point at channels. A direct message is a channel with two people. Redrawn from the class board at 01:17.';
+  const desc = 'Four tables: users (id, name); channels (id, org, name, type: grp, user or reg); membership (user_id, channel_id, checkpoint); messages (id, from, channel_id, created_at, msg). membership.user_id points at users, and membership.channel_id and messages.channel_id point at channels. A direct message is a channel with two people.';
   const users = ['id', 'name'];
   const channels = ['id', 'org', 'name', 'type : grp/user/reg'];
   const membership = ['user_id', 'channel_id', '[ checkpoint ]'];
-  const messages = ['from', 'channel_id', 'created_at', 'msg'];
+  const messages = ['id', 'from', 'channel_id', 'created_at', 'msg'];
   if (P)
     return (
-      <Fig id={id} w={340} h={430} title={title} desc={desc}>
+      <Fig id={id} w={340} h={456} title={title} desc={desc}>
         <Label muted anchor="start" x={16} y={22}>Brainstorm: channels, messages,</Label>
         <Label muted anchor="start" x={16} y={42}>checkpoints, realtime communication</Label>
         <Label muted anchor="start" x={16} y={62}>(membership)</Label>
@@ -204,7 +188,7 @@ export function SlackSchema({ layout = 'wide' }: { layout?: Layout }) {
         <ColList x={174} y={106} w={150} title="channels" rows={channels} gap={26} added={[3]} seed={id + '-c'} />
         <ColList x={18} y={266} w={130} title="membership" rows={membership} gap={26} added={[2]} seed={id + '-m'} />
         <ColList x={174} y={266} w={150} title="messages" rows={messages} gap={26} seed={id + '-g'} />
-        <Label anchor="start" x={16} y={414}>DM = channel with 2 people</Label>
+        <Label anchor="start" x={16} y={442}>DM = channel with 2 people</Label>
       </Fig>
     );
   const hy = 150, g = 30, ry = (i: number) => hy + 8 + g * (i + 1) - 5;
@@ -217,7 +201,7 @@ export function SlackSchema({ layout = 'wide' }: { layout?: Layout }) {
       <ColList x={700} y={hy} w={150} title="messages" rows={messages} gap={g} seed={id + '-g'} />
       {/* membership.channel_id and messages.channel_id → channels (top lanes); membership.user_id → users (under the lists) */}
       <Line weight="thin" pts={[[474, ry(1)], [458, ry(1)], [458, 100], [276, 100], [276, 128]]} seed={id + '-l1'} />
-      <Line weight="thin" pts={[[696, ry(1)], [680, ry(1)], [680, 82], [292, 82], [292, 128]]} seed={id + '-l2'} />
+      <Line weight="thin" pts={[[696, ry(2)], [680, ry(2)], [680, 82], [292, 82], [292, 128]]} seed={id + '-l2'} />
       <Line weight="thin" pts={[[474, ry(0)], [450, ry(0)], [450, 304], [84, 304], [84, 232]]} seed={id + '-l3'} />
       <Label anchor="start" x={40} y={342}>DM = channel with 2 people</Label>
     </Fig>

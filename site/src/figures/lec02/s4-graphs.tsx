@@ -88,7 +88,7 @@ export function FraudEdge({ layout = 'wide' }: { layout?: Layout }) {
   const P = layout === 'phone';
   const id = P ? 'l02-fig4c-p' : 'l02-fig4c';
   const title = 'A new edge outside the cluster';
-  const desc = "A customer's history forms a tight cluster of domestic merchants: grocery, fuel, rent, telecom and pharmacy. A sudden international transaction is a new red edge to an overseas merchant outside that cluster. On the timeline the card payment and OTP lead to a graph check, a decision and routing to an executive, all inside a red 200 ms SLA as relayed in class; the executive's call asking 'is this you?' comes after the decision.";
+  const desc = "A customer's history forms a tight cluster of domestic merchants: grocery, fuel, rent, telecom and pharmacy. A sudden international transaction is a new red edge to an overseas merchant outside that cluster. On the timeline the card payment and OTP lead to a graph check, a decision and routing to an executive, all inside a red 200 ms budget, as one bank's engineering lead described it; the executive's call asking 'is this you?' comes after the decision.";
   if (P) {
     const steps = ['card + OTP', 'graph check', 'decide', 'route to an executive', 'call: is this you?'];
     const y0 = 440, gap = 50;
@@ -99,8 +99,8 @@ export function FraudEdge({ layout = 'wide' }: { layout?: Layout }) {
           merchants={[{ name: 'fuel', ang: 180, at: 'left' }, { name: 'grocery', ang: -120, at: 'above' }, { name: 'telecom', ang: -60, at: 'above' },
             { name: 'rent', ang: 0, at: 'right' }, { name: 'pharmacy', ang: 120, at: 'below' }]}
           outLabel={{ x: 334, y: 342, anchor: 'end' }} red={{ x: 150, y: 306, anchor: 'middle' }} />
-        <Label muted x={170} y={378}>50–60 parameters per transaction,</Label>
-        <Label muted x={170} y={397}>by the instructor's account</Label>
+        <Label muted x={170} y={378}>50–60 parameters per transaction</Label>
+        
         <Arrow pts={[[40, y0 - 14], [40, y0 + gap * 4 + 14]]} seed={id + '-tl'} />
         {steps.map((s, i) => (
           <g key={s}>
@@ -110,7 +110,7 @@ export function FraudEdge({ layout = 'wide' }: { layout?: Layout }) {
         ))}
         <PhoneGlyph x={248} y={y0 + gap * 4 - 22} seed={id + '-ph'} />
         <Bracket x={286} y0={y0 + gap - 10} y1={y0 + gap * 3 + 10} label="200 ms SLA" seed={id + '-br'} size={14} />
-        <Label muted x={170} y={y0 + gap * 4 + 52}>200 ms: as relayed in class</Label>
+        
       </Fig>
     );
   }
@@ -124,8 +124,8 @@ export function FraudEdge({ layout = 'wide' }: { layout?: Layout }) {
         merchants={[{ name: 'fuel', ang: 180, at: 'left' }, { name: 'grocery', ang: -125, at: 'above' }, { name: 'pharmacy', ang: 125, at: 'below' },
           { name: 'telecom', ang: 55, at: 'below' }, { name: 'rent', ang: 0, at: 'right' }]}
         outLabel={{ x: 436, y: 38, anchor: 'middle' }} red={{ x: 338, y: 134, anchor: 'start' }} />
-      <Label muted x={176} y={326}>50–60 parameters per transaction,</Label>
-      <Label muted x={176} y={346}>by the instructor's account</Label>
+      <Label muted x={176} y={326}>50–60 parameters per transaction</Label>
+      
       <Arrow pts={[[456, by], [872, by]]} seed={id + '-tl'} />
       {st.map((x, i) => (
         <g key={x}>
@@ -137,7 +137,7 @@ export function FraudEdge({ layout = 'wide' }: { layout?: Layout }) {
       <Label anchor="end" x={874} y={by + 70}>“is this you?”</Label>
       <Line tone="red" pts={[[550, 112], [550, 100], [778, 100], [778, 112]]} seed={id + '-br'} />
       <Label tone="red" x={664} y={88}>200 ms SLA</Label>
-      <Label muted x={664} y={62}>as relayed in class</Label>
+      
     </Fig>
   );
 }
@@ -165,7 +165,7 @@ export function ThreeHopsSql() {
   const ys = [40, 110, 180];
   return (
     <Fig id={id} w={340} h={344} title="Three hops in SQL: self-joins, rewritten per depth"
-      desc="Three copies of the same edges(from_id, to_id) table, aliased e1, e2 and e3, chained by joins on e1.to_id = e2.from_id and e2.to_id = e3.from_id. N levels take N self-joins and the query is rewritten for every depth; ten levels means nine self-joins, which is messy. SQL can also recurse: see the note below the figure.">
+      desc="Three copies of the same edges(from_id, to_id) table, aliased e1, e2 and e3, chained by joins on e1.to_id = e2.from_id and e2.to_id = e3.from_id. Each level adds a self-join and the query is rewritten for every depth; ten levels means nine self-joins, which is messy. SQL can also recurse, with a recursive common table expression.">
       <Label kind="mono" anchor="start" x={14} y={20}>edges(from_id, to_id)</Label>
       {ys.map((y, i) => <Box key={y} x={14} y={y} w={60} h={30} label={`e${i + 1}`} seed={`${id}-t${i}`} />)}
       {[0, 1].map((i) => (
@@ -175,10 +175,10 @@ export function ThreeHopsSql() {
           <Label kind="mono" anchor="start" x={84} y={ys[i] + 63} size={13.5}>{`e${i + 1}.to_id = e${i + 2}.from_id`}</Label>
         </g>
       ))}
-      <Label tone="red" anchor="start" x={14} y={240}>N levels = N self-joins,</Label>
+      <Label tone="red" anchor="start" x={14} y={240}>one more self-join per level,</Label>
       <Label tone="red" anchor="start" x={14} y={259}>rewrite per depth</Label>
-      <Label anchor="start" x={14} y={286}>10 levels → 9 self-joins: messy</Label>
-      <Label muted anchor="start" x={14} y={308} size={13}>SQL can also recurse: see “More precisely”</Label>
+      <Label anchor="start" x={14} y={286}>10 levels → 9 self-joins</Label>
+      <Label anchor="start" x={14} y={308} size={13}>or one query: WITH RECURSIVE</Label>
       <Label kind="title" x={170} y={334}>relational</Label>
     </Fig>
   );

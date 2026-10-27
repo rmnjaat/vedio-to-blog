@@ -281,7 +281,7 @@ export function AnythingShards() {
   const s = (k: string) => `${id}-${k}`;
   return (
     <Fig id={id} w={340} h={392} title="Anything that shards, scales"
-      desc="Lecture 03’s key-value store on MySQL: a router sends keys from A to M to one MySQL database and keys from N to Z to another, for example the key mango to the first and pear to the second. It gave up cross-shard consistency and got horizontal scale, the same move non-relational databases make. The board’s box: NoSQL databases scaling does not mean SQL does not; anything that shards, scales.">
+      desc="Lecture 3’s key-value store on MySQL: a router sends keys from A to M to one MySQL database and keys from N to Z to another, for example the key mango to the first and pear to the second. It gave up cross-shard consistency and got horizontal scale, the same move non-relational databases make. The note under it: NoSQL databases scaling does not mean SQL does not; anything that shards, scales.">
       <Actor x={30} y={22} seed={s('c')} />
       <Arrow tone="blue" pts={[[46, 44], [112, 44]]} seed={s('a0')} />
       <Box x={114} y={26} w={96} h={36} label="router" seed={s('rt')} />

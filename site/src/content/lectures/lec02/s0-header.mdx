@@ -1,37 +1,39 @@
 import LectureLink from '../../../components/LectureLink.astro';
-import MarginNote from '../../../components/MarginNote.astro';
-import ForwardChip from '../../../components/ForwardChip.astro';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec02.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec02.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 04 · week 2, day 2 · running case: Slack"
-      title: Slack in real time
-      dek: "Tour the non-relational database families by what each gives up, then design how Slack gets one message to everyone in a channel in real time."
-    "About this class" carries the ids placed in `about` (L-0001, L-0003, L-0004, L-0005). "Slack so far" teaches nothing
-    new: it says where the course stands as this class starts, so it is untagged. The outline gives it no figure.
-    Other lectures are named in text with their course number and section; <LectureLink> makes that a base-aware link
-    once the lecture is published. */}
+{/* Lecture 04 (lec02) overview body: the two problems, the two builds, what you will be able to do. Story rewrite,
+    see lectures/lec02/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+Your team is about to store every message of a Slack-like chat app. In the design review someone says: “Use NoSQL. Messaging systems always do. It scales.” Everyone nods. By the end of the first half of this lecture you won’t. You’ll ask which database, for what workload, and what it gave up to scale, and you’ll have your own answer for the messages. [[L-0002 L-0021 L-0124]]
 
-This is day 2 of week 2, and the class has two halves. The first, about an hour and five to an hour and ten minutes, is a brief overview of the non-relational databases: where to use each type and, with more weight, where *not* to use it. [[L-0004 L-0001]]
+Then a harder problem. Five people are in a Slack channel. A types “standup in 5” and presses Enter. B, C, D and E must see it at once, without refreshing, even though E’s app happens to be connected to a different server from the other four. And if anyone refreshes the page a second later, the message must still be there. [[L-0148 L-0243 L-0244]]
 
-That tour only scratches the surface. The families lay the foundation for what comes later, and each one is used again, in more granular detail, in the weeks ahead. <ForwardChip label="comes in Lectures 09 and 10" k="L-0003" /> Lecture 09 builds a Redis-like cache, and Lecture 10 builds storage from files and column formats. [[L-0003]]
+### Where you are
 
-The second half is a long design of Slack’s real-time communication, limited to text. Its promise: in this one design you can switch from one message delivery model to another and get something like Slack, something like WhatsApp or something like Zoom chat. Once Slack is done, those are a piece of cake. [[L-0004 L-0005]]
+<LectureLink lec="lec05">Lecture 3</LectureLink> ended on a key-value store you built on one MySQL table and then split by key range, keys A to M on one database and N to Z on another. It also ended on a question: Redis keeps everything in memory, DynamoDB isn’t relational at all, so what did stores like these give up to be fast and big, and when is that trade worth it? [[L-0023]]
 
-**How to use this page.** Each chapter is its own page, and the ten of them follow the class’s order. Chapters 1 to 5 are the database tour; chapters 6 to 10 are the Slack design, built up one decision at a time.
+You have the pieces for the second problem too. <LectureLink lec="lec01">Lecture 2</LectureLink> kept a WebSocket open so a reader saw new claps without refreshing, and warned that the hard part of WebSockets is knowing which server holds which reader. It also introduced Kafka, the stream that keeps messages and lets each consumer read them at its own pace. <LectureLink lec="lec04">Lecture 1</LectureLink>’s green dot pointed here as well: production presence systems keep a persistent connection open, and this lecture builds Slack’s messaging on connections like that.
 
-</MarginNote>
+### What you’ll build
 
-### Slack so far
+**Build 1, a field guide to the database families (chapters 1–4).** Take the slogan apart: why dropping relations lets data spread, and which of two “consistencies” gets traded away. Then meet document, key-value, column-oriented and graph databases, each through the one thing it does well and the one thing it gives up for it, and end with a rule for choosing SQL or not. [[L-0004 L-0109 L-0125]]
 
-Slack is new to the course, but most of what this page builds on is not. In <LectureLink lec="lec01" sec="s5">Lecture 02 (§5)</LectureLink> Medium learned the real-time channels: short polling, long polling, server-sent events and WebSockets. Two questions were left for this session there: how to scale WebSockets properly, and how a real-time product like Slack builds its messaging on them. <LectureLink lec="lec04" sec="s2">Lecture 01’s online/offline indicator</LectureLink> points here too: real presence indicators ride a persistent connection, the way Slack does it.
+**Build 2, Slack’s real-time text chat (chapters 5–10).** The guide’s last question is the first Slack decision: which database holds the messages. Then the problem changes. Storing messages is the easy part; the hard part is moving one message to every member of a channel in a blink when the members sit on different servers. You build the tables, decide how a message is sent and what Slack promises about it, then connect the servers, first in the simplest way that works and then in a way that survives a hundred of them. [[L-0145 L-0147 L-0150]]
 
-Two more pieces come back. <LectureLink lec="lec01" sec="s3-5">Lecture 02 (§3.5–3.7)</LectureLink> introduced Kafka, the message stream whose consumers pull, and <LectureLink lec="lec01" sec="s2-4">Lecture 02 (§2.4)</LectureLink> scaled a database with read replicas and sharding. Lecture 03 built a key-value store on MySQL and sharded it by key range, keys A to M on one database and N to Z on another (<LectureLink lec="lec05" sec="s9-3">Lecture 03, §9.3</LectureLink>). This page uses that store twice: as proof that relational databases scale too ([§1.3](#s1-3)), and as the key-value store with JSON values that makes document databases make sense ([§2.1](#s2-1)). <LectureLink lec="lec04" sec="s3">Lecture 01 (§3)</LectureLink> already weighed Redis against DynamoDB; both return as key-value stores in [§2.4](#s2-4).
+What carries over from the first build is the habit it drills: before you accept a design, ask what it gives up, and choose by the guarantee you owe, not by the tool you happen to like. [[L-0186]]
 
-So, as the class starts, Slack has nothing: no tables, no servers. [Chapter 6](#s6) begins with the requirements card, and every box after it is added for a reason.
+### What you’ll be able to do
+
+- Answer “NoSQL scales” with the right questions, and say what each family gives up.
+- Choose SQL or not for a workload, and shard by the key every operation uses.
+- Design a chat schema where direct messages and unread counts need no extra machinery.
+- Decide how a message is sent and stored from the guarantee the product owes.
+- Scale real-time delivery past one server without wasting the connections it exists to serve.
+- Name what can still go wrong, and what covers each failure.
+
+### Before you start
+
+You need SQL basics, sharding from Lecture 3, and what a WebSocket is from Lecture 2. Every box in the Slack design runs on a laptop. Each chapter opens with a small map of the design so far. When a “Pause and think” box asks you something, commit to an answer before you open it.
 
 </div>

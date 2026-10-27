@@ -203,7 +203,7 @@ export function Architecture({ layout = 'wide' }: { layout?: Layout }) {
 /* ------------------------------------------------------------------ RuleBox sketch §9: change only the guarantees */
 
 const R9_TITLE = 'Swap the persistence path, keep the rest';
-const R9_DESC = 'The overall diagram in miniature: a user, an edge server, the real-time Pub/Sub and the database. The persistence path between the edge server and the database is a dial with three positions, one synchronous, two asynchronous, three none, set here to two. Swap the path and keep the rest.';
+const R9_DESC = 'The overall diagram in miniature: a user, an edge server, the real-time Pub/Sub and the database. How a message reaches the database is a dial with three positions: one, synchronous, through the API server before the edge server pushes; two, asynchronous, from the edge server through Kafka; three, none. It is set here to one, the setting this build uses for Slack. Swap the path and keep the rest.';
 
 export function GuaranteesDial({ layout = 'wide' }: { layout?: Layout }) {
   const P = layout === 'phone';
@@ -222,13 +222,15 @@ export function GuaranteesDial({ layout = 'wide' }: { layout?: Layout }) {
         <EdgeServer x={X(64)} y={44} w={X(96)} h={32} label="edge" seed={s('e')} />
         <Line pts={[[X(160), 60], [X(196), 60]]} seed={s('tcp')} />
         <PubSub x={X(196)} cy={60} w={X(120)} ry={12} seed={s('ps')} />
-        <Line pts={[[X(112), 76], [X(112), dy], [dx - 20, dy]]} seed={s('p1')} />
+        <Line pts={[[X(24), 72], [X(24), dy - 14]]} seed={s('p0')} />
+        <Box x={X(2)} y={dy - 14} w={X(48)} h={28} label="api" seed={s('api')} />
+        <Line pts={[[X(50), dy], [dx - 20, dy]]} seed={s('p1')} />
         <Ring cx={dx} cy={dy} r={18} seed={s('dial')} />
         <Label kind="num" x={dx - 26} y={dy - 18}>1</Label>
         <Label kind="num" x={dx} y={dy - 24}>2</Label>
         <Label kind="num" x={dx + 26} y={dy - 18}>3</Label>
-        <Mark weight="heavy" a={[dx, dy]} b={[dx, dy - 13]} seed={s('needle')} />
-        <Line dashed pts={[[dx + 20, dy], [X(420), dy], [X(420), 90]]} seed={s('p2')} />
+        <Mark weight="heavy" a={[dx, dy]} b={[dx - 11, dy - 8]} seed={s('needle')} />
+        <Line pts={[[dx + 20, dy], [X(420), dy], [X(420), 90]]} seed={s('p2')} />
         <Cyl cx={X(420)} top={46} rx={22} h={34} seed={s('db')} />
         <Label kind="mono" anchor="end" x={X(420) - 28} y={70}>db</Label>
         <Label kind="mono" x={dx} y={174}>① sync · ② async · ③ none</Label>
@@ -239,7 +241,7 @@ export function GuaranteesDial({ layout = 'wide' }: { layout?: Layout }) {
 
 /* ------------------------------------------------------------------ Fig 9·c: two ways in */
 
-const EXP_DESC = 'An exposed edge server faces the internet directly. It is hardened, ports hidden and SSH blocked, and holds only a Kafka connection string (the note below suggests making it write-only); database credentials never sit on it.';
+const EXP_DESC = 'An exposed edge server faces the internet directly. It is hardened, ports hidden and SSH blocked, and holds at most a Kafka credential, only if it feeds Kafka and ideally a write-only one; database credentials never sit on it.';
 const LB_DESC = 'Behind a load balancer the edge server costs a few milliseconds more per hop, the WebSocket stays sticky, and the private edge server can safely ask a membership API, backed by the database, before serving private channels.';
 
 /** Panel a: the edge server exposed directly to clients. */
@@ -281,7 +283,7 @@ export function BehindLb() {
       <Key x={160} y={134} seed={s('k')} />
       <Label kind="mono" anchor="start" x={188} y={139} size={13}>kafka conn string</Label>
       <Label tone="red" x={94} y={180}>+3–5 ms per hop</Label>
-      <Label muted x={94} y={197} size={12.5}>(instructor’s estimate)</Label>
+      <Label muted x={94} y={197} size={12.5}>(one engineer’s estimate)</Label>
       <Label anchor="start" x={8} y={234}>sticky: one connection to the lb,</Label>
       <Label anchor="start" x={8} y={252}>one to the server</Label>
       <Arrow pts={[[300, 160], [300, 268]]} seed={s('e-m')} />
@@ -303,8 +305,8 @@ export function AckAfterReplication() {
   return (
     <Sized w={340}>
       <Fig id={id} w={340} h={318} title="Ack after replication"
-        desc="The worker writes message m42 to one node. Nodes 2 and 3 pull a copy from node 1. Only then does node 1 acknowledge the write to the worker, which waits for that ack. A write lost before that point was never accepted.">
-        <Worker x={6} y={44} w={84} h={36} seed={s('w')} />
+        desc="The writer sends message m42 to node 1, which sends a copy to nodes 2 and 3. Once the copies the database requires have it (DynamoDB: two of the three), node 1 acknowledges the write to the writer, which waits for that ack. A write lost before that point was never accepted.">
+        <Worker x={6} y={44} w={84} h={36} label="writer" seed={s('w')} />
         <Num x={123} y={13} n={1} tone="blue" />
         <Label kind="mono" tone="blue" x={123} y={35} size={12.5}>write m42</Label>
         <Arrow tone="blue" pts={[[90, 56], [160, 56]]} seed={s('write')} />
@@ -313,19 +315,19 @@ export function AckAfterReplication() {
         <Num x={125} y={110} n={3} tone="green" />
         <Cyl cx={190} top={36} rx={28} h={44} seed={s('n1')} />
         <Label kind="mono" anchor="start" x={224} y={64}>node 1</Label>
-        <Arrow pts={[[170, 156], [170, 92]]} seed={s('c2')} />
-        <Arrow pts={[[212, 156], [212, 92]]} seed={s('c3')} />
+        <Arrow pts={[[170, 92], [170, 156]]} seed={s('c2')} />
+        <Arrow pts={[[212, 92], [212, 156]]} seed={s('c3')} />
         {/* the replicas pull (course rule, as lec01's "replica pulls"): the arrows start at nodes 2 and 3 */}
         <Num x={191} y={108} n={2} />
-        <Label anchor="start" x={222} y={118}>replicas pull</Label>
-        <Label anchor="start" x={222} y={136}>a copy</Label>
+        <Label anchor="start" x={222} y={118}>copied to</Label>
+        <Label anchor="start" x={222} y={136}>the replicas</Label>
         <Cyl cx={146} top={162} rx={28} h={38} label="node 2" seed={s('n2')} />
         <Cyl cx={240} top={162} rx={28} h={38} label="node 3" seed={s('n3')} />
         <Label anchor="start" x={4} y={134} size={13}>waits for</Label>
         <Label anchor="start" x={4} y={150} size={13}>the ack</Label>
         <Label x={170} y={256}>replication factor 3</Label>
-        <Label x={170} y={276}>never says “done” before the copies</Label>
-        <Label muted x={170} y={300} size={12.5}>DynamoDB: 2 of 3, see the note below</Label>
+        <Label x={170} y={276}>says “done” once enough copies have it</Label>
+        <Label muted x={170} y={300} size={12.5}>DynamoDB acks at 2 of 3</Label>
       </Fig>
     </Sized>
   );

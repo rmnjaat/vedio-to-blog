@@ -139,9 +139,9 @@ export function SubscribeChannels() {
 /* ------------------------------------------------------------------ Fig 8·f */
 
 const F_TITLE = 'One message through Redis, then a new channel';
-const F_DESC = 'Lanes for user A, WS1, the Redis Pub/Sub, WS2, WS3 and the API server, time running down. A message for C1 is delivered locally by WS1, published once to Redis channel c1 and pushed only to WS2, which delivers to E and F; WS3, subscribed to c2 only, gets nothing. Then A creates channel c3 with D through the API, a new-channel notice goes through Redis to the edge servers, and WS1 subscribes to c3.';
+const F_DESC = 'Lanes for user A, WS1, the Redis Pub/Sub, WS2, WS3 and the API server, time running down. A message for C1 is delivered locally by WS1, published once to Redis channel c1 and pushed to WS2 (and back to WS1, which skips its own message), and WS2 delivers to E and F; WS3, subscribed to c2 only, gets nothing. The message arrives at WS1 from the API server, which saved it. Then A creates channel c3 with D through the API, a new-channel notice goes through Redis to the edge servers, and WS1 subscribes to c3.';
 
-const F_DESC_PHONE = 'Lanes for user A, WS1, the Redis Pub/Sub, WS2 and the API server, time running down; WS3 is a note. A message for C1 is delivered locally by WS1, published once to Redis channel c1 and pushed only to WS2, which delivers to E and F; WS3, subscribed to c2 only, gets nothing. Then A creates channel c3 with D through the API, a new-channel notice goes through Redis to the edge servers, WS3 included, and WS1 subscribes to c3.';
+const F_DESC_PHONE = 'Lanes for user A, WS1, the Redis Pub/Sub, WS2 and the API server, time running down; WS3 is a note. A message for C1 is delivered locally by WS1, published once to Redis channel c1 and pushed to WS2 (and back to WS1, which skips its own message), and WS2 delivers to E and F; WS3, subscribed to c2 only, gets nothing. The message arrives at WS1 from the API server, which saved it. Then A creates channel c3 with D through the API, a new-channel notice goes through Redis to the edge servers, WS3 included, and WS1 subscribes to c3.';
 
 /** critic C-13: the step labels of Fig 8·f cross lifelines; a paper-coloured halo painted under each label keeps the
  *  line from striking through it (stroke and paint-order are inherited by the <text>). */
@@ -173,8 +173,10 @@ function RedisThenNewChannelPhone() {
       ))}
 
       <Step n={1}>
-        <HLabel kind="mono" tone="blue" anchor="start" x={L.a + 4} y={74}>C1: standup in 5</HLabel>
-        <Arrow tone="blue" pts={[[L.a, 84], [L.ws1 - 2, 84]]} seed={s('1')} />
+        <HLabel kind="mono" tone="blue" x={(L.a + L.api) / 2} y={64}>POST (http)</HLabel>
+        <Arrow tone="blue" pts={[[L.a, 70], [L.api - 2, 70]]} seed={s('1p')} />
+        <HLabel kind="mono" tone="blue" x={(L.ws1 + L.api) / 2} y={84}>saved: standup in 5</HLabel>
+        <Arrow tone="blue" pts={[[L.api, 92], [L.ws1 + 2, 92]]} seed={s('1')} />
         <Num size={14} x={12} y={84} n={1} tone="blue" />
       </Step>
       <Step n={2}>
@@ -186,8 +188,10 @@ function RedisThenNewChannelPhone() {
         <HLabel kind="mono" tone="blue" x={(L.ws1 + L.r) / 2} y={138}>PUBLISH c1</HLabel>
         <Arrow tone="blue" pts={[[L.ws1, 148], [L.r - 2, 148]]} seed={s('3a')} />
         <Arrow tone="blue" pts={[[L.r, 164], [L.ws2 - 2, 164]]} seed={s('3b')} />
-        <HLabel x={(L.r + L.ws2) / 2} y={182}>pushed, not pulled</HLabel>
-        <HLabel muted anchor="start" x={L.a + 4} y={200}>ws3 (sub c2 only): nothing</HLabel>
+        <Arrow tone="blue" pts={[[L.r, 176], [L.ws1 + 2, 176]]} seed={s('3c')} />
+        <HLabel anchor="start" x={L.r + 6} y={182}>pushed, not pulled</HLabel>
+        <HLabel muted anchor="start" x={L.a + 4} y={194}>own echo: skipped</HLabel>
+        <HLabel muted anchor="start" x={L.a + 4} y={210}>ws3 (sub c2 only): nothing</HLabel>
         <Num size={14} x={12} y={156} n={3} tone="blue" />
       </Step>
       <Step n={4}>
@@ -247,8 +251,10 @@ export function RedisThenNewChannel({ layout = 'wide' }: { layout?: Layout }) {
         ))}
 
         <Step n={1}>
-          <HLabel kind="mono" tone="blue" x={102} y={88}>C1: standup in 5</HLabel>
-          <Arrow tone="blue" pts={[[L.a, 98], [L.ws1 - 2, 98]]} seed={s('1')} />
+          <HLabel kind="mono" tone="blue" x={(L.a + L.api) / 2} y={72}>POST (http)</HLabel>
+          <Arrow tone="blue" pts={[[L.a, 78], [L.api - 2, 78]]} seed={s('1p')} />
+          <HLabel kind="mono" tone="blue" x={(L.ws1 + L.api) / 2} y={92}>saved: standup in 5</HLabel>
+          <Arrow tone="blue" pts={[[L.api, 101], [L.ws1 + 2, 101]]} seed={s('1')} />
           <Num size={14} x={14} y={98} n={1} tone="blue" />
         </Step>
         <Step n={2}>
@@ -260,7 +266,9 @@ export function RedisThenNewChannel({ layout = 'wide' }: { layout?: Layout }) {
           <HLabel kind="mono" tone="blue" x={140} y={166}>PUBLISH c1</HLabel>
           <Arrow tone="blue" pts={[[L.ws1, 176], [L.r - 2, 176]]} seed={s('3a')} />
           <Arrow tone="blue" pts={[[L.r, 198], [L.ws2 - 2, 198]]} seed={s('3b')} />
-          <HLabel x={207} y={218}>pushed, not pulled</HLabel>
+          <Arrow tone="blue" pts={[[L.r, 192], [L.ws1 + 2, 192]]} seed={s('3c')} />
+          <HLabel muted x={139} y={208}>own echo: skipped</HLabel>
+          <HLabel anchor="start" x={L.r + 8} y={222}>pushed, not pulled</HLabel>
           <HLabel muted x={L.ws3 + 8} y={184}>c2 only:</HLabel>
           <HLabel muted x={L.ws3 + 8} y={200}>nothing</HLabel>
           <Num size={14} x={14} y={186} n={3} tone="blue" />

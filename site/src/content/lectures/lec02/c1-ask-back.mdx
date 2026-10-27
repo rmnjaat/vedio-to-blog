@@ -1,0 +1,102 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoConsistencies, AnythingShards } from '../../../figures/lec02/s1-nosql';
+import { ForeignKeyChecks } from '../../../figures/lec02/s5-sql-or-nosql';
+import { SoFarGuide } from '../../../figures/lec02/so-far';
+
+{/* Chapter 1 "“Use NoSQL. It scales.” What do you ask back?" Story rewrite: the slogan → name the database and its
+    workload → why non-relational stores scale (no foreign-key checks, so data can spread) → Lecture 3's sharded
+    MySQL store: anything that shards, scales → which consistency is traded (ACID vs CAP) → the questions to ask back. */}
+
+<Section id="s1" no="1" title="“Use NoSQL. It scales.” What do you ask back?" crumb="1 Ask back" meta="About 5 min">
+
+Your team is about to store every message of a Slack-like chat app: every channel, every direct message, all of it scrollable forever. In the design review someone says: “Use NoSQL. Messaging systems always do. It scales.” Is that an answer? [[L-0124 L-0148]]
+
+You will often hear that you should always use a NoSQL database. It isn’t true. Most databases were built to solve a very specific problem, and the useful thing to learn about each one is where it fits and, more importantly, where it doesn’t. Keep the message store in mind; chapter 4 comes back to decide it. [[L-0002 L-0004 L-0010]]
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="Where the field guide starts: five kinds of store, nothing filled in yet.">
+<Desk><SoFarGuide stage={0} /></Desk>
+<Phone><SoFarGuide stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Which database, and for what?" crumb="1.1 Name it">
+
+Start with the word. “NoSQL” throws everything that isn’t MySQL, Postgres or Oracle under one blanket, a bit like sorting people into “technical” and “non-technical”. All the stores under it share is that they aren’t relationally structured, and even that is loose. So name the type, and better, the database. [[L-0008 L-0011 L-0012]]
+
+Once you do, the slogan falls apart. As a blanket statement, “NoSQL databases scale” is wrong: you can build a non-relational database that doesn’t scale at all. The ones that do scale, scale for something. Cassandra scales for a very specific workload, a flood of writes; DynamoDB for lookups by key; MongoDB for its own. [[L-0009 L-0021 L-0123]]
+
+That gives you the first question to ask back: *which* database, for *what* workload? The second question needs a reason. Why would the ones that scale scale at all?
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="Why would dropping relations help anything scale?" crumb="1.2 No relations">
+
+The usual answer is “because there are no relations”. To see why that matters, look at what a relation costs the database. [[L-0109]]
+
+A foreign key is a promise the database keeps for you. Take the chat app’s own tables. If `messages.channel_id` references `channels.id`, a message for a channel that doesn’t exist is refused, and by default so is deleting a channel that still has messages. That is how a relational database keeps the data correct, moving from one consistent state to the next. [[L-0110 L-0111 L-0112]]
+
+<Figure id="fig-1b" max={880} no="Fig 1·b" k="L-0110 L-0111 L-0112 L-0116" caption="A foreign key from messages.channel_id to channels.id rejects a message for a missing channel and blocks deleting a channel that has messages. Split the tables across machines and each check crosses machines.">
+<Desk><ForeignKeyChecks /></Desk>
+<Phone><ForeignKeyChecks layout="phone" /></Phone>
+</Figure>
+
+Every one of those checks needs the related rows where the database can see them. That is the restricting factor: the guarantees work best when all the related data sits in one place. A non-relational store takes the opposite attitude. It doesn’t care what you insert or whether the key you point at exists, so nothing ties one piece of data to another, and the data can be denormalized and spread across as many machines as you like. [[L-0113 L-0116]]
+
+Why build a database the first way, then? As <LectureLink lec="lec05">Lecture 3</LectureLink> put it, relational databases grew up around money, so they chose correctness over a very high rate of writes: a different trade, not a worse one. Every database has a backstory like this. [[L-0114 L-0115]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Can a relational database spread out too?" crumb="1.3 SQL scales too">
+
+If the checks are what pin the data down, the fix is simple: don’t use foreign keys. Without them, you can partition a relational database exactly the way a non-relational one partitions its data. [[L-0116 L-0024]]
+
+You have already done it. The key-value store in <LectureLink lec="lec05" sec="s9-3">Lecture 3</LectureLink> lived on MySQL, and when one server ran out you split it by key range: A to M on one database, N to Z on the other. That bought horizontal scale and a store that keeps serving when one shard fails, and it cost consistency across the shards. That is exactly the move non-relational databases make. [[L-0023]]
+
+<Figure id="fig-1c" wide={false} max={340} no="Fig 1·c" k="L-0022 L-0023 L-0024" caption="Lecture 3’s store: a router sends keys A–M to one MySQL and N–Z to another. No foreign key crosses the split.">
+<AnythingShards />
+</Figure>
+
+So “relational databases don’t scale” is a very big misconception. You need to know how to use them, and the rule underneath is short: anything that shards, scales. [[L-0022]]
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="Then what did they give up?" crumb="1.4 Two consistencies">
+
+The usual one-line answer is “consistency”. Non-relational databases, as a very broad rule that is not always true, give up consistency to get scalability and availability. [[L-0013 L-0017]] The trouble is the word. Computer scientists are bad at naming things, and there are two different consistencies.
+
+<PauseAndThink k="L-0014 L-0015 L-0016"
+  q="A store spread over several nodes “gives up consistency”. Which of these does it give up?"
+  choices={[{ label: 'That each transaction leaves the data in a correct state' }, { label: 'That a read right after a write, from any node, sees that write', correct: true }]}
+  right="Right."
+  wrong="That one is ACID’s consistency, and spreading the data doesn’t take it away.">
+
+The C in ACID is about correctness: every transaction moves the data from one valid state to another. The C in the CAP theorem is about visibility: once a write completes, every read, from any node, returns it or something newer. A store can keep the first and drop the second.
+
+</PauseAndThink>
+
+The precise name for CAP’s consistency is linearizability, and a database can be ACID without being linearizable <Cite href="https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html">martin.kleppmann.com</Cite>. Strong consistency is the one most non-relational stores give up. [[L-0016]]
+
+<Figure id="fig-1d" max={760} no="Fig 1·d" k="L-0014 L-0015 L-0016 L-0020" caption="Left: ACID’s consistency, every transaction leaving the data correct. Right: CAP’s consistency, whether a read from another node right after a write sees it (strong) or not yet (eventual).">
+<Desk><TwoConsistencies /></Desk>
+<Phone><TwoConsistencies layout="phone" /></Phone>
+</Figure>
+
+In exchange you get availability. A single relational primary without a standby takes everything down when it fails; data spread over replicated nodes keeps serving when one node fails. The price is that a write shows up everywhere, but not at once: the store is eventually consistent. Even that is a default, not a law; DynamoDB, for one, gives you a strongly consistent read when you ask for it. [[L-0018 L-0019 L-0020]]
+
+<RuleBox label="The habit to keep" rule="Never believe a generic statement at face value, ==not even this one==." k="L-0025">
+
+Whenever you hear one, ask for it to be specific and contextual, and ask why it is being said. You can always find a counter-example, and looking for it is what makes you a better engineer.
+
+</RuleBox>
+
+So the review comment named no database, no workload and no trade-off, and those are your three questions about the message store. The rest of this build answers them family by family, starting with the trade that separates the two most common ones: how you may touch the data. [[L-0117]]
+
+</Section>
