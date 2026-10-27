@@ -1,0 +1,149 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { WhoCanTagMe, FiveOrTenThousand, OnePerTagOrClubbed } from '../../../figures/lec06/s4-tagging-decisions';
+import { PhotoTagEvent } from '../../../figures/lec06/s4-tagging-events';
+import { PixelsVsFractions } from '../../../figures/lec06/s4-tagging-position';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 5 "“Let people tag people.” What do you ask first?" Build 2, revision 2: the chain is the schema that
+    each question breaks. Brief → who can tag me (authorization, not schema) → 5 tags: an array (pause) → the
+    activity page asks the reverse question: the array breaks, rows → the rows need a location: pixels break on
+    resized copies, fractions and a box → everyone else hears through one event (notifications, suggestions, feed;
+    Go deeper: fan-out) → hand-off to Build 3 through the "kept ready" thread. */}
+
+<Section id="s5" no="5" title="“Let people tag people.” What do you ask first?" crumb="5 One sentence" meta="About 8 min">
+
+Picture a startup. One day a CXO walks over and says: “Let’s allow people to tag people in photos.” That is the whole product brief, and you are expected to go and build it. [[L-0176]]
+
+Gravatar was one team building one system. This build is different on purpose. A senior engineer wears three hats at once: product manager (the requirements nobody else thought of), architect (a system that can grow) and engineer (the details that make every layer work); this chapter is the first hat. Storing a tag looks trivial, and you will pick a schema for it in a minute. Then watch each new question about the brief break that schema, and count the teams each answer lands on. [[L-0004 L-0174 L-0175]]
+
+<Figure id="fig-5a" max={680} no="Fig 5·a" caption="After chapter 4: the database says which photo, S3 holds the bytes, the CDN holds a copy until a purge; each size is drawn on a miss.">
+<Desk><SoFarTruth stage={4} /></Desk>
+<Phone><SoFarTruth stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Who can tag me?" crumb="5.1 Who can tag me">
+
+The reflex is to ask for the schema. With one line of brief, ask the product questions first: each answer will change the design or land on another team. Often the person who handed you the sentence hasn’t thought it through, and it falls to you to point out the pieces. [[L-0177 L-0178 L-0184 L-0199]]
+
+The obvious rule is that only a photo’s owner can tag people in it. The question that changes the design runs the other way: who is allowed to tag *me*? Whether a stranger can attach my name to their photo should be my call. Say yes to that, and tagging needs its own authorization layer that tracks who may tag whom, the way some people on Instagram or Twitter can’t be tagged in your posts; a “can anyone tag me?” profile switch is the same requirement seen from the settings page. [[L-0185 L-0186 L-0200]]
+
+Then self-removal. If someone tags you in an embarrassing photo, you must be able to take yourself off it, so someone who doesn’t own the photo is allowed to change it. The rule is per user, about other users, closer to an access control list than to roles, and it needs a robust layer behind it. [[L-0201 L-0202 L-0218]]
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0186 L-0200 L-0201 L-0202"
+  caption="The rule tagging checks belongs to the person being tagged. Removing your own tag means changing a photo you don’t own, so the rule has to be finer than “only the owner”.">
+  <Desk><WhoCanTagMe /></Desk>
+  <Phone><WhoCanTagMe layout="phone" /></Phone>
+</Figure>
+
+None of that touched storage yet. The next question does.
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Five tags, or ten thousand?" crumb="5.2 How many">
+
+A photo from a 40-person team offsite. How many people can one photo carry? Keep the limit per photo. You might worry about several people adding tags at the same moment, but only the owner adds tags to their own photo, so concurrency isn’t the hard part; the other writers, someone removing their own tag or the owner on a second device, each change one tag at a time. [[L-0187 L-0188]]
+
+<PauseAndThink k="L-0189 L-0190 L-0191"
+  q="Product asks you to set the maximum number of people tagged in one photo. Does it matter to the design whether the answer is 5 or 10,000?"
+  choices={[{ label: 'No: it’s a validation rule' }, { label: 'Yes: it changes storage and the API', correct: true }]}
+  right="Right."
+  wrong="Picture a photo record holding 10,000 names, and a page that tries to show them.">
+
+Five tags fit in an array inside the photo’s record. Ten thousand need one entry per tag: one record that keeps growing is costly to rewrite and to read, and a 10,000-name document is exactly that. And nobody reads 10,000 names at once, so the API serves them a page at a time.
+
+</PauseAndThink>
+
+<Figure id="fig-5c" no="Fig 5·c" k="L-0189 L-0190"
+  caption="The limit picks the schema. Five tags fit in an array inside the photo’s record; 10,000 need a row per tag and an endpoint that hands them out a page at a time.">
+  <Desk><FiveOrTenThousand /></Desk>
+  <Phone><FiveOrTenThousand layout="phone" /></Phone>
+</Figure>
+
+Every question you ask about a one-line brief should change the design, or at least shape it; this one picked the storage. Say product settles on a small limit. Five names in an array inside the photo: done, and simple. [[L-0191]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="Who needs to look the tags up?" crumb="5.3 The reverse question">
+
+Should tags show on your activity page, so you can see where you were tagged? Yes: the information is pushed there asynchronously, for you to see. [[L-0208]]
+
+You chose an array a section ago; this is where it breaks. The photo page asks “who is in this photo?”, which the array answers. The activity page asks the reverse: *which photos is this user tagged in?* With the names inside each photo’s array, that question has to look inside every photo, unless the database can index the array. Arrays can be indexed in some databases (MongoDB’s multikey indexes, PostgreSQL’s GIN), but for this lookup a table with one row per tag, indexed on the user, is easier to query and scales better <Cite href="https://www.postgresql.org/docs/current/arrays.html">postgresql.org</Cite>. You can’t pick just any database here. [[L-0209]]
+
+So the tags move out of the photo into rows: `posts_tags(post_id, user_id)`, one row per person tagged (a post here is a photo, so the table is `posts_tags`). The limit that seemed to settle the schema didn’t; the second reader of the data did.
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="Where exactly on the photo is the tag?" crumb="5.4 Where on the photo">
+
+The rows still miss something: where on the photo the person is. On a 720×720 photo, the owner taps a friend’s head at pixel (320, 120). What goes into the row?
+
+<PauseAndThink k="L-0212 L-0213"
+  q="A low-end phone shows the same photo at 360×360. If you stored the tag as pixels (320, 120), where does it land?"
+  choices={[{ label: 'On the face: the phone scales it' }, { label: 'Off the face', correct: true }]}
+  right="Right."
+  wrong="The phone scales the image. It doesn’t know your two numbers belong to the image.">
+
+Drawn at (320, 120) on a 360-pixel copy, the tag sits near the right edge; the face is now at about (160, 60). Store the position relative to the image size instead, 320/720 and 120/720, about (0.44, 0.17), and as long as the aspect ratio holds, it lands on the face at any size.
+
+</PauseAndThink>
+
+This is where chapter 4 comes back. Images are resized everywhere: on small and large screens, and by the on-demand widths you just built. Pixels break on every one of those copies; fractions survive all of them, as long as the aspect ratio holds (a crop would need the tag recomputed). Facebook’s Graph API stores tag positions exactly this way, as percentage offsets from the left and top edges <Cite href="https://developers.facebook.com/docs/graph-api/reference/photo/tags/">developers.facebook.com</Cite>. [[L-0212 L-0213 L-0217]]
+
+And a tag isn’t a point. Hovering shows who is tagged over a region, so store a **bounding box**: the relative left-top and right-bottom corners, or one corner plus a relative width and height, whichever the front end prefers. That completes the row: [[L-0214 L-0215 L-0216]]
+
+```sql
+posts_tags(post_id, user_id, location)
+```
+
+<Figure id="fig-5d" no="Fig 5·d" k="L-0212 L-0213 L-0214 L-0215 L-0216"
+  caption="Stored as pixels, the tag lands off the head on a smaller copy. Stored as fractions, it lands on the head at any size. And a tag is really a box.">
+  <Desk><PixelsVsFractions /></Desk>
+  <Phone><PixelsVsFractions layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-5" no="5.5" title="Who else hears about a tag?" crumb="5.5 Other teams">
+
+The schema has settled. The rest of the questions don’t touch it; each one lands on another team.
+
+Should the tagged person be notified? Yes, or someone could tag you in a terrible photo and you would never know. That yes means talking to the notification team before launch: people will tag each other the moment the feature ships, their system will see a sudden spike, and if it isn’t scaled up in time, other critical notifications can be delayed with it. [[L-0192 L-0193 L-0194]]
+
+It also brings a different kind of throttling: product-level, not load-level. People hate apps that over-notify; one rule of thumb is that good apps send three to five notifications a week, and a daily one can get an app uninstalled. Think of a celebrity tagged by many people in their photos. Don’t send a notification per tag: ask whether the notification team throttles, add it if not, and club the tags into one rich notification. [[L-0195 L-0196 L-0197 L-0198]]
+
+<Figure id="fig-5e" no="Fig 5·e" k="L-0195 L-0197 L-0198"
+  caption="One notification per tag floods a celebrity tagged by many people. Clubbed, the same tags become one rich notification.">
+  <Desk><OnePerTagOrClubbed /></Desk>
+  <Phone><OnePerTagOrClubbed layout="phone" /></Phone>
+</Figure>
+
+<MarginNote title="Go deeper: telling millions, not one" why="the fan-out version of the same problem" k="L-0007 L-0009 L-0010 L-0012">
+
+One tagged person is one notification. A celebrity posting to tens of millions of followers is fan-out, and a classic Kafka consumer group can’t have more busy consumers than the topic has partitions. The usual pattern stitches a stream (Kafka, Kinesis) to a queue (SQS, RabbitMQ) that many workers drain in parallel; AWS offers it managed as SNS fanning out to SQS <Cite href="https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html">docs.aws.amazon.com</Cite>. One engineer used exactly that to reach 50,000–60,000 users within five seconds for a marketing push.
+
+</MarginNote>
+
+Suggestions next: you start typing a friend’s name and the app guesses who is in the photo. That needs face-recognition and recommendation systems owned by an ML team; Facebook offered this until November 2021, when it shut its face-recognition system down <Cite href="https://about.fb.com/news/2021/11/update-on-use-of-face-recognition/">about.fb.com</Cite>. Say yes, and you have a **synchronous dependency** on another team’s API: it needs a strict SLA, and you need a fallback for when it doesn’t answer in time, block tagging or let people tag by hand. Even that is a product call. [[L-0203 L-0204 L-0205 L-0206 L-0207]]
+
+And the feed: when someone tags you, do your followers see it? If yes, every tag pushes into feeds, and the feed team has to gear up for it. [[L-0211]]
+
+Count the teams: authorization, notifications, ML, profile and activity, feed, plus search and analytics. The tagging service doesn’t call each of them. It publishes one `PHOTO_TAG` event on Kafka, and every interested team consumes it; a new team later is one more consumer, with no change to tagging. None of this was in the brief, and as an engineer you can be the one who asks. [[L-0210 L-0218 L-0219 L-0220 L-0221]]
+
+<Figure id="fig-5f" no="Fig 5·f" k="L-0218 L-0219"
+  caption="An authorization check (may this person tag that one?), then one PHOTO_TAG event on Kafka that every interested team pulls.">
+  <Desk><PhotoTagEvent /></Desk>
+  <Phone><PhotoTagEvent layout="phone" /></Phone>
+</Figure>
+
+Now look back at Gravatar. There you stored the email’s hash next to the email because a frequent read needed it, and moved “active” onto the very row that read fetched. The last build takes that question to its extreme: the red 3 on the messages icon. Every screen asks for it on every page load, and its truth is a table of every message anyone ever sent.
+
+</Section>

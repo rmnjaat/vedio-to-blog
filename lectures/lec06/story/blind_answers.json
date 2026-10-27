@@ -1,0 +1,806 @@
+[
+ {
+  "id": "Q001",
+  "answer": "NOT ON PAGE as an agenda. The page's order is: images on the fly (the GitHub repo card), Gravatar, photo tagging, the unread messages badge.",
+  "evidence": "overview 'three builds' + ch1 card",
+  "found": false
+ },
+ {
+  "id": "Q002",
+  "answer": "A classic Kafka consumer group can't have more busy consumers than the topic has partitions, so fan-out to tens of millions is limited. Fix: stitch a stream (Kafka/Kinesis) to a queue (SQS/RabbitMQ) drained by many workers in parallel; managed form: SNS fanning out to SQS.",
+  "evidence": "ch5 §5.5 Go deeper: telling millions",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "A marketing push that had to reach 50,000-60,000 users within five seconds.",
+  "evidence": "ch5 §5.5 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "No. The browser has no idea; it treats whatever comes back for an img src as an image and reads the bytes.",
+  "evidence": "ch1 §1.1",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "While rendering HTML it reaches the <img> tag and sends an HTTP GET to the src URL; it expects an image and treats what comes back as one.",
+  "evidence": "ch1 §1.1",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "On a successful response it reads the first bytes (format signature, e.g. PNG 89 50 4E 47, JPEG FF D8 FF), picks the matching decoder and paints pixels. SVG is the exception: recognised by Content-Type image/svg+xml.",
+  "evidence": "ch1 §1.1, Fig 1·a",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "The server finds the handler that owns /static; whatever follows /static is treated as a relative file path in the mapped folder (img/arpit.jpg); the handler reads that file and sends its bytes, regardless of type.",
+  "evidence": "ch1 §1.2",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "1 reads the URL, 2 reads the file at that path, 3 sends the bytes.",
+  "evidence": "Fig 1·b",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "Under site/static/img/ (the page's tree shows logo.jpg and avatar.jpg there; arpit.jpg itself isn't named).",
+  "evidence": "Fig 1·b labels",
+  "found": false
+ },
+ {
+  "id": "Q010",
+  "answer": "It reads the object at <path> (key) from an S3 bucket and returns its bytes: one generic route, four lines. It makes your server a proxy for S3 (not a product feature, not a CDN).",
+  "evidence": "ch1 §1.2",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Same three steps, but step 2 reads the file from S3 instead of the server's disk.",
+  "evidence": "Fig 1·b panel b",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "That web servers just return JSON (and that 'the image is served' is automatic); a server can send any bytes, images included.",
+  "evidence": "ch1 §1.2 'not just JSON'",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "The handler is your code and can run any logic; if the bytes it finally sends are a properly structured image the browser renders it, whether read from storage or drawn a moment ago.",
+  "evidence": "ch1 §1.3",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Open Graph: the page's HTML names an og:image; that URL is drawn as the picture in the shared snippet.",
+  "evidence": "ch1 §1.3",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Millions of repos, numbers change all the time, most cards aren't shared on a given day: rendering every card daily burns compute on pictures nobody asks for and they'd still go stale. So it's drawn on demand by a route handler filling a template.",
+  "evidence": "ch1 §1.3",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "opengraph.githubassets.com, a CDN of GitHub's own (githubusercontent.com is for user files).",
+  "evidence": "ch1 §1.4",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Page carries the card URL; browser asks the CDN; miss → CDN calls the origin (GitHub image service), which fetches the repo's numbers, fills the template, returns the image; CDN caches it for its TTL (say a day) and serves everyone else; after TTL the next request misses and redraws.",
+  "evidence": "ch1 §1.4, Fig 1·c",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Pillow (and GitHub's own uses a Node.js app + headless browser; ImageMagick named later for resizing).",
+  "evidence": "ch1 §1.4; ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q020",
+  "answer": "A local repo card generator: one endpoint that fetches a repository's details, draws the card and returns the bytes.",
+  "evidence": "ch1 §1.4; overview 'card in about an hour'",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "A single embeddable URL for your profile picture.",
+  "evidence": "ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "A hash of the email (real Gravatar: SHA-256 of trimmed lower-cased email today, MD5 originally). URL never changes because a hash function given the same input always returns the same output.",
+  "evidence": "ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "NOT ON PAGE as a board note. Page notes: the hash keeps the email out of plain sight but is unsalted/fast so guessable; and it must be a plain function of the email.",
+  "evidence": "ch2 §2.1",
+  "found": false
+ },
+ {
+  "id": "Q024",
+  "answer": "Change your active photo on gravatar.com and the next request on every site picks it up, without any of them doing anything.",
+  "evidence": "ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "A user can upload several pictures; a user can mark one active; a request for the URL returns the active one.",
+  "evidence": "ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Users log in with their email and expect to see it on their profile; a hash can't give it back.",
+  "evidence": "ch2 §2.2",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "It was crossed off: derivable from the email, so by Lecture 7's 'don't store what you can derive' rule it isn't stored: users(id, email).",
+  "evidence": "ch2 §2.2, Fig 2·b",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "A user has several photos and one column can't hold several, so photos(id, user_id), one row per upload.",
+  "evidence": "ch2 §2.2",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "SELECT * FROM photos WHERE user_id = ? for 'all my photos'. A Gravatar request carries the email hash, not a user id, so the query must join photos to users to find the user the hash belongs to.",
+  "evidence": "ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "No. Hashing isn't encryption; it throws information away. You can only apply the hash in WHERE and compare.",
+  "evidence": "ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q032",
+  "answer": "The database must hash every email and compare (full scan of users, before the join), since the email index is sorted by email not its hash; and it runs on every request.",
+  "evidence": "ch2 §2.3, Clip 2·1",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Store the hash in users.hash, computed once at user creation, unique and indexed (or index the expression). It contradicts Lecture 7's rule: don't store what you can derive.",
+  "evidence": "ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "users(id, email, hash) with hash a unique indexed key like email.",
+  "evidence": "ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "Drawing boxes is easy; trouble hides in details. Only writing the exact query and asking how it runs exposed the needed column. Rule bends: store derivable value when deriving slows a frequent query.",
+  "evidence": "ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "UPDATE photos SET is_active = TRUE WHERE id = ?;",
+  "evidence": "ch3 §3.1",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "No: id is the primary key, row already found in logarithmic steps.",
+  "evidence": "ch3 §3.1",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "The old photo stays active, so two active photos. Added: UPDATE photos SET is_active = FALSE WHERE user_id = ? (before the set).",
+  "evidence": "ch3 §3.1",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "Add AND is_active = TRUE so it touches only the one active row, not all the user's photos.",
+  "evidence": "ch3 §3.1",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "If the process crashes between them, no photo is active and every site gets a 404; a transaction rolls back the first update.",
+  "evidence": "ch3 §3.2, Fig 3·b",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Security and correctness: the photo id comes from the browser and could be another user's; without it you'd activate someone else's photo.",
+  "evidence": "ch3 §3.3",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Write five lines and get fifty comments; write five hundred and get 'looks good to me'. Small systems deserve scrutiny.",
+  "evidence": "ch3 §3.4",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "SELECT p.* FROM photos p JOIN users u ON p.user_id = u.id WHERE u.hash = ? AND p.is_active = TRUE;",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "No (not discussed as such); the improvement offered is moving 'active' to users.active_photo_id, removing the join.",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "The hash finds one user via the index, that user's id finds a handful of photos through the index on photos.user_id, and the flag picks one. It's cheap already; the filter isn't a real cost.",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Put active_photo_id on users (one column on the user instead of a flag per photo).",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "NOT ON PAGE for that hybrid. Page: with active_photo_id it's one statement (autocommit = its own transaction) and is_active on photos can go.",
+  "evidence": "ch3 §3.5",
+  "found": false
+ },
+ {
+  "id": "Q048",
+  "answer": "SELECT id, active_photo_id FROM users WHERE hash = ?: one row, no join; the row holds user id and photo id from which the S3 path is built.",
+  "evidence": "ch3 §3.5; ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "is_active in photos: join on reads, two updates in a transaction plus locks and ownership check, 'two active' / 'none active' states possible. active_photo_id: read is one row by hash, no join; mark active is one UPDATE of one column, those bad states can't happen, concurrent requests leave the last choice; slightly faster but mainly simpler.",
+  "evidence": "ch3 §3.5, Fig 3·d",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Schema design trains you to think in attributes of an entity, and 'active' feels like a property of the photo. Lesson: a better design existed and you only find it by challenging the shape you were trained to draw.",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "One query (UPDATE users SET active_photo_id ...); a single statement under autocommit is a transaction on its own.",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "Upload service picks a random photo id and hands the user a pre-signed URL; the phone uploads straight to S3 at s3://gravatar-images/{user_id}/{photo_id}; then the app calls the API to register the photo.",
+  "evidence": "ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "A row in photos (photo id, user_id); the path isn't stored.",
+  "evidence": "ch4 §4.1",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "Millions of hits on one URL pattern (e.g. Facebook/Instagram adopt it) would swamp API servers and S3 and the cloud bill; a CDN gives edge speed and scale and better experience.",
+  "evidence": "ch4 intro, §4.2",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Take the hash from the URL, look up the user's active photo, read the file from S3 at its derived path, return the bytes.",
+  "evidence": "ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "A CDN property named gravatar.com whose origin is api.gravatar.com/photos/<hash>; the root domain is the CDN.",
+  "evidence": "ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Speed and scale of the edge, and a better experience for whoever views the page.",
+  "evidence": "ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "Hit: CDN answers from cache. Miss: CDN calls the API, which asks the DB which photo is active, reads bytes from S3, returns through the CDN, which caches it 1-2 days.",
+  "evidence": "Fig 4·b",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "API writes DB/S3, puts a photo_updated event on Kafka; an invalidation worker calls the CDN's purge API for the path (and all widths); next request misses and fetches the new photo. (Or call purge synchronously.)",
+  "evidence": "ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Users expect the new photo everywhere now; with a 1-2 day TTL others could see the old face for up to two days. Long TTL for speed, explicit purge for correctness.",
+  "evidence": "ch4 §4.3",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Yes: an UPDATE matching no rows isn't an error so nothing rolls back by itself; check first (select ... where id and user_id, FOR UPDATE), and if no row, rollback and answer not found. A zero-row update is an alarm, usually a front-end bug.",
+  "evidence": "ch3 §3.3-3.4",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "The URL names a person, not a file; S3 holds all photos and doesn't know which is active; only the DB does, so the origin must be code that asks the DB.",
+  "evidence": "ch4 §4.2",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "A computation on the column hides it from its plain index: every request would hash every email (full scan).",
+  "evidence": "ch2 §2.3",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "It's used through the join: the user's id finds that user's photos via the index on photos.user_id; the filter in WHERE is on hash and is_active.",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q066",
+  "answer": "Explicit purge: an event on Kafka, a worker calls the CDN's purge API (or the API directly), including every width/query-string version.",
+  "evidence": "ch4 §4.3-4.4",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Denormalize to avoid joins: store active_photo_id (or even the active S3 key) on users.",
+  "evidence": "Fig 3·d",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "The same photo is needed at many sizes (32, 256, 512 px) while uploaded at any resolution; instead of pre-creating every variant, transform on request.",
+  "evidence": "ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Via a query parameter in the URL, e.g. gravatar.com/h1?w=32. Not done ahead of time at upload (not pre-created variants).",
+  "evidence": "ch4 §4.4",
+  "found": false
+ },
+ {
+  "id": "Q070",
+  "answer": "Cache key includes the width; on a miss call origin with params; origin reads the one original from S3, resizes (ImageMagick) in memory, returns bytes; cached per width.",
+  "evidence": "ch4 §4.4, Fig 4·c",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "It's written in C with C/C++ APIs, so most languages call it through bindings.",
+  "evidence": "ch4 §4.4",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Big machines with many cores so resizes run in parallel, plus a fleet that autoscales with incoming requests.",
+  "evidence": "ch4 §4.5",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "The request is synchronous: the page is waiting for that exact width now.",
+  "evidence": "ch4 §4.5",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q075",
+  "answer": "UPDATE users SET active_photo_id = ? WHERE id = ? (with an ownership check: AND EXISTS (SELECT 1 FROM photos WHERE id = ? AND user_id = ?)).",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q077",
+  "answer": "Yes; without it anyone can point their face at someone else's photo. Separate get first or folded into the statement.",
+  "evidence": "ch3 §3.5",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q079",
+  "answer": "A CXO's one-line brief 'let people tag people in photos'; the work is asking the product questions that change the design and pull in other teams, before any schema.",
+  "evidence": "ch5 intro, §5.1",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "NOT ON PAGE (page only says 'a different hat').",
+  "evidence": "overview",
+  "found": false
+ },
+ {
+  "id": "Q081",
+  "answer": "With a one-line brief, ask product questions first; each answer changes the design or lands on another team; schema follows.",
+  "evidence": "ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Who is allowed to tag me: per-user rule set by the tagged person, so tagging needs its own authorization layer (ACL-like), same as a 'can anyone tag me?' profile switch.",
+  "evidence": "ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "No: only the owner adds tags to their photo; other writers change one tag at a time.",
+  "evidence": "ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "5 fit in an array inside the photo's record; 10,000 need one entry/row per tag and a paginated API.",
+  "evidence": "ch5 §5.2",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "People tag each other the moment it ships; notification system sees a spike; if not scaled in time, other critical notifications get delayed.",
+  "evidence": "ch5 §5.5",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "Product-level throttling (not load-level): don't send one per tag (celebrity tagged by many); club tags into one rich notification; good apps send 3-5 a week.",
+  "evidence": "ch5 §5.5",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "A non-owner may change the photo (remove own tag), so authorization becomes finer-grained than 'only the owner'.",
+  "evidence": "ch5 §5.1",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "A synchronous dependency on an ML team's face-recognition/recommendation API: needs a strict SLA and a fallback (block tagging or tag by hand).",
+  "evidence": "ch5 §5.5",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "The activity page needs the reverse lookup (which photos is this user tagged in); arrays inside photos make that hard, so a row per tag indexed on user; can't pick just any database.",
+  "evidence": "ch5 §5.3",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Every tag pushes into feeds; the feed team has to gear up for it.",
+  "evidence": "ch5 §5.5",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Page order (not a board list): who can tag/authorization (and self-removal), max people per photo, show on activity page, where on the photo, notify tagged person (throttling), suggestions (face recognition), feed.",
+  "evidence": "ch5 §5.1-5.5",
+  "found": false
+ },
+ {
+  "id": "Q092",
+  "answer": "Images are resized for different screens/widths; stored pixels land in the wrong place on a smaller copy (e.g. near the right edge at 360x360).",
+  "evidence": "ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Relative position: (320/720, 120/720) ≈ (0.44, 0.17). Stays correct at any size as long as the aspect ratio holds (a crop needs recomputing).",
+  "evidence": "ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Hovering shows who's tagged over a region; store relative left-top and right-bottom corners, or one corner plus relative width and height.",
+  "evidence": "ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "posts_tags(post_id, user_id, location).",
+  "evidence": "ch5 §5.4",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "Kafka: the tagging service publishes one PHOTO_TAG event and each interested team consumes it; a new team is one more consumer with no change to tagging.",
+  "evidence": "ch5 §5.5, Fig 5·f",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Authorization (check), then via Kafka: search, notification, analytics, profile/activity, feed, face detection.",
+  "evidence": "Fig 5·f",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Badge counts new messages you haven't acknowledged by tapping the icon (since last tap), not unread messages; after a tap the messages remain unread.",
+  "evidence": "ch6 §6.1",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "The number of different people who wrote since the last tap.",
+  "evidence": "ch6 §6.1",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Update in near real time; update whenever a message is received; show number of different people a message arrived from since the last tap.",
+  "evidence": "ch6 §6.1",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "Since the user last tapped the messages icon.",
+  "evidence": "ch6 §6.1, Clip 7·1",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "user(id), user_activity(user_id, last_read_at), messages(msg, sender_id, recipient_id, ts).",
+  "evidence": "ch6 §6.2, Fig 6·c",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "SELECT COUNT(DISTINCT sender_id) FROM messages WHERE recipient_id = ? AND ts > last_read_at.",
+  "evidence": "ch6 §6.2",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Page: (recipient_id, sender_id, ts) groups by sender; better (recipient_id, ts, sender_id): equality on recipient then range on ts, so the scan starts at last_read_at and stops at the newest.",
+  "evidence": "ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "It still walks every new message: 10,000 new messages = 10,000 index entries for a few senders, on every page load, for millions of users; one prolific sender costs 10,000 entries to learn '1'.",
+  "evidence": "ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "No: crude, not incorrect; messages and user_activity are sources of truth, so it's always exactly right.",
+  "evidence": "ch6 §6.3",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "The set already holds each sender once and tracks its own size (O(1)), so the count was redundant.",
+  "evidence": "ch7 §7.1",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Per user: a set of senders (unique_users) in a KV store. On tap, delete the set (badge 0).",
+  "evidence": "ch7 §7.1",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Query the source of truth vs keep things pre-computed.",
+  "evidence": "ch7 §7.2",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Source of truth when it must be exactly right / at startup scale; pre-computed set when it must be cheap, millions active at once (but you must own the update flow).",
+  "evidence": "ch7 §7.2",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Redis (key-value store, value a set; MongoDB $addToSet also works). Requirement: a variable-length set of user ids as the value per user key, with built-in dedupe.",
+  "evidence": "ch7 §7.3",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Get status: SCARD on the user's set → badge number. Clear status (on tap): DEL the user's key.",
+  "evidence": "ch7 §7.3",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "Client: if B is already on the messaging screen, a new message isn't 'new' for the badge. Backend: count only messages that couldn't be delivered in real time (offline etc., a product call).",
+  "evidence": "ch7 §7.4",
+  "found": false
+ },
+ {
+  "id": "Q114",
+  "answer": "It holds every persistent connection (WebSockets end at its edge servers), so it knows whether a message was delivered and whether B is connected / which screen; source of truth for delivery.",
+  "evidence": "ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "An umbrella event the messaging service emits whenever a message couldn't be delivered to the user in real time.",
+  "evidence": "ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "{src, dest, msg}: who sent what to whom. Workers SADD dest src, i.e. sender added to recipient's Redis set.",
+  "evidence": "ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Read: app → status check API (get_status, clean_status) → Redis cluster (SCARD/DEL). Write: messaging service → ON_MSG_UNSENT on Kafka → status update workers → SADD into Redis; stream also feeds notifications.",
+  "evidence": "Fig 7·d",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "get_status reads (millions of refreshes), deletes on tap (clear), and writes for every ON_MSG_UNSENT event.",
+  "evidence": "ch8 §8.1",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Repeat SADDs for a sender already in the set: of 30 messages from C only the first changes anything; the other 29 are received, checked and discarded.",
+  "evidence": "ch8 §8.1",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "The database is the most brittle part of your infrastructure; cut unnecessary work that leads to no state change and protect it; if the DB is down everything is down.",
+  "evidence": "ch8 §8.1-8.2",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Worker does SET B_C 1 NX on the aux Redis; if new, SADD B C on main; if already existed, stop.",
+  "evidence": "ch8 §8.2",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "An extra network hop per write, another store, possible drift between the two (badge undercount), clear must delete in both.",
+  "evidence": "ch8 §8.2-8.3",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "No check happens; workers send every write to main, the load it carried before; it stays up. Efficiency lost, not correctness.",
+  "evidence": "ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "The clear must also delete B's keys in the aux store, so it must know which keys are B's (read them off B's set, or use one hash per user: HSETNX/DEL B).",
+  "evidence": "ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "It isn't money: worst case the badge shows 2 not 3 until next tap; the glitch isn't fatal, while the whole messaging system going down would be. Trade a little inconsistency for throughput; TTL heals drift.",
+  "evidence": "ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Stop counting past a point (e.g. show 100+): once the set is past the threshold, skip writes even for new senders (but needs knowing the size).",
+  "evidence": "ch8 §8.4",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Aux: one existence key per pair, e.g. B_C (or a hash B with field C). Main: key B with a set of senders {C, D}.",
+  "evidence": "ch8 §8.2-8.3",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "Aux write succeeds, main fails: C recorded as seen but never added; badge undercounts (e.g. 2 while 300 messages wait) until next tap clears both.",
+  "evidence": "ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "No; not a distributed transaction; accept slight inconsistency.",
+  "evidence": "ch8 §8.3",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "A read still sends an instruction to the store you're protecting and costs it CPU; it's the store every badge read depends on, so don't touch it even to read.",
+  "evidence": "ch8 §8.4",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "A site embedding Gravatar knows your email, not your Gravatar user id, so the URL must be computable from the email alone.",
+  "evidence": "ch2 §2.1",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "A message that couldn't be delivered in real time; this design counts fully offline; whether 'on another tab' counts is a product call.",
+  "evidence": "ch7 §7.4",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "Pick one real query, run EXPLAIN, look up every term in official docs; repeat for months; try on staging/copy and measure.",
+  "evidence": "ch3 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "A cluster; a single node won't take the load.",
+  "evidence": "ch8 §8.2",
+  "found": true
+ }
+]

@@ -167,7 +167,7 @@ export function Paths({ layout = 'wide', aux = false }: Layout & { aux?: boolean
   const title = aux ? 'With the auxiliary Redis' : 'Read path, write path';
   const desc = aux
     ? 'The full design. Read path: get_status and clean_status go through the status check API to the Redis cluster, where B’s set is {C, D}. Write path: status update workers pull ON_MSG_UNSENT events and first check a small auxiliary Redis that holds one existence key per pair, B_C : true and B_D : true. Only when the pair is new do they write to the main cluster. A clear deletes in both stores. The same stream also feeds the notification system.'
-    : 'Read path: the user’s app calls get_status and clean_status on a status check API, which reads or deletes the user’s set in a Redis cluster, where B’s set is {C, D}. Write path: the messaging service’s ON_MSG_UNSENT events are pulled by status update workers, which add the sender to the recipient’s set (SADD B C). The same stream also feeds the notification system. A hard-to-read board note says writes can be batched, most likely at the workers if the stream is partitioned by recipient.';
+    : 'Read path: the user’s app calls get_status and clean_status on a status check API, which reads or deletes the user’s set in a Redis cluster, where B’s set is {C, D}. Write path: the messaging service’s ON_MSG_UNSENT events are pulled by status update workers, which add the sender to the recipient’s set (SADD B C). The same stream also feeds the notification system. A note by the workers: they can batch writes if the stream is partitioned by recipient.';
   if (P) {
     return (
       // critic C-08: every note sits on what it labels: the set beside the cluster, the batching note and the

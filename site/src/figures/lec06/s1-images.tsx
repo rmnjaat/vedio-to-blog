@@ -137,7 +137,7 @@ export function ImgToPixels({ layout = 'desk' }: Layout) {
 
 /* ------------------------------------------------------------------ Fig 1·b  Two handlers, one idea (D-01) */
 
-const F1B_DESC = 'Panel a: a request for https://example.com/static/img/logo.jpg reaches the server. The /static prefix maps to a static folder on its disk, so the server reads the URL, reads the file at site/static/img/logo.jpg and sends its bytes. Panel b: the same server with a /raw/<path> route of four lines; it reads the URL, reads the file at that key from S3 and sends the bytes, which makes the server a proxy for S3.';
+const F1B_DESC = 'Panel a: a request for https://example.com/static/img/logo.jpg reaches the server. The /static prefix maps to a static folder on its disk, so the server reads the URL, reads the file at site/static/img/logo.jpg and sends its bytes. Panel b: the same server with a /raw/<path:key> route of four lines; it reads the URL, reads the file at that key from S3 and sends the bytes, which makes the server a proxy for S3.';
 
 function StepsList({ y, lines }: { y: number; lines: string[] }) {
   return (
@@ -198,8 +198,8 @@ function RawPanel({ id }: { id: string }) {
       <Arrow tone="blue" pts={[[166, 104], [208, 104]]} seed={s('read')} />
       <Arrow tone="green" pts={[[208, 118], [166, 118]]} seed={s('bytes')} />
       <Cloud cx={262} cy={110} w={104} h={50} seed={s('s3')} label="s3" />
-      <Code x={14} y={146} w={312} seed={s('code')} lines={['@app.route(\'/raw/<path>\')', 'def raw_handler(path):', '  raw_b = S3.read(path, BUCKET)', '  return raw_b']} />
-      <Label anchor="start" x={14} y={262} size={13} muted>3–4 lines: a proxy for S3</Label>
+      <Code x={14} y={146} w={312} seed={s('code')} lines={['@app.route(\'/raw/<path:key>\')', 'def raw_handler(key):', '  raw_b = S3.read(key, BUCKET)', '  return raw_b']} />
+      <Label anchor="start" x={14} y={262} size={13} muted>four lines: a proxy for S3</Label>
       <StepsList y={292} lines={['reads the URL', 'reads the file from S3', 'sends the bytes']} />
       <Label kind="title" x={170} y={374}>b · your own handler</Label>
     </g>
@@ -227,7 +227,7 @@ export function TwoHandlers({ layout = 'desk' }: Layout) {
 
 /* ------------------------------------------------------------------ Fig 1·c  The repo card, made on a miss */
 
-const F1C_DESC = 'The page names an og:image URL. The CDN serves a cached card; on a miss it asks the card service, which fills a template with the repository’s current numbers fetched from GitHub’s API and returns an image that the CDN keeps until its TTL runs out, about a day; then the next request misses and the card is drawn again.';
+const F1C_DESC = 'The page names an og:image URL. The CDN serves a cached card; on a miss it asks the card service, which fills a template with the repository’s current numbers fetched from GitHub’s API and returns an image that the CDN keeps until its TTL runs out (say a day; GitHub doesn’t publish it); then the next request misses and the card is drawn again.';
 
 function CardInBrowser({ x, y, w, h, s }: { x: number; y: number; w: number; h: number; s: (k: string) => string }) {
   const cx = x + 12, cy = y + 20, cw = w - 24, ch = h - 30;
@@ -277,7 +277,7 @@ export function RepoCard({ layout = 'desk' }: Layout) {
         <Arrow tone="green" pts={[[120, 222], [120, 166]]} seed={s('hit')} />
         <Label tone="green" anchor="start" x={128} y={192} size={13}>cached copy</Label>
         <Cloud cx={95} cy={252} w={140} h={62} seed={s('cdn')} label="cdn" />
-        <Label kind="mono" x={262} y={240} size={13}>TTL ~1 day</Label>
+        <Label kind="mono" x={262} y={240} size={13}>TTL, say 1 day</Label>
         <Label muted x={262} y={258} size={13}>then the next</Label>
         <Label muted x={262} y={274} size={13}>request re-renders</Label>
         <Arrow tone="blue" pts={[[70, 284], [70, 342]]} seed={s('miss')} />
@@ -307,7 +307,7 @@ export function RepoCard({ layout = 'desk' }: Layout) {
       <Arrow tone="green" pts={[[282, 124], [200, 124]]} seed={s('hit')} />
       <Label tone="green" x={241} y={146} size={13}>cached copy</Label>
       <Cloud cx={342} cy={108} w={120} h={66} seed={s('cdn')} label="cdn" />
-      <Label kind="mono" x={342} y={172} size={13}>TTL ~1 day</Label>
+      <Label kind="mono" x={342} y={172} size={13}>TTL, say 1 day</Label>
       <Label muted x={342} y={190} size={13}>then the next request</Label>
       <Label muted x={342} y={206} size={13}>misses and re-renders</Label>
       <Arrow tone="blue" pts={[[402, 100], [526, 100]]} seed={s('miss')} />

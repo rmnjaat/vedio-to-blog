@@ -1,0 +1,170 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { LoadAudit, WhichFailure } from '../../../figures/lec06/s6-auxiliary';
+import { Paths } from '../../../figures/lec06/s5b-badge';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 8 "Thirty messages from one friend. How many writes change anything?" Story rewrite: the design looks
+    converged → audit every path against the most brittle component → 29 of 30 writes change nothing (pause, clip)
+    → an auxiliary store answers "already recorded?" (SET NX), and why not just send the repeats to main → what
+    each failure costs, drift, pick your battles → why not read first (the rose), or stop counting (threshold) →
+    the finished map, what you can now do, recall → Lecture 9: open the Redis box. */}
+
+<Section id="s8" no="8" title="Thirty messages from one friend. How many writes change anything?" crumb="8 Thirty messages" meta="About 9 min">
+
+The badge works. Reads are one O(1) call, a tap is one delete, and the one service that knows about delivery feeds the set. Now the pattern promised at the start: it begins with a question most people never ask of a working design. What is the database doing that changes nothing? [[L-0005 L-0279]]
+
+<Figure id="fig-8a" max={680} no="Fig 8·a" caption="After chapter 7: the badge reads a set of senders per user, kept ready by the messaging service’s events.">
+<Desk><SoFarTruth stage={7} /></Desk>
+<Phone><SoFarTruth stage={7} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="What is the database doing for nothing?" crumb="8.1 Audit every path">
+
+Look at the Redis cluster. Millions of users refresh pages and move between screens, and every one of those calls get status. On top of that come the deletes when people tap the icon, and a write for every `ON_MSG_UNSENT` event. This one store is carrying a lot. [[L-0280]]
+
+<LectureLink lec="lec01">Lecture 2</LectureLink>’s rule applies: the database is the most brittle part of your infrastructure, so check whether you are doing unnecessary work on it. Go path by path. [[L-0281]]
+
+Get status is already the bare minimum: the store is the truth for the badge, and it is in memory. (If reads ever outgrow it, replicas can serve them, since a badge a moment stale is fine <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/replication/">redis.io</Cite>.) Clear status has to delete the key; nothing to trim there either. [[L-0282 L-0283]]
+
+That leaves the write path, which also looks minimal: one event, one write. Now think about how your friends actually message you while you are offline. Not once. They send five, ten, thirty short messages: “Hey, what are you doing?” “Come here.” “We’re going for this.” [[L-0285]]
+
+<PauseAndThink k="L-0284 L-0285 L-0286 L-0287"
+  q="B is offline. C sends 30 short messages. Each one triggers a worker that runs <code>SADD B C</code> on the main Redis. How many of those 30 writes change B’s set?"
+  choices={[{ label: 'All 30' }, { label: 'Just 1', correct: true }]}
+  right="Right: 29 of them change nothing."
+  wrong="The set stores senders, not messages.">
+
+Only the first. After it, C is already in B’s set, and it makes no difference whether C sends one message or 10,000.
+
+</PauseAndThink>
+
+<Figure id="fig-8b" no="Fig 8·b" k="L-0280 L-0282 L-0283 L-0284"
+  caption="Reads and clears are the bare minimum. The write path is where the waste is: one write in 30 changes anything.">
+  <Desk><LoadAudit /></Desk>
+  <Phone><LoadAudit layout="phone" /></Phone>
+</Figure>
+
+The other 29 are not free. Each one still crosses the network, and, worse, each one makes the database do real work: receive the request, find the set, check whether C is in it, and discard the write. Redis even tells you so, with an `SADD` that returns 0. A lot of work, N−1 times over, for no change at all, on the one component whose failure takes everything with it. [[L-0286 L-0287]]
+
+That is work you can cut.
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="What can stop the repeats before they arrive?" crumb="8.2 The auxiliary store">
+
+Put a second, small store in front: an **auxiliary database**. Its only job is to answer one question for the workers, *have we already recorded C for B?*, so that only a “no” reaches the main store. [[L-0290]]
+
+The flow: for each event, the worker first sets a key such as `B_C` in the auxiliary Redis, but only if it doesn’t exist. Redis does that check-and-set in one atomic command, `SET key value NX`, the same command <LectureLink lec="lec08">Lecture 5</LectureLink> used to take a lock. If the key was new, the worker writes C into B’s set in the main store. If it already existed, the worker stops there, and the main store never hears about the message. [[L-0292 L-0302]]
+
+```text
+SET B_C 1 NX    -- aux: OK, first message from C since B's last tap
+SADD B C        -- main: only then, one write
+SET B_C 1 NX    -- aux: nil, C already recorded; main is not touched
+```
+
+Add `EX` and a number of seconds to give each key a TTL, so a key that outlives its purpose eventually disappears <Cite href="https://redis.io/docs/latest/commands/set/">redis.io</Cite>. The auxiliary store keeps no count, only existence: if C sends 10,000 messages, there is one write to the auxiliary store, one to the main store, and 9,999 existence checks. It is a cluster too, because a single node won’t take that load. [[L-0303 L-0304 L-0321]]
+
+<AnimationClip clip="l06-aux-redis" no="Clip 8·1" k="L-0286 L-0292 L-0293 L-0303"
+  lead="C sends 30 messages, then D sends 20. How many reach the main Redis, with and without the auxiliary store?"
+  caption="Without help, all 50 writes reach the main store and 48 change nothing. With an auxiliary store, the repeats stop at a cheap existence check, and the main store gets two writes, one per sender." />
+
+You might ask: `SET … NX` on one Redis costs about what `SADD` costs on another, so what was saved? Not the total number of operations; the repeats still happen, one network hop further along. And more shards on the main cluster would only add room for the same wasted work on the store every read depends on. What changes is *where* the repeats land, and what breaks if that store falls over. Every badge read in the product, for every user, goes to the main store: if it is down, the badge is down everywhere. Nothing reads the auxiliary store; if it is down, the workers fall back to the load main carried before (8.3). Load you can afford to lose belongs on a store you can afford to lose. [[L-0291 L-0293 L-0294]]
+
+That is the pattern this build promised. Whenever a database does a lot of work that leads to no state change, cut that work, and protect the database however you can: whichever cloud you run on, if the database is down, everything is down. One extra network hop per write, plus a small second cluster and a little drift (8.3), is a cheap price for that. [[L-0288 L-0291]]
+
+<Figure id="fig-8c" no="Fig 8·c" k="L-0292 L-0302"
+  caption="The finished design: workers check the auxiliary Redis and write to the main cluster only for a new sender; a clear deletes in both.">
+  <Desk><Paths aux /></Desk>
+  <Phone><Paths aux layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Two stores now. What happens when one fails?" crumb="8.3 When one fails">
+
+If the main store goes down, the badge is down, as it always was. Now the new case: if the auxiliary store goes down, no check happens, so the workers send every write straight to the main store. That is the load the main store carried before the auxiliary existed. It stays up. The auxiliary only ever sheds load, so losing it costs efficiency, not correctness. [[L-0294]]
+
+The clear changes a little. When B taps the icon, the status API deletes B’s set in the main store *and* B’s keys in the auxiliary store, so the next message from C starts over and creates both again. With one key per pair, the API has to know which keys are B’s. It can read them off B’s set just before deleting it. Or keep B’s pairs as fields of one hash in the auxiliary store: `HSETNX B C 1` is the same set-if-absent check, and the clear is one `DEL B` <Cite href="https://redis.io/docs/latest/commands/hsetnx/">redis.io</Cite>. Since Redis 7.4, `HEXPIRE` can give each field its own TTL. [[L-0295 L-0302]]
+
+<Figure id="fig-8d" no="Fig 8·d" k="L-0294 L-0305"
+  caption="Losing main is losing the feature. Losing aux only puts the old load back on main. If one store’s write succeeds and the other’s fails, they drift, and the badge can undercount until the next tap clears both.">
+  <Desk><WhichFailure /></Desk>
+  <Phone><WhichFailure layout="phone" /></Phone>
+</Figure>
+
+Two stores also mean two writes that can disagree. If the auxiliary write succeeds and the main write fails, C is recorded as seen but never added, and the badge undercounts: it might say 2 while 300 messages wait, until the next tap clears both. That is a real problem, not one to deny. [[L-0305]]
+
+Should both writes then be one distributed transaction? Not here. This isn’t money. At worst the badge shows 2 when it should show 3; the user sees every message after one tap anyway, and a friend who needs a reply will write again. A glitch in a badge is not the end of your product; the whole messaging system going down would be. So take a little inconsistency in exchange for throughput, and let a TTL on the auxiliary keys heal what drifts. [[L-0296 L-0306]]
+
+Skipping the transaction can feel like cheating. Ask what the worst outcome for the user is, and pick your battles. [[L-0297 L-0307]]
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="Why not just read first, or stop counting?" crumb="8.4 Two alternatives">
+
+Two cheaper-looking ideas. First: skip the second store and read before you write: check whether C is in B’s set on the main store, and write only if not. That still sends an instruction to the store you are trying to protect, and every instruction costs it some CPU, however little. It is the one store every badge read depends on: you don’t want to touch it, even to read. [[L-0308]]
+
+Second: stop counting past a point. Nobody needs to see that 10,000 people wrote; the app can show “100+”. Once B’s set is past that threshold, even a new sender changes nothing the user can see, so the workers can skip the write. The catch: knowing the size is itself a question for the main store, the read you just ruled out, so the skip saves something only if the size is known without asking the main store each time. [[L-0300 L-0301]]
+
+</Section>
+
+<Section id="s8-5" no="8.5" title="What you can now do" crumb="8.5 What you can do">
+
+<Figure id="fig-8e" max={680} no="Fig 8·e" caption="The finished map. Each row is a decision about where the truth lives and what to keep ready next to it, or to make on demand.">
+<Desk><SoFarTruth stage={8} /></Desk>
+<Phone><SoFarTruth stage={8} layout="phone" /></Phone>
+</Figure>
+
+- **Serve images from your own handler:** a stored file, or one drawn on a CDN miss and cached for a TTL.
+- **Spot a full scan before it ships:** a computation on a column in `WHERE` hides its plain index; store the derived value when a frequent query needs it.
+- **Harden a short write:** undo the old state, one transaction, a locking ownership check before writing, a per-user lock; or reshape the data so one statement does it.
+- **Put the truth at the origin:** the CDN caches whatever the origin returns; purge on change, resize on a miss on many-core machines.
+- **Turn a one-line brief into design changes:** who may act on whom, limits that pick the schema, throttled notifications, an SLA and a fallback, fractions for positions, one event for every team.
+- **Choose between asking the truth and keeping it ready,** and own the flow that keeps it current.
+- **Protect the database from work that changes nothing** with a disposable auxiliary store, and accept a little drift where it costs nobody much.
+
+<RecallQuestions>
+  <RecallItem q="Product sets the tag limit at 5, then asks for a “photos you’re tagged in” page. What does each answer do to the schema?" k="L-0189 L-0190 L-0209">
+
+Five tags fit in an array inside the photo’s record. The tagged-in page asks the reverse question, which photos is this user in, and an array inside every photo is awkward to search that way; one row per tag, `posts_tags(post_id, user_id, location)`, indexed on the user, answers it directly.
+
+  </RecallItem>
+  <RecallItem q="Name the problems with <code>UPDATE photos</code> <code>SET is_active = TRUE</code> <code>WHERE id = ?</code>, and the design change that removes most of them." k="L-0089 L-0093 L-0097 L-0111">
+
+The old photo stays active; a crash between the clearing update and the setting update leaves none active (a 404 everywhere) unless both share a transaction; a photo id from the browser can be someone else’s, so check ownership first with a locking read; and two concurrent requests can leave two active on some engines (PostgreSQL’s default isolation) unless the user’s row is locked. Moving “active” to `users.active_photo_id` makes it one statement on one row, still with the ownership check.
+
+  </RecallItem>
+  <RecallItem q="Why is gravatar.com’s CDN origin the API and not the S3 bucket, and what makes a changed photo appear before the two-day TTL runs out?" k="L-0140 L-0128 L-0129">
+
+The URL names a person, and only the database knows which of their photos is active; S3 just holds bytes. On a change, the API writes the database and puts an event on Kafka; a worker calls the CDN’s purge API for the path and all its widths (or the API calls it directly), so the next request misses and fetches the new photo.
+
+  </RecallItem>
+  <RecallItem q="C sends B 30 messages while B is offline. With the auxiliary store, how many writes reach the main Redis, and what happens to the badge if the auxiliary store crashes?" k="L-0284 L-0293 L-0294">
+
+One. The first message sets `B_C` in the auxiliary store and adds C to B’s set; the other 29 stop at the existence check. If the auxiliary store crashes, the workers write every event straight to the main store: the old load, and a badge that still works.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s8-6" no="8.6" title="You leaned on Redis all lecture. What is inside it?" crumb="8.6 Next">
+
+The face, the tag and the red 3 are built. Each one came down to where the truth lives and what you keep ready next to it.
+
+Count the jobs Redis did in the last build: a set per user with an O(1) size, keys set only if absent and given a TTL, a cluster spread over machines, and a store so precious you put another store in front of it. Every one of those treated Redis as a box someone else built.
+
+<LectureLink lec="lec07">Lecture 9</LectureLink> goes back to the blog’s data and builds two copies of it. First a copy for the analysts, which may run behind but must never miss a change. Then the cache in front of the database, built from the inside, from one hash table on one machine to many nodes: what is inside the Redis you leaned on here.
+
+</Section>

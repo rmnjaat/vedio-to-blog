@@ -1,0 +1,196 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { CrashBetweenUpdates } from '../../../figures/lec06/s2b-gravatar-fig2c';
+import { ForeignPhotoId } from '../../../figures/lec06/s2b-gravatar-fig2d';
+import { BoardQueries } from '../../../figures/lec06/s2b-gravatar-fig2e';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 3 "One line changes your photo. What could go wrong?" Story rewrite: the one-line UPDATE (pause) →
+    bug 1, the old photo stays active → bug 2, a crash between two updates (stepper) → bug 3, someone else's photo
+    id (pause + stepper) → a wrong id still leaves no active photo: check first, then write → two requests at once
+    (lock the user's row) → where should "active" live? (pause) → active_photo_id: one row read, one statement →
+    hand-off: millions of sites asking. */}
+
+<Section id="s3" no="3" title="One line changes your photo. What could go wrong?" crumb="3 One line" meta="About 9 min">
+
+Requirement two: a user marks one of their photos as active. The query for it is about as simple as SQL gets, almost “hello world”. It also hides a mistake that almost every engineer has seen in production, and three more behind it. Finding all of them is this chapter. [[L-0087]]
+
+<Figure id="fig-3a" max={680} no="Fig 3·a" caption="After chapter 2: the user is found by a stored, indexed hash of the email.">
+<Desk><SoFarTruth stage={2} /></Desk>
+<Phone><SoFarTruth stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Is the one-line update correct?" crumb="3.1 The one line">
+
+Here is the first draft. The photo id comes from the page where the user clicked “make active”. [[L-0086]]
+
+```sql
+UPDATE photos SET is_active = TRUE WHERE id = ?;
+```
+
+You might want to add `AND user_id = ?` to make the lookup cheaper. It doesn’t help with that: `id` is the primary key, so the row is found in a logarithmic number of steps already. (A better reason to add `user_id` turns up in 3.3.) [[L-0088]]
+
+<PauseAndThink k="L-0089"
+  q="User 729 has photo 7abe active and asks to make c1d0 active. The app runs <code>UPDATE photos</code> <code>SET is_active = TRUE</code> <code>WHERE id = 'c1d0'</code>. What does user 729’s data look like afterwards?"
+  choices={[{ label: 'c1d0 is active, 7abe is not' }, { label: 'Both are active', correct: true }]}
+  right="Right."
+  wrong="Look at which rows the statement touches.">
+
+The statement touches one row. Nothing marks 7abe inactive, so the user now has two active photos, and the read query from chapter 2 returns two rows for one face.
+
+</PauseAndThink>
+
+So clear the old one first. The first idea is three statements: find the active photo, mark it inactive, mark the new one active. It folds into two: clear whichever photo of this user is active, then set the new one. Add `AND is_active = TRUE` to the first, so it touches only the one row that is actually active rather than all ten of the user’s photos. [[L-0089 L-0090 L-0091]]
+
+```sql
+UPDATE photos SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE;
+UPDATE photos SET is_active = TRUE  WHERE id = ?;
+```
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="What if the process dies between the two?" crumb="3.2 A crash halfway">
+
+The second statement only makes sense once the first has run. What if it never runs? [[L-0092]]
+
+<StepThrough id="fig-3b" no="Fig 3·b" label="Crash between two updates" k="L-0086 L-0090 L-0091 L-0092 L-0093"
+  caption="Time runs down. Lanes are the app, user 729’s rows in photos, and a site showing that user’s Gravatar. Step through with the buttons or the arrow keys."
+  stepK={['L-0086', 'L-0090 L-0091', 'L-0093', 'L-0093', 'L-0092 L-0093']}
+  steps={[
+    '<code>7abe</code> is active. User 729 wants <code>c1d0</code> to be the active photo.',
+    'The app runs the first update. It clears the active photo: now both are inactive.',
+    'The process <span class="term red">crashes</span> before the second update.',
+    'facebook.com requests <code>gravatar.com/0eafd172</code>. No photo is active, so every site showing this user gets a <span class="term red">404</span>.',
+    'Wrap both updates in one transaction. The crash rolls the first one back, and the user keeps <span class="term green">7abe active</span>.',
+  ]}>
+  <Desk><CrashBetweenUpdates /></Desk>
+  <Phone><CrashBetweenUpdates layout="phone" /></Phone>
+</StepThrough>
+
+The two updates must be one transaction, written explicitly, not merely “could be”. It sounds obvious, and that is exactly why it gets skipped or never said out loud in a review. In a simple system, the obvious step is the one that goes missing. [[L-0093 L-0094]]
+
+```sql
+START TRANSACTION;
+UPDATE photos SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE;
+UPDATE photos SET is_active = TRUE  WHERE id = ?;
+COMMIT;
+```
+
+Atomic now. What else could be wrong with four lines? [[L-0096]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="Whose photo id is it?" crumb="3.3 Someone else’s id">
+
+<PauseAndThink k="L-0097"
+  q="The photo id in the second update comes from the browser. User 729 edits the request and sends <code>9f00</code>, a photo that belongs to user 812. What happens?"
+  choices={[{ label: 'Nothing: the update fails' }, { label: '729 loses their photo and 812’s photo changes', correct: true }]}
+  right="Right."
+  wrong="The update has nothing that stops it. Read its WHERE clause again.">
+
+The first update is scoped to user 729, so it clears 729’s active photo. The second has only `WHERE id = ?`, so it happily marks 812’s photo active. One request has broken two users. The second update needs `AND user_id = ?`, so a user can only ever touch their own photos: a security check, and a correctness check.
+
+</PauseAndThink>
+
+<StepThrough id="fig-3c" no="Fig 3·c" label="Somebody else’s photo id" k="L-0097 L-0132 L-0134 L-0135 L-0136"
+  caption="Time runs down. Lanes are the caller’s app (user 729) and the photos table, which holds rows of two users."
+  stepK={['L-0097', 'L-0097', 'L-0097', 'L-0132 L-0134', 'L-0135 L-0136']}
+  steps={[
+    'The request says “make <code>9f00</code> my active photo”, but <code>9f00</code> belongs to user 812. The id comes from the front end, so anyone can send any id.',
+    'The first update is scoped to the caller and clears their photo: <code>729: 7abe inactive</code>.',
+    'The second update, <code>… WHERE id = 9f00</code> with no user check, marks <span class="term red">812’s photo active</span>.',
+    'With <code>AND user_id = ?</code>, <code>0 rows</code> change on 812’s side. But 729 has already <span class="term red">lost their active photo</span>.',
+    'Check first: a select on <code>id = ?</code> and <code>user_id = ?</code> finds no row, so nothing is written. <span class="term green">No row, no updates.</span>',
+  ]}>
+  <Desk><ForeignPhotoId /></Desk>
+  <Phone><ForeignPhotoId layout="phone" /></Phone>
+</StepThrough>
+
+Step 4 is the trap, and it needs step 5. An `UPDATE` that matches no rows is not an error, so nothing rolls back by itself; an update you expected to change a row but that changed nothing is an alarm, most often a front-end bug. So check first, write second. But a check and a write are separate statements, and between them another request can slip in. [[L-0132 L-0133 L-0134 L-0135 L-0137]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="And two requests at once?" crumb="3.4 Two at once">
+
+A user picks one photo on their phone and another on their laptop at the same moment, and two mark-active transactions start together. Atomic doesn’t mean isolated, and what happens next depends on the engine. Under PostgreSQL’s default isolation, each `UPDATE` picks its rows from a snapshot taken when the statement starts. The second request’s clearing update waits for the first, finds the old photo already cleared, and never sees the photo the first one just activated. Then it activates its own, and the user has two active photos again <Cite href="https://www.postgresql.org/docs/current/transaction-iso.html">postgresql.org</Cite>. MySQL’s InnoDB happens to be safer here: an `UPDATE` locks the rows it scans and reads their latest committed versions, so the second clear waits and then clears the first request’s photo <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locks-set.html">dev.mysql.com</Cite>. Don’t lean on that difference. Say what you need. [[L-0095]]
+
+So the check needs locks, the same `FOR UPDATE` that kept two passengers off one seat in <LectureLink lec="lec05">Lecture 3</LectureLink>. Lock the user’s row first, so one change per user runs at a time, and make the ownership check a locking read: a plain `SELECT` inside a transaction “does not give enough protection”, while `FOR UPDATE` keeps the row locked until commit <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html">dev.mysql.com</Cite>.
+
+```sql
+START TRANSACTION;
+SELECT id FROM users  WHERE id = ? FOR UPDATE;                  -- one change per user at a time
+SELECT id FROM photos WHERE id = ? AND user_id = ? FOR UPDATE;  -- is it this user's photo?
+-- no row: ROLLBACK and answer "not found"
+UPDATE photos SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE;
+UPDATE photos SET is_active = TRUE  WHERE id = ? AND user_id = ?;
+COMMIT;
+```
+
+Check first, then write, so no request can leave the data in a state you promised never to allow. And do it at every step: security that holds in one query and lapses in the next doesn’t hold at all. [[L-0136 L-0171 L-0172]]
+
+Six statements to change a profile photo. It is like code review: write five lines and you get fifty comments, write five hundred and you get “looks good to me”. Small systems deserve the scrutiny, because what seems obvious often isn’t. [[L-0098 L-0100]]
+
+</Section>
+
+<Section id="s3-5" no="3.5" title="Should “active” live on the photo at all?" crumb="3.5 Where active lives">
+
+Look at what all that machinery protects: one flag that must be true on exactly one of a user’s rows. Now look at the query that runs most, the read behind every embedded avatar. [[L-0101 L-0102]]
+
+```sql
+SELECT p.*
+FROM photos p
+JOIN users u ON p.user_id = u.id
+WHERE u.hash = ? AND p.is_active = TRUE;
+```
+
+It is cheap already: the hash finds one user, that user’s id finds a handful of photos through the index on `photos.user_id`, and the flag picks one. Any improvement from here is extreme nitpicking in speed terms, but there is one, and it also deletes most of the code above. [[L-0103 L-0104 L-0105]]
+
+<PauseAndThink k="L-0107 L-0109 L-0111 L-0112"
+  q="Gravatar is read far more than it is written. Should “which photo is active” be a flag on each photo, or one column on the user?"
+  choices={[{ label: 'A flag on each photo: photos.is_active' }, { label: 'One column on the user: users.active_photo_id', correct: true }]}
+  right="Right."
+  wrong="The flag works, and almost everyone draws it first. Count what each choice costs the read and the write.">
+
+With `active_photo_id` on `users`, the read is one row by hash, no join, and that row already holds the user id and photo id the S3 path is built from. Marking a photo active becomes one `UPDATE` of one column. There is no second row to clear, so the “two active photos” and “none active” states can’t happen.
+
+</PauseAndThink>
+
+```sql
+-- read: one row, no join
+SELECT id, active_photo_id FROM users WHERE hash = ?;
+
+-- mark active: one statement that carries its own ownership check
+UPDATE users SET active_photo_id = ?
+WHERE id = ?
+  AND EXISTS (SELECT 1 FROM photos WHERE id = ? AND user_id = ?);
+-- 0 rows: not your photo (or it was already the active one)
+```
+
+A single statement under autocommit is a transaction on its own, so the multi-statement dance goes away. The ownership check doesn’t: without it anyone can point their face at someone else’s photo. You can run it as a separate get before the update, as long as you keep it; folded into the statement as above, there is no gap between check and write. And two requests at once now just leave whichever choice came last. And the rare question “is this photo active?” is now answered by comparing it with `users.active_photo_id`, so `is_active` on photos can go. [[L-0108 L-0109 L-0110 L-0111 L-0171]]
+
+<Figure id="fig-3d" no="Fig 3·d" k="L-0102 L-0111 L-0147"
+  caption="Both queries, before and after active_photo_id: the photos transaction becomes one update on users, and the join becomes one select by hash.">
+  <Desk><BoardQueries /></Desk>
+  <Phone><BoardQueries layout="phone" /></Phone>
+</Figure>
+
+Why does almost everybody start with the flag? Because schema design trains you to think in attributes of an entity, and “active” feels like a property of the photo. Almost everyone who meets this problem starts with the flag. The point isn’t that `active_photo_id` is hugely faster. It is that a somewhat better design existed, and you only find it by challenging the shape you were trained to draw. [[L-0112 L-0113 L-0114 L-0115]]
+
+<MarginNote title="Go deeper: getting good at reading queries" why="how to practise the skill this chapter used" k="L-0313 L-0316 L-0317 L-0318 L-0320">
+
+Pick one real query, run `EXPLAIN` on it, and look up every term in the plan in your database’s official documentation, which is denser than blogs and keeps the details they skip. Repeat, one query at a time, for a few months. Try each idea on staging or on a copy of the table and measure it. In MySQL, `EXPLAIN ANALYZE` actually runs the statement, so use it with care on production <Cite href="https://dev.mysql.com/doc/refman/8.4/en/explain.html">dev.mysql.com</Cite>.
+
+</MarginNote>
+
+The data model is settled: two tables, a stored hash, one column on the user. Everything so far assumed one site asking for one face. Gravatar’s whole point is that millions of pages embed it.
+
+</Section>

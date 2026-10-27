@@ -1,0 +1,111 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { GetClear, WhoKnows, Paths } from '../../../figures/lec06/s5b-badge';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 7 "Do you need the messages at all?" Story rewrite: a count, then a set (the count is redundant) →
+    clip: the set, the badge, the tap → ask the truth or keep it ready (and what keeping it costs) → Redis: a set
+    per user, get and clear → the write path: who knows B didn't get the message? (pause) → ON_MSG_UNSENT through
+    Kafka to workers → the whole design → hand-off: look at what the store is doing. */}
+
+<Section id="s7" no="7" title="Do you need the messages at all?" crumb="7 Keep it ready" meta="About 7 min">
+
+The crude query is right every time and reads every new message to do it. What it actually needs to know is small: the names of the people who wrote since your last tap. What if you kept just that?
+
+<Figure id="fig-7a" max={680} no="Fig 7·a" caption="After chapter 6: the badge is counted from the messages table and the last tap, every time it loads.">
+<Desk><SoFarTruth stage={6} /></Desk>
+<Phone><SoFarTruth stage={6} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="What if you keep only who wrote?" crumb="7.1 Only who wrote">
+
+What matters is that messages are arriving, not what they say. So the first move is a separate record per user holding just a count, `newly_unread_count`, in a key-value store keyed by user id, instead of a relational query over messages. [[L-0249 L-0252]]
+
+A count alone can’t tell a new sender from a repeat, so next to it goes a set of the senders, `unique_users`. Now there are two fields. What is the difference between them? The set already holds each sender once; that is what a set is for. And every set tracks its own size, so reading it is O(1). The count is redundant, so strike it and keep only the set. [[L-0253 L-0254 L-0255]]
+
+The two operations are just as small. When someone messages the user, add the sender to the user’s set; a repeat sender changes nothing. When the user taps the messages icon, delete the set. The badge is the size of the set. [[L-0256 L-0257]]
+
+<AnimationClip clip="l06-badge" no="Clip 7·1" k="L-0227 L-0231 L-0233 L-0256 L-0257"
+  lead="300 messages from 3 friends arrive while you're offline. What does the badge show, and what does one tap change?"
+  caption="The badge is the size of a set of senders: 300 messages from three people show 3. A tap deletes the set and clears the badge, and nothing is read." />
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="Ask the truth, or keep the answer ready?" crumb="7.2 Truth or ready">
+
+You now have two designs that give the same badge. One asks the messages table every time. The other keeps the answer ready. This choice turns up in nearly every system you will build: **query the source of truth, or keep things pre-computed.** [[L-0258]]
+
+Query the source of truth when you need it to be exactly right. Pre-compute, or store the data in the form the reader consumes directly, when you need it to be cheap. The pre-computed set is one O(1) read; the source-of-truth query is an expensive scan whether you write it in SQL or NoSQL. [[L-0259 L-0260]]
+
+The price of keeping it ready is that keeping it *current* is now your job. The source of truth updates itself by nature: every message lands in the messages table anyway. The set updates only if you build another flow that writes to it, every time, on every path that matters. And nothing reads `messages` for the badge any more: the set is now its own truth for the badge, so miss one update and it stays wrong until the next tap clears it. [[L-0261]]
+
+Neither is wrong. For a startup, querying the source of truth works fine. Once millions of people are active at the same moment, the pre-computed set starts to look worth its upkeep. And you have been near this trade all lecture: the stored hash in chapter 2 is an answer kept ready because a frequent read needed it, and `active_photo_id` in chapter 3 moved the truth onto the row that read already fetches. [[L-0262]]
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="Where does the set live, and who reads it?" crumb="7.3 Get and clear">
+
+Against each user id you keep a variable-length set of user ids: five, a hundred, any number. That is a key-value or document store, keyed by user, with a set as the value. Redis is the example here because almost everyone knows it, but any store that gives you a set as a value works, MongoDB with `$addToSet` included. The point is to reuse the set the store already has, so you never write check-then-insert logic yourself: Redis `SADD` ignores a member that is already there and returns 0 <Cite href="https://redis.io/docs/latest/commands/sadd/">redis.io</Cite>. [[L-0263 L-0264]]
+
+The read path is a status API. **Get status** asks Redis for the size of the user’s set (`SCARD B`, which returns 0 for a missing key, so a cleared badge needs no special case) and returns the number for the badge. **Clear status** runs when the user taps the icon and deletes the user’s key. Deleting a small set is cheap: `DEL` costs one step per member, and `UNLINK` hands the freeing to a background thread <Cite href="https://redis.io/docs/latest/commands/unlink/">redis.io</Cite>. [[L-0265 L-0266]]
+
+<Figure id="fig-7b" no="Fig 7·b" wide={false} k="L-0265 L-0266"
+  caption="Get counts the set; clear deletes it. Both go through one small status API.">
+  <Desk><GetClear /></Desk>
+  <Phone><GetClear layout="phone" /></Phone>
+</Figure>
+
+Reading and clearing are done. The hard part is the write: while B is away, something has to put “C wrote to B” into B’s set. [[L-0267]]
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="Who adds C to B’s set while B is away?" crumb="7.4 The write path">
+
+One case belongs to the client: if B is already on the messaging screen, a message arriving, even in a different conversation, isn’t “new” in the badge’s sense, and the badge needn’t move. The rest is about the moment a message is sent while B is elsewhere, say watching videos with the messaging socket down. [[L-0268 L-0269]]
+
+<PauseAndThink k="L-0271 L-0273 L-0274"
+  q="Which part of the system knows, at the moment a message is sent, that it could not reach B in real time?"
+  choices={[{ label: 'The badge service' }, { label: 'The messaging service', correct: true }, { label: 'The database' }]}
+  right="Right."
+  wrong="Think about who holds B’s connection.">
+
+The messaging service. Every persistent connection ends at its edge servers, so it knows whether a message was delivered, whether B is connected, and which screen B is on; or it can ask an online/offline service. It is the source of truth for delivery.
+
+</PauseAndThink>
+
+That is <LectureLink lec="lec02">Lecture 4</LectureLink>’s picture: every user’s WebSocket ends at the edge servers. And it is <LectureLink lec="lec04">Lecture 1</LectureLink>’s online/offline indicator, if you would rather ask that. [[L-0274]]
+
+So the messaging service emits one event, `ON_MSG_UNSENT`, whenever a message could not be delivered to the user in real time. It is an umbrella: the if-and-else of where the user is and what they are doing lives in one place, and the badge doesn’t need to know. Whether “on another tab” counts, or only “fully offline”, is a product call; this design counts offline, and you can add cases. Whatever flows into the event must update the badge in real time. [[L-0271 L-0272 L-0275 L-0311]]
+
+<Figure id="fig-7c" no="Fig 7·c" k="L-0271 L-0273 L-0274 L-0275 L-0276"
+  caption="The messaging service holds the WebSockets, so it knows when B can’t be reached. Every such case becomes one ON_MSG_UNSENT event.">
+  <Desk><WhoKnows /></Desk>
+  <Phone><WhoKnows layout="phone" /></Phone>
+</Figure>
+
+The events go into Kafka. Each one says who sent what to whom, `{ src: "C", dest: "B", msg }`. Status update workers consume them and add the sender to the recipient’s set: `SADD B C`, and B’s set becomes `{C, D}`. The same stream also feeds the notification system. [[L-0276 L-0278]]
+
+<Figure id="fig-7d" no="Fig 7·d" k="L-0278 L-0277"
+  caption="Read path above, write path below, one Redis cluster between them.">
+  <Desk><Paths /></Desk>
+  <Phone><Paths layout="phone" /></Phone>
+</Figure>
+
+<MarginNote title="Go deeper: batching the writes" why="if one recipient gets a flood" k="L-0277">
+
+Key the events by recipient id, and Kafka sends all of one recipient’s events to the same partition, in order, so one worker sees them all and can collapse them before writing <Cite href="https://kafka.apache.org/intro">kafka.apache.org</Cite>. The batched commands can then go to Redis with pipelining, many commands sent without waiting for each reply, which saves round trips <Cite href="https://redis.io/docs/latest/develop/using-commands/pipelining/">redis.io</Cite>.
+
+</MarginNote>
+
+Read path, write path, a set kept ready by the one service that knows. The design looks finished, and this is where most people stop. Before you do, look at what the Redis cluster in the middle is being asked to do all day. [[L-0279]]
+
+</Section>

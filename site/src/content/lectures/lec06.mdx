@@ -1,106 +1,118 @@
 ---
 title: "Gravatar to unread badges"
-kicker: "Lecture 08 · week 4, day 2 · running case: Gravatar, photo tags, the unread badge"
-dek: "Four small systems, each teaching one habit: images as route handlers, the query decides the design, the product hat, and pre-compute versus source of truth, ending with the auxiliary-database pattern."
-description: "Lecture 08: four small social-network systems, each teaching one habit: images as route handlers, the query decides the design, the product hat, and pre-compute versus source of truth."
-reviewed: 14 Oct 2026
+kicker: "Lecture 8 · three builds: Gravatar, photo tags, the unread badge"
+dek: "A face, a tag and a red 3: three small things on a profile page, each an afternoon’s work until you write the exact query. Build an avatar service behind a CDN, turn a one-line brief into questions, then make a red 3 cheap to show and find out what that costs the database underneath."
+description: "Lecture 8: images as handler responses, Gravatar (stored hash, a mark-active bug hunt, active_photo_id, CDN origin, purge, on-demand resizing), photo tagging from a one-line brief, and the unread badge from a crude query to a pre-computed set guarded by an auxiliary store."
+reviewed: 27 Oct 2026
 status: published
 ledger: lectures/lec06/ledger/ledger.jsonl
+origin: "Three builds, one question"
+footnote: "facts checked against primary sources, linked where they come from outside this lecture."
 contents:
   - no: "1"
-    title: "Images are just responses"
+    title: "A card nobody uploaded. Where did it come from?"
     href: "#s1"
     children:
-      - { no: "1.1", title: "What the browser actually does with an image URL", href: "#s1-1" }
-      - { no: "1.2", title: "The static folder is code, and you can write your own", href: "#s1-2" }
-      - { no: "1.3", title: "An image that doesn’t exist yet", href: "#s1-3" }
-      - { no: "1.4", title: "On demand, behind a CDN", href: "#s1-4" }
+      - { no: "1.1", title: "What does the browser do with an image URL?", href: "#s1-1" }
+      - { no: "1.2", title: "What is a static folder, really?", href: "#s1-2" }
+      - { no: "1.3", title: "Can a URL return an image nobody stored?", href: "#s1-3" }
+      - { no: "1.4", title: "A million people open the same card. Who draws it?", href: "#s1-4" }
   - no: "2"
-    title: "Gravatar: the query decides the design"
+    title: "One URL for your face. Which user is it?"
     href: "#s2"
     children:
-      - { no: "2.1", title: "One URL for your face", href: "#s2-1" }
-      - { no: "2.2", title: "Question every column", href: "#s2-2" }
-      - { no: "2.3", title: "The query that reads every row", href: "#s2-3" }
-      - { no: "2.4", title: "Mark a photo active: a bug hunt", href: "#s2-4" }
-      - { no: "2.5", title: "Where does “active” live?", href: "#s2-5" }
+      - { no: "2.1", title: "What does Gravatar promise?", href: "#s2-1" }
+      - { no: "2.2", title: "Which columns earn their place?", href: "#s2-2" }
+      - { no: "2.3", title: "The URL gives a hash. How many rows does finding it read?", href: "#s2-3" }
   - no: "3"
-    title: "Serving Gravatar at every size"
+    title: "One line changes your photo. What could go wrong?"
     href: "#s3"
     children:
-      - { no: "3.1", title: "Upload, reused", href: "#s3-1" }
-      - { no: "3.2", title: "A CDN in front, the API as origin", href: "#s3-2" }
-      - { no: "3.3", title: "When the photo changes", href: "#s3-3" }
-      - { no: "3.4", title: "Every size, on demand", href: "#s3-4" }
-      - { no: "3.5", title: "Why it needs big machines", href: "#s3-5" }
+      - { no: "3.1", title: "Is the one-line update correct?", href: "#s3-1" }
+      - { no: "3.2", title: "What if the process dies between the two?", href: "#s3-2" }
+      - { no: "3.3", title: "Whose photo id is it?", href: "#s3-3" }
+      - { no: "3.4", title: "And two requests at once?", href: "#s3-4" }
+      - { no: "3.5", title: "Should “active” live on the photo at all?", href: "#s3-5" }
   - no: "4"
-    title: "Tagging: wear the product hat"
+    title: "Facebook adopts Gravatar. Who serves a million faces?"
     href: "#s4"
     children:
-      - { no: "4.1", title: "One line of brief, three hats", href: "#s4-1" }
-      - { no: "4.2", title: "Who can tag me?", href: "#s4-2" }
-      - { no: "4.3", title: "How many tags, and who gets told", href: "#s4-3" }
-      - { no: "4.4", title: "Suggestions, activity and the feed", href: "#s4-4" }
-      - { no: "4.5", title: "Where exactly is the tag?", href: "#s4-5" }
-      - { no: "4.6", title: "Everyone else hears about it through Kafka", href: "#s4-6" }
+      - { no: "4.1", title: "Where do the photos come in?", href: "#s4-1" }
+      - { no: "4.2", title: "Why doesn’t the CDN read S3 directly?", href: "#s4-2" }
+      - { no: "4.3", title: "You change your photo. Who tells the CDN?", href: "#s4-3" }
+      - { no: "4.4", title: "The same face at 32 pixels and at 512", href: "#s4-4" }
+      - { no: "4.5", title: "Why can’t the resize wait in a queue?", href: "#s4-5" }
   - no: "5"
-    title: "The newly unread badge"
+    title: "“Let people tag people.” What do you ask first?"
     href: "#s5"
     children:
-      - { no: "5.1", title: "What the 3 means", href: "#s5-1" }
-      - { no: "5.2", title: "The crude, correct query", href: "#s5-2" }
-      - { no: "5.3", title: "Keep a set instead", href: "#s5-3" }
-      - { no: "5.4", title: "Source of truth or pre-computed", href: "#s5-4" }
-      - { no: "5.5", title: "Redis: the read path and the clear", href: "#s5-5" }
-      - { no: "5.6", title: "The write path starts at the messaging service", href: "#s5-6" }
+      - { no: "5.1", title: "Who can tag me?", href: "#s5-1" }
+      - { no: "5.2", title: "Five tags, or ten thousand?", href: "#s5-2" }
+      - { no: "5.3", title: "Who needs to look the tags up?", href: "#s5-3" }
+      - { no: "5.4", title: "Where exactly on the photo is the tag?", href: "#s5-4" }
+      - { no: "5.5", title: "Who else hears about a tag?", href: "#s5-5" }
   - no: "6"
-    title: "Protect the database: the auxiliary database"
+    title: "The messages icon says 3. Three what?"
     href: "#s6"
     children:
-      - { no: "6.1", title: "Audit every path", href: "#s6-1" }
-      - { no: "6.2", title: "The auxiliary database", href: "#s6-2" }
-      - { no: "6.3", title: "When things go wrong", href: "#s6-3" }
-      - { no: "6.4", title: "Why not just read first, or stop counting?", href: "#s6-4" }
+      - { no: "6.1", title: "What does the 3 count?", href: "#s6-1" }
+      - { no: "6.2", title: "What is the simplest design that is always right?", href: "#s6-2" }
+      - { no: "6.3", title: "Which index helps, and how much?", href: "#s6-3" }
   - no: "7"
-    title: "What to keep"
+    title: "Do you need the messages at all?"
     href: "#s7"
+    children:
+      - { no: "7.1", title: "What if you keep only who wrote?", href: "#s7-1" }
+      - { no: "7.2", title: "Ask the truth, or keep the answer ready?", href: "#s7-2" }
+      - { no: "7.3", title: "Where does the set live, and who reads it?", href: "#s7-3" }
+      - { no: "7.4", title: "Who adds C to B’s set while B is away?", href: "#s7-4" }
+  - no: "8"
+    title: "Thirty messages from one friend. How many writes change anything?"
+    href: "#s8"
+    children:
+      - { no: "8.1", title: "What is the database doing for nothing?", href: "#s8-1" }
+      - { no: "8.2", title: "What can stop the repeats before they arrive?", href: "#s8-2" }
+      - { no: "8.3", title: "Two stores now. What happens when one fails?", href: "#s8-3" }
+      - { no: "8.4", title: "Why not just read first, or stop counting?", href: "#s8-4" }
+      - { no: "8.5", title: "What you can now do", href: "#s8-5" }
+      - { no: "8.6", title: "You leaned on Redis all lecture. What is inside it?", href: "#s8-6" }
 chapters:
   - no: "1"
-    slug: 1-images
-    parts: [s1-images]
-    summary: "“The image is served” hides a piece of code you could write yourself. Once you see the code, a URL can return an image that never existed until someone asked."
+    slug: 1-nobody-uploaded
+    parts: [c1-nobody-uploaded]
+    summary: "A repository card appears under a shared link, and nobody uploaded it. What a browser does with an image URL, what a server does to answer, and how a picture can be drawn the moment someone asks."
   - no: "2"
-    slug: 2-gravatar
-    parts: [s2a-gravatar, s2b-gravatar]
-    summary: "A system so simple you’d draw two boxes and stop. Write the exact queries and it changes three times: a stored hash, a transaction with an ownership check, and “active” moving to the user."
+    slug: 2-which-user
+    parts: [c2-which-user]
+    summary: "One URL, built from your email, shows your face on any site. Two lean tables, and the first query a request needs. How many rows does it read?"
   - no: "3"
-    slug: 3-serving
-    parts: [s3-serving]
-    summary: "Reuse the upload service, put a CDN in front of the API, tell the CDN when a photo changes, then let the same origin hand out any size on request."
+    slug: 3-one-line
+    parts: [c3-one-line]
+    summary: "Marking a photo active is one line of SQL. Run it against real users, crashes and stray ids, and see how many ways it goes wrong."
   - no: "4"
-    slug: 4-tagging
-    parts: [s4-tagging]
-    summary: "“Let’s allow people to tag people in photos.” One line from a CXO. Before any schema, ask the questions that decide who builds what."
+    slug: 4-million-faces
+    parts: [c4-million-faces]
+    summary: "Millions of pages embed the avatar, at every size. Who serves them, what the CDN must ask, how a changed face reaches everyone, and why resizing needs big machines."
   - no: "5"
-    slug: 5-badge
-    parts: [s5a-badge, s5b-badge]
-    summary: "The small number on the messages icon. Pin down what it counts, build the correct but crude query, then replace it with a set kept up to date by the messaging service."
+    slug: 5-one-sentence
+    parts: [c5-one-sentence]
+    summary: "A CXO asks for photo tags in one sentence. Pick a schema, then watch each new question break it, and count the teams each answer pulls in."
   - no: "6"
-    slug: 6-auxiliary
-    parts: [s6-auxiliary]
-    summary: "The design works, but the database is doing work that changes nothing. Put a cheap store in front of it to absorb that work, and decide what inconsistency you can live with."
+    slug: 6-three-what
+    parts: [c6-three-what]
+    summary: "The red number on the messages icon. Pin down what it counts, then compute it the simplest way that is always right. What does that cost?"
   - no: "7"
-    slug: 7-what-to-keep
-    parts: [s7-keep]
-    summary: "The habits that tie four small systems together, how to get good at query tuning, and where the course goes next."
+    slug: 7-keep-ready
+    parts: [c7-keep-ready]
+    summary: "The crude count reads every new message to find a few names. Is there a smaller thing to ask?"
+  - no: "8"
+    slug: 8-thirty-messages
+    parts: [c8-thirty-messages]
+    summary: "The badge works. Now count what its database does that changes nothing, and what to do about it."
 ---
 import Header from './lec06/s0-header.mdx';
 
-{/* Lecture 08 (lec06). This body is the lecture overview page (/lectures/lec06/): the header block (About this
-    class, the social network so far) from s0-header.mdx. Each chapter is its own page (/lectures/lec06/<slug>/),
-    built from the parts listed under `chapters`, in outline order. Section ids: #s1 … #s7, subsections #s<n>-<m>.
-    Chapters 4, 5 and 6 have no opener Section of their own, so the chapter page adds #s4, #s5 and #s6 as anchors
-    before their first subsection. A link to a section on another chapter page is a plain #id: the page template
-    sends it to the right chapter. */}
+{/* Lecture 8 (lec06) overview page: the hook, where you are, the three builds. Chapters are their own pages (see
+    `chapters`). Story rewrite; see lectures/lec06/story/NOTES.md. */}
 
 <Header />

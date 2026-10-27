@@ -90,7 +90,7 @@ function PanelBox({ ox, oy, id, ty }: { ox: number; oy: number; id: string; ty: 
 
 export function PixelsVsFractions({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   const title = 'Pixels vs fractions';
-  const desc = 'A tag tapped at pixel (320, 120) on a 720 by 720 photo sits on the friend’s head. Stored as pixels, the same numbers drawn on a 360 by 360 copy land near the right edge, off the head. Stored as fractions of the image size, 320/720 and 120/720, about (0.44, 0.17), the tag lands on the head at both sizes. A tag is really a box around the head, stored as relative left-top and right-bottom corners or as x, y, width and height. The board’s table is posts_tags(post_id, user_id, location).';
+  const desc = 'A tag tapped at pixel (320, 120) on a 720 by 720 photo sits on the friend’s head. Stored as pixels, the same numbers drawn on a 360 by 360 copy land near the right edge, off the head. Stored as fractions of the image size, 320/720 and 120/720, about (0.44, 0.17), the tag lands on the head at both sizes. A tag is really a box around the head, stored as relative left-top and right-bottom corners or as x, y, width and height. The table is posts_tags(post_id, user_id, location).';
   if (layout === 'phone') {
     const id = 'fig4b-p';
     return (

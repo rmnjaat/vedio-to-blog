@@ -25,7 +25,7 @@ export function ForeignPhotoId({ layout = 'wide' }: { layout?: 'wide' | 'phone' 
   );
   return (
     <Fig id={id} w={W} h={640} halo title="Somebody else's photo id"
-      desc="Lanes for user 729's app and the photos table, time running down. 1: the app asks to make photo 9f00 active, but 9f00 belongs to user 812. 2: the first update clears user 729's active photo. 3: without a user_id check the second update marks user 812's photo active. 4: with the check, 0 rows change on 812's side, but 729 has already lost their active photo. 5: checking first, with a locking select, finds no such row for 729 and stops before any write.">
+      desc="Lanes for user 729's app and the photos table, time running down. 1: the app asks to make photo 9f00 active, but 9f00 belongs to user 812. 2: the first update clears user 729's active photo. 3: without a user_id check the second update marks user 812's photo active. 4: with the check, 0 rows change on 812's side, but 729 has already lost their active photo. 5: checking first, with a select, finds no such row for 729 and stops before any write.">
       <Box x={A - 50} y={30} w={100} h={36} label="app" seed={s('app')} />
       <Label x={A} y={88} size={T}>caller: user 729</Label>
       <Cyl cx={D} top={26} rx={24} ry={6} h={30} seed={s('db')} label="photos" />
@@ -66,7 +66,6 @@ export function ForeignPhotoId({ layout = 'wide' }: { layout?: 'wide' | 'phone' 
         <Label kind="mono" x={A} y={470} size={T}>select … where</Label>
         <Label kind="mono" x={A} y={488} size={T}>id = 9f00 and</Label>
         <Label kind="mono" x={A} y={506} size={T}>user_id = 729</Label>
-        <Label kind="mono" x={A} y={524} size={T}>for update</Label>
         <Arrow tone="blue" pts={[[A, 534], [E, 538]]} seed={s('q')} />
         <Label kind="mono" x={D} y={542} size={T}>not found</Label>
         <Label tone="green" x={A} y={566} size={T}>stop: no writes</Label>

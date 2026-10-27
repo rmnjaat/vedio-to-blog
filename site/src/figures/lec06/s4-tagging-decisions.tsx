@@ -181,7 +181,7 @@ export function OnePerTagOrClubbed({ layout = 'wide' }: Layout) {
   const id = P ? 'fig4ntf-p' : 'fig4ntf';
   const s = (k: string) => `${id}-${k}`;
   const title = 'One notification per tag, or clubbed';
-  const desc = 'Left: one photo goes up and many people tag a celebrity in it; one notification per tag floods them. Right: clubbed, the same tags become one rich notification. Over-notifying makes people uninstall: by the instructor’s rule of thumb, good apps send only about three to five notifications a week.';
+  const desc = 'Left: many people tag a celebrity in their photos; one notification per tag floods them. Right: clubbed, the same tags become one rich notification. Over-notifying makes people uninstall; a rule of thumb is that good apps send only about three to five notifications a week.';
   const flood = [0, 1, 2, 3];
   if (P) {
     return (
@@ -192,9 +192,9 @@ export function OnePerTagOrClubbed({ layout = 'wide' }: Layout) {
         <Label kind="title" x={170} y={176}>one per tag</Label>
         <Line weight="thin" dotted className="faint" pts={[[10, 194], [330, 194]]} seed={s('d')} />
         <Actor x={40} y={222} seed={s('celeb2')} />
-        <Note x={90} y={220} w={226} h={48} label="tagged by N people" sub="in one photo" seed={s('one')} />
+        <Note x={90} y={220} w={226} h={48} label="tagged by N people" sub="in their photos" seed={s('one')} />
         <Label kind="title" x={170} y={306}>clubbed: one rich notification</Label>
-        <Label muted x={170} y={330} size={14}>instructor’s rule of thumb:</Label>
+        <Label muted x={170} y={330} size={14}>a rule of thumb:</Label>
         <Label muted x={170} y={350} size={14}>good apps send 3–5 a week</Label>
       </Fig>
     );
@@ -207,10 +207,10 @@ export function OnePerTagOrClubbed({ layout = 'wide' }: Layout) {
       <Label kind="title" x={185} y={180}>one notification per tag</Label>
       <Line weight="thin" dotted className="faint" pts={[[380, 14], [380, 192]]} seed={s('dv')} />
       <Actor x={436} y={36} seed={s('celeb2')} />
-      <Note x={490} y={40} w={236} h={50} label="tagged by N people" sub="in one photo" seed={s('one')} />
+      <Note x={490} y={40} w={236} h={50} label="tagged by N people" sub="in their photos" seed={s('one')} />
       <Label tone="green" x={608} y={116} size={14}>one rich notification</Label>
       <Label kind="title" x={570} y={180}>clubbed</Label>
-      <Label muted x={570} y={198} size={13.5}>instructor’s rule of thumb: good apps send 3–5 a week</Label>
+      <Label muted x={570} y={198} size={13.5}>rule of thumb: good apps send 3–5 a week</Label>
     </Fig>
   );
 }

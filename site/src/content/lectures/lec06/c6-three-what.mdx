@@ -1,0 +1,98 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { ThreePeople, Crude, IndexOrder } from '../../../figures/lec06/s5a-badge';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 6 "The messages icon says 3. Three what?" Build 3 begins. Story rewrite: the badge everyone ignores →
+    what 3 counts (pause: unique senders since the last tap) → requirements → the simplest correct design: messages
+    + last_read_at + COUNT(DISTINCT) → index order (to, ts, from) → still 10,000 entries for one sender → crude, not
+    incorrect → hand-off: do you need the messages at all? */}
+
+<Section id="s6" no="6" title="The messages icon says 3. Three what?" crumb="6 Three what?" meta="About 6 min">
+
+The last build is a feature you see every day on LinkedIn, Twitter, Facebook and Instagram, and never think about: the small number on the messages icon. You were offline, messages arrived, and when you open the app there is a count waiting. Everyone takes it for granted, which is exactly why it is worth taking apart. [[L-0223 L-0224 L-0225]]
+
+<Figure id="fig-6a" max={680} no="Fig 6·a" caption="After chapter 5: a tag lives in posts_tags with its box stored as fractions, and every other team hears about it through one event.">
+<Desk><SoFarTruth stage={5} /></Desk>
+<Phone><SoFarTruth stage={5} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="What does the 3 count?" crumb="6.1 What 3 counts">
+
+Before any table, pin down the number. On Instagram the badge stays small while hundreds of messages wait, and it never shows a total like 99, 10,000 or 50,000. [[L-0226 L-0228]]
+
+Three what? Three messages, three conversations, or three people? This design picks people, as a twist that makes the problem sharper: the badge shows how many different people wrote to you since you last tapped the messages icon. Three hundred messages from three people show 3. [[L-0231 L-0233]]
+
+<Figure id="fig-6b" no="Fig 6·b" k="L-0226 L-0227 L-0231"
+  caption="300 messages from three people show 3. After one tap the badge is gone, and every conversation is still unread.">
+  <Desk><ThreePeople /></Desk>
+  <Phone><ThreePeople layout="phone" /></Phone>
+</Figure>
+
+<PauseAndThink k="L-0227 L-0229"
+  q="You tap the messages icon and the badge drops to 0. How many of those 300 messages have you read?"
+  choices={[{ label: 'All of them' }, { label: 'None', correct: true }]}
+  right="Right."
+  wrong="Tapping the icon opens a list. It doesn’t open a conversation.">
+
+None. The tap only acknowledges that something new is there; every message stays unread, and you may never read them at all.
+
+</PauseAndThink>
+
+So the requirement is worded carefully: tell the user about the **presence of new messages**. Not unread messages: messages you haven’t acknowledged by tapping the icon, counted by sender. Written down, the requirements are three: update in near real time; update whenever a message is received; and show the number of different people from whom a message arrived since the last tap. [[L-0230 L-0232]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="What is the simplest design that is always right?" crumb="6.2 The crude query">
+
+The most direct design stores the messages and remembers when the user last looked. Start with what the data actually holds. [[L-0234 L-0237]]
+
+Each message has its text, who it is from, who it is to, and a timestamp, and the timestamp matters most here. `from` and `to` are reserved words in SQL, so call them `sender_id` and `recipient_id`: `messages(msg, sender_id,` `recipient_id, ts)`. Does the table hold every message a user ever received? It has to hold all of them or some of them, and there is no natural “some”, so all of them. That is a huge table, and its size is a problem for another day. [[L-0235 L-0238 L-0239]]
+
+The last tap goes in a table of its own, `user_activity(user_id, last_read_at)`: one row per user, with room for whatever else about the user’s activity you want to keep later. [[L-0236 L-0240]]
+
+Now the query. Selecting every message since `last_read_at` returns one row per message, and three messages from one friend are three rows; you want one. You don’t need to order them either, because you show a count, not the messages. Count the distinct senders: [[L-0241 L-0242 L-0243]]
+
+```sql
+-- MySQL 8
+SELECT COUNT(DISTINCT sender_id)
+FROM messages
+WHERE recipient_id = ?
+  AND ts > ?;      -- this user's last_read_at
+```
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0235 L-0240 L-0243 L-0250"
+  caption="The first design: three tables and one counting query. Crude, inefficient, and correct every time.">
+  <Desk><Crude /></Desk>
+  <Phone><Crude layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="Which index helps, and how much?" crumb="6.3 The index">
+
+The first instinct is an index on the timestamp, since you want everything after a time. But an index on `ts` alone sorts every user’s messages together by time. Lead with the recipient instead. A composite index on `(recipient_id,` `sender_id, ts)` keeps one recipient’s entries together, grouped by sender. Better still is `(recipient_id,` `ts, sender_id)`: with the timestamp second, the scan starts at `last_read_at` and stops at the newest entry. The rule behind it: equality on the leading columns, plus a range on the next one, bounds the part of the index that is read <Cite href="https://www.postgresql.org/docs/current/indexes-multicolumn.html">postgresql.org</Cite>. [[L-0244 L-0246 L-0247]]
+
+```sql
+CREATE INDEX ix_unread ON messages (recipient_id, ts, sender_id);
+```
+
+<Figure id="fig-6d" no="Fig 6·d" wide={false} k="L-0246 L-0247 L-0248"
+  caption="Grouped by sender, the scan reads every entry for B. Ordered by time, it starts at last_read_at. Neither removes the cost of one prolific sender.">
+  <Desk><IndexOrder /></Desk>
+  <Phone><IndexOrder layout="phone" /></Phone>
+</Figure>
+
+It is still expensive. A user with 10,000 new messages costs 10,000 index entries to get a handful of senders, on every page load, and millions of users are loading pages at any moment. No field order fixes the worst case: if one friend sent you 10,000 messages, you walk 10,000 entries to learn that the answer is 1. [[L-0245 L-0248]]
+
+Is the design wrong, then? No. It is crude, not incorrect. `messages` is the source of truth for messages, `user_activity` is the source of truth for the last tap, so the count is exactly right every single time. Its only problem is that it walks every new message to find a few names. [[L-0250 L-0251]]
+
+Which raises the question the next chapter answers: to show *who* wrote, do you need the messages at all?
+
+</Section>

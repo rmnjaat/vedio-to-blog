@@ -1,0 +1,108 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import { ImgToPixels, TwoHandlers, RepoCard } from '../../../figures/lec06/s1-images';
+
+{/* Chapter 1 "A card nobody uploaded. Where did it come from?" Story rewrite: the GitHub card as the hook → the
+    browser only sends a GET and reads bytes → a static folder is code → your own /raw handler → the card is made
+    on a CDN miss → hand-off: a URL that returns your face, anywhere (Gravatar). */}
+
+<Section id="s1" no="1" title="A card nobody uploaded. Where did it come from?" crumb="1 A card nobody uploaded" meta="About 6 min">
+
+Someone shares a link to a GitHub repository, and under the post a card appears: the repository’s name, its description, and its current numbers of contributors, issues, stars and forks. Nobody uploaded that picture. Tomorrow, when the star count has moved, the card will show the new number. Not long ago, sharing a GitHub link showed only a big, plain avatar of the user; the card is GitHub’s fix for that. [[L-0034 L-0035 L-0052]]
+
+Where does a picture like that come from? The usual answer, “the image is served”, hides the work. Somebody wrote the code that reads an image and sends it back, and once you see that code, the card stops being a mystery, and so does the avatar service you build next. [[L-0013 L-0014]]
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="What does the browser do with an image URL?" crumb="1.1 The browser">
+
+It is tempting to think the browser knows a URL points at an image because it ends in `.jpg`. It has no idea. A browser is deliberately dumb software with a fixed behaviour for everything, and that is what lets it work with millions of sites it has never seen. [[L-0015 L-0016 L-0017]]
+
+Here is all it does. While rendering the HTML it reaches an `<img>` tag and sends an HTTP GET to whatever URL is in `src`. It cannot know what that GET will return. It *expects* an image, so it treats whatever comes back as one. [[L-0018 L-0019]]
+
+<Figure id="fig-1a" max={880} no="Fig 1·a" k="L-0015 L-0018 L-0019 L-0020 L-0021" caption="The img tag is the only reason the browser expects an image. It sends a GET, reads the first bytes of the answer, picks the matching decoder and paints pixels. The URL has no extension on purpose. Inset: the first bytes of a few formats.">
+<Desk><ImgToPixels /></Desk>
+<Phone><ImgToPixels layout="phone" /></Phone>
+</Figure>
+
+How does it make sense of raw bytes? Every image format starts with a signature that names it: a PNG file always begins with the bytes `89 50 4E 47`, a JPEG with `FF D8 FF`. On a successful response the browser reads those first bytes, picks the matching decoder, and paints the decoded pixels. Browsers ship decoders for the common web formats (PNG, JPEG, GIF, WebP, AVIF) and render SVG, which is the one exception to the rule: it is recognised by its `Content-Type: image/svg+xml`, not by its first bytes <Cite href="https://mimesniff.spec.whatwg.org/">mimesniff.spec.whatwg.org</Cite>. [[L-0020 L-0021 L-0022]]
+
+So the extension plays no part. What matters is the bytes that come back. Which raises the real question: what does the server do to produce them?
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="What is a static folder, really?" crumb="1.2 Static is code">
+
+Take a request for `/static/img/logo.jpg`. It reaches the web server, and the server looks up which handler owns that path. [[L-0023]]
+
+Usually the owner is a **static folder mapping**: a URL prefix such as `/static` tied to a folder on the server’s disk. nginx, Flask, Spring Boot and the rest all let you configure one. Whatever follows `/static` in the URL is treated as a relative file path. The handler reads that file and sends its bytes as the response, without caring whether the file is an image, text or anything else. [[L-0024 L-0025 L-0026]]
+
+None of this is automatic. It is a few lines of code built into the web server so you don’t have to write them again and again. And if it is just code, you can write your own handler that reads the file from somewhere else: S3, say, instead of the local disk. [[L-0027 L-0028]]
+
+```python
+@app.route('/raw/<path:key>')     # path: lets the key contain slashes
+def raw_handler(key):
+    raw_b = S3.read(key, BUCKET)   # sketch: read the S3 object at this key
+    return raw_b
+```
+
+A request for `/raw/users/logo.jpg` now returns the object stored at `users/logo.jpg` in the bucket. One generic route, no configuration per file, four lines: your server has become a proxy for S3. It isn’t a product feature, and it isn’t a CDN. It shows that a web server can send any bytes, images included, not just JSON. [[L-0029 L-0030 L-0031 L-0032]]
+
+<Figure id="fig-1b" max={700} no="Fig 1·b" k="L-0024 L-0025 L-0026 L-0029 L-0030" caption="Left: /static maps to a folder, so the rest of the path is a file on the server’s disk. Right: a /raw route reads the same kind of path from S3 instead. Same three steps, a different source.">
+<Desk><TwoHandlers /></Desk>
+<Phone><TwoHandlers layout="phone" /></Phone>
+</Figure>
+
+<MarginNote title="Go deeper: what a real handler adds" why="two lines the sketch leaves out" k="L-0025 L-0029">
+
+Set `Content-Type` yourself: browsers go by the MIME type, not the extension, and nginx sets it for static files from a table of extensions <Cite href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types">developer.mozilla.org</Cite>. And treat the path as untrusted input. A request for `/static/../../etc/passwd` must not escape the folder; Flask’s `send_from_directory` guards against it with Werkzeug’s `safe_join` <Cite href="https://werkzeug.palletsprojects.com/en/stable/utils/">werkzeug.palletsprojects.com</Cite>.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Can a URL return an image nobody stored?" crumb="1.3 Made on request">
+
+The handler is yours, so the image doesn’t have to exist before someone asks. The handler can run any logic it likes. If the bytes it finally sends are a properly structured image, the browser renders it, whether the picture was read from storage or drawn a moment ago. [[L-0033]]
+
+Now go back to the repository card. It comes from the **Open Graph** protocol: the page’s HTML names an `og:image`, and whatever URL sits there is drawn as the picture in the shared snippet <Cite href="https://ogp.me/">ogp.me</Cite>. Open a GitHub repository’s page source, find `og:image`, and paste its URL into a browser: you get the card. Look at the URL, though. It doesn’t end in `.png` or any other image extension. [[L-0036 L-0037]]
+
+It returns a valid image. That says nothing about whether the image is stored anywhere. [[L-0038]]
+
+<PauseAndThink k="L-0040 L-0038 L-0039 L-0041 L-0046"
+  q="Every GitHub repository can be shared as a card showing its current numbers: become a contributor, and the count on the card changes. The card URL returns a real image. Does GitHub keep a ready-made card for every repository?"
+  choices={[{ label: 'Yes: a nightly job renders one per repository' }, { label: 'No: each card is made when someone asks for it', correct: true }]}
+  right="Right."
+  wrong="Not quite: think about how many repositories there are, and how few of them are shared on a given day.">
+
+There are millions of repositories, their numbers change all the time, and most cards are never shared on a given day. Rendering every card every day would burn compute on pictures nobody asks for, and they would still go stale. So the card is drawn on demand: the URL is a route handler, much like `/raw`, that fills a template instead of reading a file.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="A million people open the same card. Who draws it?" crumb="1.4 Behind a CDN">
+
+If every view of a popular card ran the template again, the handler would redraw the same picture a million times. It doesn’t, because the URL sits behind a CDN.
+
+GitHub serves these cards from a CDN of their own, `opengraph.githubassets.com`, next to `githubusercontent.com` for user files. The flow: the page carries the card’s URL, the browser asks the CDN, and if the CDN has a copy it answers without bothering GitHub’s servers. On a miss, the CDN calls the origin, a GitHub image service, which fetches the repository’s numbers, fills the template, and returns the image. The CDN keeps it for its TTL, say a day, and serves everyone else from that copy. When the TTL runs out, the next request misses and a fresh card is drawn. [[L-0041 L-0042 L-0043 L-0044 L-0045 L-0046]]
+
+<Figure id="fig-1c" max={880} no="Fig 1·c" k="L-0041 L-0043 L-0044 L-0045 L-0046" caption="The card URL is a route handler behind a CDN. Hits never reach GitHub’s servers; a miss makes the card service fill a template with fresh numbers, and the CDN keeps the result until its TTL runs out.">
+<Desk><RepoCard /></Desk>
+<Phone><RepoCard layout="phone" /></Phone>
+</Figure>
+
+The origin usually sets that TTL itself, with a `Cache-Control` header: `s-maxage` applies to shared caches such as CDNs, so a card can live a day at the edge without browsers keeping it as long <Cite href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control">developer.mozilla.org</Cite>.
+
+GitHub has published real numbers for this design. One card takes about 280 ms to generate; the service makes around two million “unique-ish” images a day; and 40% of requests are answered with a cached image. Its generator is “a little Node.js app” that fills an HTML template and captures it in a headless browser. You could equally draw the card with an image library such as Pillow <Cite href="https://github.blog/open-source/git/framework-building-open-graph-images/">github.blog</Cite>. [[L-0040 L-0047]]
+
+A card with live numbers is a far better thing to see in a feed than a plain avatar, and once you know the trick you see it everywhere; companies such as Bannerbear sell exactly this. A local version takes about an hour: one endpoint that fetches a repository’s details, draws the card, and returns the bytes. [[L-0048 L-0050 L-0051]]
+
+Now turn the trick around. If one URL can return a picture built from live data, one URL can return *your* picture, wherever it is embedded. That is Gravatar, and it is where the database questions start.
+
+</Section>

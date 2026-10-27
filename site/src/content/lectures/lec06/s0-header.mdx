@@ -1,37 +1,50 @@
-import MarginNote from '../../../components/MarginNote.astro';
-import ForwardChip from '../../../components/ForwardChip.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec06.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec06.mdx's frontmatter (LectureHeader). Values for it, per
-    outline.md and chapters.json:
-      kicker: "Lecture 08 · week 4, day 2 · running case: Gravatar, photo tags, the unread badge"
-      title: Gravatar to unread badges
-      contents: 1 Images are just responses (#s1), 2 Gravatar: the query decides the design, 3 Serving Gravatar at
-        every size, 4 Tagging: wear the product hat, 5 The newly unread badge, 6 Protect the database: the
-        auxiliary database, 7 What to keep.
-    About this class carries the ids placed in `about` (L-0001 … L-0005). The outline gives no "so far" figure:
-    the running cases of this lecture are new, and the picture they build on is Lecture 7's (lec09), told in prose. */}
+{/* Lecture 8 (lec06) overview body: the hook (three small things on a profile page), the promise (a pattern that
+    keeps databases up), where you are, the three builds, what you will be able to do. Story rewrite, see
+    lectures/lec06/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+Open any profile page. A small round face. A friend tagged in a photo. A red **3** on the messages icon. Each looks like an afternoon’s work. In this lecture you build all three, and watch each one go wrong in a way the first sketch never shows.
 
-This is week 4, day 2. After it, about half of the course is done, and the discussion of social networks carries on from the day before. [[L-0001]]
+The face is Gravatar: one URL, built from your email, that any site can put in an `<img>` tag to show your current photo. The one-line query that changes your photo hides four bugs, two of which can show a broken image on every site at once. The tag arrives as one sentence from a CXO, and it pulls in team after team before anyone draws a table. The red 3 ends with a pattern many companies run in production to keep their databases from falling over. [[L-0005 L-0055 L-0176 L-0223]]
 
-From this point the course puts you in the situations senior engineers face: wearing several hats, taking part in several discussions and handling many things at once, thinking about extensibility, and working across teams. That starts in Chapter 4, with tagging people in photos. [[L-0004]]
+Underneath all three sits one question: where does the truth live, and what do you keep ready next to it?
 
-The day covers four systems. On the board the agenda read, in order: designing Gravatar, on-demand image optimization, tagging photos, and designing the newly unread message indicator. This page opens with how images are served, because Gravatar and on-demand optimization both build on it. The class builds on-demand image optimization itself, which the instructor expected to be hardly a ten-minute discussion that shows how simple it is: the day before, the point was only that a CDN gives you image optimization. [[L-0003]] The last system is a small feature everyone uses every day on social media, and it is surprisingly complex. It is used to teach a high-level pattern that many companies run in production to prevent major outages: the auxiliary database of Chapter 6. [[L-0005]]
+<Figure id="fig-0a" max={680} no="Fig 0·a" caption="The map this lecture fills in, one row per decision. It starts empty; each chapter opens with it as the last chapter left it.">
+<Desk><SoFarTruth stage={0} /></Desk>
+<Phone><SoFarTruth stage={0} layout="phone" /></Phone>
+</Figure>
 
-**One open thread.** The previous lecture left a question for this one: Instagram’s private images aren’t really private, so how would you build a purely private image-sharing platform? This lecture does not design the private platform, and this page doesn’t invent one; the question stays open (see [§7](#s7)). [[L-0002]]
+### Where you are
 
-<ForwardChip block label="from" when="Lecture 7" lec="lec09">Instagram photos and hashtags: CDN properties, image transformations, the pre-signed upload</ForwardChip>
+<LectureLink lec="lec09">Lecture 7</LectureLink> gave Instagram a photo pipeline: phones upload straight to S3 with a pre-signed URL, a CDN on its own hostname, `instacdn.net`, serves the photos and resizes them from a width in the URL, and the post stores only what can’t be derived, because anything derivable can be rebuilt when needed. It ended on a question: when the CDN resized a photo, who wrote that code? This lecture writes it. It leans on everything else too, and breaks the last rule on purpose.
 
-</MarginNote>
+Three older pieces come back too. <LectureLink lec="lec01">Lecture 2</LectureLink> called the database the most brittle part of a system and put Kafka between a write and everything that reacts to it. <LectureLink lec="lec02">Lecture 4</LectureLink> put every user’s WebSocket on edge servers, so the messaging side always knows who is connected. And <LectureLink lec="lec08">Lecture 5</LectureLink> used Redis’s `SET … NX` to take a lock; here the same command does a quieter job.
 
-### The social network so far
+### What you’ll build
 
-In Lecture 7 (coming soon), Instagram got a working photo pipeline. A photo goes from the user’s phone straight to S3 with a pre-signed URL, never through the API servers. The post that shares it is stored apart from the image, and whatever can be derived, such as the image’s path, is not stored. Photos are served through a CDN on its own subdomain, which pulls from an origin on a miss, keeps a copy with a TTL, and can resize or convert an image from the query parameters in its URL. Counting hashtags runs on Kafka.
+**Build 1, Gravatar (chapters 1–4): your face, on a million pages you never visit, changed in one click.** First, what a server actually does when an `<img>` tag asks for a picture, using a card nobody uploaded. Then the avatar service: two tables, the first query a request needs, a one-line update with four bugs, and a CDN in front that must know when your face changes and serve it at any size.
 
-This lecture keeps that toolbox and builds four smaller features on top of it. Chapter 1 opens the CDN’s black box and writes the image handler behind it yourself. Chapters 2 and 3 use that handler for Gravatar, reuse the upload service unchanged, and make the CDN’s resizing your own code. Chapter 4 tags people in those photos, and Chapters 5 and 6 build the badge on the messages icon, which ends at the auxiliary-database pattern.
+**Build 2, photo tags (chapter 5): one sentence from a CXO, and a schema that each new question breaks.** A different hat. The brief is one line, and the work is the questions: how many tags, who needs to look them up, where on a resized photo a tag sits, and which teams inherit the load.
+
+**Build 3, the unread badge (chapters 6–8): a red 3 that screens ask for on every page load.** Define what the 3 counts, compute it the slow and always-correct way, make it cheap, then find out what cheap does to the database underneath.
+
+### What you’ll be able to do
+
+- Serve images, including ones that never existed until someone asked, from your own handler behind a CDN.
+- Read a query the way the database will run it, and spot a full table scan before it ships.
+- Find the bugs in a short write path: missing undo, a crash halfway, someone else’s id, two requests at once.
+- Turn a one-line brief into the questions that change the design and the teams it pulls in.
+- Choose between asking the source of truth and keeping a pre-computed answer, and protect the store that holds it.
+
+### Before you start
+
+You need SQL joins and indexes, a transaction, a CDN with an origin and a TTL, Kafka with consumers, and Redis as a key-value store (strings and sets). When a “Pause and think” box asks you something, commit to an answer before you open it. Every system here can be prototyped on your own laptop: the card in about an hour, Gravatar in an afternoon, the whole avatar service with its CDN and resizing in a couple of days. Building it is what makes the reasons stick. [[L-0051 L-0053 L-0061 L-0166]]
 
 </div>

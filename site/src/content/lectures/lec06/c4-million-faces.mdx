@@ -1,0 +1,106 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { GravatarEndToEnd, OneOriginalAnyWidth } from '../../../figures/lec06/s3-serving';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 4 "Facebook adopts Gravatar. Who serves a million faces?" Story rewrite: upload reused from Lecture 7 →
+    a CDN in front; its origin is the API (pause: why not S3?) → a photo changes under a long TTL (clip: purge on
+    change) → the same face at 32 and 512 px: resize on a miss → CPU-heavy and synchronous, so big machines →
+    hand-off from Build 1 to Build 2. */}
+
+<Section id="s4" no="4" title="Facebook adopts Gravatar. Who serves a million faces?" crumb="4 A million faces" meta="About 7 min">
+
+Imagine Facebook and Instagram adopt Gravatar. Every profile picture on their pages becomes a request to `gravatar.com/<hash>`: millions of them, at many different sizes. If all of that reached your API servers and then S3, it would be chaos, and the cloud bill would shoot up with it. [[L-0119]]
+
+<Figure id="fig-4a" max={680} no="Fig 4·a" caption="After chapter 3: “active” lives on the user, on the very row the read already fetches.">
+<Desk><SoFarTruth stage={3} /></Desk>
+<Phone><SoFarTruth stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Where do the photos come in?" crumb="4.1 Upload">
+
+Nothing new on the way in. Gravatar reuses <LectureLink lec="lec09">Lecture 7</LectureLink>’s photo upload unchanged: the upload service picks a random photo id and hands the user a pre-signed URL; the phone sends the file straight to S3 at `s3://gravatar-images/` `{user_id}/{photo_id}`; then the app calls the API to register the photo, which adds the row to `photos`. Any database you like works for that; MySQL is fine. [[L-0117 L-0118]]
+
+The path is never stored. Knowing the user id and the photo id is enough to build it, which is why the single `users` row from chapter 3 is all a read needs. [[L-0121]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Why doesn’t the CDN read S3 directly?" crumb="4.2 The origin">
+
+Millions of hits on one URL pattern belong on a CDN. It gives you the speed and scale of the edge, and a better experience for whoever is looking at the page. [[L-0119]]
+
+Start with the API. It exposes `api.gravatar.com` `/photos/<hash>`: take the hash from the URL, look up the user’s active photo, read the file from S3 at its derived path, and return the bytes. It is the `/raw` handler from chapter 1 again, with a database lookup in front. [[L-0120]]
+
+Then put a CDN in front of it. Configure a CDN property named `gravatar.com` whose origin is that endpoint. In Lecture 7 the CDN had a hostname of its own, `instacdn.net`; here the root domain itself, `gravatar.com`, the name every embed uses, is the CDN. Hit and miss work as in chapter 1; the new part is the origin. Only on a miss does *the CDN* call the API. The browser never talks to it. [[L-0122 L-0123 L-0124 L-0138]]
+
+<Figure id="fig-4b" max={360} wide={false} no="Fig 4·b" k="L-0119 L-0120 L-0122 L-0124" caption="Visitors only ever talk to the CDN at gravatar.com. On a miss, the CDN calls the API, which asks the database which photo is active and reads its bytes from S3.">
+<Desk><GravatarEndToEnd servingOnly /></Desk>
+<Phone><GravatarEndToEnd servingOnly layout="phone" /></Phone>
+</Figure>
+
+<PauseAndThink k="L-0139 L-0140"
+  q="The photo bytes sit in S3. Why does the CDN fetch from the API on a miss instead of straight from the bucket?"
+  choices={[{ label: 'The bucket is private, and a CDN can’t read private buckets' }, { label: 'S3 doesn’t know which photo is active', correct: true }]}
+  right="Right."
+  wrong="Private buckets aren’t the obstacle: a CDN can be given read access to one. Think about what the URL names.">
+
+The URL names a person, by the hash of their email, not a file. S3 holds every photo the user ever uploaded and has no idea which one is current. Only the database knows that, so the origin has to be code that asks the database first. A private bucket alone wouldn’t force this: CloudFront, for example, can read a private bucket by signing its requests <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html">docs.aws.amazon.com</Cite>.
+
+</PauseAndThink>
+
+The CDN only caches what the origin hands it. Whatever decides *which* bytes are right has to sit at the origin, and here that is the database row from chapter 3.
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="You change your photo. Who tells the CDN?" crumb="4.3 A face changes">
+
+Photos rarely change, so a long TTL is reasonable: one or two days. Now user 1 uploads a new face. User 2 opened user 1’s profile an hour ago, so the CDN holds the old photo and is happily serving it to everyone. [[L-0126 L-0127]]
+
+<AnimationClip clip="l06-invalidate" no="Clip 4·1" k="L-0126 L-0127 L-0128 L-0129"
+  lead="User 1 changes their photo. The TTL is two days. How long might everyone else keep seeing the old face?"
+  caption="With only the TTL, the CDN can serve the old photo for up to two days. A purge on change removes it, and the next request fetches the new photo from the origin." />
+
+Gravatar can’t wait out the TTL: someone who changes their photo expects to see the new one everywhere, now. Every CDN, Cloudflare and Akamai included, exposes a purge call for a path. The design puts the `photo_updated` event on Kafka and lets small workers make that call, which keeps the purge off the user’s request, the way Lecture 2 moved side work behind a publish. Calling the purge API straight from the API server, synchronously, works too; either way the purge happens on change, not when the TTL runs out. [[L-0125 L-0128 L-0129 L-0130]]
+
+Long TTL for speed, explicit purge for correctness. One limit to know: a purge clears the CDN’s edges, not the copies in browsers or corporate proxies, which keep the old file until their own copy expires. CloudFront’s answer is versioned file names <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html">docs.aws.amazon.com</Cite>. Gravatar can’t rename its one URL, so it uses chapter 1’s header instead: a long `s-maxage` for the CDN, which a purge can clear, and a short `max-age` for browsers, which nobody can.
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="The same face at 32 pixels and at 512" crumb="4.4 Every size">
+
+The same profile photo shows up as a 32-pixel dot next to a comment, 256 pixels on a profile card, 512 on a profile header, and the user uploaded it at whatever resolution their phone produced. Every size a page asks for has to come back. Suppose the CDN doesn’t offer resizing, so you build it. [[L-0149]]
+
+You already know the shape of the answer, because chapter 1 drew a picture on a CDN miss. You could pre-create every variant at upload time: post a message and have workers render each size. Instead, transform the image when it is requested. The URL carries the transformation in a query parameter, `gravatar.com/h1?w=32` for 32 pixels wide (real Gravatar spells it `s=`). The CDN treats each width as its own cached object. On a miss, the request reaches the origin with its parameters; the origin reads the one original from S3, resizes it in memory, and returns the bytes. One consequence for 4.3: a purge now has to clear every width, not just the bare URL, or the old face lives on at 32 pixels. On CloudFront, invalidating `/h1*` clears every query-string version of the file <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html">docs.aws.amazon.com</Cite>; with a CDN that purges by exact URL, purge each width you serve, or by prefix or tag. [[L-0148 L-0150 L-0151 L-0152 L-0156 L-0157]]
+
+<Figure id="fig-4c" max={880} no="Fig 4·c" k="L-0149 L-0151 L-0152" caption="One original in S3, any width on request. The CDN caches each width separately; a miss reaches the origin, which reads the original, resizes it and returns the requested size.">
+<Desk><OneOriginalAnyWidth /></Desk>
+<Phone><OneOriginalAnyWidth layout="phone" /></Phone>
+</Figure>
+
+The resize itself is one library call. ImageMagick is the long-standing choice; it is written in C, with C and C++ APIs, so most languages can call it through bindings. In Python, Pillow has its own `resize`. Grayscale, crops or format changes work the same way: whatever transformations you decide to support, read the parameters, apply them, return the bytes. [[L-0153 L-0155 L-0156 L-0157]]
+
+This is exactly what a CDN’s image transformations do behind their URL parameters, the feature Lecture 7 simply switched on. If you were building your own CDN, this is how you would implement it. [[L-0158 L-0163]]
+
+</Section>
+
+<Section id="s4-5" no="4.5" title="Why can’t the resize wait in a queue?" crumb="4.5 Big machines">
+
+A page loads two hundred comment avatars at `w=32`, and they are all cache misses.
+
+Image processing is CPU-heavy work, like encryption and video processing. And this version can’t be pushed to a queue and done later, because the request is synchronous: the page is waiting for that exact width, now. So on-demand image systems are built the plain way: big machines with many cores, so each resize runs in parallel and finishes fast, and a fleet that autoscales with incoming requests. Nothing magic, just money spent on CPUs. [[L-0159 L-0160 L-0161 L-0164]]
+
+In practice you will rarely run this fleet yourself. Cloud providers and CDNs offer it out of the box, so few teams operate their own. The point of building it is that the black box stops being one. [[L-0167]]
+
+Gravatar is complete. Look at what made it interesting: not the boxes, but a column you nearly didn’t store, a transaction you nearly didn’t write, an origin that has to ask the database, and a purge that can’t wait for the TTL. One team built one feature. [[L-0131]]
+
+The next feature comes as a single sentence, and most of its work lands on other people’s teams. It also lives on these same photos, the ones that are now resized for every screen, and that will matter.
+
+</Section>

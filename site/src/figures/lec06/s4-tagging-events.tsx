@@ -7,7 +7,7 @@ import { Arrow, Box, Label, Pipe, Worker } from '../kit/Kit';
 import { Fig } from './floor';
 
 const CONSUMERS = ['search', 'notification', 'analytics', 'profile/activity', 'feed', 'face detection'];
-const DESC = 'Before tagging, the tagging service checks with the authorization service (RBAC on the board): is this person allowed to tag that user? That rule is per user, closer to an access control list than to a role. The tag then becomes one PHOTO_TAG event on Kafka, and every team that cares pulls it: search, notification, analytics, profile and activity, feed and face detection. Kafka is the key component for extensibility: a new consumer needs no change in the tagging service.';
+const DESC = 'Before tagging, the tagging service checks with the authorization service: is this person allowed to tag that user? That rule is per user, closer to an access control list than to a role. The tag then becomes one PHOTO_TAG event on Kafka, and every team that cares pulls it: search, notification, analytics, profile and activity, feed and face detection. Kafka is the key component for extensibility: a new consumer needs no change in the tagging service.';
 
 export function PhotoTagEvent({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   if (layout === 'phone') {
@@ -18,7 +18,7 @@ export function PhotoTagEvent({ layout = 'wide' }: { layout?: 'wide' | 'phone' }
         <Box x={10} y={20} w={110} h={44} label="authz" seed={s('authz')} />
         <Box x={180} y={20} w={150} h={44} label="tagging service" seed={s('svc')} />
         <Arrow tone="blue" pts={[[180, 42], [123, 42]]} seed={s('chk')} />
-        <Label anchor="start" x={10} y={90} size={14}>allowed to tag? (RBAC)</Label>
+        <Label anchor="start" x={10} y={90} size={14}>allowed to tag?</Label>
         <Label anchor="start" muted x={10} y={110} size={13}>per-user rule (an ACL), not a role</Label>
         <Arrow tone="blue" dashed pts={[[262, 64], [262, 135]]} seed={s('pub')} />
         <Pipe x={10} cy={150} w={320} ry={14} seed={s('kafka')} />
@@ -53,7 +53,6 @@ export function PhotoTagEvent({ layout = 'wide' }: { layout?: 'wide' | 'phone' }
       <Box x={340} y={36} w={180} h={46} label="tagging service" seed={s('svc')} />
       <Arrow tone="blue" pts={[[340, 59], [213, 59]]} seed={s('chk')} />
       <Label x={276} y={49} size={14}>allowed to tag?</Label>
-      <Label muted x={276} y={78} size={13}>RBAC</Label>
       <Arrow tone="blue" dashed pts={[[430, 82], [430, 145]]} seed={s('pub')} />
       <Label anchor="start" x={446} y={124} size={14}>key component for extensibility: Kafka</Label>
       <Pipe x={30} cy={160} w={820} ry={14} seed={s('kafka')} />

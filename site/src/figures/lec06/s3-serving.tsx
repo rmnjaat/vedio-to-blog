@@ -79,7 +79,7 @@ export function UploadSigned({ layout = 'desk' }: Layout) {
 
 const F3B_DESC = 'Panel a, serving: a site visitor requests gravatar.com/<hash>, which is the CDN. On a hit the CDN answers. Only on a miss does the CDN call the API at api.gravatar.com/photos/<hash>; the API asks the database which photo is active and reads its bytes from S3, and the answer goes back through the CDN, which caches it for one to two days. Panel b, invalidation: the user updates the photo through the API, which writes the database and puts a photo_updated event on Kafka. An invalidation worker pulls the event and tells the CDN to purge /h1, so the cached old photo is gone and the next request misses.';
 
-function ServingPanel({ id }: { id: string }) {
+function ServingPanel({ id, untitled = false }: { id: string; untitled?: boolean }) {
   const s = (k: string) => `${id}-${k}`;
   return (
     <g>
@@ -111,7 +111,7 @@ function ServingPanel({ id }: { id: string }) {
       <Arrow tone="blue" pts={[[230, 193], [286, 193], [286, 258]]} seed={s('s3-a')} />
       <Label anchor="end" x={278} y={252} size={13}>read bytes</Label>
       <Cloud cx={286} cy={288} w={90} h={50} seed={s('s3')} label="s3" />
-      <Label kind="title" x={170} y={356}>a · serving</Label>
+      {!untitled && <Label kind="title" x={170} y={356}>a · serving</Label>}
     </g>
   );
 }
@@ -146,8 +146,16 @@ function InvalidationPanel({ id }: { id: string }) {
   );
 }
 
-export function GravatarEndToEnd({ layout = 'desk' }: Layout) {
+const F3B_SERVING_DESC = 'Serving: a site visitor requests gravatar.com/<hash>, which is the CDN. On a hit the CDN answers. Only on a miss does the CDN call the API at api.gravatar.com/photos/<hash>; the API asks the database which photo is active and reads its bytes from S3, and the answer goes back through the CDN, which caches it for one to two days. A note asks: why not straight to S3?';
+
+export function GravatarEndToEnd({ layout = 'desk', servingOnly = false }: Layout & { servingOnly?: boolean }) {
   const title = 'Gravatar end to end';
+  if (servingOnly)
+    return (
+      <Fig id={layout === 'phone' ? 'f3b-s-p' : 'f3b-s'} w={340} h={330} title="Gravatar behind a CDN" desc={F3B_SERVING_DESC}>
+        <ServingPanel untitled id={layout === 'phone' ? 'f3b-s-pa' : 'f3b-s-a'} />
+      </Fig>
+    );
   if (layout === 'phone')
     return (
       <Fig id="f3b-p" w={340} h={756} title={title} desc={F3B_DESC}>

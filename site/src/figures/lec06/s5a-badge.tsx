@@ -68,20 +68,20 @@ export function Crude({ layout = 'wide' }: Layout) {
   const id = P ? 'fig5b-p' : 'fig5b';
   const s = (k: string) => `${id}-${k}`;
   const title = 'CRUDE';
-  const desc = 'Three tables: user (id), user_activity (user_id, last_read_at) and messages (msg, from, to, ts), with from, to and ts marked for the index. The badge query counts distinct senders in messages addressed to the user after last_read_at. It is boxed CRUDE and marked INEFFICIENT: it walks every new message to count a handful of senders. It is still correct every time, because these tables are the source of truth.';
+  const desc = 'Three tables: user (id), user_activity (user_id, last_read_at) and messages (msg, sender_id, recipient_id, ts), with sender_id, recipient_id and ts marked for the index. The badge query counts distinct senders in messages addressed to the user after last_read_at. It is boxed CRUDE and marked INEFFICIENT: it walks every new message to count a handful of senders. It is still correct every time, because these tables are the source of truth.';
   if (P) {
     return (
       <Fig id={id} w={340} h={482} title={title} desc={desc}>
         <Table x={10} y={40} cols={['id']} widths={[44]} rows={[['B']]} name="user" seed={s('u')} />
         <Table x={78} y={40} cols={['user_id', 'last_read_at']} widths={[84, 122]} rows={[['B', '09:40']]} name="user_activity" seed={s('ua')} />
-        <Table x={10} y={146} cols={['msg', '*from', '*to', '*ts']} widths={[100, 70, 60, 70]} rows={MSG_ROWS} name="messages" seed={s('m')} />
+        <Table x={10} y={146} cols={['*sender_id', '*recipient_id', '*ts']} widths={[110, 130, 64]} rows={MSG_ROWS.map((r) => r.slice(1))} name="messages (msg, …)" seed={s('m')} />
         <path className="ink shape" d={chamferRect(10, 284, 112, 40, s('crude'))} />
         <Label x={66} y={310} size={18}>CRUDE</Label>
         <Arrow pts={[[66, 284], [66, 262]]} seed={s('ca')} />
         <Label tone="red" x={238} y={310} size={17}>INEFFICIENT</Label>
         <Mark tone="red" a={[188, 318]} b={[288, 318]} seed={s('u1')} />
         <Mark tone="red" a={[192, 323]} b={[284, 323]} seed={s('u2')} />
-        {['select count(distinct from)', 'from messages', 'where to = ?', 'and ts > last_read_at'].map((l, i) => (
+        {['select count(distinct sender_id)', 'from messages', 'where recipient_id = ?', 'and ts > last_read_at'].map((l, i) => (
           <Label key={i} kind="mono" anchor="start" x={10} y={360 + i * 21} size={14}>{l}</Label>
         ))}
         <Label anchor="start" x={10} y={452} size={14}>correct every time: these tables</Label>
@@ -93,15 +93,15 @@ export function Crude({ layout = 'wide' }: Layout) {
     <Fig id={id} w={880} h={306} title={title} desc={desc}>
       <Table x={40} y={50} cols={['id']} widths={[56]} rows={[['B']]} name="user" seed={s('u')} />
       <Table x={140} y={50} cols={['user_id', 'last_read_at']} widths={[90, 130]} rows={[['B', '09:40']]} name="user_activity" seed={s('ua')} />
-      <Table x={420} y={50} cols={['msg', '*from', '*to', '*ts']} widths={[120, 76, 60, 76]} rows={MSG_ROWS} name="messages" seed={s('m')} />
+      <Table x={400} y={50} cols={['msg', '*sender_id', '*recipient_id', '*ts']} widths={[110, 110, 130, 70]} rows={MSG_ROWS} name="messages" seed={s('m')} />
       <path className="ink shape" d={chamferRect(230, 140, 116, 42, s('crude'))} />
       <Label x={288} y={167} size={18}>CRUDE</Label>
-      <Arrow pts={[[346, 161], [396, 161], [396, 112], [414, 112]]} seed={s('ca')} />
+      <Arrow pts={[[346, 161], [376, 161], [376, 112], [394, 112]]} seed={s("ca")} />
       <Label tone="red" x={150} y={240} size={17}>INEFFICIENT</Label>
       <Mark tone="red" a={[100, 248]} b={[200, 248]} seed={s('u1')} />
       <Mark tone="red" a={[104, 253]} b={[196, 253]} seed={s('u2')} />
-      <Label kind="mono" anchor="start" x={250} y={230} size={15}>select count(distinct from) from messages</Label>
-      <Label kind="mono" anchor="start" x={250} y={253} size={15}>where to = ? and ts {'>'} last_read_at</Label>
+      <Label kind="mono" anchor="start" x={250} y={230} size={15}>select count(distinct sender_id) from messages</Label>
+      <Label kind="mono" anchor="start" x={250} y={253} size={15}>where recipient_id = ? and ts {'>'} last_read_at</Label>
       <Label x={460} y={292} size={14}>correct every time: these tables are the source of truth</Label>
     </Fig>
   );
@@ -131,17 +131,21 @@ export function IndexOrder({ layout = 'wide' }: Layout) {
   const id = P ? 'fig5c-p' : 'fig5c';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Which index order reads less';
-  const desc = 'Two index leaf runs for recipient B, with other recipients greyed at both ends. With (to, from, ts) B’s entries are grouped by sender, so the query reads every entry for B. With (to, ts, from) they are ordered by time, so the scan starts at last_read_at and reads only what came after. Either way, one sender who sent 10,000 messages still costs 10,000 entries to learn that the answer is 1.';
+  const desc = 'Two index leaf runs for recipient B, with other recipients greyed at both ends. With (recipient_id, sender_id, ts) B’s entries are grouped by sender, so the query reads every entry for B. With (recipient_id, ts, sender_id) they are ordered by time, so the scan starts at last_read_at and reads only what came after. Either way, one sender who sent 10,000 messages still costs 10,000 entries to learn that the answer is 1.';
   const cw = P ? 26 : 32, g = P ? 24 : 60, x0 = P ? 8 : 170, size = P ? 13 : 14;
   const bx0 = x0 + g, bx1 = x0 + g + 10 * cw, tick = bx0 + 6 * cw;
   const y1 = P ? 70 : 74, y2 = P ? 186 : 168;
   return (
     <Fig id={id} w={P ? 340 : 640} h={P ? 318 : 268} title={title} desc={desc}>
-      <Label kind="mono" anchor="start" x={P ? 8 : 16} y={P ? 30 : y1 + 17}>(to, from, ts)</Label>
+      {P ? <Label kind="mono" anchor="start" x={8} y={30} size={13}>(recipient_id, sender_id, ts)</Label> : (
+        <g><Label kind="mono" anchor="start" x={16} y={y1 + 8} size={13}>(recipient_id,</Label>
+          <Label kind="mono" anchor="start" x={16} y={y1 + 26} size={13}>sender_id, ts)</Label></g>)}
       <Brace x0={bx0} x1={bx1} y={y1 - 10} tone="red" label="reads every entry for B" seed={s('b1')} />
       <Run x={x0} y={y1} cw={cw} g={g} cells={BY_SENDER} seed={s('r1')} size={size} />
 
-      <Label kind="mono" anchor="start" x={P ? 8 : 16} y={P ? 146 : y2 + 17}>(to, ts, from)</Label>
+      {P ? <Label kind="mono" anchor="start" x={8} y={146} size={13}>(recipient_id, ts, sender_id)</Label> : (
+        <g><Label kind="mono" anchor="start" x={16} y={y2 + 8} size={13}>(recipient_id,</Label>
+          <Label kind="mono" anchor="start" x={16} y={y2 + 26} size={13}>ts, sender_id)</Label></g>)}
       <Brace x0={tick} x1={bx1} y={y2 - 10} tone="blue" label="starts at last_read_at" seed={s('b2')} />
       <Run x={x0} y={y2} cw={cw} g={g} cells={BY_TIME} seed={s('r2')} size={size} />
       <Line pts={[[tick, y2 - 4], [tick, y2 + 32]]} weight="heavy" seed={s('tick')} />

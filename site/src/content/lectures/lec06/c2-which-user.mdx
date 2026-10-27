@@ -1,0 +1,113 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoTables } from '../../../figures/lec06/s2a-gravatar-fig2a';
+import { SoFarTruth } from '../../../figures/lec06/so-far';
+
+{/* Chapter 2 "One URL for your face. Which user is it?" Story rewrite: what Gravatar promises (one URL from your
+    email) → why a hash → three requirements → two tables, every column questioned (email kept, hash and path
+    crossed off as derivable) → the URL carries a hash: the query (pause, clip) → the full scan → store the hash,
+    against Lecture 7's rule → hand-off: finding the photo is solved; changing it is next. */}
+
+<Section id="s2" no="2" title="One URL for your face. Which user is it?" crumb="2 Which user?" meta="About 6 min">
+
+You sign up to a forum with your email. You never uploaded a photo there, yet your face sits next to your first post. Somewhere, one URL built from your email returns your current picture to any site that asks. This chapter builds the service behind that URL, and the first query you write for it reads every row in the table.
+
+<Figure id="fig-2a" max={680} no="Fig 2·a" caption="After chapter 1: the card is made on a CDN miss; nothing is kept ready.">
+<Desk><SoFarTruth stage={1} /></Desk>
+<Phone><SoFarTruth stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What does Gravatar promise?" crumb="2.1 The promise">
+
+Gravatar gives you a single embeddable URL for your profile picture. On gravatar.com you log in with your email, upload a few pictures and mark one as active. In the version you build here, the URL is `gravatar.com/` followed by a hash of your email, and it never changes: a hash function given the same input always returns the same output. [[L-0055 L-0056 L-0057]]
+
+```html
+<!-- say hash("ana@example.com") = 0eafd172 (shortened) -->
+<img src="https://gravatar.com/0eafd172" />
+```
+
+Put that in an `<img>` tag and it returns your current photo as image bytes, with no redirect. It is chapter 1’s `/raw` handler with one twist: the path names a person, not a file. If every site adopted it, each would hash your email and show your photo from that one URL; change your active photo on gravatar.com and the next request, on every site, picks it up without any of them doing anything. [[L-0058 L-0059 L-0060]]
+
+Real Gravatar hashes the trimmed, lower-cased email with SHA-256 today (MD5 originally) and serves it under `/avatar/<hash>`, returning a default image when an email has none <Cite href="https://docs.gravatar.com/sdk/images/">docs.gravatar.com</Cite>. This chapter keeps the short form `gravatar.com/<hash>`.
+
+Why a hash and not the email? An email is personal data, and the URL is pasted into pages anyone can read. The hash keeps the address out of plain sight, and not much more: it is unsalted and fast, so anyone with a list of guessed addresses can hash them all and match <Cite href="https://seclists.org/oss-sec/2024/q3/273">oss-sec</Cite>. And it must stay a plain function of the email. A site that embeds Gravatar knows your email, not your Gravatar user id, so it has to be able to compute the URL from the email alone. [[L-0054 L-0310]]
+
+So the requirements are three: a user can upload several pictures; a user can mark one of them active; a request for the URL returns the active one. [[L-0062]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="Which columns earn their place?" crumb="2.2 Two tables">
+
+Start with the database: which tables, and what goes in each. Question every column. [[L-0063]]
+
+A user needs a row. Should it store the email’s hash? It is tempting to store *only* the hash: one is derivable from the other, it saves space, and Gravatar never shows your email to anyone else. But users log in with their email and expect to see it on their profile page, and a hash can’t give it back. So the email stays. Logging in by hash alone would also mean that two emails that ever hashed alike could open each other’s account; with the email stored, the design simply assumes hashes are unique, since two users with the same hash couldn’t be told apart in the URL anyway, and for SHA-256 an accidental collision is negligible. [[L-0066 L-0078]] The hash, on the other hand, is derivable from it, so following <LectureLink lec="lec09">Lecture 7</LectureLink>’s rule you cross it off: `users(id, email)`. [[L-0064 L-0065 L-0066 L-0067]]
+
+A user has several photos, and one column can’t hold several of them, so photos get their own table: `photos(id, user_id)`, one row per upload. A user with ten photos has ten rows. The photo’s S3 path isn’t stored either, because it can be built from the user id and the photo id. Last, something has to say which photo is current: an `is_active` boolean on each photo. [[L-0068 L-0069 L-0070 L-0071 L-0121]]
+
+<Figure id="fig-2b" no="Fig 2·b" k="L-0067 L-0069 L-0071 L-0121"
+  caption="The schema after the first pass, with sample rows. The hash is crossed off because it can be derived from the email; so is the photo’s path, derived from the user id and the photo id.">
+  <Desk><TwoTables /></Desk>
+  <Phone><TwoTables layout="phone" /></Phone>
+</Figure>
+
+Two lean tables, nothing stored twice. Now write the query a Gravatar request actually needs.
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="The URL gives a hash. How many rows does finding it read?" crumb="2.3 Every row">
+
+Take the simplest read first: show me all my photos. `SELECT * FROM photos` `WHERE user_id = ?`. No `is_active` filter, because the page shows them all. [[L-0072]]
+
+But a Gravatar request doesn’t carry a user id. It carries the hash of an email. So the query must join `photos` to `users` and find the user that hash belongs to. [[L-0074]]
+
+Could you turn the hash back into the email? No. Hashing isn’t encryption; it throws information away, so there is no way back. What you can do is apply the hash in the `WHERE` clause and compare. [[L-0075 L-0076 L-0077]]
+
+```sql
+-- MySQL 8: the URL gives a hash; users stores only the email
+SELECT p.*
+FROM photos p
+JOIN users u ON p.user_id = u.id
+WHERE SHA2(LOWER(TRIM(u.email)), 256) = ?;
+```
+
+It works, and it returns the right photos. It does add a hash computation to every query. The real question is how many rows it touches, on a query that runs for every avatar on every page of every site that embeds Gravatar. [[L-0079 L-0083]]
+
+<PauseAndThink k="L-0080 L-0081"
+  q="<code>users</code> has 10,000 rows and an index on <code>email</code>. The query asks for the user whose <em>hashed</em> email matches. How many rows does the database look at to find that one user?"
+  choices={[{ label: 'About one: the index on email finds it' }, { label: 'All 10,000', correct: true }]}
+  right="Right: all of them, on every request."
+  wrong="Not quite. The index is sorted by email, but the query asks about a hash of the email.">
+
+The database has no way to know which email hashes to your value without hashing every email and comparing. The index on `email` is sorted by email, not by its hash, so it can’t help. That is a full scan of `users`, before the join even starts.
+
+</PauseAndThink>
+
+<AnimationClip clip="l06-hash-scan" no="Clip 2·1" k="L-0080 L-0081 L-0083"
+  caption="Hashing in the WHERE clause makes the database hash every email to find the match, on every request. A stored, indexed hash is one lookup." />
+
+That is the general rule: a computation on a column in the `WHERE` clause hides the column from its plain index. Either you index the expression itself (PostgreSQL and MySQL 8 both can, as long as the query repeats the exact expression), or you store the computed value in a column of its own and index that <Cite href="https://dev.mysql.com/doc/refman/8.4/en/create-index.html">dev.mysql.com</Cite>. Both ways, the derived value ends up stored. [[L-0081]]
+
+Gravatar takes the column. Compute the hash once, when the user is created, store it in `users.hash`, and make it a unique, indexed key, like the email. The lookup becomes a single walk down an index: one user row, its id, then a join to that user’s few photos. Since this query runs on every single request, the column you crossed off a page ago is the one the system can’t live without. [[L-0083 L-0084]]
+
+```sql
+SELECT p.*
+FROM photos p
+JOIN users u ON p.user_id = u.id
+WHERE u.hash = ?;     -- unique index on users.hash: one lookup
+```
+
+So Lecture 7’s rule bends. Don’t store what you can derive, *unless* deriving it slows down a query you run constantly; then store the redundant value. [[L-0082]]
+
+Notice how you found that out. On a whiteboard this design is two boxes and a bucket, and it looks finished. Only writing the exact query and asking how it runs showed you the column you thought you didn’t need. Drawing boxes is easy; the trouble hides in the details. [[L-0085]]
+
+Finding a user’s photo is now cheap. The next request is the one that changes it.
+
+</Section>
