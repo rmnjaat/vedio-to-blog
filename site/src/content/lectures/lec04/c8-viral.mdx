@@ -12,19 +12,20 @@ import Cite from '../../../components/Cite.astro';
 import { WhatACacheSaves, YourTurn } from '../../../figures/lec04/s6-cache';
 import { SoFarBlog } from '../../../figures/lec04/so-far';
 
-{/* Chapter 8 "One post goes viral". What a cache is → one shared cache (cache-aside clip) → a table can be the
-    cache → what you can now do, recall, and the homework Lecture 2 opens with. */}
+{/* Chapter 8 "One post goes viral". Flow rewrite (v2). Same join thousands of times → what counts as a cache →
+    where should the copy live (shared, cache-aside clip) → could a table be the cache → what you can now do,
+    recall → where else could a copy live (homework Lecture 2 opens with). */}
 
-<Section id="s8" no="8" title="One post goes viral" crumb="8 Viral" meta="About 9 min">
+<Section id="s8" no="8" title="One post goes viral" crumb="8 Viral" meta="About 8 min">
 
-A post climbs to the top of the home page and the whole internet opens it. Every open runs the same query, a join of the post with its author (in a real blog, also its tags and counts), assembled from scratch for a result that hasn’t changed since the last reader saw it. The database does the same expensive work thousands of times a minute.
+A post climbs to the top of the home page, and the whole internet opens it. Every open runs the same query: a join of the post with its author (in a real blog, also its tags and counts). Each time, the database assembles from scratch a result that hasn’t changed since the last reader saw it. It does the same expensive work thousands of times a minute.
 
 <Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="The blog so far. Marked new: the body lives out of line, and published_at has a format chosen for the query that reads it.">
 <Desk><SoFarBlog stage={2} /></Desk>
 <Phone><SoFarBlog stage={2} layout="phone" /></Phone>
 </Figure>
 
-Everyone knows the fix: “add a cache”. Before you add one, be precise about what a cache is, because the usual picture is too small and it hides most of the places a cache can go.
+Everyone knows the fix: add a cache. But where can a cache go? That depends on what a cache actually is, and the usual picture is too small.
 
 </Section>
 
@@ -40,20 +41,24 @@ A cache is anything that saves you from repeating expensive work: an expensive *
 
 </PauseAndThink>
 
-The habit of picturing caches in RAM comes from the most common case: RAM is faster than disk, so you keep the result of a disk read in memory and skip the disk next time. Turn that around and the same idea puts a cache on disk to skip the network. You have met another one already: memoization in dynamic programming saves a computation by remembering its answer. [[L-0240 L-0242 L-0243]]
+The habit of picturing caches in RAM comes from the most common case. RAM is faster than disk, so you keep the result of a disk read in memory and skip the disk next time. Turn that around and the same idea puts a cache on disk to skip the network. You have met a third kind already: memoization in dynamic programming saves a computation by remembering its answer. [[L-0240 L-0242 L-0243]]
 
 <Figure id="fig-8b" max={880} no="Fig 8·b" k="L-0241 L-0243 L-0244" caption="Three things a cache can save. Left: a disk read, by keeping the result in RAM. Middle: a network call, by keeping its result on the server’s own disk. Right: a computation, by remembering its answer.">
 <Desk><WhatACacheSaves /></Desk>
 <Phone><WhatACacheSaves layout="phone" /></Phone>
 </Figure>
 
-Those are the resources from chapter 5 again: disk, network, CPU, with memory the usual place for the copy. [[L-0244 L-0151]] Underneath, a cache is a hash table, key and value, plus a size limit, an eviction rule and expiry. [[L-0246 L-0247]] So be creative about where a copy could live. [[L-0245]]
+Those are the resources from chapter 5 again: disk, network and CPU, with memory the usual place to keep the copy. [[L-0244 L-0151]] Underneath, a cache is a hash table, key and value, plus a size limit, an eviction rule and expiry. [[L-0246 L-0247]] So a copy can live in many more places than people think. [[L-0245]]
+
+For the viral post, the expensive work is the join on the database. Where should its saved result live?
 
 </Section>
 
-<Section id="s8-2" no="8.2" title="Three servers, one copy" crumb="8.2 One copy">
+<Section id="s8-2" no="8.2" title="Where should the copy live?" crumb="8.2 One copy">
 
-For the viral post, the copy goes into a **shared remote cache** that every API server can reach. Logically it sits between the API servers and the database; physically it is its own small box. [[L-0248]] The read path is the standard one, called cache-aside: check the cache; if the post is there, return it; if not, run the query, put the result in the cache, and return it. [[L-0249]]
+Somewhere every API server can reach. A reader can land on any server, so the copy goes into a **shared remote cache**. Logically it sits between the API servers and the database; physically it is its own small box. [[L-0248]]
+
+The read path is the standard one, called cache-aside. Check the cache. If the post is there, return it. If not, run the query, put the result in the cache, and return it. [[L-0249]]
 
 ```python
 def get_blog(blog_id):
@@ -69,23 +74,27 @@ def get_blog(blog_id):
   lead="Three API servers, a thousand reads of one popular post. How many times does the database run the join?"
   caption="With one shared cache, the first read misses and runs the join; every later read, on any server, gets the same copy." />
 
-Because the cache is shared, it doesn’t matter which server a reader lands on. There is one copy and everyone reads it, and the database’s load from that post falls to almost nothing. [[L-0250 L-0251]] The cache isn’t free: it is still a network hop away. But fetching a ready result is far cheaper than recomputing it on the database and sending it back. [[L-0252]] When that copy goes stale, and how a cache decides what to throw out, come later; the course builds a cache from scratch in <LectureLink lec="lec07">Lecture 9</LectureLink>. [[L-0253]]
+Because the cache is shared, it doesn’t matter which server a reader lands on. There is one copy and everyone reads it, and the database’s load from that post falls to almost nothing. [[L-0250 L-0251]] The cache is still a network hop away. But fetching a ready result is far cheaper than recomputing it on the database and sending it back. [[L-0252]] When that copy goes stale, and how a cache decides what to throw out, come later: the course builds a cache from scratch in <LectureLink lec="lec07">Lecture 9</LectureLink>. [[L-0253]]
+
+This answer used a separate box, typically Redis. But section 8.1 said a cache is *any* saved result. The database you already run can save results too. Could a table do this job?
 
 </Section>
 
 <Section id="s8-3" no="8.3" title="Could a database table be the cache?" crumb="8.3 A table as cache">
 
-If a cache is any saved result, then precomputing the expensive join and storing it in a table is a cache too. Databases even have it built in: a PostgreSQL materialized view stores a query’s result as a table, as fresh as its last refresh <Cite href="https://www.postgresql.org/docs/current/rules-materializedviews.html">postgresql.org</Cite>. Ask “why not this?” about every option instead of reaching for RAM by reflex. [[L-0260 L-0261]]
+Yes. Precompute the expensive join and store its result in a table, and that table is a cache. Databases even have this built in: a PostgreSQL materialized view stores a query’s result as a table, as fresh as its last refresh <Cite href="https://www.postgresql.org/docs/current/rules-materializedviews.html">postgresql.org</Cite>. Ask “why not this?” about every option instead of reaching for RAM by reflex. [[L-0260 L-0261]]
 
-So why use Redis at all? Compare them from first principles. Your server keeps persistent connections to both, so that cost is a wash. Redis finds a key with one hash lookup in memory. A database walks an index tree from root to leaf, a few pages deep, and in the worst case each page comes from disk. Databases do keep hot pages in memory, so many reads never touch the disk, but you can’t count on that, so design for the worst case. [[L-0286 L-0287 L-0289 L-0299 L-0300]]
+So why use Redis at all? Compare the two from first principles. Your server keeps persistent connections to both, so that cost is the same. Redis finds a key with one hash lookup in memory. A database walks an index tree from root to leaf, a few pages deep, and in the worst case each page comes from disk. Databases do keep hot pages in memory, so many reads never touch the disk. But you can’t count on that, so design for the worst case. [[L-0286 L-0287 L-0289 L-0299 L-0300]]
 
-Then the costs. RAM costs far more per gigabyte than disk, so a table can be a much larger cache for the money. But if the table lives in the same database that serves your users, every cache read is load on the very machine you were trying to protect. A managed Redis has its own bill to count, too. [[L-0290 L-0293 L-0294]] Weigh read size, how the data is stored, the I/O each read costs and the money, then decide for your case. [[L-0291]]
+Then the money. RAM costs far more per gigabyte than disk, so a table can be a much larger cache for the price. But if the table lives in the same database that serves your users, every cache read is load on the very machine you were trying to protect. A managed Redis has its own bill to count, too. [[L-0290 L-0293 L-0294]] Weigh the read size, how the data is stored, the I/O each read costs and the money, then decide for your case. [[L-0291]]
 
 <MarginNote title="Go deeper: should the cache compress the body?" why="a trade-off worth reasoning through" k="L-0274 L-0277 L-0279 L-0280">
 
 Only large values are worth it: a 10 KB body that shrinks to 1 KB, never an email address. Compress in the application: if the cache compressed, the full 10 KB would still cross the network each time.
 
 </MarginNote>
+
+The viral post is handled, and the blog’s first month is over. Here is where both builds ended up.
 
 </Section>
 
@@ -127,11 +136,13 @@ The result of a slow network call kept on the API server’s local disk; or prec
   </RecallItem>
 </RecallQuestions>
 
+You put one cache into the blog. It is far from the only place a copy could live.
+
 </Section>
 
 <Section id="s8-5" no="8.5" title="Where else could you keep a copy?" crumb="8.5 Your turn">
 
-You put one cache into the blog: the shared one between the API servers and the database. It is far from the only place a copy could live. Here is the whole path a reader’s request takes. [[L-0254]]
+Here is the whole path a reader’s request takes, from their device to the database. [[L-0254]]
 
 <Figure id="fig-8d" max={700} no="Fig 8·d" k="L-0254 L-0256" caption="Your turn. Tag 1 is done: the shared cache that saves database calls. Tags 2 and 3 are hints, the CDN and the load balancer. Find the rest.">
 <Desk><YourTurn /></Desk>
@@ -142,6 +153,6 @@ Before you open the next lecture, find every place on this path where you could 
 
 It pays off. One engineer who did this exercise took an idea back to work at a large bank, got it approved, and saw a large speed-up from a cache nobody there had thought of. [[L-0255]]
 
-<LectureLink lec="lec01">Lecture 2, “Medium under load”</LectureLink> opens with exactly this question on the same blog, and then takes it through the four topics this lecture left out: scaling, delegating work, concurrency and communication. [[L-0259]] Bring your list.
+Almost every design decision falls under one of six topics: database, caching, scaling, delegation, concurrency and communication. The blog’s first month worked through the first two. [[L-0168]] <LectureLink lec="lec01">Lecture 2, “Medium under load”</LectureLink> opens with your list of caches on the same blog, then takes it through the other four. [[L-0259]] Bring your list.
 
 </Section>

@@ -9,30 +9,33 @@ import Cite from '../../../components/Cite.astro';
 import { PulseTable, HowBig, WhoDeletes } from '../../../figures/lec04/s2b-green-dots';
 import { SoFarDot } from '../../../figures/lec04/so-far';
 
-{/* Chapter 2 "Who deletes the silence?" Timestamp instead of boolean → storage estimate → absence = offline →
-    who deletes (cron) → let the store expire it (TTL, clip). */}
+{/* Chapter 2 "Who deletes the silence?" Flow rewrite (v2). Timestamp instead of boolean → a row per user forever?
+    (8 GB, no) → why keep rows for people who left (absence = offline) → who deletes (cron's cost) → let the store
+    expire it (TTL, clip) → two stores qualify. */}
 
-<Section id="s2" no="2" title="Who deletes the silence?" crumb="2 Silence" meta="About 8 min">
+<Section id="s2" no="2" title="Who deletes the silence?" crumb="2 Silence" meta="About 7 min">
 
-Clients now beat every 10 seconds, and 30 seconds of silence means offline. The design has stopped lying, at least on paper. But the store still holds a boolean, and a boolean can’t tell you how long it has been since you last heard from someone.
+The 30-second rule needs the time of the last beat, and the store only holds a boolean. So the row has to change. Once it does, a second question follows from it, the one this chapter is named for: when a user goes quiet, who removes what they left behind?
 
 <Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The green dot so far. Marked new: the periodic heartbeat that replaced the login and logout calls.">
 <Desk><SoFarDot stage={1} /></Desk>
 <Phone><SoFarDot stage={1} layout="phone" /></Phone>
 </Figure>
 
+Start with the row. What should it remember?
+
 </Section>
 
 <Section id="s2-1" no="2.1" title="What should a row remember?" crumb="2.1 The row">
 
-To know that 30 seconds have passed, you need the time of the last beat. So the row changes: instead of `online = true`, store when the last heartbeat arrived. The table becomes `pulse(user_id, last_heartbeat)`, and every `POST /heartbeat` rewrites that user’s row with the current time. [[L-0049 L-0051]]
+When the last beat arrived. Instead of `online = true`, the table becomes `pulse(user_id, last_heartbeat)`. Every `POST /heartbeat` overwrites that user’s row with the current time. [[L-0049 L-0051]]
 
 <Figure id="fig-2b" max={560} no="Fig 2·b" k="L-0049 L-0051 L-0052 L-0053 L-0054" caption="The pulse table and the two rules. Every beat rewrites one row’s last heartbeat; reading a status applies two rules.">
 <Desk><PulseTable /></Desk>
 <Phone><PulseTable layout="phone" /></Phone>
 </Figure>
 
-A user’s very first beat has no row to update, so write it as an upsert: insert the row, or update it if it already exists, in one atomic statement. [[L-0051]]
+A user’s first beat finds no row to update. So write it as an upsert: insert the row, or update it if it already exists, in one atomic statement. [[L-0051]]
 
 ```sql
 -- every POST /heartbeat (PostgreSQL)
@@ -42,13 +45,17 @@ ON CONFLICT (user_id) DO UPDATE
 SET last_heartbeat = EXCLUDED.last_heartbeat;
 ```
 
-Reading now takes two rules, applied to every ID in a batch call. No row: the user never came online, so offline. A row whose last heartbeat is more than 30 seconds old: offline. Anything else: online. [[L-0052 L-0053]] The time is stored as **epoch seconds**, the number of seconds since 1 January 1970, a plain integer. [[L-0054]] Hold on to that integer; it comes back when the blog has to store dates in chapter 7.
+Reading a status now takes two rules, applied to every ID in a batch call. No row: the user never came online, so offline. A last heartbeat more than 30 seconds old: offline. Anything else: online. [[L-0052 L-0053]]
+
+The time is stored as **epoch seconds**, the number of seconds since 1 January 1970. It is a plain integer. [[L-0054]] That integer comes back in chapter 7, when the blog has to store dates.
+
+Now watch the table over time. Every user who ever sends a beat gets a row, and nothing ever removes it. A billion users means a billion rows, kept forever. Is that a problem?
 
 </Section>
 
-<Section id="s2-2" no="2.2" title="Is a billion users a storage problem?" crumb="2.2 Storage">
+<Section id="s2-2" no="2.2" title="A row for every user, forever?" crumb="2.2 Forever?">
 
-Before you optimise anything, measure it. Suppose the product has a billion users. How much does the pulse table hold?
+Don’t guess. Count.
 
 <PauseAndThink k="L-0055 L-0056 L-0057"
   q="One row per user: a 4-byte user ID and a 4-byte timestamp. There are a billion users. Do you need special storage for this table?"
@@ -56,28 +63,32 @@ Before you optimise anything, measure it. Suppose the product has a billion user
   right="Right. Do the multiplication before you buy anything."
   wrong="Not this time. Multiply it out before you reach for a cluster.">
 
-Two 4-byte integers is 8 bytes a row, and 8 bytes × 1 billion rows = **8 GB**. Your phone holds 128 GB. A trivial, cheap server holds 8 GB in RAM.
+Two 4-byte integers is 8 bytes a row, and 8 bytes × 1 billion rows = **8 GB**. Your phone holds 128 GB. A cheap server holds 8 GB in RAM.
 
 </PauseAndThink>
 
-A billion users is about an eighth of the world’s population, and the whole table is still small. [[L-0055 L-0056]] The 8 GB is raw payload, though. A real database adds bookkeeping to every row (PostgreSQL spends 23 bytes of header plus a 4-byte pointer on each one <Cite href="https://www.postgresql.org/docs/current/storage-page-layout.html">postgresql.org</Cite>), and a production schema would use an 8-byte timestamp. The true footprint is a few times 8 GB, and the conclusion doesn’t move: **storage is not this system’s problem**. [[L-0057 L-0058]]
+A billion users is about an eighth of the world’s population, and the whole table still fits on a cheap machine. [[L-0055 L-0056]] The 8 GB is raw payload, so the real number is higher. A database adds bookkeeping to every row: PostgreSQL spends a 23-byte header plus a 4-byte pointer on each one <Cite href="https://www.postgresql.org/docs/current/storage-page-layout.html">postgresql.org</Cite>. A production schema would also use an 8-byte timestamp. Call it a few times 8 GB. The conclusion holds: **storage is not this system’s problem**. [[L-0057 L-0058]]
 
-It doesn’t need shrinking. But asking “can this be smaller, is there an alternative?” at every step, and writing down the options you weighed, is a habit worth keeping. [[L-0059 L-0060]] Here it leads somewhere useful.
+So the table doesn’t need shrinking. Ask anyway: could it be smaller? It is a cheap question to ask at every step, and worth writing down what you considered. [[L-0059 L-0060]] Here it finds something.
+
+Look at who those billion rows belong to. At any moment, most of them are people who are offline. Their rows only say “last seen long ago”. Why keep them at all?
 
 </Section>
 
-<Section id="s2-3" no="2.3" title="If no row means offline, who removes the row?" crumb="2.3 Who removes it?">
+<Section id="s2-3" no="2.3" title="Why keep rows for people who left?" crumb="2.3 Rows who left">
 
-The screen only ever shows green or grey. So let the *absence* of a row mean offline: a row exists only while its user is online. Every beat resets a 30-second timer on the user’s row; when the timer runs out, the row goes. The number of rows is then the number of people online right now. With 100,000 of a billion users active, that is 100,000 rows, about **800 KB**. [[L-0061 L-0062 L-0065]]
+You don’t have to. The screen shows only green or grey, and an old timestamp and a missing row both mean grey. So let a missing row mean offline. A row then exists only while its user is online. [[L-0061 L-0062]]
+
+The table now holds exactly the people online right now. If 100,000 of the billion are active, that is 100,000 rows: about **800 KB**. [[L-0065]]
 
 <Figure id="fig-2c" max={600} no="Fig 2·c" k="L-0055 L-0056 L-0057 L-0065" caption="How big is it? Every user with a row: 8 GB for a billion, less than the phone in your pocket. Only online users with a row: 800 KB for 100,000 of them.">
 <Desk><HowBig /></Desk>
 <Phone><HowBig layout="phone" /></Phone>
 </Figure>
 
-The new rule only holds if rows disappear on time. Something has to delete them. Who?
+The new rule has a price. It only holds if rows disappear on time: 30 seconds after a user’s last beat, their row must be gone. Nothing in the design deletes anything yet. So who does?
 
-The answer most people give first is a **cron job**: a small process that wakes every few seconds, finds rows whose last heartbeat is older than 30 seconds, and deletes them. The read side even gets simpler: row present, online; row absent, offline. For a product on its first day, that would work. [[L-0063 L-0064]]
+The answer most people give first is a **cron job**: a small process that wakes every few seconds, finds rows whose last heartbeat is older than 30 seconds, and deletes them. Reads get simpler too: row present, online; row absent, offline. On a product’s first day, it would work. [[L-0063 L-0064]]
 
 <PauseAndThink k="L-0063 L-0064 L-0066 L-0067"
   q="A teammate proposes exactly that cron job. It is twenty lines of code. Would you ship it?"
@@ -85,26 +96,28 @@ The answer most people give first is a **cron job**: a small process that wakes 
   right="Right. The code is the cheap part."
   wrong="The code is cheap. Running it is not.">
 
-A cron job is a separate process. Someone has to host it and keep it running, because if it stops, offline users stay green again. Its uptime now matters as much as the API’s, it needs its own monitoring and alerts, and it has edge cases (a run that overlaps the next, a run that dies halfway). That is a lot of ownership for one `DELETE`.
+A cron job is a separate process. Someone has to host it and keep it running, because if it stops, offline users turn green again. Its uptime now matters as much as the API’s. It needs its own monitoring and alerts, and it has edge cases: a run that overlaps the next one, a run that dies halfway. That is a lot of ownership for one `DELETE`.
 
 </PauseAndThink>
 
-This is the habit to keep from the whole build: never draw a box you wouldn’t want to build, deploy and be paged for. A diagram with more boxes is not a better design; often it is a worse one. Before adding a component, ask whether something you already run can do the job. [[L-0066 L-0067]]
+Every box on a diagram is something you build, deploy and get paged for. More boxes don’t make a better design, and often they make a worse one. [[L-0066 L-0067]] So before adding the cron job, ask whether something you already run could do the deleting. One thing you run already holds every one of these rows: the store. Can it forget on its own?
 
 </Section>
 
 <Section id="s2-4" no="2.4" title="Can the store forget on its own?" crumb="2.4 Forget on its own">
 
-Something you already run is the store. Some databases expire entries natively: you write a key with a **time to live (TTL)**, and the database deletes it when the time runs out. Writing your own deleter next to one of those is reinventing the wheel. [[L-0068]]
+Some stores can. You write a key with a **time to live (TTL)**, and the database deletes the key when the time runs out. With a store like that, writing your own deleter is reinventing the wheel. [[L-0068]]
 
 <Figure id="fig-2d" max={660} no="Fig 2·d" k="L-0062 L-0063 L-0066 L-0068 L-0070" caption="Who deletes? Left: a cron job is a new process to host, keep up and monitor. Right: a store with a TTL deletes the key itself, and nothing new runs.">
 <Desk><WhoDeletes /></Desk>
 <Phone><WhoDeletes layout="phone" /></Phone>
 </Figure>
 
-That turns the requirement into one line: **key-value access plus expiry**. Two common stores offer both, Redis and DynamoDB. [[L-0069]] The whole design now fits in a few lines. On every heartbeat, set the user’s key with a 30-second TTL; each beat pushes the expiry 30 seconds into the future. When the beats stop, the key expires. Key present: online. Key absent: offline. The API is a handful of REST endpoints, and the store does the deleting. [[L-0070]]
+The whole design now fits in a few lines. On every heartbeat, set the user’s key with a 30-second TTL. Each beat pushes the expiry 30 seconds further out. When the beats stop, the key expires. Key present: online. Key absent: offline. The store does the deleting. [[L-0070]]
 
-The details differ between the two, and both are traps. In Redis, a plain `SET` clears any expiry the key had, so every single write must carry the TTL again. DynamoDB deletes expired items in the background, “typically within a few days”, and returns them to reads until then, so you store an `expires_at` time and treat a passed one as offline <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">AWS docs</Cite>. [[L-0070]]
+That turns the requirement for the store into one line: **key-value access plus expiry**. Two common stores offer both: Redis and DynamoDB. [[L-0069]]
+
+Each one hides a trap in how it expires. In Redis, a plain `SET` clears any expiry the key had, so every write must carry the TTL again. DynamoDB deletes expired items in the background, “typically within a few days”, and keeps returning them to reads until then <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html">AWS docs</Cite>. So with DynamoDB you store an `expires_at` time and treat a passed one as offline. [[L-0070]]
 
 ```text
 # Redis, on every POST /heartbeat (EX 30 on every write)
@@ -126,6 +139,6 @@ This brief has only green and grey. If the product also wants “last seen 5 min
 
 </MarginNote>
 
-So the store needs a key, a value and a timer. Redis has all three. So does DynamoDB. Which one goes in the box? That turns out to be a harder question than it looks, because the obvious reasons don’t decide it.
+So the store needs a key, a value and a timer. Redis has all three. So does DynamoDB. You can only put one in the box. Which one?
 
 </Section>

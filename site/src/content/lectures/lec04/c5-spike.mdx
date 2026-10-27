@@ -9,12 +9,13 @@ import Cite from '../../../components/Cite.astro';
 import { PoolBudget, HeartbeatsReused } from '../../../figures/lec04/s4b-heartbeats';
 import { SoFarDot } from '../../../figures/lec04/so-far';
 
-{/* Chapter 5 "The spike adds twenty servers. Why do they get nothing?" The database's limit → the pool budget
-    (pause + figure) → sizing and watching → the same pattern elsewhere; build 1 closes. */}
+{/* Chapter 5 "A spike hits and autoscaling adds twenty servers. What do they get?" Flow rewrite (v2). The database's
+    limit → how the fleet shares it (spike pause + figure) → so how big should each pool be → step back: the
+    same pattern elsewhere; build 1 closes and hands off to the blog. */}
 
 <Section id="s5" no="5" title="A spike hits and autoscaling adds twenty servers. What do they get?" crumb="5 The spike" meta="About 7 min">
 
-Every API server now keeps a pool of open connections, and each write is one request and one reply. The fix worked. But a pool is a promise each server makes to itself, and all of those promises are drawn from one place: the database.
+Every API server now keeps its own pool of open connections, and each write is one request and one reply. But each pool is a promise a server makes to itself, and all those promises are drawn from one place: the database. So start there.
 
 <Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="The green dot so far. Marked new: the pool of open connections between the API server and the store.">
 <Desk><SoFarDot stage={4} /></Desk>
@@ -25,17 +26,17 @@ Every API server now keeps a pool of open connections, and each write is one req
 
 <Section id="s5-1" no="5.1" title="How many connections can a database give?" crumb="5.1 The limit">
 
-Stay with the relational database from chapter 4, where this limit bites hardest. Every database caps the connections it will hold. The defaults are lower than people expect: PostgreSQL’s `max_connections` is typically 100, with a few reserved for administrators <Cite href="https://www.postgresql.org/docs/current/runtime-config-connection.html">postgresql.org</Cite>. Managed services publish their limit, often as a formula; Amazon RDS derives it from the instance’s memory, because every connection costs memory. Run the database yourself and you benchmark the number on your own hardware, under your own load. [[L-0124 L-0146 L-0147 L-0148]]
+Fewer than most people expect. Stay with the relational database from chapter 4, where this limit bites hardest. Every database caps the connections it will hold, and PostgreSQL’s `max_connections` is typically 100, with a few reserved for administrators <Cite href="https://www.postgresql.org/docs/current/runtime-config-connection.html">postgresql.org</Cite>. Managed services publish their limit, often as a formula. Amazon RDS derives it from the instance’s memory, because every connection costs memory. Run the database yourself and you benchmark the number on your own hardware, under your own load. [[L-0124 L-0146 L-0147 L-0148]]
 
-For a store like this one, that number is often the first wall you hit. Each read and write touches one row by key, so the queries themselves are cheap and the bottleneck moves to the connections and the network carrying them. When you size the database, the concurrency you need decides how big it must be, not the 8 GB of data. [[L-0136 L-0137 L-0143 L-0144]]
+For a store like the dot’s, this number is often the first wall you hit. Each read and write touches one row by key, so the queries are cheap, and the bottleneck moves to the connections and the network that carries them. So when you size this database, the number of concurrent connections you need decides how big it must be, not the 8 GB of data. [[L-0136 L-0137 L-0143 L-0144]]
 
-A different workload hits a different wall. A report joining 10 or 15 tables runs long enough that connection setup doesn’t matter; it is limited by the database’s CPU and memory. There are only four things that can run out on a machine, CPU, memory, disk and network, and every scaling decision is about one of them. The heartbeat store is network-bound; a big report is CPU- and memory-bound; a data warehouse is disk-bound. [[L-0145 L-0151 L-0152 L-0153 L-0154 L-0155]]
+Other workloads hit other walls. Only four things can run out on a machine: CPU, memory, disk and network. Every scaling decision is about one of them. The heartbeat store runs out of network. A report joining 10 or 15 tables runs out of CPU and memory, and its connection setup doesn’t matter. A data warehouse runs out of disk. [[L-0145 L-0151 L-0152 L-0153 L-0154 L-0155]]
+
+Say your database allows 1,000 connections. That sounds like plenty. Whether it is depends on how the fleet of API servers shares them, and the fleet doesn’t stay the same size.
 
 </Section>
 
-<Section id="s5-2" no="5.2" title="Ten servers, one budget, and a spike" crumb="5.2 The budget">
-
-Now put pools and the limit together.
+<Section id="s5-2" no="5.2" title="What happens when the fleet grows?" crumb="5.2 The budget">
 
 <PauseAndThink k="L-0158 L-0319 L-0320"
   q="Your database accepts at most 1,000 connections. Each API server’s pool keeps a minimum of 100 open. You run 10 servers. A spike hits and autoscaling adds 20 more. What happens?"
@@ -52,21 +53,25 @@ Now put pools and the limit together.
 <Phone><PoolBudget layout="phone" /></Phone>
 </Figure>
 
-A misconfigured pool quietly caps how many servers you can ever run: the most you can have is the database’s limit divided by each server’s share. That is the other half of the earlier advice. A pool is almost always worth having; a pool configured without looking at the database is a trap. [[L-0320]]
+A misconfigured pool quietly caps how many servers you can ever run. The most you can have is the database’s limit divided by each server’s share. So chapter 4’s advice needs its other half: a pool is almost always worth having, and a pool configured without looking at the database is a trap. [[L-0320]]
 
-It fails the other way too. A pool allowed to grow without a cap lets a few busy servers take every connection. And with a long idle timeout, a server that was busy ten minutes ago keeps hogging connections it no longer uses, while the load balancer sends new users to a server that can’t get any, and those users see an outage. [[L-0321]]
+It fails the other way too. A pool with no cap lets a few busy servers take every connection. And with a long idle timeout, a server that was busy ten minutes ago keeps connections it no longer uses. Meanwhile the load balancer sends new users to a server that can’t get any, and those users see an outage. [[L-0321]]
+
+So you can’t pick a pool size by looking at one server. How do you size it?
 
 </Section>
 
-<Section id="s5-3" no="5.3" title="How do you size a pool you can’t predict?" crumb="5.3 Sizing">
+<Section id="s5-3" no="5.3" title="So how big should each pool be?" crumb="5.3 Sizing">
 
-Start from the budget. Divide the database’s maximum connections by the most servers you will ever run: 1,000 connections and up to 100 servers gives each server a maximum of **10**. [[L-0158]] Many teams set it a little higher, say 15, because one server is sometimes busier than the rest; it is a common practice, not a standard. Know what it costs: if every server can reach 15, a busy moment can ask the database for 1,500 connections, and it refuses the extra ones with an error. [[L-0159]]
+Start from the budget. Divide the database’s maximum connections by the most servers you will ever run. 1,000 connections and up to 100 servers gives each server a maximum of **10**. [[L-0158]]
 
-Then start conservative and let measurements move you. A small minimum, a maximum inside the budget, an idle timeout that is neither so short that connections keep reopening nor so long that idle ones pile up. Put telemetry on the pool, and a week of production traffic tells you where to move each number. [[L-0160 L-0161 L-0322 L-0323]]
+Many teams set it a little higher, say 15, because one server is sometimes busier than the rest. That is a common practice, not a standard, and it has a cost. If every server can reach 15, a busy moment can ask the database for 1,500 connections, and it refuses the extra ones with an error. [[L-0159]]
 
-The number to watch first is the average time a query takes, because the connections you need are roughly your throughput multiplied by that time. Watch alongside it how long requests wait for a connection and how often the pool is saturated. If query time rises, find out why before you grow the pool: past a point, more connections make a database slower, not faster <Cite href="https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing">HikariCP wiki</Cite>. [[L-0324 L-0325]]
+Then start conservative and let measurements move you. A small minimum. A maximum inside the budget. An idle timeout neither so short that connections keep reopening nor so long that idle ones pile up. Put telemetry on the pool, and a week of production traffic tells you where to move each number. [[L-0160 L-0161 L-0322 L-0323]]
 
-If the fleet truly needs more concurrent connections than one database can hold, the first answer is a bigger database. Past what one machine can give, you split the data across several (sharding, in <LectureLink lec="lec01">Lecture 2</LectureLink>), which is why a design that has to grow should be able to scale out, not only up. [[L-0136 L-0138 L-0156]] When the fleet is large or unpredictable, there is also a structural fix: put a central pooler such as PgBouncer or Amazon RDS Proxy between the servers and the database. It multiplexes many servers onto a few database connections and queues the excess. That pooler *is* a separate service, and it exists for precisely this problem. [[L-0126 L-0127]]
+Which numbers? First the average time a query takes, because the connections you need are roughly your throughput multiplied by that time. Alongside it, how long requests wait for a connection, and how often the pool is full. If query time rises, find out why before you grow the pool. Past a point, more connections make a database slower, not faster <Cite href="https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing">HikariCP wiki</Cite>. [[L-0324 L-0325]]
+
+What if the fleet truly needs more connections than one database can hold? The first answer is a bigger database. Past what one machine can give, you split the data across several, with sharding in <LectureLink lec="lec01">Lecture 2</LectureLink>. That is why a design that has to grow should be able to scale out, not only up. [[L-0136 L-0138 L-0156]] When the fleet is large or unpredictable, there is also a structural fix. Put a central pooler such as PgBouncer or Amazon RDS Proxy between the servers and the database. It multiplexes many servers onto a few database connections and queues the excess. That pooler *is* a separate service, and this problem is the reason it exists. [[L-0126 L-0127]]
 
 <MarginNote title="Go deeper: a festival doubles your traffic" why="planning for a known spike" k="L-0162 L-0163 L-0164 L-0165">
 
@@ -74,26 +79,28 @@ If you know a spike is coming, scale the database up before it, then back down a
 
 </MarginNote>
 
+With the pools sized, the dot is finished. Before leaving it, look at the shape of what you built, because you will meet it again.
+
 </Section>
 
 <Section id="s5-4" no="5.4" title="Where else have you seen this dot?" crumb="5.4 Same pattern">
 
-Step back from the green dot and look at what you built: things that are alive say so every few seconds, silence for long enough means dead, and something cheap forgets the silent ones. That pattern is everywhere.
+Strip the dot down to its idea. Things that are alive say so every few seconds. Silence for long enough means dead. Something cheap forgets the silent ones. That pattern is everywhere.
 
-In a distributed system, every node sends heartbeats to a central tracker, and a node whose beats stop is marked down. Building your own cloud out of machines, that is how you learn a machine has died. Building your own load balancer, the same signal tells you to stop sending requests to a backend that has gone quiet. Protocols differ; the design is the same. [[L-0132 L-0133]]
+In a distributed system, every node sends heartbeats to a central tracker, and a node whose beats stop is marked down. If you build your own cloud out of machines, that is how you learn a machine has died. If you build your own load balancer, the same signal tells you to stop sending requests to a backend that has gone quiet. The protocols differ; the design is the same. [[L-0132 L-0133]]
 
 <Figure id="fig-5c" no="Fig 5·c" k="L-0132 L-0133" caption="The dot’s pattern, reused. Left: nodes beat to a tracker, and a node that goes quiet is marked down. Right: backends beat to a load balancer, which stops routing to one that goes quiet. Real load balancers usually ask instead, with health checks.">
 <Desk><HeartbeatsReused /></Desk>
 <Phone><HeartbeatsReused layout="phone" /></Phone>
 </Figure>
 
-Real load balancers usually run the check in the other direction, because unlike a server talking to a laptop, they *can* open connections to their backends: an AWS Application Load Balancer asks each target every 30 seconds by default and takes it out after two failures <Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html">AWS docs</Cite>. You will build one in <LectureLink lec="lec08">Lecture 5</LectureLink>. [[L-0133]] That is the reason to learn designs this way: remember the pattern and the property it needs, not a question and its answer. [[L-0134]]
+Real load balancers usually run the check the other way round. Unlike a server talking to a laptop, they *can* open connections to their backends. An AWS Application Load Balancer asks each target every 30 seconds by default and takes it out after two failures <Cite href="https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html">AWS docs</Cite>. You will build one in <LectureLink lec="lec08">Lecture 5</LectureLink>. [[L-0133]] This is why it pays to remember a design as a pattern and the property it needs, not as a question and its answer. [[L-0134]]
 
 <Figure id="fig-5d" max={640} no="Fig 5·d" caption="The green dot, finished: beats every 10 seconds, a key with a 30-second TTL in a store you chose for stated reasons, and pools that together fit under the database’s connection limit.">
 <Desk><SoFarDot stage={5} /></Desk>
 <Phone><SoFarDot stage={5} layout="phone" /></Phone>
 </Figure>
 
-The dot is done. Notice what it never had to answer: what a deleted row should mean, what goes inside a row, or how a copy of data can save work. Its data was one integer per user, thrown away after 30 seconds. Most data isn’t like that.
+Look at what the dot never had to answer. Its data was one integer per user, thrown away after 30 seconds. Lose all of it and the next round of beats rebuilds it. So it never asked what a delete should mean, what belongs inside a row, or when to keep a copy of data. Most data isn’t that cheap. The second build is data that people care about.
 
 </Section>
