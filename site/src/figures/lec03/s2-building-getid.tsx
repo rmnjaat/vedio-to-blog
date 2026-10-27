@@ -162,7 +162,7 @@ export function ThreadsToCounter({ layout = 'desk' }: Layout) {
   const H = band(4) + (P ? 96 : 86);
   return (
     <Fig id={id} w={W} h={H} title="From threads to a counter"
-      desc="Machines m1 and m2, each with threads. 1: adding the thread ID gives m1-t1-1729 and so on, unique but longer with every new cause. 2: one shared counter, incremented atomically on every call, replaces the thread ID: m1-1729-01, m1-1729-02, m1-1729-03, then m1-1730-01. 3: the counter already increases on every call, so the time part is struck out as redundant. 4: the ID becomes machine plus counter: m1-01, m1-02, m1-03 and m2-01, m2-02, m2-03, unique as long as the counter never resets.">
+      desc="Machines m1 and m2, each with threads. 1: adding the thread ID gives m1-t1-1729 and so on, unique but longer with every new cause. 2: one shared counter, incremented atomically on every call, replaces the thread ID: m1-1729-01, m1-1729-02, m1-1729-03, then m1-1730-04. 3: the counter already increases on every call, so the time part is struck out as redundant. 4: the ID becomes machine plus counter: m1-01, m1-02, m1-03 and m2-01, m2-02, m2-03, unique as long as the counter never resets.">
       <Laptop x={A - 26} y={26} w={52} h={34} seed={s('m1')} label="m1" threads={2} />
       <Laptop x={B - 26} y={26} w={52} h={34} seed={s('m2')} label="m2" threads={2} />
       <Label kind="mono" x={A} y={92}>t = 1729</Label>
@@ -190,12 +190,12 @@ export function ThreadsToCounter({ layout = 'desk' }: Layout) {
           <g>
             <Code x={X} y={y2} size={cs} seed={s('c2')} segs={[{ t: 'concat(machine_id, ' }, { t: 'get_epoch_ms(),', tone: 'ink' }]} />
             <Code x={X + 46} y={y2 + 18} size={cs} seed={s('c2b')} segs={[{ t: 'counter++', mark: true }, { t: ')' }]} />
-            {ids(y2 + 44, ['m1-1729-01', 'm1-1729-02', 'm1-1729-03', 'm1-1730-01'], colsW)}
+            {ids(y2 + 44, ['m1-1729-01', 'm1-1729-02', 'm1-1729-03', 'm1-1730-04'], colsW)}
           </g>
         ) : (
           <g>
             <Code x={X} y={y2} size={cs} seed={s('c2')} segs={[{ t: 'concat(machine_id, ' }, { t: 'get_epoch_ms(),' }, { t: ' ' }, { t: 'counter++', mark: true }, { t: ')' }]} />
-            {ids(y2 + 30, ['m1-1729-01', 'm1-1729-02', 'm1-1729-03', 'm1-1730-01'], colsW)}
+            {ids(y2 + 30, ['m1-1729-01', 'm1-1729-02', 'm1-1729-03', 'm1-1730-04'], colsW)}
           </g>
         )}
         <CounterCell x={A + 46} y={28} s={28} value="3" seed={s('ctr')} size={ls} />

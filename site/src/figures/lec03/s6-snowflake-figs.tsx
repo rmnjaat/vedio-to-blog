@@ -52,7 +52,7 @@ export function EpochRunway({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
   const id = P ? 'fig6d-p' : 'fig6d';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Where the 41 bits run out';
-  const desc = 'Two timelines on one year axis. 2^41 milliseconds is about 69.7 years. Counting from 1970, the 41 bits run out in 2039, and by 2023 (1,676,784,716,000 ms) about 76% is already used. Counting the same 41 bits from a 2015 epoch (Discord’s start), the same 69.7 years last until about 2084. The years from 1970 to 2015 are what a 2015 company would waste.';
+  const desc = 'Two timelines on one year axis. 2^41 milliseconds is about 69.7 years. Counting from 1970, the 41 bits run out in 2039, and by 2023 (1,676,784,716,000 ms) about 76% is already used. Counting the same 41 bits from a 2015 epoch (Discord’s launch year), the same 69.7 years last until about 2084. The years from 1970 to 2015 are what a 2015 company would waste.';
   const x0 = P ? 22 : 130, x1 = P ? 322 : 730;
   const X = (yr: number) => x0 + ((yr - 1970) / 120) * (x1 - x0);
   const T = 14;

@@ -1,0 +1,148 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import { SnowflakeBits, DecodeTweetId } from '../../../figures/lec03/s6-snowflake-bits';
+import { EpochRunway } from '../../../figures/lec03/s6-snowflake-figs';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 8 "Tweets spike. Can the ID service stop coordinating?" Story rewrite: tweets spike → Snowflake packs time,
+    machine and counter into 64 bits (every part already built) → pause: 4,096 per ms → a few lines of bit
+    arithmetic, plus the two guards → where it runs (Twitter's small uncoordinated service, or a library) →
+    roughly sortable; decode a tweet ID → why start the clock in 1970? (custom epoch, Discord). */}
+
+<Section id="s8" no="8" title="Tweets spike. Can the ID service stop coordinating?" crumb="8 Snowflake" meta="About 8 min">
+
+Posting tweets is one of the highest-throughput write workloads there is, and it spikes: when something big happens, everyone tweets at once. Every tweet needs an ID. Put a coordinated ID service in that path, one that must agree with itself or a database on every ID, and it becomes one more tier you must scale for the worst spike. [[L-0211]]
+
+Twitter’s answer is called **Snowflake**. The idea is decentralized: an ID is computed from what the generating machine already knows, with no shared state and nobody to ask. [[L-0189]] Tweet IDs still use its format today, and it remains one of the best ID schemes around. [[L-0190]]
+
+<Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="get_id() after chapter 7: Flickr’s two ticket databases, odd and even.">
+<Desk><SoFarGetId stage={7} /></Desk>
+<Phone><SoFarGetId stage={7} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="What fits in 64 bits?" crumb="8.1 41 | 10 | 12">
+
+A Snowflake ID is a **64-bit** integer, kept that small on purpose. At Twitter’s scale every tweet ID is stored and indexed over and over, and 128 bits would double the space every one of those copies needs. [[L-0194 L-0195]] It is close kin to MongoDB’s ObjectId, time first and then tie-breakers, only smaller. [[L-0196]]
+
+Read the 64 bits from the left. The top bit stays 0, so the ID is a positive number. Then **41 bits of milliseconds**, counted from an epoch: time on the left, always. Then **10 bits of machine ID**, naming the generator. Then **12 bits of counter**: a per-machine counter, atomically incremented on every ID. [[L-0197 L-0199 L-0203]]
+
+Look at what is in there: time on the left from chapter 3, the machine prefix from chapter 1, the static counter from chapter 2, all inside chapter 5’s 64-bit budget. You have built every part of it. To make an ID, a machine needs only the current time, which it has, its own machine ID, given to it once at startup, and its counter. [[L-0204]]
+
+<PauseAndThink k="L-0202 L-0205 L-0206 L-0207"
+  q="10 bits of machine ID, 12 bits of counter. How many IDs can one machine make in a single millisecond before its IDs could collide?"
+  choices={[{ label: '1,024' }, { label: '4,096', correct: true }, { label: 'Unlimited' }]}
+  right="Right."
+  wrong="Not quite: 1,024 is how many machines the 10 bits can name.">
+
+Twelve bits of counter give 2^12 = 4,096 values per millisecond per machine, about 4 million IDs a second from one generator. The 10 bits of machine ID allow 2^10 = 1,024 generators.
+
+</PauseAndThink>
+
+<Figure id="fig-8b" no="Fig 8·b" k="L-0197 L-0199 L-0202 L-0203 L-0205" caption="Snowflake’s 64 bits: an unused top bit, 41 bits of time, 10 of machine, 12 of counter. Time on the left orders the IDs; the other two fields break ties.">
+  <Desk><SnowflakeBits /></Desk>
+  <Phone><SnowflakeBits layout="phone" /></Phone>
+</Figure>
+
+That is enormous headroom: Twitter’s own requirement was at least 10,000 IDs per second per process <Cite href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010">github.com</Cite>. A collision would need one generator to receive more than 4,096 requests inside a single millisecond, and even then a correct generator doesn’t collide: it waits for the next millisecond. [[L-0203 L-0206 L-0207]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="How much code is that?" crumb="8.2 The code">
+
+About three lines. Subtract the epoch from the current time, shift it left past the other two fields, and OR the machine ID and the counter into the low bits. The machine ID and counter take 10 + 12 = 22 bits, so time shifts left by 22. [[L-0208 L-0209]]
+
+```python
+EPOCH = 1288834974657            # Twitter's custom epoch: 4 Nov 2010, in ms
+def snowflake(now_ms, machine_id, counter):
+    return ((now_ms - EPOCH) << 22) | (machine_id << 12) | (counter & 4095)
+```
+
+A generator you would run puts two guards around those lines, both of which you have already met. If the 4,096 counter values run out inside one millisecond, wait for the next millisecond. And if the clock steps backwards, chapter 4’s danger, refuse to issue IDs until time has passed the last one issued, as Twitter’s generator did <Cite href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010">github.com</Cite>. [[L-0208]]
+
+```python
+import threading, time
+
+MACHINE_ID = 7                                   # unique per generator, 0 to 1023
+lock = threading.Lock()
+last_ms, seq = -1, 0
+
+def current_ms():
+    return time.time_ns() // 1_000_000
+
+def next_id():
+    global last_ms, seq
+    with lock:                                   # one counter per machine, changed atomically
+        now = current_ms()
+        if now < last_ms:                        # the clock stepped back: refuse
+            raise RuntimeError("clock moved backwards")
+        if now == last_ms:
+            seq = (seq + 1) & 4095
+            if seq == 0:                         # all 4,096 used in this millisecond
+                while now <= last_ms:
+                    now = current_ms()           # wait for the next one
+        else:
+            seq = 0
+        last_ms = now
+        return ((now - EPOCH) << 22) | (MACHINE_ID << 12) | seq
+```
+
+Every generator needs a machine ID no other generator has. Something has to hand those out when a machine starts, ZooKeeper for example. [[L-0293]]
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Does Snowflake need a service at all?" crumb="8.3 Where it runs">
+
+Follow one tweet. An ordinary API server validates it, gets a Snowflake ID, and stores the tweet in the massively partitioned tweets database. [[L-0200]]
+
+Twitter’s original Snowflake, in 2010, ran as a small network service of its own, a Thrift server written in Scala, and the API tier called it for IDs <Cite href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010">github.com</Cite>. What made it scale is what isn’t there: its nodes never coordinate with each other. Each one stamps IDs from its own clock, machine ID and counter, so adding nodes adds capacity, with no gossip, no shared counter and no database on the path. [[L-0189 L-0210 L-0211]] Those 10 machine bits name its generator processes, at most 1,024 of them. [[L-0199 L-0202]]
+
+And since an ID needs nothing but those three local values, the same few lines also run happily as a library inside every app server, with no network call at all. Sony’s open-source Sonyflake, a Snowflake-style generator with its own bit layout, is used exactly that way <Cite href="https://github.com/sony/sonyflake">github.com</Cite>. [[L-0201]] Either way the expensive part of an ID service, the coordination, is simply gone.
+
+<MarginNote title="Go deeper: the microservice reflex" why="an opinion, worth arguing with" k="L-0241 L-0242 L-0243 L-0244 L-0245">
+
+Faced with “we need IDs”, the first instinct is “I’ll write a microservice”. The Snowflake layout shows how often that isn’t needed: an ID that needs only local values can be a few lines inside the app, as Sonyflake and Instagram run it. Look at the problem, build only what it needs, and if a simpler design wins, bring data. Martin Fowler notes that “almost all the successful microservice stories have started with a monolith that got too big and was broken up” <Cite href="https://martinfowler.com/bliki/MonolithFirst.html">martinfowler.com</Cite>. Simple systems scale.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="Do Snowflakes come out in order?" crumb="8.4 Roughly sortable">
+
+Roughly, and that is their beauty. The left 41 bits move forward every millisecond, so IDs made later are almost always larger. Twitter promised exactly that much: IDs sorted within about a second, not strict order <Cite href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010">github.com</Cite>. [[L-0198]] Inside one millisecond there is a pattern too: an ID from the machine with the smaller machine ID is smaller. [[L-0213]]
+
+Strict order is still out of reach, for chapter 3’s reasons: the generators’ clocks disagree. You might hope round-robin routing would line them up; it decides which machine answers next, and does nothing about their clocks. In a distributed setup you can’t guarantee monotonicity. You take rough sortability and the throughput that comes with it. [[L-0294 L-0312 L-0313]]
+
+You can see a Snowflake on any tweet. The number at the end of a tweet’s link is its ID, and its top bits are the millisecond the tweet was made. [[L-0214]]
+
+<Figure id="fig-8c" no="Fig 8·c" k="L-0214 L-0215" caption="Decoding a Snowflake. This example ID was built from the timestamp 1,676,784,716,000 ms (19 February 2023), machine 7 and counter 0. Shift right by 22 and add the epoch to get the time; mask the middle 10 bits for the machine and the low 12 for the counter. A real tweet ID decodes the same way.">
+  <Desk><DecodeTweetId /></Desk>
+  <Phone><DecodeTweetId layout="phone" /></Phone>
+</Figure>
+
+So from IDs alone you can tell whether a tweet was made before or after a given moment, or before or after another tweet, without reading a timestamp column. Hold on to that; it pays off in the next chapter. [[L-0215]]
+
+</Section>
+
+<Section id="s8-5" no="8.5" title="Why start the clock in 1970?" crumb="8.5 Custom epoch">
+
+“Epoch milliseconds” usually means milliseconds since 1 January 1970. [[L-0236]] But 41 bits hold at most 2^41 ≈ 2.2 × 10^12, and in February 2023 the epoch millisecond was already 1,676,784,716,000, about 76% of that. Count from 1970 and a company founded last year has thrown away most of its range before issuing a single ID. [[L-0252 L-0253]]
+
+Nothing forces 1970. Subtract your own start date instead, and time counts up from zero on day one; 2^41 milliseconds then last about 69.7 years from there. Twitter’s own Snowflake already counted from a custom epoch in late 2010. [[L-0237 L-0238 L-0254]]
+
+<Figure id="fig-8d" no="Fig 8·d" k="L-0237 L-0238 L-0252 L-0253" caption="The same 41 bits, two starting points. Counted from 1970 they run out in 2039; counted from 2015 they last until about 2084.">
+  <Desk><EpochRunway /></Desk>
+  <Phone><EpochRunway layout="phone" /></Phone>
+</Figure>
+
+Discord does exactly this. Its IDs use Twitter’s Snowflake format, with the epoch set to the first second of 2015, the year Discord launched. [[L-0239]]
+
+Two things now come for free: the IDs fit in a `BIGINT`, and they sort by time. The second one fixes a problem you have probably met without knowing it.
+
+</Section>

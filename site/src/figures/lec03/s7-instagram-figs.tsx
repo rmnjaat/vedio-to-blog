@@ -130,7 +130,7 @@ export function LogicalShards({ layout = 'wide' }: { layout?: 'wide' | 'phone' }
   const id = P ? 'fig7b-p' : 'fig7b';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Logical shards on a physical server';
-  const desc = 'One physical database server, drawn as a large cylinder, holds several logical shards: insta1, insta2, insta5, insta9, insta12. Each logical shard is a database made with CREATE DATABASE, with the same tables as every other. Instagram ran thousands of logical shards, at most 2^13 = 8192, on far fewer physical servers (10 to 15 in the class’s example).';
+  const desc = 'One physical database server, drawn as a large cylinder, holds several logical shards: insta1, insta2, insta5, insta9, insta12. Each logical shard is a schema with the same tables as every other. Instagram ran thousands of logical shards, at most 2^13 = 8192, on far fewer physical servers.';
   const cx = P ? 170 : 130;
   const shards = [
     { dx: -36, y: 60, n: 'insta1' }, { dx: 36, y: 60, n: 'insta2' },
@@ -141,15 +141,14 @@ export function LogicalShards({ layout = 'wide' }: { layout?: 'wide' | 'phone' }
     { t: 'logical shards (partitions)', kind: 'hand' },
     { t: '1000s, at most 2^13 = 8192', kind: 'mono' },
     { t: 'on physical db servers', kind: 'hand', gap: 14 },
-    { t: 'say, 10–15 of them', kind: 'mono' },
-    { t: 'CREATE DATABASE insta5;', kind: 'mono', gap: 14 },
-    { t: '↓ logical separation', kind: 'hand' },
-    { t: "(a schema in Instagram's Postgres)", kind: 'hand', muted: true },
+    { t: 'far fewer of them', kind: 'hand' },
+    { t: 'CREATE SCHEMA insta5;', kind: 'mono', gap: 14 },
+    { t: 'one schema per logical shard', kind: 'hand' },
   ];
   let ly = P ? 274 : 52;
   const lx = P ? 20 : 280;
   return (
-    <Fig id={id} w={P ? 340 : 640} h={P ? 466 : 264} title={title} desc={desc}>
+    <Fig id={id} w={P ? 340 : 640} h={P ? 440 : 264} title={title} desc={desc}>
       <Cyl cx={cx} top={24} rx={100} ry={16} h={176} seed={s('srv')} label="physical server" />
       {shards.map((sh, i) => <Shard key={i} cx={cx + sh.dx} y={sh.y} name={sh.n} seed={s('sh' + i)} size={P ? 14 : 13} />)}
       {lines.map((l, i) => {

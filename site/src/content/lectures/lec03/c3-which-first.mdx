@@ -1,0 +1,105 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { WhichWriteFirst, TimeFirst, DriftingClocks } from '../../../figures/lec03/s3-order-and-clocks';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 3 "Which write came first?" Story rewrite: unique IDs carry no order → newer-write-wins needs order →
+    increasing vs sequential → put time on the left → clocks drift (quartz, sync daemons) → four machines, four
+    clocks (pause + clip) → strict order across machines is almost impossible. */}
+
+<Section id="s3" no="3" title="Which write came first?" crumb="3 Which first" meta="About 6 min">
+
+Version 6 never repeats itself. But read two of its IDs, `m7-512` and `m2-90031`, and you can’t say which was made first. With hundreds of thousands of machines, the machine part tells you where an ID was made, not when. Uniqueness says nothing about order. [[L-0049]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="get_id() after chapter 2: machine plus a counter that survives a reboot at one disk write per N IDs. (The boot-counter variant trades one more part in every ID for no disk writes at all.)">
+<Desk><SoFarGetId stage={2} /></Desk>
+<Phone><SoFarGetId stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Why would anyone need IDs in order?" crumb="3.1 Why order">
+
+Back to your two masters. <LectureLink lec="lec01">Lecture 2</LectureLink> warned that when more than one database takes writes, the same row can be written on each, and someone has to decide which write wins. Call the two writes T1 and T2. The row holds `a = 10`; T1 sets it to 20 and T2 sets it to 30. A common rule is *the newer write wins*. But which one is newer? If every transaction carries an ID, and later transactions always get larger IDs, the larger number answers it: T2 is 2, so keep `a = 30`. [[L-0051 L-0052]]
+
+<Figure id="fig-3b" max={360} wide={false} no="Fig 3·b" k="L-0052" caption="Which write came first? With newer-write-wins, the larger ID marks the newer write, so the row keeps a = 30.">
+<WhichWriteFirst />
+</Figure>
+
+Conflict resolution is one place ordered IDs matter, not the only one. [[L-0053]] So here is the new constraint: **monotonically increasing IDs**, everywhere. However many machines make IDs, and wherever a request lands, a later request always gets a larger ID than any handed out before. [[L-0050]]
+
+Larger, not next. 1, 2, 5, 7, 8, 9, 32 qualifies: every ID is bigger than all the IDs before it, and gaps are allowed. Gap-free 1, 2, 3, 4 is a stronger property, usually called *sequential*, and nothing in this lecture needs it. [[L-0054]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="What if time goes first?" crumb="3.2 Time on the left">
+
+Take version 6 and put time back, in front: time first, then the machine, then the counter. [[L-0055 L-0056]]
+
+```text
+func get_id() {
+  return concat(get_epoch_ms(), machine_id, counter++);   // fixed-width parts: time first; machine and counter break ties
+}
+```
+
+Time always moves forward, and now it sits in the most significant digits, so the IDs come out in time order: `1729 1001`, `1729 2001`, `1730 1002`. The left part decides the order. The machine and the counter only break ties inside one millisecond. Give each part a fixed width, so the digits line up; otherwise machine 1 with counter 12 and machine 11 with counter 2 both read 1729112. [[L-0055 L-0056]] And if the machine ID is an integer, the whole ID is just a number. [[L-0059]]
+
+<Figure id="fig-3c" max={340} wide={false} no="Fig 3·c" k="L-0055 L-0056" caption="Time first decides the order. The heavy underline marks the time digits, the most significant part; the rest only breaks ties.">
+<TimeFirst />
+</Figure>
+
+Inside one millisecond the order can still flip. If the first request goes to machine 2 and the next to machine 1, you get `1729 2004` and then `1729 1005`. Once the millisecond passes, the IDs are in order again. [[L-0057]]
+
+That is close, and it is nearly free. Nothing is shared: a request can go to any machine, no central state is kept, and throughput stays excellent. In return you accept a little disorder inside each millisecond. [[L-0058]] This is why, whichever ID scheme you look at from here on, time sits on the leftmost side: as time moves forward the number only grows, so the IDs sort roughly by when they were made. [[L-0060]]
+
+Roughly, not strictly. The millisecond flip is one reason. The other is hiding in the word “time”. [[L-0061]]
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="Do all the clocks agree?" crumb="3.3 Clocks drift">
+
+Time-first IDs assume that every machine’s clock reads the same time. They don’t. [[L-0062]] A little disorder inside one millisecond you can live with. Disorder of whole seconds you can’t, and left alone, a clock drifts by about that much in a day. [[L-0063]]
+
+A computer’s clock is a hardware clock: a quartz crystal vibrating at a set frequency, and the machine counts the vibrations to know that a millisecond has passed. [[L-0065]] That frequency shifts with temperature. A common watch crystal is accurate to about ±20 parts per million at room temperature, and it gets worse the further it is from about 25 °C, hotter or colder <Cite href="https://ecsxtal.com/?p=1063">ecsxtal.com</Cite>. Twenty parts per million is almost two seconds a day. So clocks drift, every one at its own rate. [[L-0067]]
+
+Servers drifting apart is so common that every fleet runs clock synchronization against NTP servers. In practice it is a daemon, `chronyd` or `ntpd`, running all the time and gently speeding up or slowing down the clock to pull it back toward true time, more often than you would think. [[L-0064 L-0068]]
+
+<Figure id="fig-3d" max={360} wide={false} no="Fig 3·d" k="L-0065 L-0067 L-0068 L-0070" caption="A clock that runs fast, a clock that runs slow. Each correction pulls a clock back toward true time, and it starts drifting again. What decides an ID is the gap at the moment it is made.">
+<DriftingClocks />
+</Figure>
+
+Sync narrows the gap; it doesn’t close it. Between corrections, any clock can be a little off at the very moment it stamps an ID, and even one millisecond is enough to break order. [[L-0070]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="Four machines, four clocks" crumb="3.4 Four clocks">
+
+Here is what a millisecond of skew does. Four machines, numbered 2, 4, 7 and 9, have clocks that read 23, 24, 23 and 23. Machine 4 is one millisecond ahead. Four requests arrive one after another, to machines 2, 4, 7 and 9, in that order, and each makes a time-then-machine ID (the counter is left off to keep the numbers short).
+
+<PauseAndThink k="L-0071 L-0072"
+  q="IDs are time, then machine number. The clocks read 23, 24, 23, 23. Requests reach machines 2, 4, 7, 9 in that order. Do the four IDs come out increasing?"
+  choices={[{ label: 'Yes: time is on the left' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="Time on the left orders IDs only if every clock agrees, and these don’t.">
+
+The IDs come out 232, 244, 237, 239: the third request gets a smaller ID than the second. Machine 4’s clock is ahead, so its ID jumps forward, and the next machine, reading true time, lands behind it.
+
+</PauseAndThink>
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l03-clock-skew" no="Clip 3·1" k="L-0071 L-0072"
+  lead="The same four requests, one after another."
+  caption="Arrival order and ID order no longer match. Where you need order, skew is a correctness problem." />
+</div>
+
+How far can you push it? [[L-0072]] Make every machine’s clock perfect, and the millisecond flip is still there; sync them harder, and there is still a gap at the instant an ID is made. Strict order, when the ID logic runs on many machines, is almost impossible. That isn’t a theorem, but in practice too many things break it. [[L-0073]]
+
+If many clocks are the problem, the obvious move is to stop having many. Put one clock in one place, and make every ID there.
+
+</Section>

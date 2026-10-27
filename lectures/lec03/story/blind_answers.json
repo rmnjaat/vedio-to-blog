@@ -1,0 +1,764 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Write a function get_id() that returns something unique every single time it is invoked, wherever it runs (an ID gives uniqueness to a row/document/object/event).",
+  "evidence": "§1.2 \"Write a function that returns something unique every single time it is invoked, wherever it runs. Call it get_id().\"",
+  "found": "yes"
+ },
+ {
+  "id": "Q002",
+  "answer": "No. Start with a plain function inside your own application, called locally on every request that needs an ID; a central service is something you may evolve towards later (ch 4).",
+  "evidence": "§1.2 \"Start with a plain function inside your own application, called locally\"",
+  "found": "yes"
+ },
+ {
+  "id": "Q003",
+  "answer": "Time is unique and always moves forward, so return the current epoch ms. Works on exactly one machine, as long as the function is never called twice in the same millisecond (else go to micro/nanoseconds).",
+  "evidence": "§1.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q004",
+  "answer": "Both return 1729: collision, not globally unique. Fix: concatenate machine ID and epoch ms: m1-1729, m2-1729.",
+  "evidence": "§1.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q005",
+  "answer": "Whenever two IDs collide, add to the ID the thing that caused the collision.",
+  "evidence": "§1.4 \"That is the standard way to resolve a collision\"",
+  "found": "yes"
+ },
+ {
+  "id": "Q006",
+  "answer": "Multiple threads on several cores can call the function in the same millisecond and both get m1-1729.",
+  "evidence": "§1.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q007",
+  "answer": "First add the thread ID (m1-t1-1729); then replace it with a static (shared, atomic) counter.",
+  "evidence": "§1.4, §2.1, Fig 2·b steps 1-2",
+  "found": "yes"
+ },
+ {
+  "id": "Q008",
+  "answer": "concat(machine_id, thread_id, get_epoch_ms()) -> m1-t1-1729, m1-t2-1729 (m2-t1-1729, m2-t3-1729).",
+  "evidence": "§1.4 code + Fig 1·c",
+  "found": "yes"
+ },
+ {
+  "id": "Q009",
+  "answer": "Appending every cause of a collision makes IDs gigantic (a part per cause); one counter beats any number of threads.",
+  "evidence": "§2.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q010",
+  "answer": "A single variable per process, shared by every thread; it must be incremented atomically (counter++ is read-add-write; use a lock or atomic integer).",
+  "evidence": "§2.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q011",
+  "answer": "m1-1729-01, m1-1729-02, m1-1729-03, then m1-1730-04.",
+  "evidence": "§2.1, Fig 2·b",
+  "found": "yes"
+ },
+ {
+  "id": "Q012",
+  "answer": "The counter already grows on every call, so the time part adds nothing; strike it out. ID = concat(machine_id, counter++): m1-01, m1-02, m2-01...",
+  "evidence": "§2.1 Fig 2·b steps 3-4",
+  "found": "yes"
+ },
+ {
+  "id": "Q013",
+  "answer": "The counter's size: unsigned 32-bit stops ~4.29 billion, signed ~2.1 billion; 64-bit (~1.8e19) effectively endless.",
+  "evidence": "§2.1 end",
+  "found": "yes"
+ },
+ {
+  "id": "Q014",
+  "answer": "It comes back as 0 and reissues m1-01, m1-02 (duplicates). Root cause: the counter lives in volatile memory with no copy.",
+  "evidence": "§2.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q015",
+  "answer": "Back the counter up to a file: counter = load() once at start; in get_id, counter++, save_counter(counter) on every call, return concat(machine_id, counter).",
+  "evidence": "§2.2 code",
+  "found": "yes"
+ },
+ {
+  "id": "Q016",
+  "answer": "Thousands of tiny disk writes a second (disk IO overload), and every ID waits on a disk write instead of coming from memory (latency). (Plus fsync needed to be durable makes each save expensive.)",
+  "evidence": "§2.3, §2.2 fsync",
+  "found": "yes"
+ },
+ {
+  "id": "Q017",
+  "answer": "Presented as one of \"two good ways\": one disk write per boot, counter in memory never saved. Downsides: startup increment must be atomic and every ID carries one more part (longer ID, index cost per ch 5).",
+  "evidence": "§2.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q018",
+  "answer": "Read the counter (say 1), add 1,000, store that, hand out the next thousand from memory; when you reach the stored value add another 1,000 and store again. Writes ahead, so after a crash start from the stored value.",
+  "evidence": "§2.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q019",
+  "answer": "const N = 1000; int counter = load() + N; save_counter(counter); func get_id() { counter++; if (counter % N == 0) save_counter(counter); return concat(machine_id, counter); }",
+  "evidence": "§2.4 code",
+  "found": "yes"
+ },
+ {
+  "id": "Q020",
+  "answer": "Disk writes behind: what is on disk was already handed out and up to N more may have gone out since the last flush, so start past the whole window.",
+  "evidence": "§2.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q021",
+  "answer": "Cuts disk IO a thousandfold; implement as a mod check (counter % N == 0) on each call, not a timer thread.",
+  "evidence": "§2.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q022",
+  "answer": "Disk holds 3 then 6 (6 at crash, 8 handed out). Safe restart value 10 = 6 + 3 + 1 (load()+N = 9, first ++ gives 10); save new start before handing out.",
+  "evidence": "§2.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q023",
+  "answer": "9 is never used (some numbers skipped). Acceptable: skipped integers cost nothing, a duplicate ID can cost an order; correctness matters more than using every integer.",
+  "evidence": "§2.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q024",
+  "answer": "(1) Correctness of the system matters more than using every integer (unused numbers fine, duplicate not). (2) Whenever a machine recovers, start from the safest value (last saved + N + 1).",
+  "evidence": "§2.4 last paras",
+  "found": "yes"
+ },
+ {
+  "id": "Q025",
+  "answer": "Conflict resolution in multi-master: T1 sets a=20, T2 sets a=30 on a=10; with newer-write-wins, the larger ID marks the newer write, keep a=30.",
+  "evidence": "§3.1, Fig 3·b",
+  "found": "yes"
+ },
+ {
+  "id": "Q026",
+  "answer": "No. Larger, not next: 1,2,5,7,8,9,32 qualifies; gaps allowed. Gap-free is \"sequential\".",
+  "evidence": "§3.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q027",
+  "answer": "Time in the most significant (left) digits means IDs come out in time order; machine and counter only break ties within a ms. Board/figure: time on the left \"decides the order: most significant part, makes sorting simple\".",
+  "evidence": "§3.2, Fig 3·c",
+  "found": "yes"
+ },
+ {
+  "id": "Q028",
+  "answer": "Inside one millisecond order can flip: request to machine 2 then machine 1 gives 17290002 then 17290001.",
+  "evidence": "§3.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q029",
+  "answer": "Nearly free: nothing shared, any machine can serve a request, no central state, excellent throughput; IDs sort roughly by creation time.",
+  "evidence": "§3.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q030",
+  "answer": "Clock synchronization against NTP servers via a daemon (chronyd/ntpd) that runs all the time, slewing the clock toward true time.",
+  "evidence": "§3.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q031",
+  "answer": "Hardware quartz crystal whose vibration frequency shifts with temperature (~±20 ppm, ~2 s/day), so each clock drifts at its own rate.",
+  "evidence": "§3.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q032",
+  "answer": "232, 244, 237, 239; the third (237) is smaller than the second (244): not monotonically increasing because m4's clock is 1 ms ahead.",
+  "evidence": "§3.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q033",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": "no"
+ },
+ {
+  "id": "Q034",
+  "answer": "Strict order when ID logic runs on many machines is almost impossible (not a theorem, but too many things break it).",
+  "evidence": "§3.4 end",
+  "found": "yes"
+ },
+ {
+  "id": "Q035",
+  "answer": "One machine runs get_id() (time-first, one clock); clients make a network call to it and get an ID back; it never issues below its last ID.",
+  "evidence": "§4.1, Fig 4·b",
+  "found": "yes"
+ },
+ {
+  "id": "Q036",
+  "answer": "One generator means no skew between generators. When sync finds the clock ahead it doesn't jump back; it slows the clock until real time catches up (large errors, >128 ms in ntpd, are stepped; so generator never goes below last value, waits or refuses).",
+  "evidence": "§4.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q037",
+  "answer": "Single point of failure: if it or its disk fails, no order can be created. Fix: add a second server behind a load balancer.",
+  "evidence": "§4.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q038",
+  "answer": "Whichever gets a request must learn the other's last ID (and add a buffer) before generating a larger one: gossip on every ID. Cost: the conversation is the bottleneck; slow, complex, messy at high throughput.",
+  "evidence": "§4.2, Fig 4·c",
+  "found": "yes"
+ },
+ {
+  "id": "Q039",
+  "answer": "Everything in software is a trade-off: you get something, you lose something. Always. (Page does not say it was boxed.)",
+  "evidence": "§4.3",
+  "found": "partial"
+ },
+ {
+  "id": "Q040",
+  "answer": "One machine, ID logic part of its engine, one counter every insert asks. Multi-master: each master its own brain, they don't talk, each counts 1,2,3,4 independently, IDs collide.",
+  "evidence": "§1.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q041",
+  "answer": "Question the requirement: does it have to be strict or is rough time order enough? integers? could they be random UUIDs? Often nobody thought it through; not everyone needs monotonic IDs.",
+  "evidence": "§4.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q042",
+  "answer": "Once writes can land on more than one database (multi-master/sharding), auto-increment IDs collide, so you need your own ID logic.",
+  "evidence": "§1.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q043",
+  "answer": "No, it's the same design: the shared database is one machine handing out every ID; it has become the central service.",
+  "evidence": "§4.1 end",
+  "found": "yes"
+ },
+ {
+  "id": "Q044",
+  "answer": "Counter separates any number of threads and keeps IDs short and gives order within a machine; a random suffix would also work but loses that order. UUID: fine if your application is small and will never reach the scale where index size bites.",
+  "evidence": "§2.1, §4.3, §5.3",
+  "found": "partial"
+ },
+ {
+  "id": "Q045",
+  "answer": "Correct: unique, unordered, and fine (if order isn't needed).",
+  "evidence": "§4.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q046",
+  "answer": "That's load() by another name, and it assumes every ID becomes a row somewhere; a request ID never does.",
+  "evidence": "§2.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q047",
+  "answer": "Globally unique IDs for every order at a high rate, plus many other internal services. Core idea: batching, a server asks the service for a range/block of IDs in one call and hands them out from memory.",
+  "evidence": "§6, §6.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q048",
+  "answer": "Ordinary API servers exposing ID endpoints behind a load balancer, with a classic relational database (one counter row per calling service: orders, payments).",
+  "evidence": "§6.1, Fig 6·b",
+  "found": "yes"
+ },
+ {
+  "id": "Q049",
+  "answer": "No, they don't care about order; they only need unique IDs.",
+  "evidence": "§6.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q050",
+  "answer": "Server 1 gets [0, 500), server 2 gets [500, 1000); orders counter is 1000.",
+  "evidence": "Fig 6·b",
+  "found": "yes"
+ },
+ {
+  "id": "Q051",
+  "answer": "Atomically in one transaction: SELECT counter ... FOR UPDATE (lock row), UPDATE counter = counter + 500, COMMIT, reply old and new values as the range.",
+  "evidence": "§6.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q052",
+  "answer": "ID generation decoupled from the orders DB: it can be sharded/scaled out with every shard taking writes, no auto-increment involved, no per-order call to the ID service.",
+  "evidence": "§6.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q053",
+  "answer": "10,000, 50,000 or 100,000. Too small: too many calls; too large: a crash throws away a big range. Each service tunes to its throughput.",
+  "evidence": "§6.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q054",
+  "answer": "Asks the service again for the next range before it runs out (e.g. at 490 of 500 used), getting whatever range is next.",
+  "evidence": "Fig 6·b step 4",
+  "found": "yes"
+ },
+ {
+  "id": "Q055",
+  "answer": "No order across servers (one hands out 3,042 while another 612); only unique. Scales easily: service is simple, one source of truth, never gossips, each request one tiny update, batching keeps it off the hot path.",
+  "evidence": "§6.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q056",
+  "answer": "No: tracking every used ID is massive overhead; 64-bit space never runs out; nobody misses a few ranges.",
+  "evidence": "§6.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q057",
+  "answer": "The gap is itself almost a billion. A 4-byte integer holds about 4 billion (4.29 billion unsigned) orders.",
+  "evidence": "§6.3, §2.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q058",
+  "answer": "128 bits (16 bytes). Avoided because the ID is stored in every index entry, so indexes grow by a multiple and must fit in memory; random UUIDs also have poor index locality.",
+  "evidence": "§5, §5.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q059",
+  "answer": "Planner builds execution plans and joins on indexes; with indexes in RAM most of the query avoids disk; an index spilled from RAM makes every lookup a disk read.",
+  "evidence": "§5.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q060",
+  "answer": "Look at index sizes first (indexes created freely, no longer fit in memory). Give the DB at least as much RAM as the indexes your queries use (all of them if unknown), with room for hot data.",
+  "evidence": "§5.2 + go deeper",
+  "found": "yes"
+ },
+ {
+  "id": "Q061",
+  "answer": "Can't be guessed from the last one, so you can't scrape a site by looping IDs 1..billion (not real security; still check permissions).",
+  "evidence": "§5.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q062",
+  "answer": "No: if your app is small and will never reach the scale where index size bites, a UUID is fine; don't reach for the best solution when a simpler one works.",
+  "evidence": "§5.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q063",
+  "answer": "12 bytes: 4 bytes time (seconds) first, then 5 random bytes, then 3-byte counter.",
+  "evidence": "§5.3, Fig 5·d",
+  "found": "yes"
+ },
+ {
+  "id": "Q064",
+  "answer": "INT 4 bytes and BIGINT 8 bytes fine; past 8 bytes start worrying at scale (ObjectId 12, UUID 16).",
+  "evidence": "§5.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q065",
+  "answer": "Photos in a sharded multi-master DB, so auto-increment on each shard would conflict. Not UUIDs because they index badly.",
+  "evidence": "§7",
+  "found": "yes"
+ },
+ {
+  "id": "Q066",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": "no"
+ },
+ {
+  "id": "Q067",
+  "answer": "Tickets64(id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, stub CHAR(1) NOT NULL DEFAULT '', PRIMARY KEY(id), UNIQUE KEY stub(stub)) ENGINE=MyISAM.",
+  "evidence": "§7.1 code, Fig 7·c",
+  "found": "yes"
+ },
+ {
+  "id": "Q068",
+  "answer": "Let MySQL's auto-increment be the ID service (ticket server): keep one row, replace it per request so auto-increment gives the next value. Delete+insert in one transaction is costly; use an upsert (REPLACE) instead.",
+  "evidence": "§7.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q069",
+  "answer": "INSERT ... ON DUPLICATE KEY UPDATE updates the existing row in place; REPLACE INTO deletes the old row and inserts a new one (usually slower, ~32x in one benchmark).",
+  "evidence": "§7.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q070",
+  "answer": "REPLACE INTO Tickets64 (stub) VALUES ('a'); SELECT LAST_INSERT_ID();",
+  "evidence": "§7.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q071",
+  "answer": "Dummy column with a constant: you can't insert a row with no values, so stub gives the insert something to write and hits the unique key.",
+  "evidence": "§7.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q072",
+  "answer": "The ticket server (MySQL) for the ID, then the sharded multi-master photos DB to store the photo.",
+  "evidence": "Fig 7·b",
+  "found": "yes"
+ },
+ {
+  "id": "Q073",
+  "answer": "Two ticket servers behind a load balancer, odd and even (step 2, offsets 1 and 2), so they never talk.",
+  "evidence": "§7.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q074",
+  "answer": "auto_increment_increment = step between values; auto_increment_offset = starting value.",
+  "evidence": "§7.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q075",
+  "answer": "All requests go to the even server (6, 8, 10...), which carries on without a hiccup.",
+  "evidence": "§7.2, §7.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q076",
+  "answer": "Odd resumes at 7: stream 7, 204, 9, 206. Out of order but every ID unique; not a correctness problem (order never promised).",
+  "evidence": "§7.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q077",
+  "answer": "Reset both above max plus a buffer: 241 and 242, then 241, 242, 243, 244.",
+  "evidence": "Clip 7·1",
+  "found": "yes"
+ },
+ {
+  "id": "Q078",
+  "answer": "NOT ON PAGE (page only says pick the safest value, past anything handed out; Flickr doesn't bother).",
+  "evidence": "",
+  "found": "partial"
+ },
+ {
+  "id": "Q079",
+  "answer": "No: a photo site/feed has no reason to care about order; rough order is enough.",
+  "evidence": "§7.3, §10.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q080",
+  "answer": "Decentralized: ID computed from what the machine already knows (time, machine ID, counter), no shared state, no coordination; nobody to ask.",
+  "evidence": "§8",
+  "found": "yes"
+ },
+ {
+  "id": "Q081",
+  "answer": "Name origin NOT ON PAGE. Adopted by Discord (format with 2015 epoch); Sony's Sonyflake and Instagram are Snowflake-style.",
+  "evidence": "§8.3, §8.5",
+  "found": "partial"
+ },
+ {
+  "id": "Q082",
+  "answer": "Tweet IDs are stored and indexed over and over; 128 bits would double the space every copy needs.",
+  "evidence": "§8.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q083",
+  "answer": "1 unused bit (0), 41 bits ms since epoch, 10 bits machine ID, 12 bits counter.",
+  "evidence": "§8.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q084",
+  "answer": "On the generator: the API server gets a Snowflake ID (originally from a small Snowflake service the API tier called; can run as a library in the app server). Ladder marks it \"your code\".",
+  "evidence": "§8.3, Fig 10·e",
+  "found": "partial"
+ },
+ {
+  "id": "Q085",
+  "answer": "At most 2^10 = 1,024 generators.",
+  "evidence": "§8.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q086",
+  "answer": "4,096 per ms (~4M/s). Collision only if a generator gets more than 4,096 requests in one ms (a correct one waits for the next ms).",
+  "evidence": "§8.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q087",
+  "answer": "((now_ms - EPOCH) << 22) | (machine_id << 12) | (counter & 4095).",
+  "evidence": "§8.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q088",
+  "answer": "Nodes never coordinate; each stamps IDs from its own clock, machine ID and counter, so adding nodes adds capacity, no gossip, shared counter or DB on the path.",
+  "evidence": "§8.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q089",
+  "answer": "IDs made later almost always larger; sorted within about a second, not strict. Enables telling before/after a moment or another tweet from IDs alone, and time-range paging.",
+  "evidence": "§8.4, §9.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q090",
+  "answer": "Limit-offset and ID-based (keyset). SELECT * FROM tweets WHERE user_id = ? ORDER BY id LIMIT 10 OFFSET 0/10/20.",
+  "evidence": "§9.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q091",
+  "answer": "DB can't jump; it evaluates the query and throws away the first OFFSET rows every time; cost grows linearly with depth.",
+  "evidence": "§9.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q092",
+  "answer": "A batch job reading every tweet from the last hour (millions) to find trending topics.",
+  "evidence": "§9, §9.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q093",
+  "answer": "First page find().sort({_id:1}).limit(10); take last _id; next page find({_id:{$gt:lastId}}).sort({_id:1}).limit(10); repeat.",
+  "evidence": "§9.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q094",
+  "answer": "IDs you can compare plus an index matching the query/sort; continuing from a seen row (infinite scroll, batch jobs), without fancy filtering.",
+  "evidence": "§9.2, §9.5",
+  "found": "yes"
+ },
+ {
+  "id": "Q095",
+  "answer": "Up to ~500-600 records the two are the same; then skip-limit rises linearly while _id-limit stays flat.",
+  "evidence": "§9.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q096",
+  "answer": "B+ tree in key order: seek to the last ID in ~log n steps then a short leaf read, same on every page.",
+  "evidence": "§9.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q097",
+  "answer": "Can't jump to page N; only continue from a seen row; needs deterministic index-backed sort.",
+  "evidence": "§9.5",
+  "found": "yes"
+ },
+ {
+  "id": "Q098",
+  "answer": "Set the epoch to the first second of 2015 (launch year) so the 41 bits aren't wasted on 1970-2015.",
+  "evidence": "§8.5",
+  "found": "yes"
+ },
+ {
+  "id": "Q099",
+  "answer": "Sonyflake; open source (on GitHub), runs as a library inside app servers.",
+  "evidence": "§8.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q100",
+  "answer": "Page doesn't show board's list; benefits stated: 64-bit (fits BIGINT, indexes well), roughly time-sortable, no coordination so scales, generated locally.",
+  "evidence": "§8.5, §8.3",
+  "found": "partial"
+ },
+ {
+  "id": "Q101",
+  "answer": "Often not needed (microservice reflex); look at the problem, build only what it needs; simple systems scale.",
+  "evidence": "§8.3 go deeper",
+  "found": "yes"
+ },
+ {
+  "id": "Q102",
+  "answer": "Page attributes spikes to disk throttling during a flush; how he knew is NOT ON PAGE.",
+  "evidence": "Fig 9·b",
+  "found": "partial"
+ },
+ {
+  "id": "Q103",
+  "answer": "Yes where the store can resume a scan from a key (MongoDB, DynamoDB LastEvaluatedKey); not where data is spread purely by hash.",
+  "evidence": "§9.5",
+  "found": "yes"
+ },
+ {
+  "id": "Q104",
+  "answer": "from+size capped at 10,000 hits by default (index.max_result_window); use search_after.",
+  "evidence": "§9.5 go deeper",
+  "found": "yes"
+ },
+ {
+  "id": "Q105",
+  "answer": "A per-machine counter, atomically incremented on every ID, 12 bits (reset per millisecond in code).",
+  "evidence": "§8.1, §8.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q106",
+  "answer": "Subtract your own start date so time counts from zero; 2^41 ms then last ~69.7 years from there instead of wasting since 1970.",
+  "evidence": "§8.5",
+  "found": "yes"
+ },
+ {
+  "id": "Q107",
+  "answer": "Sortable by time, 64 bits, and no new service to build/run.",
+  "evidence": "§10",
+  "found": "yes"
+ },
+ {
+  "id": "Q108",
+  "answer": "Instagram: inside the database during insert (PL/pgSQL column default). Twitter: a Snowflake network service called by the API tier (or app).",
+  "evidence": "§10.2, §8.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q109",
+  "answer": "41 bits ms since custom epoch (24 Aug 2011), 13 bits shard ID, 10 bits per-shard sequence.",
+  "evidence": "§10.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q110",
+  "answer": "Thousands of logical shards, each a Postgres schema (e.g. insta5) with the same tables, mapped in code onto far fewer physical DB servers.",
+  "evidence": "§10.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q111",
+  "answer": "When a server runs hot, move a whole logical shard instead of picking rows; shard number stays with its data, stable to put in an ID.",
+  "evidence": "§10.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q112",
+  "answer": "A migration runs thousands of times.",
+  "evidence": "§10.1",
+  "found": "yes"
+ },
+ {
+  "id": "Q113",
+  "answer": "id bigint NOT NULL DEFAULT insta5.next_id()",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q114",
+  "answer": "epoch bigint := 1314220021721; seq_id bigint; now_ms bigint; shard_id int := 5.",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q115",
+  "answer": "SELECT nextval('insta5.table_id_seq') % 1024 INTO seq_id.",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q116",
+  "answer": "result := (now_ms - epoch) << 23; result := result | (shard_id << 10); result := result | (seq_id);",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q117",
+  "answer": "API servers hold no ID logic, a normal insert; no new service; sequence is DB's atomic counter; no extra network call.",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q118",
+  "answer": "No, it's a sequence (the DB's own atomic counter, created explicitly), not a column.",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q119",
+  "answer": "Twitter's 10-bit cap of 1,024 generators; Instagram can run any number of API servers; limit moves to 8,192 shards x 1,024/ms.",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q120",
+  "answer": "Assigned once at startup by something like ZooKeeper, unique per generator.",
+  "evidence": "§8.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q121",
+  "answer": "No, rough only. Use a single DB's auto-increment when strict order truly needed (e.g. a bank ledger), accepting throughput limit.",
+  "evidence": "§8.4, §10.3",
+  "found": "yes"
+ },
+ {
+  "id": "Q122",
+  "answer": "On every ID, a server asks the other \"what's your last ID?\" and generates larger (adding a buffer).",
+  "evidence": "§4.2, Fig 4·c",
+  "found": "yes"
+ },
+ {
+  "id": "Q123",
+  "answer": "Yes, but at-least-once delivery can deliver the same range twice, so consumers must deduplicate.",
+  "evidence": "§6.3 go deeper",
+  "found": "yes"
+ },
+ {
+  "id": "Q124",
+  "answer": "Spikes from disk throttling during a flush and other processes on the same laptop; underlying trend linear.",
+  "evidence": "§9.4",
+  "found": "yes"
+ },
+ {
+  "id": "Q125",
+  "answer": "No; in memory only it would restart from zero on reboot; DB persists it.",
+  "evidence": "§10.2",
+  "found": "yes"
+ },
+ {
+  "id": "Q126",
+  "answer": "No; strings compare by collation (pad numeric strings).",
+  "evidence": "§9.5 go deeper",
+  "found": "yes"
+ },
+ {
+  "id": "Q127",
+  "answer": "Round-robin decides which machine answers, does nothing about clocks; monotonicity can't be guaranteed in a distributed setup.",
+  "evidence": "§8.4",
+  "found": "yes"
+ }
+]

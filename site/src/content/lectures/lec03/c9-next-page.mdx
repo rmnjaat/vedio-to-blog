@@ -1,0 +1,124 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import { BenchmarkShape } from '../../../figures/lec03/s8-pagination-figs';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 9 "Page 1,000 of a profile crawls. Can the ID help?" Story rewrite: deep pages get slower → LIMIT/OFFSET
+    recomputes what it skips → pause: time-first IDs → seek from the last ID (clip) → why it is constant (index on
+    the ID) → the benchmark → what keyset gives up, and where it works beyond SQL. */}
+
+<Section id="s9" no="9" title="Page 1,000 of a profile crawls. Can the ID help?" crumb="9 Next page" meta="About 6 min">
+
+Someone scrolls through an account that has posted 10,000 tweets. The first pages come back fine. Then each page is a little slower than the last, and deep in the account it crawls. [[L-0219]] A batch job has it worse: to find trending topics it reads every tweet from the last hour, millions of them, a page at a time. [[L-0220]]
+
+Nothing in the last eight chapters was built for this. The profile’s fix needs only an ID you can compare; the batch job needs more, and that is where time on the left pays off, a side effect most people never think about. [[L-0005 L-0215]]
+
+<Figure id="fig-9-sofar" max={640} no="Fig 9·a" caption="get_id() after chapter 8: Snowflake’s 64 bits of time, machine and counter.">
+<Desk><SoFarGetId stage={8} /></Desk>
+<Phone><SoFarGetId stage={8} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="Why does page 1,000 cost more than page 1?" crumb="9.1 Offset">
+
+The usual way to ask for the next page is **limit-offset**, called skip-limit in MongoDB: the first ten rows, then ten rows after skipping ten, then after skipping twenty. SQL is only the example; every database has the same thing. Give it a unique `ORDER BY`, or rows can repeat or vanish between pages <Cite href="https://www.postgresql.org/docs/current/queries-limit.html">postgresql.org</Cite>. [[L-0217 L-0223]]
+
+```sql
+SELECT * FROM tweets WHERE user_id = ? ORDER BY id LIMIT 10 OFFSET 0;
+SELECT * FROM tweets WHERE user_id = ? ORDER BY id LIMIT 10 OFFSET 10;
+SELECT * FROM tweets WHERE user_id = ? ORDER BY id LIMIT 10 OFFSET 20;
+```
+
+For `LIMIT 10 OFFSET 9990`, page 1,000, the database can’t jump to row 9,991. It evaluates the query, works through the result up to that point, throws away the first 9,990 rows, and returns ten. Nothing is kept between queries, so every page redoes all the work of the pages before it. The cost grows in a straight line with depth, and deep pages are painfully slow. [[L-0218 L-0224]]
+
+<PauseAndThink k="L-0224 L-0227 L-0228 L-0233"
+  q="There is an index on the tweet ID. Can you fetch any page, even page 1,000, for the same cost as page 1?"
+  choices={[{ label: 'No: deeper pages always cost more' }, { label: 'Yes', correct: true }]}
+  right="Right."
+  wrong="Only offset has to recount everything before the page.">
+
+Don’t say how many rows to skip. Say where to start: remember the last ID on the page you just showed, and ask for the ten rows after it: `WHERE user_id = ? AND id > :last_id`, then `ORDER BY id LIMIT 10`.
+
+</PauseAndThink>
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l03-offset-vs-keyset" no="Clip 9·1" k="L-0218 L-0224 L-0228 L-0233"
+  lead="Both ways, page after page. Watch page 1,000."
+  caption="It needs IDs you can compare, and an index on them." />
+</div>
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="Why does “after the last ID” cost the same on every page?" crumb="9.2 Keyset">
+
+This is **ID-based pagination**, also called keyset pagination, and it is how Twitter pages: its API takes `since_id`, which says “I have read up to this tweet, give me the next set”, and today’s X API pages older results with a cursor rather than an offset <Cite href="https://docs.x.com/x-api/fundamentals/pagination">docs.x.com</Cite>. [[L-0212 L-0225 L-0226]]
+
+It needs two things. First, IDs you can compare. Auto-increment IDs compare; so do ObjectIds, Snowflakes and every ID with time on the left, which compare by roughly when they were made. [[L-0227]] Second, an index that matches the query. The index is a B+ tree in key order, so “ten rows after this ID” is a walk down the tree, about log n steps, and then a short read along the leaves. For one account’s tweets that index is on `(user_id, id)`; to walk the whole table, the primary key does it, and in MySQL’s InnoDB the primary key index holds the rows themselves, in key order. [[L-0229 L-0233 L-0234]]
+
+In MongoDB the same loop is a `find` with a sort, carrying the last `_id` forward: [[L-0228]]
+
+```js
+// first page
+let page = db.tweets.find().sort({ _id: 1 }).limit(10).toArray();
+// every next page: start after the last _id you saw
+const lastId = page[page.length - 1]._id;
+page = db.tweets.find({ _id: { $gt: lastId } }).sort({ _id: 1 }).limit(10).toArray();
+```
+
+</Section>
+
+<Section id="s9-3" no="9.3" title="And the batch job’s “last hour”?" crumb="9.3 Last hour">
+
+So far an auto-increment ID would have done just as well. The batch job is different: it doesn’t start after a row it has seen, it starts at a moment, an hour ago. [[L-0220 L-0226]]
+
+This is where time on the left earns its place. A Snowflake’s top bits are the millisecond it was made, so from IDs alone you can say “before this time” or “after this time”. [[L-0215]] Turn the boundary into an ID, with the same shift that builds one, and the last hour is just a range of IDs:
+
+```sql
+-- start_id = (now_ms - 3600000 - EPOCH) << 22   -- one hour ago, as an ID
+SELECT * FROM tweets WHERE id >= :start_id ORDER BY id LIMIT 1000;
+-- then keep going with WHERE id > :last_id, exactly as before
+```
+
+The same index on the ID serves both: it finds where the hour begins, and it pages forward from there at the same cost every time. Iterating over the tweets of the last N minutes, for trending topics, recommendations or feeds, is exactly the kind of work that needs paging this cheap. [[L-0215 L-0226]]
+
+</Section>
+
+<Section id="s9-4" no="9.4" title="Has anyone measured it?" crumb="9.4 The benchmark">
+
+One engineer benchmarked it on MongoDB in 2016, by their own account, and published the result: skip-limit against `_id`-limit, page after page. [[L-0221]] Up to about 500 or 600 records the two are much the same. After that, skip-limit’s time climbs in a straight line, and `_id`-limit’s stays flat. [[L-0230]]
+
+<Figure id="fig-9b" no="Fig 9·b" k="L-0230 L-0231 L-0305" caption="The shape of the benchmark’s result, without its values: skip + limit rises in a straight line with depth, _id + limit stays flat. The spikes are the test machine’s disk throttling and other processes competing for it, not the queries.">
+  <Desk><BenchmarkShape /></Desk>
+  <Phone><BenchmarkShape layout="phone" /></Phone>
+</Figure>
+
+The trend underneath the spikes stays a straight line. [[L-0231]] The result isn’t special to MongoDB. PostgreSQL and Elasticsearch document the same costly deep offsets and the same cure, though how much each gains depends on the engine and on whether an index matches the sort. [[L-0222]]
+
+</Section>
+
+<Section id="s9-5" no="9.5" title="What do you give up?" crumb="9.5 Limits">
+
+You can’t jump to page 500. Keyset pagination only continues from a row you have already seen, which suits infinite scroll and batch jobs and doesn’t suit numbered page links <Cite href="https://use-the-index-luke.com/no-offset">use-the-index-luke.com</Cite>. And it needs a deterministic sort backed by an index: filter or sort on something no index matches, and you are back to offset. [[L-0234]]
+
+So don’t replace every query that iterates. When you need to go deep without fancy filtering, even in MySQL, switch to ID-based pages and watch deep pages get fast. [[L-0235]]
+
+Beyond SQL, it depends on how the store lays out data. It works wherever the store can resume a scan from a key: MongoDB, as the benchmark showed, and DynamoDB, which pages by handing back a `LastEvaluatedKey` to start from <Cite href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Query.Pagination.html">aws.amazon.com</Cite>. Data spread purely by hash, with no locality, has no cheap ordered range to walk. [[L-0247 L-0248]]
+
+<MarginNote title="Go deeper: Elasticsearch, and IDs that are strings" why="two edge cases" k="L-0250 L-0251 L-0310">
+
+Elasticsearch caps offset paging (`from` + `size`) at 10,000 hits by default, the `index.max_result_window` setting, and points you to `search_after` beyond that <Cite href="https://www.elastic.co/docs/reference/elasticsearch/rest-apis/paginate-search-results">elastic.co</Cite>: for deep iteration, a cursor beats an offset there too. IDs don’t have to be numbers, either. String keys compare too, by the column’s collation, so numeric-looking strings sort `'10'` before `'9'` unless they are padded to a fixed width.
+
+</MarginNote>
+
+Underneath all of it is one habit: know how your database stores your data on disk. Knowing that rows sit in key order in a B+ tree is what lets you drop `OFFSET` with confidence, and tells you where you can’t. [[L-0249]]
+
+One company took time on the left and 64 bits from the last four chapters, refused to run any ID service at all, and put the logic somewhere nobody else had.
+
+</Section>

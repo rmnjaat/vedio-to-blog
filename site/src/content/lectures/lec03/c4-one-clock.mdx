@@ -1,0 +1,77 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { OneIdServer, TwoIdServers } from '../../../figures/lec03/s3-order-and-clocks';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 4 "One clock in one place. What if that place goes down?" Story rewrite: a central ID server → its own
+    clock can still step back, so it never goes below its last ID → a shared DB with locks is the same thing →
+    single point of failure → two servers must gossip on every ID → distributed + strict + fast is not on offer →
+    ask which constraint you can drop → why not a UUID? */}
+
+<Section id="s4" no="4" title="One clock in one place. What if that place goes down?" crumb="4 One clock" meta="About 5 min">
+
+Chapter 3 ended on a simple idea: if many clocks disagree, use one. That means taking `get_id()` out of your application and putting it on a machine of its own, the step chapter 1 told you not to start with. Now you have a reason to take it.
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="get_id() after chapter 3: time moved to the left, so IDs sort roughly by when they were made.">
+<Desk><SoFarGetId stage={3} /></Desk>
+<Phone><SoFarGetId stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Does one server fix the order?" crumb="4.1 One server">
+
+A **central ID service**: one machine runs `get_id()`, and whoever needs an ID makes a network call to it and gets one back. Set throughput aside for a moment; chapter 6 comes back to it. [[L-0074]] With one generator there is no skew between generators, so the problem is no longer ID generation. It is whether one clock can be trusted. [[L-0075]]
+
+Can it? Almost. When the sync daemon finds a clock a little ahead, it doesn’t jump it back; it slows the clock until real time catches up. But a large error is corrected in one jump, and then the wall clock really does go backwards. `ntpd`, for example, slews offsets under 128 ms and steps larger ones <Cite href="https://www.ntp.org/documentation/4.2.8-series/ntpd/">ntp.org</Cite>. So a time-based generator remembers the last value it issued and never goes below it. If the clock reads earlier than that, it waits until time has passed it, or refuses to issue, as Twitter’s Snowflake did <Cite href="https://github.com/twitter-archive/snowflake/tree/snowflake-2010">github.com</Cite>. (The wall clock can jump; a monotonic clock, `CLOCK_MONOTONIC`, can’t <Cite href="https://man7.org/linux/man-pages/man2/clock_gettime.2.html">man7.org</Cite>.) [[L-0076]]
+
+<Figure id="fig-4b" max={360} wide={false} no="Fig 4·b" k="L-0074 L-0076 L-0077" caption="One ID server, one clock, called by everyone. It never issues below its last ID, so the IDs only go up, whichever client asks.">
+<OneIdServer />
+</Figure>
+
+With that guard, one server hands out increasing IDs, wherever the requests come from. It runs version 7 in one place: time, machine, counter, with the same machine part on every ID. [[L-0077]]
+
+You might ask: why a special server? Put a counter row in a shared database and lock it. That works, and it is the same design. The shared database is one machine handing out every ID: it has become the central service. [[L-0089]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="The one server dies" crumb="4.2 Two servers">
+
+Every ID in your company now goes through one box. If it fails, or its disk does, nothing anywhere can create an order. That is a single point of failure, and <LectureLink lec="lec08">Lecture 5</LectureLink>’s answer is the usual one: add a second server behind a load balancer. [[L-0078]]
+
+<PauseAndThink k="L-0079 L-0080"
+  q="Two ID servers sit behind a load balancer, and IDs must still strictly increase across both. A request reaches server B. What must B do before it answers?"
+  choices={[{ label: 'Nothing: its clock is fine' }, { label: 'Ask A for the last ID it gave out', correct: true }]}
+  right="Right."
+  wrong="B’s clock only knows about B. A may have handed out a larger ID a moment ago.">
+
+B has to learn A’s last ID and only then generate a larger one. And A has to do the same on every request it gets.
+
+</PauseAndThink>
+
+So the two servers talk on every single ID: what is your last one? They have to keep agreeing that each new ID is larger than any ever issued, which turns a one-line function into a conversation, and the conversation is the bottleneck. At high throughput, constant gossip gets very messy. [[L-0079 L-0080]]
+
+<Figure id="fig-4c" max={360} wide={false} no="Fig 4·c" k="L-0079 L-0080" caption="Two ID servers must agree on every ID before answering. Removing the single point of failure brought back coordination, marked red.">
+<TwoIdServers />
+</Figure>
+
+That is the end of this road. In practice you cannot have ID generation that is distributed, strictly increasing and fast, all three. [[L-0081]] Systems that do hand out strictly increasing values across machines pay for it in coordination. TiDB sends every timestamp request to one allocator <Cite href="https://docs.pingcap.com/tidb/stable/tso/">docs.pingcap.com</Cite>, and Google Spanner relies on specially built clocks and deliberate waiting <Cite href="https://docs.cloud.google.com/spanner/docs/true-time-external-consistency">cloud.google.com</Cite>. Independent generators can only be roughly ordered. [[L-0073 L-0081]]
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Did you need strict order at all?" crumb="4.3 Relax it">
+
+Look back at this chapter. Each fix brought a new problem: one server fixed the clocks and became a single point of failure; two servers fixed that and needed gossip. Everything in software is a trade-off: you get something, you lose something. Always. [[L-0082 L-0085]]
+
+So the real move is to question the requirement. When someone hands you “IDs must be monotonic”, ask: does it really have to be strict, or is roughly in time order enough? Do the IDs have to be integers? Could they be random, like UUIDs? Requirements often say order is needed, and a couple of questions later it turns out nobody thought it through. Not everyone needs monotonic IDs. [[L-0082 L-0086]]
+
+Relax order, and simpler designs open up. A random suffix instead of a counter would work too; you would only lose the order a counter gives within one machine. [[L-0092]] Several ID servers that each put their own server ID into the IDs they make are also correct: unique, unordered, and fine. [[L-0095]] There is no one right way to make IDs, only a choice of what you keep and what you give up, while getting the most throughput you can. Every design in the rest of this lecture is one of those choices. [[L-0096]]
+
+Which brings up the obvious question. If order is negotiable, why build anything? Any server can make a UUID, a 128-bit random value, with no counter, no clock and nobody to ask. You give up ordering: you get some, you lose some. [[L-0093]] So why does every company in the rest of this lecture refuse it?
+
+</Section>

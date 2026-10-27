@@ -61,15 +61,15 @@ export function IncreasingStrip() {
 
 export function TimeFirst() {
   const s = (k: string) => `f3b-${k}`;
-  const rows: [string, string][] = [['1729', '0001'], ['1729', '0002'], ['1730', '0001'], ['1730', '0002'], ['1730', '0003'], ['1731', '0001']];
+  const rows: [string, string][] = [['1729', '1001'], ['1729', '2001'], ['1730', '1002'], ['1730', '2002'], ['1730', '1003'], ['1731', '2003']];
   const X = 30, size = TEXT.mono, w4 = 4 * cw(size);
   const y0 = 64, dy = 28;
   return (
     <Fig id="l03-f3b" w={340} h={262} title="Time first decides the order"
-      desc="Six eight-digit IDs: 1729 0001, 1729 0002, 1730 0001, 1730 0002, 1730 0003, 1731 0001. The first four digits are the time in milliseconds, the most significant part, so they decide the order; the last four digits are the machine ID or a counter and only break ties within one millisecond.">
+      desc="Six eight-digit IDs from machines 1 and 2: 1729 1001, 1729 2001, 1730 1002, 1730 2002, 1730 1003, 1731 2003. The first four digits are the time in milliseconds, the most significant part, so they decide the order; the last four are the machine, then its counter, and only break ties within one millisecond.">
       <Label anchor="start" x={X - 4} y={22}>time</Label>
       <Label muted anchor="start" x={X + w4 + 10} y={22} size={14}>machine</Label>
-      <Label muted anchor="start" x={X + w4 + 10} y={38} size={14}>or counter</Label>
+      <Label muted anchor="start" x={X + w4 + 10} y={38} size={14}>+ counter</Label>
       {rows.map(([t, m], i) => (
         <g key={i}>
           <Label kind="mono" anchor="start" x={X} y={y0 + i * dy}>{t}</Label>
@@ -83,8 +83,8 @@ export function TimeFirst() {
       <Label anchor="start" x={164} y={132}>makes sorting simple</Label>
       <Label anchor="start" x={164} y={168}>a tie is broken by</Label>
       <Label anchor="start" x={164} y={188}>the second half</Label>
-      <Label kind="mono" muted anchor="start" x={X - 4} y={236}>return concat(get_time_ms(),</Label>
-      <Label kind="mono" muted anchor="start" x={X - 4 + 14 * cw(size)} y={254}>machine_id)</Label>
+      <Label kind="mono" muted anchor="start" x={X - 4} y={236}>concat(get_epoch_ms(),</Label>
+      <Label kind="mono" muted anchor="start" x={X - 4 + 7 * cw(size)} y={254}>machine_id, counter++)</Label>
     </Fig>
   );
 }
@@ -148,9 +148,9 @@ export function OneIdServer() {
   const s = (k: string) => `f3e-${k}`;
   return (
     <Fig id="l03-f3e" w={300} h={268} title="One ID server"
-      desc="One central ID server runs the same get_id() with one clock. Client 1 and client 2 each make a network call to it and get an ID back. Because there is only one clock, the IDs it hands out increase no matter which client asks; the server's speech bubble says its clock never goes back.">
+      desc="One central ID server runs the time-first get_id() with one clock. Client 1 and client 2 each make a network call to it and get an ID back. Because there is only one clock, and the server never hands out an ID below its last one, the IDs increase no matter which client asks.">
       <g transform="translate(-30 0)">
-      <Bubble x={110} y={6} w={214} h={32} tail={[214, 54]} lines={['my clock never goes back']} seed={s('bub')} size={14} />
+      <Bubble x={110} y={6} w={214} h={32} tail={[214, 54]} lines={['never below my last id']} seed={s('bub')} size={14} />
       <Box x={115} y={56} w={130} h={44} label="id server" seed={s('srv')} />
       <Clock cx={232} cy={70} r={8} seed={s('clk')} />
       <Label x={180} y={122}>same get_id(), one clock</Label>

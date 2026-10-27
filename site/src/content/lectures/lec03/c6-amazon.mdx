@@ -1,0 +1,107 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { RangesFromRow } from '../../../figures/lec03/s5a-central-services';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 6 "Amazon: must every order wait on the ID service?" Story rewrite: the brief (one service, many internal
+    callers) → architecture → pause: a call per order? → ranges from one counter row (stepper) → the hand-out is
+    Lecture 3's FOR UPDATE transaction → what ranges buy (decoupling) and cost (a crash wastes a range; no order) →
+    don't track waste → Go deeper: a queue, Redis, DynamoDB. */}
+
+<Section id="s6" no="6" title="Amazon: must every order wait on the ID service?" crumb="6 Amazon" meta="About 6 min">
+
+Part 1 is done: you know what an ID must be and what each property costs. From here on, real companies answer the same question, and each answer is a rung on your ladder. First Amazon, as one engineer who sat next to the team that built its ID service describes it. [[L-0101]]
+
+Amazon gives every order placed a globally unique ID. The order rate is high, and the same ID service also hands out IDs to many other internal services, orders being just one of them. [[L-0102]]
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="get_id() after chapter 5: the versions so far, and a size budget of 64 bits.">
+<Desk><SoFarGetId stage={5} /></Desk>
+<Phone><SoFarGetId stage={5} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="An ID service. Does every order call it?" crumb="6.1 One call per order?">
+
+The service itself is plain: ordinary API servers exposing ID endpoints, behind a load balancer, with a classic relational database behind them. Nothing fancy, and no reason to make it fancier. [[L-0105 L-0106]] Two of its callers, orders and payments, each run on their own fleet of servers. Neither cares about order. They need unique IDs, as simple as that. [[L-0109]]
+
+That is chapter 4’s central server again, so it carries the cost chapter 4 set aside: a network call for every ID.
+
+<PauseAndThink k="L-0107 L-0041"
+  q="Every new order would wait on a network call to the ID service. You built something in chapter 2 that cut a disk write per ID down to one per thousand. Does the same trick work here?"
+  choices={[{ label: 'No: a network call isn’t a disk write' }, { label: 'Yes', correct: true }]}
+  right="Right."
+  wrong="The shape is the same: an expensive step on every ID.">
+
+Ask the service for a batch, not for an ID. A server takes a block of numbers in one call and hands them out from memory, the bank of IDs again, with the network call where the disk write used to be.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="How does a range go out?" crumb="6.2 Ranges">
+
+The ID database holds one row per calling service, one for orders and one for payments, each with its own counter. [[L-0118]] Batching is one of the most effective ways to get performance out of any system, and here is the batch. [[L-0103]]
+
+<StepThrough id="fig-6b" no="Fig 6·b" label="Ranges from one row"
+  k="L-0105 L-0110 L-0111 L-0112 L-0113 L-0118 L-0119"
+  stepK={['L-0110 L-0111 L-0113', 'L-0113 L-0118', 'L-0113 L-0118', 'L-0119', 'L-0112']}
+  caption="The ID service (top) keeps one counter row per calling service. Blue is a server asking for a batch, and the range it gets back. Step through with the buttons or the arrow keys."
+  steps={[
+    'Orders server 1 boots with no IDs and asks for 500. One update moves the orders counter from 0 to <code>500</code>, and the reply is the range <code>[0, 500)</code>: just a start and an end.',
+    'Orders server 2 boots and asks for 500. Same row, one more update: the counter goes to <code>1000</code> and server 2 holds <code>[500, 1000)</code>.',
+    'Payments has its own row and its own counter. Payments server 1 asks for 2,000 and gets <code>[0, 2000)</code>.',
+    'With 490 of its 500 used, orders server 1 asks again and gets whatever range is next, here <code>[3000, 3500)</code>: other servers took the numbers in between.',
+    'Each hand-out is one locked read and one update in a transaction, so two servers asking at once can’t get the same range.',
+  ]}>
+  <Desk><RangesFromRow /></Desk>
+  <Phone><RangesFromRow layout="phone" /></Phone>
+</StepThrough>
+
+Only the start and the end go back, never 500 separate IDs: two numbers describe them all. [[L-0110 L-0111 L-0119]]
+
+The hand-out has to be atomic, and you have written it before. It is <LectureLink lec="lec05">Lecture 3</LectureLink>’s check-in transaction, copied over: lock the row with `SELECT … FOR UPDATE`, add the batch size, commit, and reply with the old and new values as the range. [[L-0112 L-0121]]
+
+```sql
+-- id_ranges(service, counter): one row per calling service
+START TRANSACTION;
+SELECT counter FROM id_ranges
+  WHERE service = 'orders'
+  FOR UPDATE;                         -- say it returns 500; the row is now locked
+UPDATE id_ranges
+  SET counter = counter + 500
+  WHERE service = 'orders';
+COMMIT;
+-- reply [500, 1000): the old value and the new one
+```
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="What did batching buy, and what does a crash cost?" crumb="6.3 Gains and costs">
+
+Once a server holds a range, it stops thinking about IDs. An order arrives, the server takes the next number from memory and writes the order into its own orders database. [[L-0114]]
+
+That is the real gain: ID generation is **decoupled** from the orders database. The orders database can be sharded and scaled out, with every shard taking writes, because no shard’s auto-increment is involved, and no server calls the ID service per order. [[L-0115]] The service itself stays simple: its database is the one source of truth, it never gossips with anyone, and each request is one tiny update. [[L-0122]] That database is still one box, so you would run it with a replica or a standby; batching keeps it off the hot path, so a short outage is survivable while servers still hold ranges. [[L-0122]]
+
+The 500 is only for the walkthrough. Real batches are 10,000, 50,000 or 100,000 IDs, depending on how busy the service is. [[L-0116]] The cost shows up on a crash. A server that crashes loses the rest of its range forever. Too small a batch means too many calls; too large means a crash throws away a big range. Each service tunes its batch size to its own throughput. [[L-0117]] And there is no order across servers: one server may be handing out 3,042 while another hands out 612. This design promises unique, and nothing else. [[L-0120]]
+
+You might want to stop the waste: record in the database how much of its range each server has used, so a restarted server picks up where it left off. With batches of 10,000, a server that used 100 and crashed throws away 9,900. [[L-0123]] Don’t. Tracking every used ID is a massive overhead, and a 64-bit ID space will never run out, not even for Amazon. [[L-0124]] People underestimate numbers. A million and a billion both sound huge, yet the gap between them is itself almost a billion. Four billion would already be a lot of orders; 2^64 is about 18 billion billion. Nobody misses a few ranges. [[L-0125 L-0126 L-0127]]
+
+<MarginNote title="Go deeper: ranges from a queue, Redis or DynamoDB" why="if SQL isn’t your store" k="L-0302 L-0303 L-0304">
+
+The ranges don’t have to come from a SQL row. What you need is one property: an atomic increment that returns the new value. A DynamoDB atomic counter or Redis `INCRBY` gives it; a retried increment can over-count, which only wastes a range. A generator that pushes ranges into a queue works too, but a queue that delivers at least once can deliver the same range twice, so consumers must deduplicate <Cite href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues-at-least-once-delivery.html">aws.amazon.com</Cite>. Find the core property you need; any system that provides it is good enough.
+
+</MarginNote>
+
+The whole service is about 150 lines of Python, and scaling it means handling a few more cases, nothing hard. Write it yourself. [[L-0104]]
+
+It still needs a service that someone writes, deploys and runs. Flickr looked at its MySQL servers, already counting 1, 2, 3 on every insert, and asked whether it needed a separate service at all.
+
+</Section>

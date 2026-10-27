@@ -61,10 +61,10 @@ export function FlickrFlow({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
 
 const T5C = 'The ticket table';
 const D5C =
-  "Flickr's tickets table has an auto-increment BIGINT id (the primary key) and a stub column with a unique key. It holds one row, id 74 with stub 'a'. Each ID request hits the unique key on stub and bumps the id: 74, then 75, then 76.";
+  "Flickr's Tickets64 table has an auto-increment BIGINT id (the primary key) and a stub column with a unique key. It holds one row, id 74 with stub 'a'. Each ID request collides on the unique stub, the row is replaced, and auto-increment gives the new row the next id: 74, then 75, then 76.";
 
 const SCHEMA_WIDE = [
-  'create table tickets (',
+  'create table Tickets64 (',
   '  id   bigint unsigned not null auto_increment,',
   "  stub char(1) not null default '',",
   '  primary key (id),',
@@ -72,7 +72,7 @@ const SCHEMA_WIDE = [
   ');',
 ];
 const SCHEMA_PHONE = [
-  'create table tickets (',
+  'create table Tickets64 (',
   '  id bigint unsigned not null',
   '     auto_increment,',
   "  stub char(1) not null default '',",
@@ -87,7 +87,7 @@ export function TicketTable({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
     const r = rowBase(44, 0, 14);
     return (
       <Fig id="fig5c-p" w={340} h={334} title={T5C} desc={D5C}>
-        <TableBlock x={20} y={44} title="tickets" cols={cols} rows={[['74', 'a']]} seed="f5c-p-t" size={14} />
+        <TableBlock x={20} y={44} title="Tickets64" cols={cols} rows={[['74', 'a']]} seed="f5c-p-t" size={14} />
         <Struck x={182} y={r} text="74" seed="f5c-p-x" size={14} />
         <Arrow pts={[[198, r - 4], [218, r - 4]]} seed="f5c-p-a1" />
         <Label kind="mono" x={236} y={r} size={14}>75</Label>
@@ -105,7 +105,7 @@ export function TicketTable({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
   const r = rowBase(44, 0);
   return (
     <Fig id="fig5c" w={640} h={210} title={T5C} desc={D5C}>
-      <TableBlock x={30} y={44} title="tickets" cols={cols} rows={[['74', 'a']]} seed="f5c-t" />
+      <TableBlock x={30} y={44} title="Tickets64" cols={cols} rows={[['74', 'a']]} seed="f5c-t" />
       <Struck x={46} y={r + 52} text="74" seed="f5c-x" size={14} />
       <Arrow pts={[[62, r + 48], [84, r + 48]]} seed="f5c-a1" />
       <Label kind="mono" x={102} y={r + 52} size={14}>75</Label>

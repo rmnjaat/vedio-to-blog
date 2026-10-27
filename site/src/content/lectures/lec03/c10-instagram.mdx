@@ -1,0 +1,174 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { TwoLayouts, LogicalShards, OneInsertOneId } from '../../../figures/lec03/s7-instagram-figs';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 10 "Instagram wants no new service. Where does the ID go?" Story rewrite: three requirements →
+    41 | 13 | 10 → logical shards → next_id() as the column default (code + stepper) → a sequence is the static
+    counter, and must persist → what moving it into the database buys → would a bank use any of this? → the
+    finished ladder → what you can now do, recall, hand-off to Lecture 7. */}
+
+<Section id="s10" no="10" title="Instagram wants no new service. Where does the ID go?" crumb="10 Instagram" meta="About 9 min">
+
+Instagram’s early engineers wrote up their ID scheme in a short blog post, starting from three requirements. [[L-0255]] IDs sortable by time, for the same reasons as Twitter: process recent posts, find trending hashtags, push new photos into feeds, page through them. IDs of 64 bits, so they index well. And no new service to build and run. [[L-0258 L-0259 L-0260]]
+
+<Figure id="fig-10-sofar" max={640} no="Fig 10·a" caption="get_id() after chapter 9, unchanged: every rung so far, Snowflake on top.">
+<Desk><SoFarGetId stage={9} /></Desk>
+<Phone><SoFarGetId stage={9} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s10-1" no="10.1" title="Snowflake’s layout, but whose 13 bits?" crumb="10.1 41 | 13 | 10">
+
+The first two requirements are Snowflake’s, so Instagram built a Snowflake-style layout of its own. The first 41 bits are milliseconds since a custom epoch, 24 August 2011. The next 13 bits are a **shard ID**, because Instagram’s database was already sharded. The last 10 bits are a per-shard **sequence**: a counter again. [[L-0256 L-0261 L-0262 L-0263]]
+
+<Figure id="fig-10b" no="Fig 10·b" k="L-0261 L-0262 L-0263 L-0264" caption="Twitter’s bar above Instagram’s. Time keeps the left 41 bits in both. Instagram gives the middle field 13 bits and the counter 10, 41 + 13 + 10 = 64.">
+  <Desk><TwoLayouts /></Desk>
+  <Phone><TwoLayouts layout="phone" /></Phone>
+</Figure>
+
+Twitter splits its bits 41 | 10 | 12, time, machine, counter. Instagram splits them 41 | 13 | 10, time, shard, sequence: up to 2^13 = 8,192 shards, and 2^10 = 1,024 IDs per shard per millisecond. [[L-0264]]
+
+The shards those 13 bits name are **logical** shards. Instagram ran PostgreSQL, and split its data into several thousand logical shards, each a Postgres schema such as `insta5` holding the same set of tables, mapped in code onto far fewer physical database servers <Cite href="https://instagram-engineering.tumblr.com/post/10853187575/sharding-ids-at-instagram">instagram-engineering</Cite>. [[L-0266 L-0267 L-0268 L-0270]]
+
+<Figure id="fig-10c" no="Fig 10·c" k="L-0267 L-0268" caption="One physical server holding several logical shards, each a schema with the same tables. Thousands of them, at most 8,192, spread over far fewer servers.">
+  <Desk><LogicalShards /></Desk>
+  <Phone><LogicalShards layout="phone" /></Phone>
+</Figure>
+
+Thousands of identical schemas have a price, a migration runs thousands of times, and a payoff: when a server runs hot, you move a whole logical shard instead of picking out rows. [[L-0271 L-0272 L-0274 L-0275]] <LectureLink lec="lec07">Lecture 9</LectureLink> comes back to splitting data across nodes and what moving it costs. What matters here is that a logical shard’s number stays with its data wherever it moves, which makes it a stable thing to put inside an ID.
+
+</Section>
+
+<Section id="s10-2" no="10.2" title="Who computes the ID, if not the API server?" crumb="10.2 next_id()">
+
+The third requirement, no new service, is where Instagram did something almost nobody thinks of. It made the ID inside the database, during the insert. [[L-0256 L-0257]]
+
+Every table in a logical shard declares its `id` column with a default, a function written in PL/pgSQL, Postgres’s procedural language. Insert a photo without an ID, and the database calls the function and uses what it returns. Each schema gets its own copy, with its own shard number written into it. [[L-0277 L-0278 L-0279]]
+
+```sql
+CREATE SCHEMA insta5;
+CREATE SEQUENCE insta5.table_id_seq;
+
+CREATE OR REPLACE FUNCTION insta5.next_id(OUT result bigint) AS $$
+DECLARE
+    epoch    bigint := 1314220021721;   -- Instagram's custom epoch, in ms (24 Aug 2011)
+    seq_id   bigint;
+    now_ms   bigint;
+    shard_id int    := 5;               -- this schema is shard 5
+BEGIN
+    SELECT nextval('insta5.table_id_seq') % 1024 INTO seq_id;
+    SELECT FLOOR(EXTRACT(EPOCH FROM clock_timestamp()) * 1000) INTO now_ms;
+    result := (now_ms - epoch) << 23;
+    result := result | (shard_id << 10);
+    result := result | (seq_id);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE insta5.photos (
+    id      bigint NOT NULL DEFAULT insta5.next_id(),
+    caption text
+);
+```
+
+<StepThrough id="fig-10d" grow no="Fig 10·d" label="One insert, one ID"
+  k="L-0278 L-0279 L-0282 L-0283 L-0284 L-0285 L-0287"
+  stepK={['L-0278', 'L-0282', 'L-0283', 'L-0284 L-0279', 'L-0284', 'L-0285 L-0287']}
+  caption="One insert on shard 5, at 1,676,784,716,000 ms (19 February 2023), when the sequence’s next value is 5001. The bar fills from the left; under it is the running value of result. Step through with the buttons or the arrow keys."
+  steps={[
+    'The insert gives no <code>id</code>. The column’s default calls <code>insta5.next_id()</code>.',
+    'The sequence gives the next number, <code>5001</code>, atomically; <code>% 1024</code> keeps 10 bits: <code>seq_id = 905</code>.',
+    'Milliseconds since Instagram’s epoch, <code>362564694279</code>, go into the top 41 bits: shifted left by 23, the 13 + 10 bits still to fill.',
+    'This schema’s shard number, written into its function as <code>5</code>, fills the middle 13 bits.',
+    'The sequence value fills the last 10 bits.',
+    'The database stores the row with the ID <span class="term green">3041413094946379657</span>. The API server never touched it.',
+  ]}>
+  <Desk><OneInsertOneId /></Desk>
+  <Phone><OneInsertOneId layout="phone" /></Phone>
+</StepThrough>
+
+You have met `nextval` before, under another name. A sequence is the database’s own atomic counter, the thing that sits behind every auto-increment column, and it hands out the next number however many transactions ask at once. It is chapter 2’s static counter, with the thread safety built in. Instagram has no auto-increment column, so it creates its sequence explicitly; `table_id_seq` is just the name it chose. [[L-0281 L-0282 L-0290 L-0298]]
+
+How does that sequence survive a reboot? It has to: a sequence kept only in memory would restart from zero, which is chapter 2’s reboot problem all over again. The database persists it for you and takes care of the flushing; you just create the sequence. [[L-0306 L-0307]]
+
+Notice what `next_id()` doesn’t do. It has neither of chapter 8’s guards: nothing waits if one shard gets a 1,025th insert in the same millisecond, where `% 1024` would wrap onto a value already used, and nothing checks for a clock that steps back. If one shard could see that rate, you would add those guards. [[L-0282 L-0291]]
+
+So what did moving the logic buy? The API servers hold no ID logic at all: they do a normal insert without an ID. Twitter’s 10-bit field capped Snowflake at 1,024 generators; Instagram can run 10,000 API servers, or 50,000. The ceiling moves into the database instead: 8,192 logical shards, and 1,024 IDs per shard per millisecond. [[L-0287 L-0291 L-0292]] Build it yourself, on Postgres or any database you like. It is very easy, and people who try it are usually amused at how little there is to it; it shows how much decent database knowledge can get out of a database. [[L-0255 L-0286]]
+
+</Section>
+
+<Section id="s10-3" no="10.3" title="Would a bank use any of these IDs?" crumb="10.3 Bank or feed">
+
+Every company in Part 2 chose rough order, or none. Now picture a bank that lists each account’s transactions in the order they happened.
+
+<PauseAndThink k="L-0294 L-0295 L-0313 L-0314"
+  q="Would that bank give its transactions Snowflake-style IDs?"
+  choices={[{ label: 'Yes: they sort by time' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="Roughly by time is not good enough for money.">
+
+A photo feed doesn’t mind two posts a millisecond out of order. A ledger does. The bank wants one authoritative sequence, such as a single database’s auto-increment, and it accepts the throughput limit that comes with one sequence in one place.
+
+</PauseAndThink>
+
+That is chapter 4’s trade, with real stakes: strict order needs coordination, and coordination costs throughput. Even one sequence isn’t the whole answer, since concurrent transactions can commit out of ID order, so ledgers also serialize the postings on each account. [[L-0294 L-0295 L-0313 L-0314]] Everyone else takes rough sortability and the throughput that comes with it.
+
+Here is the whole ladder, with where each version’s ID is born.
+
+<Figure id="fig-10e" max={640} no="Fig 10·e" caption="The finished ladder. The ID can be born in your own code, in an ID service, or in the database, and every design in this lecture is one of those three. Snowflake is marked where its few lines can run, in your code; Twitter’s first version ran them as a small service of its own.">
+<Desk><SoFarGetId stage={10} /></Desk>
+<Phone><SoFarGetId stage={10} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s10-4" no="10.4" title="What you can now do" crumb="10.4 What you can do">
+
+- **Make IDs unique without coordination:** machine ID plus an atomic counter, saved every N IDs, restarted at the safest value (last saved + N + 1), and that start saved before the first ID.
+- **Know what order costs.** Time in the high bits gives rough order for free; strict order across machines needs one sequencer or constant coordination. Ask whether the requirement is real.
+- **Guard the clock:** never issue below your last value; if the clock steps back, wait or refuse.
+- **Size the ID for the index.** Every index entry carries it, and the hot part of your indexes must fit in memory. A UUID is 4× an `INT`, 2× a `BIGINT`; stay at 64 bits.
+- **Pick where the ID is born:** ranges from a locked counter row, ticket databases stepping by N, a time | machine | counter layout computed locally, or a function as the column default.
+- **Page at constant cost:** start each page after the last ID seen (`WHERE id > :last_id`), on an index that matches the sort, and give up jumps to page N.
+
+<RecallQuestions>
+  <RecallItem q="Flush every 1,000 IDs. The last value on disk is 5,000 and the machine crashed. What is the first ID it may hand out after restart, and why not 5,001?" k="L-0044 L-0045">
+
+6,001. The machine could have handed out anything up to the next save point, 6,000, even 6,000 itself if it crashed before that write landed, so it skips the whole window, and saves 6,000 as its new start before handing out 6,001. Unused numbers are cheap; a duplicate isn’t.
+
+  </RecallItem>
+  <RecallItem q="Why do time-first IDs from many machines come out only roughly in order, even with clock sync running?" k="L-0057 L-0070 L-0071">
+
+Inside one millisecond the tie-breaker decides, not arrival order. And every machine’s clock drifts between corrections, so at the instant an ID is made one machine may read a millisecond ahead of another, as with 232, 244, 237, 239.
+
+  </RecallItem>
+  <RecallItem q="Flickr’s two ticket servers never talk to each other. How do they avoid issuing the same ID, and what happens to order when one is down for a while?" k="L-0177 L-0178 L-0181">
+
+Both step by 2 from different starts, so one issues odd IDs and the other even. If one is down, the other runs ahead, and when it returns the stream looks like 7, 204, 9, 206: out of order, still unique, which is all the design promised.
+
+  </RecallItem>
+  <RecallItem q="Twitter’s Snowflake caps the number of generators at 1,024. Why doesn’t Instagram’s scheme cap its API servers, and where did the limit go?" k="L-0291 L-0292">
+
+Instagram computes the ID inside the database, in a function used as the column default, so API servers hold no ID logic and need no machine number. The limit moved to the 13-bit shard field: at most 8,192 logical shards, each making up to 1,024 IDs per millisecond.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s10-5" no="10.5" title="The ID is minted. Now the photo has to reach a phone" crumb="10.5 Next">
+
+You can now give every photo Instagram stores a 64-bit ID that sorts by time and costs nothing to make. That was the easy part of Instagram. The photo itself is a file that someone on a slow phone, maybe on the other side of the world, wants to see right now, and some accounts are private.
+
+<LectureLink lec="lec09">Lecture 7</LectureLink> picks up exactly there, with Instagram as a product rather than an ID scheme: what it ran in its first year, how a CDN gets photos close to every reader, how uploads work, and how a hashtag gets a page of its own. [[L-0308]]
+
+</Section>

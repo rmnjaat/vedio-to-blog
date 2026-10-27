@@ -1,0 +1,130 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { FlickrFlow, TicketTable, OddEven } from '../../../figures/lec03/s5b-central-services';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 7 "Flickr: could MySQL itself be the ID service?" Story rewrite: chapter 1's problem at Flickr → a
+    ticket database → getting a fresh number out of one row (stub, upsert, REPLACE INTO) → one ticket server is a
+    single point of failure → two, stepping by 2 (the chapter 1 question answered) → the odd server dies at 5
+    (pause + clip) → the reset is cosmetic; Flickr doesn't do it. */}
+
+<Section id="s7" no="7" title="Flickr: could MySQL itself be the ID service?" crumb="7 Flickr" meta="About 7 min">
+
+Flickr was the big photo site of the 2000s, years before Instagram existed. Its photos lived in a sharded database running in multi-master mode, so a write could land anywhere, and auto-increment on every shard would hand out conflicting IDs. That is chapter 1’s problem, exactly. [[L-0151 L-0152]] Flickr’s engineers also wrote down why they didn’t simply use UUIDs: they index badly. [[L-0153]]
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="get_id() after chapter 6: Amazon’s service hands out ranges from one counter row per caller.">
+<Desk><SoFarGetId stage={6} /></Desk>
+<Phone><SoFarGetId stage={6} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="Can one table hand out tickets?" crumb="7.1 The ticket server">
+
+Flickr’s idea is disarmingly simple. MySQL already gives you auto-increment IDs, so let MySQL itself be the ID service. Flickr called it a **ticket server**: a MySQL database of its own, separate from the sharded photos database, that exists only to lend out its auto-increment. [[L-0159 L-0163 L-0164]] You could object that a query per ID is slow. When you study another company’s design, look for the parts worth taking; the trade-offs were theirs to make. [[L-0160 L-0161]]
+
+Follow one photo. The upload reaches a photo-service API server. That server asks the ticket server for an ID, gets one, and then stores the photo under that ID in the sharded photos database. [[L-0174]]
+
+<Figure id="fig-7b" no="Fig 7·b" k="L-0159 L-0174 L-0175" caption="Posting a photo: the photo server first gets an ID from the ticket server (1), then stores the photo under it in the sharded photos database (2).">
+  <Desk><FlickrFlow /></Desk>
+  <Phone><FlickrFlow layout="phone" /></Phone>
+</Figure>
+
+How do you get a stream of new numbers out of a table? Insert a row per ID and the table grows by a row for every photo, forever. Delete the old row each time and it stays at one row. That is the naive version: whenever someone needs an ID, delete the row and insert a new one, and auto-increment fills in the next value. [[L-0165]] But you can’t insert a row with no values at all. That is the only reason the table has a second column, `stub`. The name sounds important; it is a dummy column holding a constant, literally any string, there to give the insert something to write and to hit a unique key. [[L-0166]]
+
+<Figure id="fig-7c" no="Fig 7·c" k="L-0162 L-0166 L-0172" caption="The whole ID service is this one row: a 64-bit auto-increment id and a stub that exists only to collide with its unique key.">
+  <Desk><TicketTable /></Desk>
+  <Phone><TicketTable layout="phone" /></Phone>
+</Figure>
+
+A delete and an insert in one transaction is costly. Delete plus insert is what an **upsert** is for: one statement that inserts, and if the key already exists, updates or replaces the row instead. [[L-0167 L-0168]] MySQL has two. `INSERT … ON DUPLICATE KEY UPDATE` updates the existing row in place; it is the `PUT` from <LectureLink lec="lec05">Lecture 3</LectureLink>’s key-value store. `REPLACE INTO` deletes the old row and inserts a new one. Because it rebuilds the row, it is usually the slower of the two; one benchmark on one setup measured it about 32 times slower. [[L-0169 L-0170 L-0171]]
+
+Flickr uses `REPLACE` anyway, and here the delete is the point. [[L-0172]]
+
+```sql
+CREATE TABLE Tickets64 (
+  id   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  stub CHAR(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (id),
+  UNIQUE KEY stub (stub)
+) ENGINE=MyISAM;                     -- as in Flickr's post
+
+-- every ID request:
+REPLACE INTO Tickets64 (stub) VALUES ('a');
+SELECT LAST_INSERT_ID();
+```
+
+The insert of `'a'` collides with the unique key, so MySQL removes the old row and inserts a fresh one, and a fresh row gets the next auto-increment value: 74, then 75, then 76. `LAST_INSERT_ID()` returns it to the connection that asked. MySQL’s own counter does the work, atomically, and the table never grows past one row. [[L-0172 L-0173]]
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="One ticket server is one box. What about two?" crumb="7.2 Odd and even">
+
+Every photo upload in the company now waits on one MySQL server. If it goes down, ID generation is gone: a single point of failure. [[L-0175]] So put two ticket databases behind a load balancer, and if one goes down the other takes the load. That looks like chapter 4’s two servers, which had to gossip on every ID. [[L-0176]]
+
+<PauseAndThink k="L-0176 L-0177 L-0091"
+  q="Flickr needs two ticket servers that never hand out the same ID, and it doesn’t need order. Do they have to talk to each other?"
+  choices={[{ label: 'Yes: before each ID, like the servers in chapter 4' }, { label: 'No', correct: true }]}
+  right="Right. Check it against the answer you wrote down in chapter 1."
+  wrong="That was the price of strict order. Flickr only needs uniqueness.">
+
+Give each server its own lane of numbers that can never meet the other’s. Then neither ever needs to know what the other has issued.
+
+</PauseAndThink>
+
+Flickr’s lanes are odd and even. Both servers step by 2; one starts at 1, the other at 2. These are two real MySQL settings, and they apply to every auto-increment value the server generates, which is why the fresh row that `REPLACE` inserts matters: the new ID comes out of this counter. [[L-0177 L-0178]]
+
+```ini
+# ticket server 1: 1, 3, 5, 7 …
+auto_increment_increment = 2
+auto_increment_offset    = 1
+
+# ticket server 2: 2, 4, 6, 8 …
+auto_increment_increment = 2
+auto_increment_offset    = 2
+```
+
+<Figure id="fig-7d" no="Fig 7·d" k="L-0176 L-0177 L-0178 L-0179" caption="Both ticket servers step by 2 from different starts. Round robin alternates between them, so IDs come out 1, 2, 3, 4, and no value can be issued twice.">
+  <Desk><OddEven /></Desk>
+  <Phone><OddEven layout="phone" /></Phone>
+</Figure>
+
+If your chapter 1 answer was “step by the number of masters”, you designed Flickr. [[L-0091]] And for your shop’s two order masters, that pair of settings is the whole fix: it works, with the drawback 7.3 shows when one side is down for a while. Flickr’s photos sat on a sharded set of masters, so it took ID generation off them altogether and gave it one central home, the separate ticket database; the odd/even trick runs only on the two ticket servers. [[L-0091 L-0152 L-0164]]
+
+With the load balancer doing round robin, requests alternate and the IDs come out 1, 2, 3, 4, almost in order, and if one server goes down the other carries on without a hiccup. Flickr chose it on purpose: at its write volume, replicating between the boxes would have been a problem, and locking would have killed performance <Cite href="https://code.flickr.net/2010/02/08/ticket-servers-distributed-unique-primary-keys-on-the-cheap/">code.flickr.net</Cite>. [[L-0179 L-0180]]
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="The odd server dies at 5" crumb="7.3 Coming back">
+
+Say the odd server dies just after issuing 5. Every request now goes to the even one: 6, 8, 10, on up to 202. Then the odd server comes back.
+
+<PauseAndThink k="L-0181 L-0183 L-0187 L-0188"
+  q="The odd server comes back and resumes where it stopped, so IDs now come out 7, 204, 9, 206. Is that a bug?"
+  choices={[{ label: 'Yes: the IDs are out of order' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="Look at what the design promised.">
+
+Every ID is still unique, and uniqueness is all this design ever promised. The 1, 2, 3, 4 you saw earlier was a side effect of round robin, never a guarantee.
+
+</PauseAndThink>
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l03-odd-even" no="Clip 7·1" k="L-0177 L-0179 L-0180 L-0181 L-0182 L-0183"
+  lead="The odd server is back. Watch the next four IDs."
+  caption="A big gap between neighbouring IDs is untidy, not wrong." />
+</div>
+
+The odd server resumes at 7 because its auto-increment counter survives a restart (Flickr’s MyISAM table stores it with the table; InnoDB has done the same since MySQL 8.0). [[L-0181 L-0187 L-0188]]
+
+If the looks bother you, the clip’s last step shows the cosmetic fix: take the largest ID issued, add a buffer, and restart both servers above it. Pick that value the way chapter 2 taught you to restart a counter: the safest value, past anything already handed out. [[L-0182 L-0183 L-0186]] Flickr doesn’t bother. Its two sides drift apart, and when it wrote up the design it had a few hundred thousand more odd-numbered objects than even ones, “but this hurts no one” <Cite href="https://code.flickr.net/2010/02/08/ticket-servers-distributed-unique-primary-keys-on-the-cheap/">code.flickr.net</Cite>. [[L-0185]] A photo site has no reason to care about order. [[L-0188]]
+
+It is a pretty simple design, and pretty brilliant in its own way. [[L-0184]] But Amazon and Flickr both keep an ID service that someone has to run, and for a company whose writes come in bursts, that service is one more thing to scale.
+
+</Section>

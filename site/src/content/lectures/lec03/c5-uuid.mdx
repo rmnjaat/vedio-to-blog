@@ -1,0 +1,93 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import { IndexTable, QueryRuns, ObjectIdBar } from '../../../figures/lec03/s4-id-size';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 5 "Why not just use a UUID?" Story rewrite: UUIDs need no coordination, yet companies at scale refuse
+    them → every index entry carries the ID (pause: 1 GB index) → the plan runs on indexes, so the hot part must fit
+    in memory → when a UUID is fine (unguessable, small apps, v7) → MongoDB's 12 bytes → keep IDs at 64 bits. */}
+
+<Section id="s5" no="5" title="Why not just use a UUID?" crumb="5 Why not UUID" meta="About 6 min">
+
+A UUID is 128 bits, usually written as a string, readable as one gigantic integer. Any server can make one, with no counter, no clock and nobody to ask. [[L-0130]] It looks like the end of the lecture. Yet companies at scale avoid them; Flickr even wrote down why. To see it, look at where else an ID gets stored. [[L-0129 L-0150]]
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="get_id() after chapter 4: one ID server with one clock. Strict order turned out to cost more than most systems should pay.">
+<Desk><SoFarGetId stage={4} /></Desk>
+<Phone><SoFarGetId stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Where else is the ID stored?" crumb="5.1 Index entries">
+
+An index is itself just a table, kept as a B+ tree by the database: the indexed values, each with the ID of the row it points to. [[L-0132]] Take a posts table with `post_id`, `user_id`, a title and a body. Index `user_id`, and the database builds what is in effect a second, two-column table: `user_id`, sorted, and the `post_id` of each row. [[L-0133]]
+
+So the ID’s size is paid again in every entry of every index. In MySQL’s InnoDB this is literal: every secondary-index entry holds the row’s primary key, and the manual says outright that a short primary key is better for that reason <Cite href="https://dev.mysql.com/doc/refman/8.4/en/innodb-index-types.html">dev.mysql.com</Cite>. PostgreSQL’s indexes point to a row location instead, so there the ID’s size lands on its own index and on every other column and index that stores it. [[L-0132 L-0134]]
+
+<PauseAndThink k="L-0134 L-0135 L-0136"
+  q="An index whose entries carry a 4-byte integer ID is about 1 GB. You switch the ID to a 16-byte UUID. Is that just a little more disk space?"
+  choices={[{ label: 'Yes: disk is cheap' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="Disk is cheap. Memory isn’t, and that is where this lands.">
+
+The ID part of every entry is four times wider. With a 4-byte `user_id` beside it, each entry goes from 8 to 20 bytes, so the index grows by a multiple, not a few percent. And an index is not something you want on disk: to be fast, it has to be in memory.
+
+</PauseAndThink>
+
+<Figure id="fig-5b" no="Fig 5·b" k="L-0133 L-0134 L-0135" caption="An index on user_id is a two-column table, and every entry carries the post_id of its row. Make the ID a 16-byte UUID and that column grows in every entry.">
+  <Desk><IndexTable /></Desk>
+  <Phone><IndexTable layout="phone" /></Phone>
+</Figure>
+
+The four is against a 4-byte `INT`. Against an 8-byte `BIGINT`, the realistic alternative at scale, a UUID is twice the size. How much the whole index grows depends on what else its entries hold. [[L-0135 L-0154]] Random UUIDs have a second cost: each new one lands at a random place in the index instead of at the end, and the standard that defines them says plainly that they “have poor database-index locality” <Cite href="https://www.rfc-editor.org/rfc/rfc9562.html">rfc-editor.org</Cite>. [[L-0129]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Why does a bigger index make queries slower?" crumb="5.2 Indexes in memory">
+
+When you send a query, the database first builds an execution plan, and it does that work on the indexes, because they are small. If two tables are joined on indexed columns and both indexes are in memory, the join runs in memory; the database goes to the table only for rows the index doesn’t cover. With the indexes in RAM, most of a query never waits on the disk. [[L-0137 L-0138]]
+
+<Figure id="fig-5c" no="Fig 5·c" k="L-0136 L-0137 L-0138 L-0141" caption="a: both indexes fit in memory, so the plan and the join run there and the disk is read for the result rows. b: one index has spilled to disk, and every lookup in it is now a disk read.">
+  <Desk><QueryRuns /></Desk>
+  <Phone><QueryRuns layout="phone" /></Phone>
+</Figure>
+
+So what has to fit in memory is the part of your indexes that queries actually use, with room for the hot data too. The database doesn’t hold indexes in RAM just because they exist. It reads their pages in as queries need them, caches them, and evicts the least recently used when it runs out of room, so an index that has outgrown memory keeps being read from disk. [[L-0136 L-0140]]
+
+This is why the database is the hardest part of your infrastructure to scale: API servers keep no state, so you add more of them, while the database stores everything, is queried for everything and carries the whole load. [[L-0157]]
+
+A rule of thumb that follows: when you size a database server, give it at least as much RAM as the indexes your queries use, and size for all of them if you don’t know which those are. Flickr’s engineering blog puts it bluntly: if you can’t fit your indexes in memory, you can’t make your database fast. [[L-0141 L-0155 L-0156]]
+
+<MarginNote title="Go deeper: the first thing to check on a slow database" why="a habit, not a rule" k="L-0139">
+
+One engineer’s habit: when someone says their database is slow, look at index sizes first. Very often indexes have been created freely, they no longer fit in memory, and every lookup has turned into a disk read. Slow-query logs and `EXPLAIN` plans are the other usual first stops.
+
+</MarginNote>
+
+That is what an ID’s size really costs. Not disk, but how much of your indexes can stay in memory.
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="So when is a UUID the right call?" crumb="5.3 When to use one">
+
+UUIDs have one real strength. A random one can’t be guessed from the last one. Build Facebook with IDs 1, 2, 3, and anyone can fire requests in a loop from 1 to a billion and scrape the entire site. Random IDs make that much harder. They don’t make anything secure, though: every request still needs its own permission check <Cite href="https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">owasp.org</Cite>. [[L-0143 L-0144]]
+
+And they are not forbidden. If your application is small and will never reach the scale where index size bites, a UUID is just fine. Don’t reach for the best solution out there when a simpler one works for you. [[L-0145]] Since 2024 there is also a time-ordered UUID, version 7, that puts a millisecond timestamp first. It fixes the scattered inserts. It is still 16 bytes. [[L-0093]]
+
+The companies ahead went smaller. MongoDB’s ObjectId is 12 bytes: 4 bytes of time, in seconds, first; then 5 random bytes; then a 3-byte counter. Nothing stopped MongoDB from using 16-byte UUIDs; it chose 12, four bytes fewer in every index entry. [[L-0146 L-0147]]
+
+<Figure id="fig-5d" no="Fig 5·d" k="L-0146 L-0148 L-0149" caption="A MongoDB ObjectId: time first, then random bytes, then a counter. Below, the common ID sizes on one scale.">
+  <Desk><ObjectIdBar /></Desk>
+  <Phone><ObjectIdBar layout="phone" /></Phone>
+</Figure>
+
+MySQL’s `INT` is 4 bytes and its `BIGINT` 8, both cheap to index. Past 8 bytes, start worrying at scale. [[L-0148]] Notice the pattern in the ObjectId: time on the left, and small. It is also the cost the boot counter in chapter 2 would have paid: every extra part makes the ID longer, and long IDs index badly. [[L-0149]]
+
+So `get_id()` gets a budget: 64 bits or less. That settles what an ID looks like. It doesn’t settle who hands them out when a whole company needs them, which is the question Amazon faced.
+
+</Section>

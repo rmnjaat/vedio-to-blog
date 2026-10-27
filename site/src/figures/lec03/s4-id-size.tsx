@@ -9,7 +9,7 @@ import { FieldBar, IndexBlock, Ram, TableBlock, rowBase, tableH } from './s4-id-
 
 const T4A = 'An index is a smaller table';
 const D4A =
-  'A posts table has post_id, user_id, title and body. An index on user_id is a second, two-column table: user_id sorted, plus the post_id of the row each entry points to. Because the ID is stored in every index entry, a 16-byte UUID makes the ID column four times as wide as a 4-byte integer (about 2 times against an 8-byte BIGINT). With a 4-byte user_id, each entry grows from 8 to 20 bytes, about 2.5 times; the lecture’s rough estimate for the whole index was about 1 GB growing to about 4 GB.';
+  'A posts table has post_id, user_id, title and body. An index on user_id is a second, two-column table: user_id sorted, plus the post_id of the row each entry points to. Because the ID is stored in every index entry, a 16-byte UUID makes the ID column four times as wide as a 4-byte integer (about 2 times against an 8-byte BIGINT). With a 4-byte user_id, each entry grows from 8 to 20 bytes, about 2.5 times, so the index grows by a multiple, not a few percent.';
 
 const POSTS = [['101', '7', 'hello', '…'], ['102', '3', 'ids', '…'], ['103', '7', 'b+ trees', '…'], ['104', '5', 'uuid?', '…']];
 const IDX = [['3', '102'], ['5', '104'], ['7', '101'], ['7', '103']];

@@ -1,0 +1,98 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Panel from '../../../components/Panel.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { OneMachine, TwoMachinesPanel, ThreadsPanel } from '../../../figures/lec03/s2-building-getid';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 1 "Two databases, and both have an order 3". Story rewrite: why one MySQL is fine and two masters are
+    not → the question held back for chapter 7 → the job (a function, not a service) → v1 epoch ms → a second
+    machine → threads. */}
+
+<Section id="s1" no="1" title="Two databases, and both have an order 3" crumb="1 Order 3, twice" meta="About 5 min">
+
+Every table you have built so far got its IDs from the database: insert a row, and `AUTO_INCREMENT` fills in the next number. That stopped working the moment the orders table moved onto two masters. Before you replace it, it is worth seeing exactly why it worked before.
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="Where you start: each master’s AUTO_INCREMENT, counting on its own. Over the next five chapters this ladder fills up with your own versions of get_id().">
+<Desk><SoFarGetId stage={0} /></Desk>
+<Phone><SoFarGetId stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Why was one MySQL never a problem?" crumb="1.1 One MySQL">
+
+On one MySQL server, IDs come out 1, 2, 3, 4, 5, 6 because there is one machine, and the ID logic is part of its database engine. Every insert asks the same counter for the next value, and that counter lives in exactly one place. [[L-0083]]
+
+Put MySQL in multi-master mode with an auto-increment ID and that ends. Each master is its own brain. The two don’t talk to each other, so each counts 1, 2, 3, 4 independently, and the IDs collide. <LectureLink lec="lec01">Lecture 2</LectureLink> warned that letting more than one database accept writes brings conflicts; this is the plainest one there is. [[L-0084 L-0087]]
+
+So once writes can land on more than one database, you can’t rely on the IDs the database hands out. You need ID logic of your own that gives every entry an ID nobody else will ever get. [[L-0088]]
+
+Before you read on, try one thing. Is there a small configuration change that would keep these two masters from ever handing out the same number? Write your answer down. Chapter 7 checks it against what Flickr actually built.
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="What exactly are you building?" crumb="1.2 The job">
+
+An ID gives uniqueness to something: a row, a document, an object, an event. Anything that lets you pick out exactly one of them is its ID. [[L-0008]]
+
+So the job is easy to state. Write a function that returns something unique every single time it is invoked, wherever it runs. Call it `get_id()`. [[L-0009]]
+
+It sounds trivial. The usual reflex is that auto-increment already solved it, and you have just seen where that reflex ends. [[L-0002]]
+
+Most people’s first move here is a new service: “I’ll write an ID microservice.” Hold that thought. Start with a plain function inside your own application, called locally on every request that needs an ID. A central service is something you may evolve towards later; you will meet one in chapter 4. Starting with a function shows you what the problem actually needs before you pay for a network call. [[L-0010]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="What never repeats? Try the clock" crumb="1.3 Version 1">
+
+Time is unique and always moves forward. So the simplest `get_id()` returns the current epoch millisecond. (The versions here are sketched in pseudocode.) [[L-0011]]
+
+```text
+func get_id() {
+  return get_epoch_ms();   // e.g. 1729
+}
+```
+
+<Figure id="fig-1b" max={360} wide={false} no="Fig 1·b" k="L-0011 L-0013" caption="Version 1. One machine, one clock: the ID is the current epoch millisecond, written 1729 here to keep the numbers short.">
+<OneMachine />
+</Figure>
+
+That should work. But something must break, or everyone would be using it. [[L-0012]]
+
+The first limit is granularity. With milliseconds, the function must never be called twice in the same millisecond; if it is, both calls get the same value and you are pushed down to micro- or nanoseconds. So version 1 is correct on exactly one machine, as long as nobody calls it twice in one millisecond. [[L-0013]]
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="A second machine, then a second thread" crumb="1.4 Machines, threads">
+
+Your service runs on two machines. Both call the function in the same millisecond, and both return 1729. The IDs collide and are no longer globally unique. [[L-0014]]
+
+Fix it by putting the machine into the ID: concatenate the machine ID and the millisecond, and you get `m1-1729` on one machine and `m2-1729` on the other. (`m1`, `m2` is only shorthand; use whatever names a machine.) [[L-0015]]
+
+```text
+func get_id() {
+  return concat(machine_id, get_epoch_ms());   // m1-1729, m2-1729
+}
+```
+
+That is the standard way to resolve a collision: **whenever two IDs collide, add to the ID the thing that caused the collision.** Two machines collided, so the machine goes in. [[L-0016]]
+
+It breaks again inside one machine. Your program runs threads on several cores, so two threads can call the function in the same millisecond and both produce `m1-1729`. [[L-0017]] Apply the same rule. Threads have IDs too, integers the operating system hands out (`t1`, `t2` here are shorthand), so put the thread in: `m1-t1-1729` and `m1-t2-1729`. [[L-0018 L-0019]]
+
+```text
+func get_id() {
+  return concat(machine_id, thread_id, get_epoch_ms());   // m1-t1-1729, m1-t2-1729
+}
+```
+
+<Figure id="fig-1c" panels={2} no="Fig 1·c" k="L-0014 L-0015 L-0016 L-0017 L-0019" caption="Two collisions, two causes added. Left: two machines in the same millisecond, separated by the machine prefix. Right: two threads on m1 in the same millisecond, separated by the thread ID (m2’s threads happen to be t1 and t3).">
+  <Panel><TwoMachinesPanel /></Panel>
+  <Panel><ThreadsPanel /></Panel>
+</Figure>
+
+Three versions in, IDs are unique again, as long as no single thread asks twice in one millisecond. Look at what it cost, though. The ID has three parts now, and the rule you just used adds a part for every new cause of collision, so IDs keep growing. Is there a cheaper way to keep threads apart? [[L-0021]]
+
+</Section>

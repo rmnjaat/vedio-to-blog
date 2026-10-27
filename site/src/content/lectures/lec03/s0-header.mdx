@@ -1,33 +1,44 @@
-import MarginNote from '../../../components/MarginNote.astro';
+import Figure from '../../../components/Figure.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { TwoMasters } from '../../../figures/lec03/s1-why-own-ids';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec03.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec03.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 06 · week 3, day 2 · running case: one getid() function"
-      title: Minting unique IDs
-      dek: "Rewrite one getid() function under ever harder constraints, then see how Amazon, Flickr, Twitter and Instagram answer the same question."
-      contents: 1 Why build your own IDs · 2 Building getid() · 3 Order, and why clocks break it · 4 How big should an ID be? ·
-                5 Central services: Amazon and Flickr · 6 Snowflake · 7 Instagram · 8 Pagination · 9 What to keep.
-    The outline gives the header no figure. "IDs so far" (the outline's "Before this lecture") teaches nothing new,
-    so it carries no ids. */}
+{/* Lecture 06 (lec03) overview body: the hook, where you are, the two halves, what you will be able to do. Story
+    rewrite, see lectures/lec03/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+Your shop’s orders table has outgrown one MySQL server, so you run two, both masters, and a new order can land on either. Each one counts on its own: 1, 2, 3, 4 on the left, 1, 2, 3, 4 on the right. A customer calls about order 3, and there are two of them. [[L-0087]]
 
-This is day 2 of week 3, and the whole session is about one thing: distributed ID generators. [[L-0001]]
+<Figure id="fig-0a" max={360} wide={false} no="Fig 0·a" k="L-0087" caption="The problem in one picture. Writes can land on either master, neither master asks the other, and both hand out 1, 2, 3, 4.">
+<TwoMasters />
+</Figure>
 
-The plan has two halves. The first is a journey through the basics: one ID function, built from scratch and rebuilt every time a new condition breaks it, until the foundational ideas are in place. The second is how real companies do it: Amazon, Flickr, Twitter and Instagram, plus a closer look at one interesting side effect. [[L-0006]]
+Every database hands you IDs for free, until there is more than one database. In this lecture you write the replacement yourself: one small function, `get_id()`, that must never return the same value twice, on any machine, ever. You will break it again and again, and each time the fix is the smallest change that works. Then you watch Amazon, Flickr, Twitter and Instagram answer the same question, and find that each of them runs a version of the function you just built. [[L-0009 L-0088]]
 
-After the break, that second half covers Amazon’s central ID generation service, then Flickr, Twitter, Instagram, and finally pagination, which the lecture calls “a very interesting side effect of having a good ID generation system”. This page follows that announced order. Against the order actually taught it makes three moves: “why build your own IDs at all” (asked at 00:45) comes first, ID size (taught inside the Amazon case) gets its own chapter before the companies, and pagination, taught right after Twitter, comes after Instagram as announced. [[L-0100]]
+### Where you are
 
-**How to use this page.** Implement every one of these approaches yourself. None of them is fancy. Reading the theory is fine, but past cohorts who built them came away understanding far more about why each one works, what it trades away, how logical partitions behave, and why dumping and loading data matters. [[L-0007]]
+<LectureLink lec="lec01">Lecture 2</LectureLink> scaled a blog’s writes by sharding, and warned that letting several databases accept writes brings conflicts. It also showed `count++` losing an update when two threads run it at once, and the atomic increment that fixes it. <LectureLink lec="lec05">Lecture 3</LectureLink> locked a row with `SELECT … FOR UPDATE` so that 120 passengers could not book one seat, and wrote a key-value store whose `PUT` was a single upsert. <LectureLink lec="lec08">Lecture 5</LectureLink> put a load balancer in front of a fleet, asked of every box what happens when it is the only one and it dies, and ended on exactly the picture above.
 
-</MarginNote>
+All three come back here. This time the thing many machines fight over is a number.
 
-### IDs so far
+### What you’ll build
 
-Until now, IDs have quietly been the database’s job. Lecture 2 grew Medium’s database with sharding and multi-master, called the database the most critical and most brittle component, and met `count++` as a race that needs an atomic increment. Lecture 3 locked airline seats with `SELECT … FOR UPDATE` inside a transaction, and built a key-value store on MySQL with `REPLACE INTO` and an upsert. Lecture 5 put load balancers and round robin in front of a fleet of servers and named the single point of failure.
+**Part 1, `get_id()` from scratch (chapters 1–5).** The function starts as one line. Each chapter adds a condition the last version can’t survive: a second machine, threads, a reboot, a disk that can’t keep up, a need to know which ID came first, and a question about how big an ID may be. [[L-0010]]
 
-This lecture takes the numbering away from the database. It starts from one function, `getid()`, that must never return the same value twice, and every one of those earlier pieces comes back along the way, each named where it is used.
+**Part 2, four companies (chapters 6–10).** Amazon, Flickr, Twitter and Instagram each needed unique IDs at a scale you can feel. Each design reuses a piece you built in Part 1, and each one makes a different choice about where the ID is born. Along the way, one design turns out to make a common query much cheaper, which nobody planned for. [[L-0005]]
+
+### What you’ll be able to do
+
+- Write an ID generator that stays unique across machines, threads and reboots, without a disk write per ID.
+- Say how much order IDs from many machines can promise, and what strict order would cost.
+- Work out what an ID’s size does to every index on a table.
+- Choose between ranges from a service, ticket databases, a 64-bit time-first layout and an ID made inside the database.
+- Page through millions of rows without each page getting slower than the last.
+
+### Before you start
+
+You need primary keys and indexes, threads and an atomic increment, `SELECT … FOR UPDATE`, and a load balancer. A little binary helps: 2^10 = 1,024, and what a left shift does.
+
+Each chapter opens with the ladder of `get_id()` versions so far, with the newest rung shaded. When a “Pause and think” box asks you something, commit to an answer before you open it. And build every version yourself as you go. None of them is fancy, and building them is what makes the reasons stick. [[L-0007]]
 
 </div>

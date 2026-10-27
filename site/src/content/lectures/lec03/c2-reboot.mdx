@@ -1,0 +1,156 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { ThreadsToCounter } from '../../../figures/lec03/s2-building-getid';
+import { SoFarGetId } from '../../../figures/lec03/so-far';
+
+{/* Chapter 2 "The ID keeps growing. Then the machine reboots." Story rewrite: static counter → time drops out →
+    integer limit → reboot resets the counter → save to a file → a disk write per ID → boot counter, bank of IDs →
+    flush every N → crash at 8, restart from the safest value (clip). */}
+
+<Section id="s2" no="2" title="The ID keeps growing. Then the machine reboots." crumb="2 Counter and reboot" meta="About 7 min">
+
+Version 3 is unique, and it pays for that with length: one part for the machine, one for the thread, one for the time. This chapter makes the ID short again, and then finds out what a short ID forgets when the power goes.
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="get_id() after chapter 1: three versions, each adding the cause of the last collision.">
+<Desk><SoFarGetId stage={1} /></Desk>
+<Phone><SoFarGetId stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="Is there a cheaper way to keep threads apart?" crumb="2.1 A counter">
+
+Instead of the thread ID, add a counter. Appending every cause of a collision leads to gigantic IDs, and one counter beats any number of threads. [[L-0020 L-0021]]
+
+It is a **static counter**: a single variable per process, shared by every thread. Increment it atomically every time the function is called, and no two calls on one machine can get the same value. One machine now produces `m1-1729-01`, `m1-1729-02`, `m1-1729-03`, then `m1-1730-…` once the millisecond moves on, however many threads ask. [[L-0022 L-0023]]
+
+```text
+int counter = 0;                 // static: one per process, shared by every thread
+func get_id() {
+  return concat(machine_id, get_epoch_ms(), counter++);   // m1-1729-01, m1-1729-02 …
+}
+```
+
+The word that matters is *atomically*. `counter++` is not atomic by default: it is a read, an add and a write, and two threads can interleave them. That is the lost clap from <LectureLink lec="lec01">Lecture 2</LectureLink>. Wrap it in a lock, or use your language’s atomic integer. [[L-0024]]
+
+Now look at the three parts again.
+
+<StepThrough id="fig-2b" grow no="Fig 2·b" label="From threads to a counter"
+  k="L-0021 L-0022 L-0023 L-0027 L-0029"
+  stepK={['L-0021', 'L-0022 L-0023', 'L-0027', 'L-0027 L-0029']}
+  caption="Version 3 to version 4, on two machines with two threads each. Step through with the buttons or the arrow keys."
+  steps={[
+    'Adding the thread ID works: <code>m1-t1-1729</code>, <code>m1-t2-1729</code>. But every new cause makes the ID longer.',
+    'One shared counter, incremented atomically on every call, separates any number of threads: <code>m1-1729-01</code>, <code>-02</code>, <code>-03</code>, then <code>m1-1730-04</code>.',
+    'The counter already grows on every call. The time part adds nothing, so <span class="term red">strike it out</span>.',
+    'Machine plus counter: <code>m1-01</code> … <code>m2-03</code>. <span class="term green">Unique</span>, and shorter.',
+  ]}>
+<Desk><ThreadsToCounter /></Desk>
+<Phone><ThreadsToCounter layout="phone" /></Phone>
+</StepThrough>
+
+Version 4 is the machine ID and the counter, nothing else: [[L-0027 L-0029]]
+
+```text
+int counter = 0;
+func get_id() {
+  return concat(machine_id, counter++);   // atomic; m1-01, m1-02 …
+}
+```
+
+Its one limit is the counter’s size. An unsigned 32-bit integer stops at about 4.29 billion, a signed one at about 2.1 billion. A 64-bit counter, about 1.8 × 10^19, is effectively endless. [[L-0028]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="3 a.m.: the process restarts" crumb="2.2 Reboot">
+
+The process restarts. The counter lived in memory, with no copy anywhere, so it comes back as 0, and `m1` hands out `m1-01`, `m1-02` again. Those IDs are already on orders. [[L-0030]]
+
+Notice what did this. Version 3’s time part would have kept these apart, because the clock moved on while the process was down; you dropped it to make the ID shorter. So the question is how to keep the ID short and still survive a restart.
+
+The cause is where the counter lives: volatile memory. So back it up to a file on the machine. Load it once when the process starts, and save it on every call. [[L-0031 L-0032 L-0033 L-0034]]
+
+```text
+int counter = load();            // once, at process start
+func get_id() {
+  counter++;
+  save_counter(counter);         // on every call
+  return concat(machine_id, counter);
+}
+```
+
+One detail decides whether “save” survives a power cut. A plain `write()` usually lands in the operating system’s page cache; only `fsync()` forces it onto the device, so it can be read back after a crash <Cite href="https://man7.org/linux/man-pages/man2/fsync.2.html">man7.org</Cite>. That forced write is what makes each save expensive. [[L-0033]]
+
+Why not skip the file and restart from the largest ID in the database? That is `load()` by another name, and it assumes every ID becomes a row somewhere. A request ID never does. [[L-0098 L-0099]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Thousands of IDs a second, thousands of disk writes" crumb="2.3 Disk writes">
+
+Now the service calls `get_id()` thousands of times a second. That is thousands of tiny disk writes a second, and every ID waits on one instead of coming straight from memory. [[L-0035 L-0036]]
+
+<PauseAndThink k="L-0035 L-0036 L-0037 L-0040 L-0041"
+  q="get_id() saves its counter on every call so a reboot can’t reissue IDs, and the disk is drowning. Can you touch the disk far less often without ever reissuing an ID?"
+  choices={[{ label: 'No: skip a save and a reboot repeats IDs' }, { label: 'Yes', correct: true }]}
+  right="Right."
+  wrong="Only if a restart has to begin exactly at the saved value. It doesn’t.">
+
+The disk doesn’t need the exact current value. It needs a value you can safely start from after a crash, one that is past anything already handed out.
+
+</PauseAndThink>
+
+There are two good ways to do it.
+
+The first adds a third part to the ID, a **boot counter**. At startup, read a number from the file, add one, write it back: one disk write per boot. Each startup of the process gets a new boot number, so the ordinary counter can live in memory, start at 0 and never be saved. Nothing touches the disk while IDs are handed out. It costs two things: the startup increment must be atomic, and every ID carries one more part, a cost chapter 5 weighs. [[L-0037 L-0038 L-0039]]
+
+The second keeps the ID short. Call it a **bank of IDs**: read the counter, say 1, add 1,000, store that, and hand out the next thousand from memory. When you reach the stored value, add another 1,000 and store again. A thousand IDs per disk write. [[L-0040]] Notice that the bank writes *ahead*: what is on disk is the end of the current block, and nothing past it has gone out, so after a crash you start just past it. Keep this idea in your pocket; it comes back at a much larger scale in chapter 6. [[L-0041]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Flush every N. Where do you restart after a crash?" crumb="2.4 Safest value">
+
+There is a simpler-looking way to write the same saving down, a **flush frequency**: count as before, and save the counter only every N IDs, every 1,000 say. Disk IO drops a thousandfold. [[L-0041 L-0042]] But this one writes *behind*: what is on disk is an ID already handed out, and more may have gone out since. So a restart can’t just begin at what the disk says.
+
+```text
+const N = 1000;                       // flush frequency
+int counter = load() + N;             // at startup: past anything issued before the crash
+save_counter(counter);                // remember the new start before handing anything out
+func get_id() {
+  counter++;
+  if (counter % N == 0) save_counter(counter);   // one disk write per N IDs
+  return concat(machine_id, counter);
+}
+```
+
+The periodic save is a `mod`, not a timer thread: count, check `counter % N`, write. [[L-0043 L-0047]] The interesting lines are the two startup lines. Shrink N to 3 to see why. Machine `m1` hands out 1, 2, 3, and 3 is saved. Then 4, 5, 6, and 6 is saved. Then 7 and 8, and the machine crashes. The disk says 6, but 8 is already out. [[L-0044]]
+
+<PauseAndThink k="L-0044 L-0045 L-0046 L-0048"
+  q="Flush every 3 IDs. The disk holds 6. The machine had handed out 7 and 8 when it crashed. On reboot, which ID should it hand out first?"
+  choices={[{ label: '7: carry on from the disk' }, { label: '9: just past the last one out' }, { label: '10', correct: true }]}
+  right="Right."
+  wrong="Not quite. All the restarted machine knows is what the disk says.">
+
+The disk only proves that 6 went out. The next save point is 9, and 9 itself may have gone out before its write reached the disk. The machine can’t know how far it got, so it starts past the whole window: 6 + 3 + 1 = 10.
+
+</PauseAndThink>
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l03-flush-crash" no="Clip 2·1" k="L-0042 L-0043 L-0044 L-0045 L-0046 L-0048"
+  lead="The same crash, step by step."
+  caption="Restart from the disk value and IDs repeat. Restart past the flush window, and save that new start first, and they don’t." />
+</div>
+
+Call it the **safest value**: the last value saved, plus the flush frequency, plus one. In the code, `load() + N` sets the counter to 9, so the first `++` hands out 10. [[L-0045]] Then save that new start before handing out anything. Otherwise, if the machine crashes again before its next flush, the disk still says 6, and the restart hands out 10 a second time.
+
+Some numbers are never used, 9 here. That is fine. A few skipped integers cost nothing, and a duplicate ID can cost an order. Correctness of the system matters more than using every integer. [[L-0046]] Whenever a machine recovers, start from the safest value. You will see that habit again in chapter 7. [[L-0048]]
+
+Here is where `get_id()` stands. Every ID is unique across machines and threads, survives a reboot, and costs one disk write per thousand. None of them says which came first.
+
+</Section>
