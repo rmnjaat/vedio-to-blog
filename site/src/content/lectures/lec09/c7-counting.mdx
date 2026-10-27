@@ -1,0 +1,138 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { FirstSketch, ThreeServers } from '../../../figures/lec09/s8a-counting-hashtags-figs';
+import { OneBatch } from '../../../figures/lec09/s8b-counting-hashtags-figs';
+import { SoFarHashtag } from '../../../figures/lec09/so-far';
+
+{/* Chapter 7 "Every #sunset post bumps the count. Can the database keep up?" Story rewrite: count++ per tag per post
+    → batching on a consumer of the post topic (figure) → pause: partition the topic by hashtag? two reasons not →
+    #sunset over three servers (figure); hot row, incomplete batches → Redis Pub/Sub per tag, and why not (Lecture 4
+    reversed) → the hint, post 31, and the re-keying adapter (clip) → one batch on one server (stepper), recounts
+    accepted, atomic increments. */}
+
+<Section id="s7" no="7" title="Every #sunset post bumps the count. Can the database keep up?" crumb="7 Counting" meta="About 9 min">
+
+Every hashtag has its document now, and every document has a `total_photos` that must go up each time someone posts a photo with that hashtag. [[L-0235]]
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="Where the hashtag page stands. A hashtag API reads one document per tag, holding the tag, its photo count and the top 100 post IDs (new in chapter 6). How the count changes is still open.">
+<Desk><SoFarHashtag stage={1} /></Desk>
+<Phone><SoFarHashtag stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="count++ for every post?" crumb="7.1 Batching">
+
+The direct way: whenever a post is published, pull the hashtags out of its caption and do `count++` on each one’s document. Look at what that does to `#sunset`. Its count is one row, and every sunset photo posted anywhere wants to update that same row, one tiny write at a time. A post with eight hashtags makes eight such writes. Popular tags become rows that never stop being written, and the database either chokes on micro-writes or has to be provisioned far beyond what the data needs. [[L-0252 L-0287]]
+
+But nobody needs `#sunset`’s count to be right this very second. The count doesn’t have to be real time, and that opens the door to batching. [[L-0236]]
+
+The post service already puts every post on Kafka, so add a consumer of that topic. It reads posts, pulls the hashtags out of each caption, and keeps running totals in memory. Say a batch of 1,000 posts includes `#A` 10 times, `#B` 10 and `#C` 20: for those tags it writes three totals instead of forty single increments. [[L-0237 L-0238]]
+
+<Figure id="fig-7b" no="Fig 7·b" k="L-0236 L-0237 L-0238" caption="First sketch: posts go to Kafka, one consumer pulls a batch, adds up the hashtags in memory and writes one total per hashtag.">
+<Desk><FirstSketch /></Desk>
+<Phone><FirstSketch layout="phone" /></Phone>
+</Figure>
+
+This is the standard principle for counting at large volume: whenever you can batch, batch. A database is much happier with one multi-row insert of 100 rows than with 100 single inserts, many times faster, and the same goes for 100 increments folded into one. [[L-0252 L-0253]]
+
+One consumer won’t keep up with all of Instagram, though, so there will be many, one per partition of the topic. How the posts are split between them decides how well the batching works.
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="What key is the post topic partitioned by?" crumb="7.2 The key">
+
+For a batch to fold many `#sunset` increments into one, the `#sunset` posts have to reach the same counting server. The obvious way is to make the hashtag the partition key. [[L-0243]]
+
+You might worry that there are too many hashtags for that. There aren’t: as <LectureLink lec="lec01">Lecture 2</LectureLink> showed, the key goes through a hash function that picks one of the partitions, so any number of distinct keys is fine. [[L-0239 L-0251]]
+
+<PauseAndThink k="L-0240 L-0241 L-0242"
+  q="So can you key the post topic by hashtag?"
+  choices={[{ label: 'Yes' }, { label: 'No', correct: true }]}
+  right="Right. There are two reasons."
+  wrong="Look at what a post is, and at who else reads that topic.">
+
+First, a post doesn’t have one hashtag. Post 31 carries `#sunset`, `#sun` and `#nature`; it has no single hashtag to be keyed by. Second, this is the topic search, notifications and the feed already consume, and it is keyed for them, by user ID or post ID. You can’t re-key it under them. And making the post service also write a second topic means two writes per post, which brings in the distributed-consistency problem: one write can succeed while the other fails.
+
+</PauseAndThink>
+
+So the post topic stays keyed by `user_id`, as it was in chapter 5: all of one user’s posts go to one partition. That is fine for everyone else. For counting, it is a problem. [[L-0242]]
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="Three #sunset posts, three servers" crumb="7.3 Scattered">
+
+Three users each post a sunset. Keyed by user, the three posts land on three partitions, and three counting servers each read one of them. Each server has exactly one `#sunset` in its batch, nothing to fold, so each writes `count++` on its own. [[L-0244]]
+
+<Figure id="fig-7c" no="Fig 7·c" k="L-0240 L-0242 L-0243 L-0244" caption="Keyed by user, three #sunset posts from three users sit on three partitions and reach three counting servers. Each has one #sunset and nothing to batch: three single writes, in red. The hashtag key is struck: the topic stays keyed by user_id.">
+<Desk><ThreeServers /></Desk>
+<Phone><ThreeServers layout="phone" /></Phone>
+</Figure>
+
+With real traffic the servers do still fold something: each sums the `#sunset` posts in its own slice, so a popular tag spread over k servers costs about k writes per batch instead of one per post. But every one of those servers is writing to the same `#sunset` row, all the time. A popular hashtag becomes a hot row with many writers fighting over it, and none of the batches is the whole picture. What you want is one writer per hashtag. [[L-0243]]
+
+<MarginNote title="Go deeper: why not Redis Pub/Sub, a channel per tag?" why="Lecture 4’s tool, reversed" k="L-0245 L-0246 L-0300 L-0301 L-0302">
+
+<LectureLink lec="lec02">Lecture 4</LectureLink> used it because chat needed instant pushes and the database already held every message. Here nothing is urgent and the messages live nowhere else: Pub/Sub stores nothing, so a counting server that is down misses messages for good <Cite href="https://redis.io/docs/latest/develop/pubsub/">redis.io</Cite>, and it pushes, so a hot tag floods one server even when the database is slow. Kafka keeps messages, and consumers pull at their own pace.
+
+</MarginNote>
+
+So the counting does belong on Kafka, keyed by hashtag. The post topic can’t be that topic. Take post 31 again, `#sunset #sun #nature`, sitting in a topic keyed by user. How would you get each of its hashtags to the server that counts it? [[L-0247]]
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="Post 31 has three hashtags" crumb="7.4 Re-key">
+
+<AnimationClip clip="l09-hashtag-repartition" no="Clip 7·1" k="L-0247 L-0249 L-0250"
+  lead="Post 31 carries three hashtags. How many messages does it become, and on how many counting servers can #sunset land?"
+  caption="Post 31, #sunset #sun #nature, on a topic keyed by user, and the three counting servers behind it." />
+
+Read the post topic, and write a new one: hashtag extractors turn each post into one `(hashtag, post_id)` message per tag on a second topic, `POST_HASHTAG`, keyed by hashtag, and the counting servers read that instead, so one server sees every `#sunset` and writes one `count += n`. [[L-0248 L-0249 L-0250 L-0267 L-0269]]
+
+The second topic can live on the same Kafka cluster; giving it its own name is about keeping concerns apart. Keyed by hashtag still doesn’t mean a partition per hashtag. Three partitions can carry millions of hashtags, each hashed to one of them. [[L-0251 L-0269]]
+
+Call that small piece an **adapter**: the topic everyone depends on stays as it is, and a simple processor between two topics re-keys the messages for the one consumer that needs a different key. Stream frameworks call it re-keying or repartitioning; Kafka Streams does it whenever you group by a new key <Cite href="https://kafka.apache.org/43/streams/developer-guide/dsl-api/">kafka.apache.org</Cite>. You found it only by working through the details: a post with three hashtags, and a topic other teams read. [[L-0254]]
+
+</Section>
+
+<Section id="s7-5" no="7.5" title="What does a counting server do with its batch?" crumb="7.5 One batch">
+
+One partition of `POST_HASHTAG` holds many hashtags, not just `#sunset`. Each message carries its hashtag and its post ID, so the server can still group what it reads. [[L-0296]]
+
+<StepThrough id="fig-7d" no="Fig 7·d" label="One batch on one counting server" grow
+  k="L-0255 L-0256 L-0270 L-0296 L-0297"
+  stepK={['L-0296', 'L-0297', 'L-0297', 'L-0270', 'L-0270', 'L-0255 L-0256']}
+  caption="Time runs down. Top: partition 0 of POST_HASHTAG with the committed position; middle: the counting server and its hash map; bottom: the hashtag document’s count. Blue is what the server reads, green its write and commit, red the crash and the second +2."
+  steps={[
+    'The server pulls a batch, offsets 0 to 2: <code>&lt;#sunset, p31&gt;</code>, <code>&lt;#sun, p31&gt;</code>, <code>&lt;#sunset, p40&gt;</code>.',
+    'It keeps a hash map from hashtag to a counter that starts at 0, and adds one per message: <code>{ #sunset: 2, #sun: 1 }</code>.',
+    'When the batch is big enough, it writes.',
+    'One write per hashtag: <code>total_photos + 2</code> for <code>#sunset</code>, <code>+ 1</code> for <code>#sun</code>. <span class="term green">count += n</span> instead of <code>count++</code> per post.',
+    'Then it <span class="term green">commits</span> its position on the topic: offset 3 is next.',
+    'Replay instead: it <span class="term red">crashes</span> after the write but before the commit. On restart it reads from offset 0 again, and <code>#sunset</code> gets <span class="term red">+ 2 a second time</span>.',
+  ]}>
+<Desk><OneBatch /></Desk>
+<Phone><OneBatch layout="phone" /></Phone>
+</StepThrough>
+
+The write in step 4 is one statement per hashtag, and it must be an atomic increment, not a read followed by a write, because the database is the one place every writer meets. Pick a database that gives you atomic updates; MySQL and DynamoDB both do. [[L-0308]]
+
+```sql
+UPDATE hashtags
+SET total_photos = total_photos + 2
+WHERE tag = 'sunset';
+```
+
+Step 6 is the price, and you have seen it before: Kafka delivers at least once, as in <LectureLink lec="lec01">Lecture 2</LectureLink>, so a crash between the write and the commit counts a batch twice. Here that is acceptable. The page says “1.2m photos” and renders 100 of them; nobody will check whether it should have said 1,199,998. You don’t need strong consistency everywhere. At scale you relax the constraints that don’t matter, and a count that is a little off is one of them. [[L-0255 L-0256]]
+
+The count now moves with every post, at the cost of one write per hashtag per batch. The other half of the document, the top 100, comes from a team you don’t control.
+
+</Section>

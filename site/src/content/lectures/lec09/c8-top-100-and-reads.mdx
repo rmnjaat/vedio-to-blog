@@ -1,0 +1,95 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { HashtagService, TwoPaths } from '../../../figures/lec09/s9-hashtag-design-figs';
+import { SoFarHashtag } from '../../../figures/lec09/so-far';
+
+{/* Chapter 8 "Where does the top 100 come from, and how fast can the page be?" Story rewrite: call data science on
+    each read? no (latency, uptime coupling) → pause: webhook or their Kafka → a process, not a service; replace the
+    array → the read side: one document, key-value access, a CDN or a cache in front of JSON, Cache-Control, TTL and
+    invalidation → the whole service (figure) → read path / write path as the method that would have found it
+    (figure). */}
+
+<Section id="s8" no="8" title="Where does the top 100 come from, and how fast can the page be?" crumb="8 Top 100, fast reads" meta="About 8 min">
+
+The count keeps itself up to date now. Two parts of the page are left: the top 100, which another team decides, and the request that reads it all, which has to be very fast.
+
+<Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="Where the hashtag page stands. Extractors re-key every post into one message per hashtag on POST_HASHTAG, and counting servers batch them into count += n (new in chapter 7). The top 100 has no source yet.">
+<Desk><SoFarHashtag stage={2} /></Desk>
+<Phone><SoFarHashtag stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="Data science has a new top 100. Do you call them?" crumb="8.1 Top 100">
+
+The simplest idea: when someone opens `#sunset`, call the data science service and ask for its top 100. [[L-0260]]
+
+That breaks the page twice. It adds a third call, to a service you don’t own, on every open; on a critical path, do the bare minimum of network calls. And a synchronous call makes your uptime depend on theirs: when their service is slow or down, so is your page. [[L-0257 L-0264]]
+
+So keep your own copy. Even if the popularity service stores the top 100 in its own database, the hashtag service copies it, shapes it the way the page needs, and stores it in the hashtag document. The page never calls them. [[L-0258]]
+
+<PauseAndThink k="L-0263 L-0305 L-0307"
+  q="Data science can call your API with a webhook, or write each new top 100 to a Kafka topic that you read. Which one, and why?"
+  choices={[{ label: 'The webhook' }, { label: 'The Kafka topic', correct: true }]}
+  right="Right."
+  wrong="A webhook is a reasonable idea: top-100 updates aren’t frequent. Now think about whose job it becomes when something fails.">
+
+With a webhook, the data science team has to build and run the calls to your API. If your API is down when they call, the update is lost, and reprocessing it is not something they will want to own. With Kafka they write each new top 100 to their topic and are done; you read it at your own pace. Nothing about this update needs to be synchronous, so it shouldn’t be.
+
+</PauseAndThink>
+
+Everything is a trade-off; know what you are trading for what. Here the reader of their topic is small: not a new “top-100 service”, just a process, a few servers that read a low-traffic topic and, for each event, replace the hashtag’s whole `top_100` array. Nothing to merge or re-sort. [[L-0261 L-0262 L-0263 L-0306 L-0309]]
+
+Data science never learns your database exists, and you never learn how they rank. If they later want hashtag-level data, they can simply consume `POST_HASHTAG` too. [[L-0299]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="One document per request. Can it be cheaper?" crumb="8.2 The read">
+
+The read side is a plain GET. Hashtag API servers answer `GET /hashtag/sunset` by reading the one document for `sunset` and sending it back: the tag, the count and 100 post IDs. That is key-value access, a key in and a value out, so any partitioned store that does it well will do: MySQL, MongoDB, DynamoDB. The app then asks the post service for those 100 posts, as it does for a profile, and gets photo URLs signed for its own screen width and only for posts it may see. [[L-0271 L-0274]]
+
+Still, every open of `#sunset` is a database read, for a document that changes only when a batch of counts lands or a new top 100 arrives. Can most requests skip the database? [[L-0272]]
+
+Put the hashtag API behind a CDN, exactly as the photos are. To a CDN, a JSON response is bytes like any other, and this one is the same for every reader. Users get the page from an edge near them instead of waiting on a database read, and the CDN takes care of the geography. A cache in front of the database would work too; pick one. With a CDN you don’t need the cache, and for a response that changes this rarely the CDN is the stronger choice. (Fig 8·b keeps “or a cache” as the alternative.) [[L-0272 L-0273 L-0275]]
+
+The CDN caches only what it is allowed to. Cloudflare, for one, doesn’t cache JSON by default: it decides by file extension, so `/hashtag/sunset` needs a cache rule that makes it eligible <Cite href="https://developers.cloudflare.com/cache/concepts/default-cache-behavior/">developers.cloudflare.com</Cite>. Then the hashtag API says how long the copy may live. Here it lets shared caches like the CDN keep it for a minute (the value is yours to choose); CloudFront honours this header on its own, within its TTL limits:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: public, s-maxage=60
+```
+
+That TTL is your freshness promise: after it expires, the next request goes through to the API, which reads the database, and the new answer is cached and served again. If a minute is too stale when a new top 100 arrives, the worker that writes it can also call the CDN’s invalidation API for `/hashtag/sunset`. [[L-0273 L-0276]]
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="The whole hashtag service" crumb="8.3 All of it">
+
+<Figure id="fig-8b" no="Fig 8·b" k="L-0268 L-0263 L-0271 L-0272 L-0274 L-0275 L-0289" caption="The hashtag service. Producers drop events on Kafka (dashed blue); consumers pull; the counting servers and the popularity workers write to the same partitioned database; readers get one JSON document through the CDN.">
+<Desk><HashtagService /></Desk>
+<Phone><HashtagService layout="phone" /></Phone>
+</Figure>
+
+Count the times Kafka appears. The post topic feeds every other service, as in chapter 5. It is re-keyed so the counting writes can be batched. And it is how the data science team hands its results to the backend. Each team writes once and moves on; each reader works at its own pace. That ability is why Kafka became so widely used. [[L-0265 L-0289]]
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="Would you have found all this?" crumb="8.4 Two paths">
+
+Go back to Fig 6·a, where the page had nothing behind it. How do you get from there to the picture above without guessing? Find the paths that write to the database and the paths that read from it, and take one at a time. At every hop ask two questions: what if this gets a huge load, and is this the bare minimum? [[L-0277 L-0278 L-0285]]
+
+<Figure id="fig-8c" no="Fig 8·c" k="L-0279 L-0274 L-0277 L-0280 L-0291 L-0293" caption="The two paths. The write path runs post service → Kafka → hashtag workers → partitioned database. The read path runs user → hashtag API → partitioned database or cache, a key-value lookup.">
+<Desk><TwoPaths /></Desk>
+<Phone><TwoPaths layout="phone" /></Phone>
+</Figure>
+
+On the read path, blow the load up and climb: if one database can’t take the spikes, partition it and add replicas; if that still isn’t enough, put a cache in front of it; and in front of everything, the CDN of 8.2. The API itself counts nothing. On the write path it found this whole chapter and the last: a post with eight hashtags means eight writes, not the bare minimum, which led to batching, and batching led to re-keying. The same walk asks whether the database is provisioned for the write path’s pace. The method doesn’t mean reads and writes need separate services; the hashtag API and the counting workers are separate because one answers web requests and the other consumes a stream. [[L-0280 L-0287 L-0288 L-0291 L-0293]]
+
+On a good day this design is done. But Kafka is now in the middle of everything, and machines have bad days.
+
+</Section>

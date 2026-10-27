@@ -17,53 +17,10 @@ const LIST: { item: string; no: string; href?: string; aside?: string }[] = [
 ];
 
 /** Fig 3·a: the board's checklist for the upload service, each item linked to the chapter that covers it. 340 wide. */
-export function BrainstormList() {
-  const Y0 = 98, RH = 36;
-  return (
-    <Fig id="fig3a" w={340} h={Y0 + LIST.length * RH + 6} title="The brainstorm list"
-      desc="The six things the class listed for Instagram's image upload service (storage, data flow, separation of concerns, privacy, extensibility and optimization) under the requirement of 5 million photo uploads a day, each tagged with the chapter of this page that covers it.">
-      <Label kind="mono" anchor="start" x={14} y={28} size={15}>image upload service</Label>
-      <Line pts={[[14, 38], [196, 38]]} weight="thin" seed="f3a-ul" />
-      <Label anchor="start" x={14} y={66} size={14}>requirement: 5M photo uploads / day</Label>
-      {LIST.map((r, i) => {
-        const y = Y0 + i * RH;
-        return (
-          <g key={r.item}>
-            <Box x={14} y={y - 12} w={14} h={14} seed={`f3a-cb${i}`} />
-            <Label anchor="start" x={40} y={y} size={14}>{r.item}</Label>
-            {r.aside && <Label muted anchor="start" x={102} y={y} size={13}>{`(${r.aside})`}</Label>}
-            <ChTag x={326} y={y} no={r.no} href={r.href} anchor="end" size={14} />
-          </g>
-        );
-      })}
-    </Fig>
-  );
-}
-
 /* ------------------------------------------------------------------ RuleBox §3 sketch */
 
 const R3_TITLE = 'Simple is hard';
 const R3_DESC = 'The user sends the photo along one long arc straight to S3, with a signed, short-lived permission; the API server under the arc is crossed out because the bytes never pass through it.';
-
-export function SimpleSketch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
-  const P = layout === 'phone';
-  const W = P ? 320 : 480, H = P ? 168 : 150;
-  const id = P ? 'rule3s-p' : 'rule3s';
-  const s = (k: string) => `${id}-${k}`;
-  const ux = P ? 28 : 40, bx = P ? 270 : 410, by = P ? 84 : 74;
-  const api = P ? { x: 124, y: 82, w: 62 } : { x: 186, y: 74, w: 82 };
-  return (
-    <Fig id={id} w={W} h={H} title={R3_TITLE} desc={R3_DESC} className="bottomup">
-      <Actor x={ux} y={by - 10} seed={s('u')} />
-      <PhotoChip x={ux + 8} y={by - 34} seed={s('chip')} />
-      <Arrow tone="blue" pts={arcPts([ux + 10, by - 38], [bx - 46, by - 10], P ? -30 : -34)} seed={s('arc')} />
-      <Bucket cx={bx} cy={by} w={P ? 84 : 96} h={P ? 52 : 58} seed={s('s3')} />
-      <Box x={api.x} y={api.y} w={api.w} h={34} label="api" seed={s('api')} faint />
-      <Line pts={[[api.x - 6, api.y + 40], [api.x + api.w + 6, api.y - 6]]} weight="heavy" seed={s('x1')} />
-      <Label x={W / 2} y={H - 14} size={14}>one request, signed, short-lived</Label>
-    </Fig>
-  );
-}
 
 /* ------------------------------------------------------------------ Fig 3·b */
 

@@ -7,14 +7,14 @@ import { DocCard } from './s7-hashtag-storage-parts';
 
 const F11A_TITLE = 'One CDN, three jobs';
 const F11A_DESC =
-  'One CDN does three jobs in this lecture: it serves the photos (chapters 2 and 4.4), it checks signed URLs and resizes images with a width parameter (chapters 5 and 6.2), and it caches the hashtag page’s JSON document (section 9.2).';
+  'One CDN does three jobs in this design: it serves the photos (chapter 1 and section 3.4), it checks signed URLs and resizes images with a width parameter (chapter 4 and section 5.1), and it caches the hashtag page’s JSON document (section 8.2).';
 
 type Card = { title: string; tags: { no: string; href: string }[]; body: (x: number, y: number, k: string) => React.ReactNode };
 
 const CARDS: Card[] = [
   {
     title: 'serve photos',
-    tags: [{ no: '2', href: '#s2' }, { no: '4.4', href: '#s4-4' }],
+    tags: [{ no: '1', href: '#s1' }, { no: '3.4', href: '#s3-4' }],
     body: (x, y, k) => (
       <g>
         <PhotoChip x={x + 18} y={y + 6} w={28} h={20} tone="ink" seed={`${k}-chip`} />
@@ -24,7 +24,7 @@ const CARDS: Card[] = [
   },
   {
     title: 'signatures + resizing',
-    tags: [{ no: '5', href: '#s5' }, { no: '6.2', href: '#s6-2' }],
+    tags: [{ no: '4', href: '#s4' }, { no: '5.1', href: '#s5-1' }],
     body: (x, y, k) => (
       <g>
         <KeyTag x={x + 14} y={y + 4} w={124} seed={`${k}-tag`} kind="mono" size={12.5}>?oh=…&amp;oe=…</KeyTag>
@@ -34,7 +34,7 @@ const CARDS: Card[] = [
   },
   {
     title: 'cache the hashtag JSON',
-    tags: [{ no: '9.2', href: '#s9-2' }],
+    tags: [{ no: '8.2', href: '#s8-2' }],
     body: (x, y, k) => <DocCard x={x + 14} y={y - 4} w={174} lines={['{ tag,', '  total_photos,', '  top_100 }']} row={19} size={12.5} seed={`${k}-doc`} />,
   },
 ];

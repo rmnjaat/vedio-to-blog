@@ -1,0 +1,926 @@
+[
+ {
+  "id": "Q001",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q002",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q003",
+  "answer": "Instagram reached 14 million users in its first year with three engineers.",
+  "evidence": "Overview: 'Instagram reached 14 million users in its first year with three engineers'",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "NOT ON PAGE (page only shows a generic two-box picture: app -> API servers -> one database)",
+  "evidence": "Fig 0·a",
+  "found": false
+ },
+ {
+  "id": "Q005",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q006",
+  "answer": "Transparently between the user and the origin; origin is wherever the content really lives: an S3 bucket, a backend server, any URL (doesn't even have to be yours).",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "Nobody pushes; the CDN pulls: on a request for something it doesn't have, it asks the origin, keeps the answer and serves it. CDNs offer APIs, but storing content isn't their main job.",
+  "evidence": "§1.2 Pause and think",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "The server does no real work, just copies the same static bytes; photos are heavy (1-10 MB) and leave through the same network card every API call needs, wasting API server bandwidth ('close to a crime'); and the bytes travel from Singapore to the US on every view (distance/latency).",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "A CDN property: a hostname on the provider (e.g. instacdn.net) mapped to your origin (e.g. instaimages.com); just one origin URL.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "Ordinary DNS: you point the CDN hostname at the CDN provider in DNS (Route 53 or any domain provider); the browser resolves the host and sends the request to the CDN's IP without knowing it's a CDN.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Browser resolves the CDN host via DNS -> CDN's IP; sends GET path to the CDN; CDN looks up the property's origin; swaps the host, keeps the path; fetches same path from the origin; caches the bytes and returns them. (Page uses instacdn.net/A/1729.png, not a.mycdn.net/system-design/logo.png.)",
+  "evidence": "Fig 1·b steps 1-5",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "The host changes (CDN host -> origin host); the path stays the same (plain string replacement). The origin may include its own path prefix, e.g. instaimages.com/static.",
+  "evidence": "§1.3 after Fig 1·b",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "It's a hit: served from the CDN's cached copy; the origin never hears about it, until the copy expires and one request refills.",
+  "evidence": "Clip 1·1, §1.4",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "No: to the CDN a response is just bytes - images, video, JSON; Cache-Control/cache rules decide whether and how long.",
+  "evidence": "§1.4; §8.2",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "Requests it answers never enter your infrastructure, so a couple of servers do the work of hundreds; you pay the CDN instead; by a rule of thumb the CDN bill roughly equals the server saving, so the real gain is speed.",
+  "evidence": "§1.4",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "Yes: an origin doesn't even have to be yours; to the CDN it's just a URL.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "NOT ON PAGE (page uses a generic instacdn.net -> instaimages.com example)",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q018",
+  "answer": "No: the origin can be a private bucket that only the CDN may read (CloudFront via bucket policy/OAC, third-party CDNs via AWS access keys).",
+  "evidence": "§2.1, Fig 2·b",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "The app renders whatever URL it is given; the backend must put CDN URLs into its responses - the post service builds the CDN URL per request and returns it in the JSON.",
+  "evidence": "§1.4 end; Fig 3·d step 3",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "You must change the URLs you send: the app has no idea whether the host is a CDN, so the backend must put CDN URLs in its responses.",
+  "evidence": "§1.4 end",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Not until its copy expires (TTL), unless you call its invalidation API for that path; then the next request misses and refetches.",
+  "evidence": "§1.4",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q023",
+  "answer": "5 million photo uploads a day.",
+  "evidence": "§2 intro",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "Blob storage (S3/GCS), because it is dirt cheap; the bucket is the CDN's origin and can stay private.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "Unnecessary: an HD photo ~5 MB is peanuts for one HTTP request; chunking solves a problem you don't have; easy to build complex systems, hard to build simple ones.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "On Instagram users post to see and share the photo now, not an hour later, so the copy must be synchronous.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "No; the server returns a 5xx and the client retries - a crash mid-upload is not the problem.",
+  "evidence": "Fig 2·c row b",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "Bandwidth: each photo crosses the API server's network card twice (in, then out to S3), cards have physical limits, the photo sits in memory, other API calls suffer; you'd size the API fleet for photo bytes (~58 uploads/s, ~290 MB/s each way).",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "The long arc is the photo going straight from the user to S3 via a pre-signed URL (skipping the API servers). Text next to 'Bandwidth concern': NOT ON PAGE.",
+  "evidence": "Clip 2·1",
+  "found": false
+ },
+ {
+  "id": "Q030",
+  "answer": "No fleet of bulky upload servers to run, and one trip per photo instead of two (bandwidth); also less infra and AWS does the permission check.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "A URL signed in advance with an expiration, for exactly one path (e.g. s3://images/<random_id>.png), signed locally by the SDK with the service's credentials; lets the holder upload straight to S3.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "1) App asks the backend/image service to prepare an upload; 2) service makes a random image ID and signs a short-lived URL for that path (no S3 call) and returns it; 3) app uploads the photo straight to S3 (PUT or form POST); 4) then create the post with the image ID via the post service.",
+  "evidence": "§2.3, Fig 3·c",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Anyone could write to it; S3 bills for stored data, so anybody could park their files in your bucket on your bill.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "Here a minute, often just seconds (example 60 seconds); what is open is not the bucket nor even the path but that one URL: anyone holding it can store content at its one path until expiry.",
+  "evidence": "§2.4, Clip 2·1",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "No upload fleet, one trip per photo instead of two, less infrastructure to manage, permission check done by AWS instead of your code; saving in servers and bandwidth (not transfer bill).",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "Only metadata: name, size (183938 bytes), content type image/png, an auth token. Not the image.",
+  "evidence": "Fig 2·d step 1",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "POST github.com assets (201: register upload, metadata); OPTIONS to S3 user-asset (200); POST to S3 user-asset bucket with form fields + file (204); PUT github.com/.../221335625 (200: confirm upload, markdown inserted). Then opening the image goes to the CDN.",
+  "evidence": "Fig 2·d network panel labels",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "To S3's URL (…-6210df.s3.amazonaws.com), not GitHub's.",
+  "evidence": "Fig 2·d step 2",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "The future image URL, a CDN URL (user-images.githubusercontent.com/...): 4745789 = the uploader's user ID, 221335625 = the image ID.",
+  "evidence": "Fig 2·d step 2; §2.5",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "key, acl, policy, and the X-Amz-* fields (policy signed with expiry inside).",
+  "evidence": "Fig 2·d",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "The signed fields carry the expiry and conditions, and the signature covers them; S3 recomputes the signature from the request itself and refuses if fields changed or time passed - like a JWT.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Straight to S3 (S3's ordinary endpoint), a POST whose body has the signed form fields (key, acl, policy, X-Amz-*) plus the file; S3 answers 204.",
+  "evidence": "Fig 2·d step 3; §2.5",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "It goes to the CDN, which misses, reads the key from the S3 origin, caches it and serves it; next load is a hit.",
+  "evidence": "Fig 2·d step 5",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "GitHub's attachment upload and Instagram's photo upload are the same block: register/get signed upload, upload straight to S3, then confirm/create the post (the PUT + markdown ~ creating the post with the image ID); render the CDN URL.",
+  "evidence": "§2.5",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "The check can't sit in the upload request any more, so moderation becomes a separate, asynchronous system run after publishing or almost on the fly; some services proxy uploads they must validate and sign the rest.",
+  "evidence": "§2.5",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "The page/app renders the CDN URL, never the S3 one; the bucket is private and the CDN serves reads.",
+  "evidence": "Fig 2·d step 2; §3.3",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "A bucket lives in one AWS Region while a CDN has edges in many cities closer to the reader; S3 promises durability (eleven nines), a CDN fast responses.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "No; the CDN reads the private bucket with credentials (bucket policy/OAC for CloudFront, AWS access keys for third-party CDNs) using a normal authenticated read.",
+  "evidence": "§2.1, Fig 2·b",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Storing the CDN URL is the natural design and works, but don't: the url column is struck out on the board because it's derivable; store user_id and image_id.",
+  "evidence": "§3.1-3.3, Fig 3·b",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Store the crux and compute the rest: store nothing that can be derived.",
+  "evidence": "§3.2-3.3",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Instagram moved from CloudFront to Facebook's CDN (fbcdn.net) after acquisition: you'd rewrite every post's URL. Also management switching CDN every ~2 years or splitting 20% traffic; deletes.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "It ties you to a cloud provider the same way (e.g. a fourfold price rise; Bing API example); also the bucket is private so you'd still rewrite to a CDN URL on every read.",
+  "evidence": "§3.2, §3.3",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "id (from an ID generator, 64-bit time-sortable), user_id (author), image_id (random photo id from the image service), caption (hashtags inside), created_at; url struck out as derivable.",
+  "evidence": "Fig 3·b, §3.3 CREATE TABLE",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "s3://insta-images/<user_id>/<image_id>.png",
+  "evidence": "Fig 3·b",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Build the URL in code per request: hash the photo (crc32 of user_id/image_id) %100 and send <20 to the other CDN, so the same photo always goes to the same CDN.",
+  "evidence": "§3.3 code",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "In the API handler (post service), per request, when it's used.",
+  "evidence": "§3.3, Fig 3·d",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "The S3 key is built from the same two columns: <user_id>/<image_id>.png, so a delete just computes the path.",
+  "evidence": "§3.3",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "Ask image service to prepare upload (signed URL + image ID); upload photo straight to S3; ask post service to create post with image ID and caption (it can check image belongs to user).",
+  "evidence": "§3.4, Fig 3·c",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Only the image ID; posts and media are decoupled so video/reels/stories can get their own upload services without changing the post.",
+  "evidence": "§3.4",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "Check that the image ID really belongs to the user posting it.",
+  "evidence": "§3.4",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "The post service feeds Kafka (one 'post published' event after writing to MySQL); search, notification, analytics, feed consume; partition key user_id.",
+  "evidence": "Fig 5·c",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "A prepares upload with image svc -> uploads straight to S3 with signed URL -> posts via post service (stores ids in posts db, event on Kafka for consumers) -> B asks post service for A's posts -> gets CDN URLs -> fetches photos from CDN which pulls from private bucket.",
+  "evidence": "Fig 5·d",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "The img tag makes a GET to the CDN URL; first view misses and CDN reads from S3, caches, returns; next viewer hits.",
+  "evidence": "Fig 3·d steps 4-6",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "No - pseudo privacy: anyone with the URL can open it until it expires.",
+  "evidence": "§4.1, §4.3",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "Serving from your own servers would bring back all chapter 1 problems and cost would shoot up; CDN gives the best experience.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "Copied a private profile's photo URL from the inspector and opened it in a private (incognito) window, not logged in: it loads.",
+  "evidence": "§4.1, Fig 4·b",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "CDN host (fbcdn.net), CDN path, image name with random ID, query params: ig_cache_key, oh (hash/signature), oe (expiry), nc_sid (CDN's own). oh+oe (signed expiry) make it 'private'.",
+  "evidence": "Fig 4·c",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Request fails with 'Bad URL timestamp'; editing the expiry breaks the signature.",
+  "evidence": "§4.2, Clip 4·1",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "It has no notion of users; it verifies a signature in the URL (computed over URL+expiry with a key it can verify) and then the expiry, and serves or refuses.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "In the API server/post service: it only sends the JSON list of signed URLs to allowed followers; otherwise app shows 'This account is private'.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Route every download through your own servers, checking per request if the user may read the image; at Instagram's scale ~50-100x servers, can't afford it, so accept pseudo privacy.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Signed URLs with an expiry time baked in and a signature over URL+time; like a JWT.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "CDN checks signature, then expiry, then serves or refuses. Closing note: the CDN checks the URL, not the person (knows no one). (Exact notes wording not on page.)",
+  "evidence": "§4.2, Clip 4·1",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Post service saves and puts one message on Kafka; other services consume at their own pace; new teams plug in without changing the post service.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "Use the CDN's image transformation (query parameters like w) - reuse what exists; pay a little money.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Users differ in network/phone; e.g. Sachin Tendulkar uploads 50 MB photos, small-town user on mobile data scrolls 10 -> 500 MB, day's data gone; 10,000x10,000 image on 360px screen.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "The width comes from the app (it knows its screen size); with signed URLs the app sends width and the backend puts w=360 before signing.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Looks for resized copy, then original; fetches original from S3 if needed, resizes on the CDN, caches resized copy and returns; next request for same width hits.",
+  "evidence": "Fig 5·b",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "Rotation, grayscale and more.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "No: the app has to ship the decoder and anything in an APK can be decompiled.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Cheap enough to leave, or a job can delete images no post refers to.",
+  "evidence": "§2.5",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "So search, feed, notifications, analytics etc. each consume the post event at their own pace and new teams plug in without changing the post service; Kafka is the glue of social networks.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "It doesn't need to; that's the CDN provider's problem (geo-DNS or anycast/BGP).",
+  "evidence": "§1.4 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q085",
+  "answer": "The hashtag, count of photos (1.2m photos), grid of top 100 photos.",
+  "evidence": "§6.1, Fig 6·b",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "Millions of hashtags; top 100 given by a data-science service (black box); best UX / very fast; count changes; one request.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Where data is stored, how the changing count is kept up to date, how top 100 gets from data science, fast response time (inferred; board list not shown).",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Hashtags aren't columns, they live in the caption; and it starts from the data not the page.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "{ tag: 'sunset', total_photos: 1200000, top_100: [post_id_1..post_id_100] }",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "No: post IDs; URLs are derivable, image ID alone lacks user, post ID leads to everything.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "IDs: less space, two reads, always fresh, cheap to cache, nothing to update. Whole posts: more space (maybe fine), one read, stale copies, bigger doc, update every copy.",
+  "evidence": "§6.3 table",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Freshness/always latest (and cheap to cache, nothing to update when a post changes).",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "100 entries may be fine; one read renders the page.",
+  "evidence": "§6.3 table",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Likes/captions copied go stale - every like must be copied into every hashtag document; if the hashtag page showed only photos with likes/comments only on opening the post, nothing goes stale.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "NOT ON PAGE (page fixes grid at exactly top 100 'to keep the problem sharp'; related: top-million in §6.4)",
+  "evidence": "§6.1",
+  "found": false
+ },
+ {
+  "id": "Q096",
+  "answer": "Not count++ per post; batch via a Kafka consumer, sum in memory, write count += n per hashtag (atomic increment).",
+  "evidence": "§7.1, §7.5",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "A post has several hashtags, and the topic is consumed by search/notifications/feed keyed by user/post id; a second topic from the post service means two writes/distributed consistency. Partitioned by user_id.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Same hashtag posts by different users land on different partitions/servers, each with little to fold, so many writers hit the same hot row.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "Pub/Sub stores nothing so a down server misses messages forever, and it pushes so a hot tag floods one server; Kafka keeps messages and consumers pull.",
+  "evidence": "§7.3 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Hashtag extractors read the post topic and write one (hashtag, post_id) message per tag to a second topic POST_HASHTAG keyed by hashtag; counting servers read it and batch count += n.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "Post 31 with #sunset #sun #nature becomes three messages, one per hashtag.",
+  "evidence": "§7.4 clip",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "No; three partitions can carry millions of hashtags via hashing.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "DB is happier with one multi-row insert of 100 rows than 100 inserts - 'many times faster'. (No specific factor.)",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Others depend on it keyed by user; a post has multiple hashtags.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Over-count on crash between write and commit (at-least-once); fine - nobody checks 1.2m vs 1,199,998; count not real-time either.",
+  "evidence": "§7.5, §7.1",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "One document per hashtag with all the page's data, own copy of top 100, minimal network calls, CDN in front.",
+  "evidence": "§6.2, §8.1, §8.2",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Neither: keep our own copy, updated when data science publishes a new top 100.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "Data science writes each new top 100 to their Kafka topic; a few workers read it and replace the top_100 array.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Extra network call on critical path to a service you don't own, and uptime depends on theirs.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Write path: post svc -> Kafka -> extractor -> POST_HASHTAG -> counting servers -> partitioned DB; popularity svc -> their Kafka -> workers replace top 100; read: user -> CDN -> hashtag API -> DB (or cache).",
+  "evidence": "Fig 8·b",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "POST_HASHTAG; yes, same Kafka cluster.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "CDN in front (cache would work too; pick one); CDN preferred; s-maxage=60.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "Kafka as a glue; adapter pattern; effective batching and counting; read and write path optimizations.",
+  "evidence": "Fig 8·b labels",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "Find write and read paths, one at a time, ask at each hop: what if huge load, is this the bare minimum?",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Huge load and bare minimum at each hop (e.g. 8 hashtags = 8 writes -> batch).",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "MySQL, MongoDB, DDB; key-value based access: for a key (hashtag), get the value (details).",
+  "evidence": "Fig 8·c",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Ask at each hop of the read path: huge load? bare minimum? -> cache or CDN, API counts nothing.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "A post with 8 hashtags means 8 writes, not the bare minimum -> batching -> re-keying.",
+  "evidence": "§8.4, §7.1",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "NOT ON PAGE (adapter described: re-key then batch)",
+  "evidence": "§7.4",
+  "found": false
+ },
+ {
+  "id": "Q120",
+  "answer": "No; they're separate because one answers web requests and the other consumes a stream.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Pick a number, measure throughput, raise it (with workers); never match number of hashtags.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "Hash map hashtag->counter per batch, then one write per hashtag.",
+  "evidence": "§7.5",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "No; consume POST_HASHTAG.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "Same as Q099: nothing urgent, Pub/Sub stores nothing, pushes.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "They'd have to build and run the calls; if our API is down the update is lost and they won't want to reprocess.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "Atomic increment UPDATE ... total_photos = total_photos + n, not read-then-write.",
+  "evidence": "§7.5",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Replace whole array per event.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "No; keys hash to partitions, any number of keys fine.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q129",
+  "answer": "No: availability, not immortality; one broker failure survivable.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "Fallback queue (SQS) and re-ingest; drop; hold in memory and drop if not back.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "The SLA that matters is the lag: how quickly you consume from Kafka.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "SOS button in a ride-hailing app.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q134",
+  "answer": "7 days default; horizon = oldest message still kept (trim horizon / earliest).",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "Kafka records how far its group got (offset) per partition.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q136",
+  "answer": "Oldest kept (trim horizon/earliest), last commit (restarts), latest (new group default).",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q137",
+  "answer": "Yes: keeping more costs disk; at high volume set deletion policy.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q138",
+  "answer": "Archive old events to S3 before deletion.",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q140",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q141",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q142",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q143",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q144",
+  "answer": "Don't delete; ~836 bytes ≈1 KB.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q145",
+  "answer": "Thousand→million→billion jumps are easy to ignore; do the calculation (billion docs ≈ 1 TB).",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q146",
+  "answer": "Keep first page in doc, rest in a separate paginated store.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q147",
+  "answer": "NOT ON PAGE (page argues Kafka over Pub/Sub because it persists; nothing on in-memory queues)",
+  "evidence": "§7.3",
+  "found": false
+ },
+ {
+  "id": "Q148",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q149",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q150",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q151",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q152",
+  "answer": "Possibly the transactional outbox / fallback queue (not framed as DLQ).",
+  "evidence": "§9.1",
+  "found": false
+ },
+ {
+  "id": "Q153",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q154",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ }
+]

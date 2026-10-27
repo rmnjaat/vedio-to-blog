@@ -1,0 +1,135 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import Cite from '../../../components/Cite.astro';
+import { LossSketch, StreamSteps } from '../../../figures/lec09/s10a-running-the-pipeline-figs';
+import { OneCdnThreeJobs } from '../../../figures/lec09/s11-keep-figs';
+import { SoFarHashtag } from '../../../figures/lec09/so-far';
+
+{/* Chapter 9 "Kafka goes down, a counter crashes, a new team plugs in". Story rewrite: the pipeline on bad days,
+    all on the hashtag design: Kafka down (producer buffering, fallback queue / drop / buffer, SOS) → retention and
+    where a consumer starts (stepper) → falling behind: partitions, adding them remaps keys → what you can now do (One CDN, three jobs), recall → hand-off to Lecture 8. */}
+
+<Section id="s9" no="9" title="Kafka goes down, a counter crashes, a new team plugs in" crumb="9 Bad days" meta="About 10 min">
+
+The hashtag design is complete. Every arrow that carries work in it runs through Kafka, so the questions that remain are about Kafka on a bad day.
+
+<Figure id="fig-9-sofar" max={640} no="Fig 9·a" caption="The hashtag page, complete. The popularity service’s new top 100 arrives on its own Kafka topic and a few workers write it into the document; readers get the page through the CDN (new in chapter 8).">
+<Desk><SoFarHashtag stage={3} /></Desk>
+<Phone><SoFarHashtag stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="Kafka is down. Where do new posts go?" crumb="9.1 Kafka down">
+
+Kafka is a cluster, with each partition copied to several brokers, so one broker failing is survivable. That is availability, not immortality: Kafka can go down. [[L-0311 L-0312 L-0313]]
+
+When it is down, writes to Kafka fail: the post service’s events and the extractors’ messages to `POST_HASHTAG`. A short blip needs nothing from you: the producer keeps unsent records in memory, 32 MiB by default, and retries for up to two minutes <Cite href="https://kafka.apache.org/43/configuration/producer-configs/">kafka.apache.org</Cite>. After that the write is lost, unless you choose one of three things: write it to a fallback queue such as SQS and re-ingest it once Kafka is back; drop it; or hold it in memory a while longer and drop it if Kafka doesn’t return in time. [[L-0314 L-0358]]
+
+<Figure id="fig-9b" max={480} no="Fig 9·b" k="L-0314 L-0319 L-0320" caption="Kafka is down: buffer, drop, or send to a fallback queue. Which one depends on what a lost message costs.">
+<Desk><LossSketch /></Desk>
+<Phone><LossSketch layout="phone" /></Phone>
+</Figure>
+
+Pick per message, by what its loss costs. The post event feeds search, the feed and notifications too, so the post service shouldn’t drop it: give it a fallback queue, or the **transactional outbox**, which writes every outgoing message to a table in the same database transaction as the post itself and lets a relay publish it later <Cite href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io</Cite>. The extractors’ writes to `POST_HASHTAG` are where “drop it” is fine: losing a minute of hashtag counts is nothing, and you don’t always have to add yet another component. (An extractor has an even cheaper way out: it doesn’t commit, and rereads those posts from the post topic once Kafka is back.) Now think of an SOS button in a ride-hailing app: that message may never be lost, and a system like that is built for high availability end to end, and pays for it. [[L-0319 L-0320 L-0359]]
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="Where does a consumer start reading?" crumb="9.2 Where to start">
+
+Sooner or later a counting server crashes and restarts, and a new team plugs in: say data science starts reading `POST_HASHTAG`, as chapter 8 suggested. Where should each start? [[L-0299 L-0328]]
+
+First, what is there to read. Kafka deletes messages after a retention period, 7 days unless you change it per topic <Cite href="https://kafka.apache.org/41/configuration/broker-configs/">kafka.apache.org</Cite>. Keeping more costs disk: a quiet topic can keep everything, but at high volume you set a deletion policy and archive old events to S3 first if you need the history. [[L-0323 L-0329 L-0330]]
+
+<StepThrough id="fig-9c" no="Fig 9·c" label="Where can a consumer start reading?" grow
+  k="L-0323 L-0324 L-0325 L-0326 L-0327 L-0328"
+  stepK={['L-0323', 'L-0323 L-0324 L-0325', 'L-0326', 'L-0327', 'L-0327']}
+  caption="One partition of POST_HASHTAG as a row of offsets. H is the oldest message still kept, LC the group’s last commit (green). Blue squares are messages; struck ones were deleted by retention; red marks the crash and the reprocessed messages."
+  steps={[
+    'Messages arrive on a partition, oldest on the left: offsets 0 to 8.',
+    'Retention (7 days here) removes the oldest. <code>H</code> marks the oldest message still kept; nothing before it can be read.',
+    'The counting server reads a batch, 3 to 5, and commits: Kafka records how far its group got. The last commit <code>LC</code> points at 6, the next message to read.',
+    'It processes three more, 6 to 8, and <span class="term red">crashes</span> before the next commit.',
+    'On restart it resumes from the last commit and processes 6 to 8 <span class="term red">again</span>.',
+  ]}>
+<Desk><StreamSteps /></Desk>
+<Phone><StreamSteps layout="phone" /></Phone>
+</StepThrough>
+
+So a consumer starts in one of three places: the oldest message still kept (Kinesis calls it the trim horizon, Kafka the earliest offset), its group’s last commit, or the latest message. The crashed counting server resumes from its group’s last commit, as most consumers do, and reprocesses what it read since: chapter 7’s recount. The commit belongs to the group and the partition, so whichever server takes the partition over resumes from the same place. [[L-0324 L-0325 L-0326 L-0327 L-0328]]
+
+<PauseAndThink k="L-0328"
+  q="Data science starts a brand-new consumer group on POST_HASHTAG to study the last week of hashtags. You change no settings. What does it read first?"
+  choices={[{ label: 'The oldest message still kept' }, { label: 'Only messages that arrive from now on', correct: true }]}
+  right="Right, and that surprises many teams."
+  wrong="That is what it should read, but not what it reads.">
+
+A consumer group with no committed position starts wherever `auto.offset.reset` says, and the default is `latest`. To read the week that is already there, the team must set it to `earliest`.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s9-3" no="9.3" title="The counters fall behind. Add more?" crumb="9.3 Falling behind">
+
+Posts arrive faster and the counts on the page lag further behind. For this design that lag is the service level that matters: how quickly you consume what is in Kafka. Parallelism is set by the partitions, since each is read by one consumer in a group. So measure the throughput you get, and if it misses the target, add partitions and workers together. Partitions never match the number of hashtags, and needn’t: pick a number, measure, raise it. [[L-0282 L-0294 L-0310 L-0315]]
+
+Raising it has the catch <LectureLink lec="lec01">Lecture 2</LectureLink> warned about: new partitions change which partition each key hashes to, and existing messages don’t move <Cite href="https://kafka.apache.org/43/operations/basic-kafka-operations/">kafka.apache.org</Cite>. For a while `#sunset`’s old messages sit on one partition and its new ones on another, so two servers write `#sunset` at once. Atomic increments keep the count right, but one-writer-per-hashtag is broken until the old messages drain. So decide in advance whether you repartition online or with some downtime; either way, have a strategy for scaling up. [[L-0294 L-0316]]
+
+</Section>
+
+<Section id="s9-4" no="9.4" title="What you can now do" crumb="9.4 What you can do">
+
+Look back at the CDN. It started as the thing that carries photo bytes. By the end it was doing three jobs.
+
+<Figure id="fig-9d" no="Fig 9·d" k="L-0038 L-0169 L-0192 L-0272" caption="One CDN, three jobs: serve the photos from S3, check signed URLs and resize with a width parameter, and cache the hashtag page’s JSON. The tags link to the sections that cover each job.">
+<Desk><OneCdnThreeJobs /></Desk>
+<Phone><OneCdnThreeJobs layout="phone" /></Phone>
+</Figure>
+
+- **Put a CDN in front of anything:** one property maps a host to an origin; it keeps the path, pulls on a miss, serves hits until the copy expires, and caches only what is marked cacheable.
+- **Take uploads off your servers:** a random ID and a URL signed locally for one path, with a short expiry you choose; the bytes go once, straight to a private bucket only the CDN reads.
+- **Store the crux:** a post row holds ID, user ID, image ID and caption, photos live at `<user_id>/<image_id>.png`, and URLs are built per request, so CDNs, clouds and deletes stay one-function changes.
+- **Say what “private” means:** a signed, expiring URL checked by a CDN that knows no one, handed out by the API. Stricter costs tighter URLs or serving the bytes yourself.
+- **Design storage from the page, and count at volume:** one ~1 KB document per hashtag (a billion is a terabyte); batch, and re-key a shared topic through an adapter so one server owns each hashtag, with atomic `count += n` and recounts accepted; other teams’ results arrive on their topic.
+- **Serve and run it:** the page’s JSON sits behind the CDN, cacheable for a minute (`s-maxage`); 7-day retention by default, new groups start at `latest` unless set to `earliest`, partitions cap parallelism, and adding them moves keys.
+
+<RecallQuestions>
+  <RecallItem q="A dedicated upload service with bigger network cards already protects the API servers. What does a pre-signed URL save on top of that, and why can’t a stranger use it to fill your bucket?" k="L-0073 L-0078 L-0083 L-0084">
+
+The upload service still carries every byte twice and is a fleet to run; with a pre-signed URL the bytes go straight to S3, once. The URL is signed for one path and expires within a minute, so its holder can write only that path, only until then.
+
+  </RecallItem>
+  <RecallItem q="Your posts table has a cdn_url column. Name two things that become hard, and what the row should hold instead." k="L-0127 L-0139 L-0145 L-0133">
+
+Any two of: switching CDN (rewriting every post), sending 20% of traffic to another CDN, changing cloud, deleting the photo from S3. The row should hold the user ID and image ID, and build every URL and path from them per request.
+
+  </RecallItem>
+  <RecallItem q="A follower forwards a private account’s photo URL to someone who doesn’t follow it. What happens, and where is privacy actually enforced?" k="L-0162 L-0168 L-0172 L-0177">
+
+It opens until the signed expiry passes; then the CDN refuses it, and editing the expiry breaks the signature. The CDN knows no users: privacy is enforced by the API server, which sends photo URLs only to people allowed to see them.
+
+  </RecallItem>
+  <RecallItem q="Why can’t the counting servers just read the post topic, and what is added instead?" k="L-0240 L-0241 L-0244 L-0249">
+
+Keyed by user, the post topic spreads each hashtag over every partition, and it can’t be re-keyed: a post has several hashtags, and other services depend on it. An extractor writes one (hashtag, post) message per hashtag to POST_HASHTAG, keyed by hashtag, where one server batches each tag into count += n.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s9-5" no="9.5" title="The CDN resized your photo. Who wrote that code?" crumb="9.5 Next">
+
+Twice in this lecture you leaned on a black box. The CDN resized a photo because you added `?w=360`, and you paid for that rather than build it. Data science handed you a top 100 and you never asked how. Treating parts of a system as black boxes is how you get a design finished; sooner or later, someone has to build what is inside one. [[L-0185 L-0292]]
+
+<LectureLink lec="lec06">Lecture 8</LectureLink> opens the first one, and goes on to two more builds. First Gravatar: one URL for your face that any site can embed, where what the CDN fetches from its origin is a response from a handler you write yourself, served at every size. Then tagging people in photos, where a one-line brief has to become the right questions before anyone draws a table. Last, the red number on the messages icon, which counts people who have written to you, not messages; keeping it ready ends at a pattern that sounds wrong at first and keeps the database underneath alive. [[L-0292 L-0366]]
+
+</Section>

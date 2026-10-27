@@ -1,0 +1,122 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import Cite from '../../../components/Cite.astro';
+import { ThreePaths } from '../../../figures/lec09/s3a-figs';
+import { GitHubUpload, PrivateBucket } from '../../../figures/lec09/s3b-figs';
+import { SoFarPhotos } from '../../../figures/lec09/so-far';
+
+{/* Chapter 2 "5 million photos a day. How do they get in?" Story rewrite: storage (S3, cheap; private bucket read
+    by the CDN; why the CDN and not S3 for reads) → the upload ladder: chunks, async, crash, the real problem
+    (bandwidth, with the arithmetic) → a dedicated upload service → pre-signed URL (clip), two phases, local signing,
+    what is saved → why not an open bucket, bearer URL, stateless check → GitHub does the same (stepper),
+    moderation and orphans. */}
+
+<Section id="s2" no="2" title="5 million photos a day. How do they get in?" crumb="2 Getting photos in" meta="About 9 min">
+
+The CDN now carries every read, and pulls each photo from the origin once. The other direction is still the two-box design: every upload goes to your API servers. The target is 5 million photo uploads a day. [[L-0063]]
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="Where the photos stand. Reads go through the CDN, which pulls from the origin on a miss (new in chapter 1). Uploads still go through the API servers.">
+<Desk><SoFarPhotos stage={1} /></Desk>
+<Phone><SoFarPhotos stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="Where do the photos live?" crumb="2.1 Storage">
+
+Not on an API server’s disk. Put them in blob storage, S3 on AWS or GCS on Google Cloud, for one deciding reason: it is dirt cheap. [[L-0064]]
+
+The bucket becomes the CDN’s origin, and it can stay private: the usual setup lets only the CDN read it. With Amazon CloudFront the bucket’s policy allows CloudFront itself <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html">docs.aws.amazon.com</Cite>; third-party CDNs are given AWS access keys. Anyone else who tries the bucket directly is refused. [[L-0053 L-0107 L-0115 L-0116]]
+
+<Figure id="fig-2b" max={360} wide={false} no="Fig 2·b" k="L-0107 L-0115 L-0116 L-0117" caption="Private bucket, public CDN. The app only ever gets CDN URLs; the CDN reads the bucket with credentials, and a direct read of the bucket is refused.">
+<PrivateBucket />
+</Figure>
+
+Why not let readers fetch from S3 directly? You can, but a bucket lives in one AWS Region, while a CDN has edges in many cities, much closer to the reader. And they promise different things: S3 eleven nines of durability, a CDN fast responses. Store in one, serve from the other. [[L-0108 L-0109 L-0111 L-0113]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="Send it to the API server. What goes wrong?" crumb="2.2 Through the API">
+
+Now the upload. A photo feels like a lot for one request, so a common first idea is a persistent connection that sends it in chunks. But an HD phone photo is about 5 MB, peanuts for an HTTP server in one request. Chunking solves a problem you don’t have. It is easy to build complex systems and much harder to build simple ones. [[L-0065 L-0066 L-0067]]
+
+So the app sends the photo to the API server in one request, and the server copies it to S3. Could it say “posted” and copy later in a background job? On Instagram, no: you post to see the photo there and share it now, not an hour later. The copy happens while the user waits. [[L-0068 L-0069 L-0070]]
+
+<PauseAndThink k="L-0071 L-0072"
+  q="The app uploads each photo to an API server, which copies it to S3 before answering. What is the real problem with this?"
+  choices={[{ label: 'The server can crash mid-upload and lose the photo' }, { label: 'Something else', correct: true }]}
+  right="Right."
+  wrong="That one is easy: the server returns a 5xx and the app retries. The photo is still on the phone.">
+
+Bandwidth. Every 5 MB photo comes into the API server and goes out again to S3, through the same network card that every other API call uses, and every network card has a physical limit. Each photo also sits in the server’s memory while it is copied. Other calls start to suffer.
+
+</PauseAndThink>
+
+Put numbers on it. 5 million uploads a day is about 58 a second on average. At 5 MB each, that is about 290 MB a second coming into your API fleet, and the same 290 MB a second going out again to S3, roughly 2.3 Gbit/s each way before any peak. Spread over a fleet, no single card is full, and that is the trap: you end up sizing your API fleet, its network and its memory, for photo bytes instead of API calls. [[L-0063 L-0066 L-0072]]
+
+<Figure id="fig-2c" no="Fig 2·c" k="L-0065 L-0066 L-0068 L-0069 L-0071 L-0072 L-0073" caption="Three ways to get one photo into S3. The filled chip is the photo’s bytes, drawn only where the 5 MB actually travels.">
+<Desk><ThreePaths /></Desk>
+<Phone><ThreePaths layout="phone" /></Phone>
+</Figure>
+
+The obvious protection is row c: a separate image upload service, with bigger network cards, that only receives photos and passes them on to S3. Your core API servers are safe again. But the upload service still carries every byte twice, and it is now a fleet you size, run and pay for. Can you do better? [[L-0073 L-0075]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Can the photo skip your servers?" crumb="2.3 Pre-signed URL">
+
+<AnimationClip clip="l09-presigned-upload" no="Clip 2·1"
+  k="L-0068 L-0072 L-0076 L-0077 L-0078 L-0081 L-0082 L-0084 L-0085"
+  lead="Your API servers, or the upload service in row c, receive 5 MB photos. How many times do those bytes cross a network your servers sit on? And what if the app asked your servers only for permission?"
+  caption="The same photo through the API server, then another way in." />
+
+The clip’s second half is a **pre-signed URL**: a URL signed in advance, with an expiration. Almost everyone uses them. The service makes a random image ID and signs a URL for exactly that one path, say `s3://images/<random_id>.png`; the app then sends the photo there, straight into S3. [[L-0076 L-0080 L-0081 L-0082]]
+
+Creating the URL needs no call to S3: the service’s AWS SDK signs it locally with the service’s credentials, over the bucket, path, method and expiry, and S3 checks the signature when the app uses it. The upload can be a `PUT` of the raw file or a form `POST` with the signed fields in the body <Cite href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html">docs.aws.amazon.com</Cite>. [[L-0076 L-0082 L-0085]]
+
+What did that buy? No fleet of bulky upload servers, one trip per photo instead of two, less infrastructure to manage, and a permission check done by AWS instead of your code. [[L-0077 L-0078 L-0086]] The saving is in servers and bandwidth, not the transfer bill: AWS doesn’t charge for data coming in from the internet, or between EC2 and S3 in the same Region <Cite href="https://aws.amazon.com/blogs/architecture/overview-of-data-transfer-costs-for-common-architectures/">aws.amazon.com</Cite>. [[L-0079]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Why not just open the bucket?" crumb="2.4 Open bucket?">
+
+If the app writes straight to S3 anyway, why sign anything? Make the bucket writable by anyone. Because then anyone can write to it: S3 bills you for the data stored, so anybody could park their files in your bucket, on your bill. [[L-0083]]
+
+A pre-signed URL opens much less. What is open isn’t the bucket and isn’t even the path: it is that one URL. Anyone who holds it can store content at its one path until the expiry the backend chose: here a minute, often just seconds. AWS calls such URLs bearer tokens for exactly that reason: whoever has one can use it, repeatedly, until the expiry. [[L-0084]]
+
+And S3 checks all this without a database or a timer. The signed fields carry the expiry and the upload’s conditions, and the signature covers them, made with your backend’s AWS credentials. S3 recomputes the signature from the request itself; if the fields were changed or the time has passed, the upload is refused. If you know JWTs, it is the same idea: everything needed to check the token travels with the token. [[L-0098]]
+
+</Section>
+
+<Section id="s2-5" no="2.5" title="Open your browser: does anyone really do this?" crumb="2.5 GitHub">
+
+System design is mostly building blocks: once you know how one works, you can lift it into any system. To see this one in production, open your browser’s developer tools on the Network tab and attach an image to a GitHub issue comment. GitHub’s attachment upload and Instagram’s photo upload are the same block. [[L-0087 L-0088]]
+
+<StepThrough id="fig-2d" no="Fig 2·d" label="GitHub’s attachment upload, call by call" grow
+  k="L-0088 L-0089 L-0090 L-0091 L-0092 L-0093 L-0094 L-0095 L-0096 L-0098 L-0100 L-0102"
+  stepK={['L-0088 L-0089', 'L-0090 L-0091 L-0092 L-0094 L-0096 L-0098', 'L-0095 L-0100', 'L-0093 L-0100', 'L-0102']}
+  caption="Time runs down. Lanes: the browser, github.com, S3 and, from step 5, GitHub’s CDN. Blue is a request, green a reply; the filled chip is the image’s bytes. A mock of the Network panel for one 179 KB attachment."
+  steps={[
+    'Attaching a 179 KB PNG fires four calls. The first registers the intent to upload and sends only <span class="term blue">metadata</span>: name, size (<code>183938</code> bytes), <code>image/png</code>, a token. No image yet.',
+    'The reply holds S3’s <code>upload_url</code> (not GitHub’s), the signed form fields (<code>key</code>, <code>acl</code>, <code>policy</code>, the <code>X-Amz-*</code> fields), and the future image URL, <code>href</code>, which is a <span class="term green">CDN URL</span>: <code>…/4745789/221335625-….png</code>, the user’s ID, then the image ID. The page renders the CDN URL, never the S3 one.',
+    'The browser POSTs the form fields and the file straight to S3, and S3 answers <code>204</code>. GitHub’s servers never see the bytes.',
+    'A small <code>PUT</code> tells GitHub the upload is done (<code>200</code>), and markdown for the image, starting with <code>!</code>, goes into the comment.',
+    'Opening the image goes to the CDN. The first time it <span class="term">misses</span>, reads the key from the S3 origin, caches it and serves it; the next load is a <span class="term green">hit</span>.',
+  ]}>
+<Desk><GitHubUpload /></Desk>
+<Phone><GitHubUpload layout="phone" /></Phone>
+</StepThrough>
+
+What makes the upload pre-signed is the signed fields in the POST body, not the URL, which is S3’s ordinary endpoint. [[L-0094 L-0095 L-0096 L-0098]] And the key starts with `4745789`, the uploader’s user ID: GitHub files uploads per user. Chapter 3 will want that. [[L-0136]]
+
+Direct upload has a consequence. A check before anyone sees the photo can’t sit in the upload request any more, because the bytes no longer pass through you, so moderation becomes a separate, asynchronous system, run after publishing or almost on the fly. Some services proxy the uploads they must validate and sign the rest. [[L-0103 L-0105]] (Photos uploaded and never posted are cheap enough to leave, or a job can delete images no post refers to.) [[L-0204]]
+
+The photo is in S3 under a random ID. Next comes the post that shares it. What does that table hold?
+
+</Section>

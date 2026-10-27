@@ -311,7 +311,7 @@ export const SignedUrlExpiry: React.FC<SignedUrlExpiryProps> = ({theme, layout =
           <Ink d={G.MARK_D} color="red" width={STROKE.ink} dash="9 8" />
         </g>
         {lbl('oe', 'oe: expiry', {color: 'red', progress: r(EV.oeLbl), weight: 560})}
-        {lbl('probably', '(most probably)', {color: 'ink2', progress: r(EV.probably)})}
+        
         {/* ④ time past the expiry grows red as the playhead crosses 5 */}
         {pastX > G.xm(MIN.expiry) + 1 ? (
           <Ink d={handLine([G.xm(MIN.expiry), TR.y], [pastX, TR.y], 'past')} color="red" width={STROKE.thick + 1} />

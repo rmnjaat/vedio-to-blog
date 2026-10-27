@@ -1,0 +1,123 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import TradeoffTable from '../../../components/TradeoffTable.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { HashtagPage, TwoWays } from '../../../figures/lec09/s7-hashtag-storage-figs';
+import { SoFarHashtag } from '../../../figures/lec09/so-far';
+
+{/* Chapter 6 "#sunset: a count and the top 100, in one request". Story rewrite (Build 2 opens): the page and the
+    boundary (data science is a black box) → design storage from the page; one document per hashtag → pause: photo
+    URLs or post IDs → post IDs vs whole posts (figure + table), depends on the experience; no new requirements →
+    the size of one document, the billion slip, no garbage collection, top 1 million. */}
+
+<Section id="s6" no="6" title="#sunset: a count and the top 100, in one request" crumb="6 The hashtag page" meta="About 7 min">
+
+The second build starts from what the first one left running: every new post, caption included, lands on a Kafka topic. Somewhere in those captions are the hashtags.
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="Where the hashtag page starts. The post service already puts every new post on Kafka. The page exists only as a request; what serves it, and how the count changes, is open.">
+<Desk><SoFarHashtag stage={0} /></Desk>
+<Phone><SoFarHashtag stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="What is on the page, and what isn’t yours to build?" crumb="6.1 The page">
+
+Tap `#sunset` on Instagram and a page dedicated to it opens. It shows the hashtag, the number of photos that carry it, “1.2m photos”, and a grid of the top photos. To keep the problem sharp, say the grid is exactly the top 100. There are millions of hashtags, and each has a page like this. Your goal is the best experience a user can get on that page, which mostly means it opens very fast. [[L-0211 L-0212]]
+
+<Figure id="fig-6b" no="Fig 6·b" k="L-0211 L-0212" caption="The hashtag page: the tag, its photo count and a grid of the top 100. Everything on it is something the storage has to supply.">
+<Desk><HashtagPage /></Desk>
+<Phone><HashtagPage layout="phone" /></Phone>
+</Figure>
+
+Who decides which 100 photos are “top”? Not you. A data science team runs a service that works out the most popular photos per hashtag, from trends, likes, comments, shares, whatever they choose, and tells you when there is a new top 100. That is their headache, and for this design a black box: however strong the pull to design the ranking yourself, you don’t assume how it works. You own the page. [[L-0212 L-0217 L-0218 L-0259]]
+
+What you do own is plenty: where the page’s data is stored, how a count that changes all the time is kept up to date, how the top 100 gets from data science to you, and a response time that stays very fast through all of it. [[L-0213]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="What would you store to render it?" crumb="6.2 One document">
+
+A natural first answer is relational: a tags table, and each photo’s tags stored with the photos. But the posts table has no hashtag column (hashtags live in the caption), and more importantly, that answer starts from the data instead of from the page. [[L-0214]]
+
+Start from the page. Ask what you have to store in order to render it, and store exactly that. [[L-0215]]
+
+The page shows three things, so store one record per hashtag, keyed by the hashtag, holding exactly those: the tag, the total number of photos, and the top 100. The total belongs here because the page renders it; a tags table plus a counter elsewhere would split the page’s own data across two stores. [[L-0216 L-0219 L-0235]]
+
+<PauseAndThink k="L-0219 L-0221 L-0223"
+  q="The top 100 is an array inside the hashtag’s document. What goes in each slot?"
+  choices={[{ label: 'The photo’s URL' }, { label: 'The photo’s image ID' }, { label: 'The post ID', correct: true }]}
+  right="Right."
+  wrong="Think back to chapter 3.">
+
+A URL can be derived, so it isn’t stored. An image ID alone isn’t enough either, because building a photo’s path also needs its user. The post ID leads to everything else, user, image, caption, and it is small.
+
+</PauseAndThink>
+
+So the document looks like this:
+
+```text
+{
+  tag:          "sunset",
+  total_photos: 1200000,
+  top_100:      [post_id_1, post_id_2, …, post_id_100]
+}
+```
+
+One document holds all of the page’s own data. [[L-0219 L-0257]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="The top 100: post IDs or whole posts?" crumb="6.3 IDs or posts">
+
+Before you settle, consider the alternative; if you never think through the other options, whatever came first seems optimal. Instead of IDs, you could copy each whole post, ID, caption and the rest of the row, into the hashtag document. [[L-0220 L-0222 L-0224]]
+
+<Figure id="fig-6c" no="Fig 6·c" k="L-0229 L-0224" caption="Two ways to hold the top 100: only the post IDs, or a copy of each whole post.">
+<Desk><TwoWays /></Desk>
+<Phone><TwoWays layout="phone" /></Phone>
+</Figure>
+
+<TradeoffTable caption="Top 100 as post IDs or as whole posts" k="L-0224 L-0225 L-0229 L-0230 L-0231 L-0232 L-0233"
+  columns={[{ label: 'Post IDs' }, { label: 'Whole posts' }]}
+  rows={[
+    { label: 'Space', cells: ['Less', 'More, though 100 entries may be fine'], k: 'L-0224 L-0230' },
+    { label: 'Reads per render', cells: ['Two: the hashtag document, then the post service', 'One: one document from one database'], k: 'L-0225 L-0231' },
+    { label: 'Freshness of likes and captions', cells: ['Always the latest: read from the source of truth', 'Only as fresh as the copy'], k: 'L-0232 L-0233' },
+    { label: 'Caching', cells: ['Small, so very cheap to cache', 'A bigger document per hashtag'], k: 'L-0230' },
+    { label: 'When a post changes', cells: ['Nothing to update here', { text: 'Every hashtag copy of it', bad: true }], k: 'L-0233' },
+  ]} />
+
+IDs need a second call, to the post service, for everything the grid shows: the photo URL, likes, comments, the caption. Whole posts render from one read, and then every like on a popular photo has to be copied into every hashtag document that holds it. [[L-0231 L-0233]]
+
+Which wins depends on the page you promise. If the hashtag page showed only the photos, with likes and comments appearing only when someone opens a post, the copies would have nothing that goes stale, and the denormalised version would be the simple choice. There is no single way to build this; pick by the experience and the guarantees you give your users. [[L-0226 L-0234]]
+
+This design keeps the post IDs. A popular photo’s likes change all day, and the IDs never go stale. So rendering the page takes the document, then one more call, to the post service, for those 100 posts, which also builds their signed photo URLs. Two reads, both from services you own. [[L-0229 L-0231 L-0232]]
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="How big is one hashtag?" crumb="6.4 Size">
+
+Millions of hashtags, many of them typed once and never again. Should you delete hashtags after a week or so, to clear out the garbage? [[L-0342]]
+
+Do the arithmetic first. A tag of up to 32 characters is about 32 bytes. The count is a 4-byte integer. A hundred post IDs, 64 bits each like <LectureLink lec="lec03">Lecture 6</LectureLink>’s, are 800 bytes. That is about 836 bytes, call it 1 KB per hashtag. [[L-0343]]
+
+<PauseAndThink k="L-0344 L-0345"
+  q="At about 1 KB per document, how much space do a billion hashtags take?"
+  choices={[{ label: 'About 1 GB' }, { label: 'About 1 TB', correct: true }]}
+  right="Right: a billion kilobytes is a terabyte."
+  wrong="That is a million hashtags. A billion is a thousand times more.">
+
+A thousand documents are a megabyte, a million are a gigabyte, a billion are a terabyte. Each step is a factor of a thousand, and it is remarkably easy to treat the jumps from thousand to million to billion as nothing. Do the calculation.
+
+</PauseAndThink>
+
+Even so, don’t delete them. Each document is small, and if a forgotten hashtag becomes popular again, its old data would be gone. [[L-0342]]
+
+To check the design isn’t fragile, imagine the top 100 became a top million: a requirement 10,000 times bigger. Don’t put a million IDs in the document; almost nobody scrolls that far. Keep the first page in the document and the rest in a separate, paginated store, read only when someone actually scrolls. [[L-0347 L-0348 L-0349]]
+
+The document is settled. The hard part is the field that never stops changing: `total_photos`.
+
+</Section>

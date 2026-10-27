@@ -21,7 +21,7 @@ function PartDb({ cx, top, rx = 26, h = 28, dx = 40, dy = 58, seed }: { cx: numb
 
 const F9A_TITLE = 'The hashtag service';
 const F9A_DESC =
-  'Three paths into one partitioned database. Write: the post service drops each post on Kafka, the hashtag extractor pulls it and writes one (hashtag, post) tuple per tag to POST_HASHTAG, keyed by hashtag, and counting servers pull those, batch them and write counts. Popularity: data science’s popularity service puts each new top 100 on its own Kafka, and a few workers pull it and write it into the hashtag document. Read: a user’s GET /hashtag/<tag> goes to the CDN, which pulls from the hashtag API on a miss; the API reads one document from the partitioned database, with an optional cache.';
+  'Three paths into one partitioned database. Write: the post service drops each post on Kafka, the hashtag extractor pulls it and writes one (hashtag, post) tuple per tag to POST_HASHTAG, keyed by hashtag, and counting servers pull those, batch them and write counts. Popularity: data science’s popularity service puts each new top 100 on its own Kafka, and a few workers pull it and write it into the hashtag document. Read: a user’s GET /hashtag/<tag> goes to the CDN, which pulls from the hashtag API on a miss; the API reads one document from the partitioned database, with a cache as the alternative to the CDN.';
 
 export function HashtagService({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   if (layout === 'phone') return <HashtagServicePhone />;
@@ -79,7 +79,7 @@ export function HashtagService({ layout = 'wide' }: { layout?: 'wide' | 'phone' 
       <Label muted x={652} y={410} size={13}>read one doc</Label>
       <Arrow pts={[[500, 442], [500, 474]]} seed={s('api-cache')} />
       <Cyl cx={500} top={478} rx={24} ry={6} h={22} label="cache" seed={s('cache')} />
-      <Label muted anchor="start" x={530} y={500} size={13}>optional</Label>
+      <Label muted anchor="start" x={530} y={500} size={13}>or the CDN</Label>
 
       {/* the board's key takeaways */}
       <Line pts={[[120, 548], [760, 548]]} weight="thin" seed={s('rule')} className="faint" />
@@ -184,7 +184,7 @@ export function TwoPaths({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
       <Arrow tone="blue" pts={[[452, 198], [632, 198]]} seed={s('api-db')} />
       <Arrow tone="blue" pts={[[382, 220], [382, 274]]} seed={s('api-cache')} />
       <Cyl cx={382} top={278} rx={24} ry={6} h={22} seed={s('cache')} />
-      <Label kind="mono" x={382} y={336} size={13}>cache (optional)</Label>
+      <Label kind="mono" x={382} y={336} size={13}>or a cache</Label>
       <Arrow pts={[[40, 262], [260, 262]]} seed={s('rpath')} />
       <Label x={150} y={286} size={15}>READ PATH</Label>
 
@@ -228,7 +228,7 @@ function TwoPathsPhone() {
       <Arrow tone="blue" pts={[[R + 44, 206], [R + 44, 246]]} seed={s('api-cache')} />
       <Cyl cx={R + 44} top={250} rx={22} ry={6} h={20} seed={s('cache')} />
       <Label kind="mono" x={R + 44} y={300} size={12.5}>cache</Label>
-      <Label muted x={R + 44} y={316} size={12.5}>optional</Label>
+      <Label muted x={R + 44} y={316} size={12.5}>or the CDN</Label>
       {/* shared database */}
       <PartDb cx={170} top={304} rx={24} h={24} dx={36} dy={48} seed={s('db')} />
       <Label kind="mono" x={170} y={418} size={13}>partitioned db</Label>
@@ -245,26 +245,3 @@ function TwoPathsPhone() {
 const R9_TITLE = 'One path at a time';
 const R9_DESC = 'Two long arrows, the write path dashed on top and the read path solid underneath, each passing through a few hops; a magnifier sits over one hop of the write path, asking what happens if this hop gets a huge load.';
 
-export function OnePathSketch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
-  const P = layout === 'phone';
-  const id = P ? 'rule9s-p' : 'rule9s';
-  const s = (k: string) => `${id}-${k}`;
-  const W = P ? 320 : 480;
-  const x0 = P ? 16 : 30, x1 = W - (P ? 16 : 30);
-  const yw = P ? 70 : 62, yr = P ? 124 : 112;
-  const hops = [0.28, 0.52, 0.76].map((t) => x0 + (x1 - x0) * t);
-  const mx = hops[1], my = yw;
-  return (
-    <Fig id={id} w={W} h={P ? 150 : 136} title={R9_TITLE} desc={R9_DESC} className="bottomup">
-      <Label anchor="start" x={x0} y={yw - 12} size={14}>WRITE</Label>
-      <Arrow dashed pts={[[x0, yw], [x1, yw]]} seed={s('w')} />
-      <Label anchor="start" x={x0} y={yr - 12} size={14}>READ</Label>
-      <Arrow pts={[[x0, yr], [x1, yr]]} seed={s('r')} />
-      {hops.map((x, i) => <Dot key={'w' + i} x={x} y={yw} />)}
-      {hops.map((x, i) => <Dot key={'r' + i} x={x} y={yr} />)}
-      <path className="ink" d={ellipse(mx, my, 15, 15, s('lens'))} />
-      <Line pts={[[mx + 11, my + 11], [mx + 24, my + 24]]} weight="heavy" seed={s('handle')} />
-      <Label x={P ? W / 2 : mx + 40} y={P ? 26 : 24} size={P ? 13 : 14}>what if this gets a huge load?</Label>
-    </Fig>
-  );
-}

@@ -36,9 +36,9 @@ export const HITS: Hit[] = [{at: 432, v: 0}, {at: 478, v: 2}, {at: 520, v: 1}, .
 
 /** Event frames: [start, dur] or a single frame. */
 export const EV = {
-  reqLabel: [104, 24] as const, // 'GET logo.png' (blue) on the trunk
+  reqLabel: [104, 24] as const, // 'GET A/1729.png' (blue) on the trunk
   miss1: [136, 16] as const, // 'miss'
-  fetchLabel: [158, 24] as const, // 'GET logo.png' (graphite) on the miss leg
+  fetchLabel: [158, 24] as const, // 'GET A/1729.png' (graphite) on the miss leg
   missOut1: 426, // 'miss' removed
   hit1: [456, 16] as const, // '✓ hit' written
   more: [548, 20] as const, // 'and many more'
@@ -106,5 +106,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    'Viewers ask a CDN at a.mycdn.net for the same photo, GET logo.png; the CDN pulls from the origin, arpitbhayani.me. Its cache slot starts empty. The first request is a miss: the CDN itself requests the same path from the origin, which answers as usual; the CDN keeps the bytes in its cache slot, starts the copy\'s time to live, and sends them back. Every later request is a hit, answered from the copy: the CDN\'s request counter climbs to a thousand while the origin\'s stays at one. When the time to live runs out the copy leaves the slot; the next request misses once, the CDN fetches the path again (origin count two), refills the slot, and hits resume. Over a thousand views reach the CDN; the origin sees a few requests, one per expiry. Counts and time are illustrative.',
+    'Viewers ask a CDN at instacdn.net for the same photo, GET A/1729.png; the CDN pulls from the origin, instaimages.com. Its cache slot starts empty. The first request is a miss: the CDN itself requests the same path from the origin, which answers as usual; the CDN keeps the bytes in its cache slot, starts the copy\'s time to live, and sends them back. Every later request is a hit, answered from the copy: the CDN\'s request counter climbs to a thousand while the origin\'s stays at one. When the time to live runs out the copy leaves the slot; the next request misses once, the CDN fetches the path again (origin count two), refills the slot, and hits resume. Over a thousand views reach the CDN; the origin sees a few requests, one per expiry. Counts and time are illustrative.',
 };

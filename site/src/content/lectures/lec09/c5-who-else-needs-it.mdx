@@ -1,0 +1,87 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { PostConsumers, ResizeSteps, PhotosEndToEnd } from '../../../figures/lec09/s6-figs';
+import { SoFarPhotos } from '../../../figures/lec09/so-far';
+
+{/* Chapter 5 "The photo is up. Who else needs it, and at what size?" Story rewrite: a 50 MB photo and a slow phone →
+    versions per screen → reuse the CDN's transforms (?w=360 stepper) → other teams need every post: one event on
+    Kafka (figure) → the photo design end to end (figure) → hand-off to Build 2: what carries over, why the problem
+    changes. */}
+
+<Section id="s5" no="5" title="The photo is up. Who else needs it, and at what size?" crumb="5 Who else needs it" meta="About 6 min">
+
+The photo is stored once, served from near the reader and guarded by expiring URLs. Two questions remain before the photo side is done: is the same photo right for every phone, and who besides the poster’s followers needs to know it exists?
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="Where the photos stand. The post service hands out photo URLs that are signed and expire within minutes, and only to people allowed to see the photo; the CDN checks the signature and the expiry (new in chapter 4).">
+<Desk><SoFarPhotos stage={4} /></Desk>
+<Phone><SoFarPhotos stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="A 50 MB photo on a slow phone" crumb="5.1 Resizing">
+
+Your users are not alike. They sit in different places, on different networks, with different phones and different processing power. Say Sachin Tendulkar uploads an unusually large photo, 50 MB, ten times a phone’s, and someone in a small town on mobile data scrolls through ten of his photos. That is 500 MB, and their whole day’s data is gone. [[L-0187]]
+
+Size on screen tells the same story. If a photo was uploaded at 10,000 × 10,000 pixels and the phone’s screen is 360 pixels wide, there is no reason to send it the full image. What you want is the photo compressed, in versions prepared for the resolutions of different devices. [[L-0188 L-0190]]
+
+You could build an image optimisation service for that. First ask whether it already exists, because building real systems means reusing what exists rather than reinventing the wheel. Serving images and video is a CDN’s most common job, so many CDNs can transform images themselves, and you control it the way you controlled access: with query parameters on the URL. The most common one is the width, written `w`, `width` or similar depending on the CDN. [[L-0184 L-0186 L-0189]]
+
+The app is the one that knows its screen size, so the width comes from it. For a public photo the app could simply append `?w=360` to its URL. Here every photo URL is signed, and the signature covers the URL it was made for: with CloudFront’s simplest (canned) policy, a `?w=360` added afterwards makes the request fail. So the app sends its width when it asks for the posts, and the backend puts `w=360` into each URL before signing it. (On CloudFront the alternative is a custom policy whose resource ends in a wildcard, `…/1729_4275.jpg*`, which lets the app append the width itself.) [[L-0169 L-0191]]
+
+<StepThrough id="fig-5b" no="Fig 5·b" label="?w=360 through the CDN" grow
+  k="L-0189 L-0190 L-0191 L-0192"
+  stepK={['L-0189 L-0190 L-0191', 'L-0192', 'L-0192', 'L-0192', 'L-0192', 'L-0192']}
+  caption="Time runs down. Lanes: the app, the CDN with its cache (it looks for the resized copy, then the original), and S3. Blue is a request, green a reply; the filled chips are the photo, large and resized."
+  steps={[
+    'The app’s screen is 360 px wide, so its photo URL, signed by the backend, already carries <code>w=360</code>.',
+    'The CDN first looks for the already-processed image: the path with <code>?w=360</code>. None yet.',
+    'Then for the original. Not cached either.',
+    'So it fetches the original from the origin, S3.',
+    'It resizes on the CDN server, <span class="term green">caches</span> the result and sends the small one to the app.',
+    'The next request for the same width is a <span class="term green">hit</span> on the resized copy.',
+  ]}>
+<Desk><ResizeSteps /></Desk>
+<Phone><ResizeSteps layout="phone" /></Phone>
+</StepThrough>
+
+Step 2 needs one setting: the width must be part of the CDN’s cache key, or every size is served the same copy. On CloudFront that means a cache policy that includes `w`. [[L-0192]] Width is only the start: CDNs offer rotation, grayscale and more. Most sell it as a separately billed feature (CloudFront has none built in; AWS offers one you deploy behind it <Cite href="https://docs.aws.amazon.com/solutions/dynamic-image-transformation-for-amazon-cloudfront/">docs.aws.amazon.com</Cite>), so check yours. You pay a little money and the problem is solved, without a service of your own to run. [[L-0186 L-0193 L-0194]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Search, feed and notifications want the post too" crumb="5.2 Kafka">
+
+A new post isn’t only for the poster’s followers. Search has to index its caption. The feed has to place it. Notifications have to tell people. Analytics has to count it. Each of those is another team’s service, and each must be told that a new post was published. [[L-0181 L-0205]]
+
+You have seen this shape in <LectureLink lec="lec01">Lecture 2</LectureLink>, with a blog’s publish event. When a post is published, the post service saves it and puts one message on a Kafka topic, and is done. Every other service consumes that message at its own speed and does its own job, and a new team can plug in later without the post service changing at all. Social networks are mostly this: many features built on the same events. That is why Kafka is called the glue that stitches almost every social network together. [[L-0180 L-0181 L-0182]]
+
+<Figure id="fig-5c" no="Fig 5·c" k="L-0180 L-0181 L-0182 L-0205" caption="One post, many consumers. The post service writes the post and drops one event on Kafka; each consumer pulls it at its own pace.">
+<Desk><PostConsumers /></Desk>
+<Phone><PostConsumers layout="phone" /></Phone>
+</Figure>
+
+Hold on to that topic, keyed by `user_id` like Lecture 2’s. The second half of this lecture starts from it.
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="The photos, end to end. Now tap a hashtag" crumb="5.3 Hand-off">
+
+Here is the whole photo design on one page.
+
+<Figure id="fig-5d" no="Fig 5·d" k="L-0152 L-0195" caption="Instagram photos, end to end. A uploads straight to S3 and posts through the post service; B gets signed CDN URLs from the post service and the photos from the CDN; Kafka tells everyone else. Each tag links to the section that covers that box.">
+<Desk><PhotosEndToEnd /></Desk>
+<Phone><PhotosEndToEnd layout="phone" /></Phone>
+</Figure>
+
+The bytes never touch your API servers: they go up to S3 with a pre-signed URL and come down from the CDN. The posts table keeps only what can’t be derived, so every URL is built on the way out. The API decides who gets a URL, a signed expiry for how long, and Kafka tells everyone else. [[L-0195]]
+
+Now tap a hashtag. The caption you stored as plain text in chapter 3 has become a feature: every `#word` in it has a page of its own. `#sunset` opens one: the tag, “1.2m photos”, and a grid of the top 100. It is a different kind of problem. Nothing on that page is heavy: a tag, a number and 100 small photos. What is heavy is the work behind it. The count changes every time anyone, anywhere, posts a photo with `#sunset` in the caption, so one number is wanted by every sunset photo in the world, and the page must still open in one quick request, for millions of hashtags. [[L-0211 L-0212 L-0213]]
+
+Some things carry straight over. The post event already on Kafka is where every new hashtag first appears, because hashtags live in the caption. The building blocks are the same ones, Kafka, the CDN, a store behind an API, and so is the habit of storing the crux and deriving the rest. What changes is the question you ask at each step: not “where do the bytes go?” but “how much work happens here, and how often?” That is the second build.
+
+</Section>

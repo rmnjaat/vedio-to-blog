@@ -23,7 +23,7 @@ export function IncognitoTest({ layout = 'wide' }: Layout) {
   if (P) {
     return (
       <Fig id={id} w={340} h={596} title={title} desc={desc}>
-        <Bubble x={50} y={4} w={260} h={34} tail={[44, 70]} lines={['I hide the list, not the photos']} seed={s('bub')} size={14} />
+        <Bubble x={30} y={4} w={300} h={34} tail={[44, 70]} lines={['private hides the list, not the photos']} seed={s('bub')} size={14} />
         <Window x={16} y={50} w={308} h={150} url="instagram.com/…" seed={s('wa')} />
         <Lock x={36} y={86} seed={s('lock')} />
         <Label anchor="start" x={56} y={95} size={14}>private account</Label>
@@ -54,7 +54,7 @@ export function IncognitoTest({ layout = 'wide' }: Layout) {
   }
   return (
     <Fig id={id} w={800} h={344} title={title} desc={desc}>
-      <Bubble x={60} y={38} w={240} h={34} tail={[52, 112]} lines={['I hide the list, not the photos']} seed={s('bub')} size={14} />
+      <Bubble x={40} y={38} w={300} h={34} tail={[52, 112]} lines={['private hides the list, not the photos']} seed={s('bub')} size={14} />
       <Window x={30} y={92} w={280} h={150} url="instagram.com/…" seed={s('wa')} />
       <Lock x={46} y={128} seed={s('lock')} />
       <Label anchor="start" x={66} y={137}>private account</Label>
@@ -93,7 +93,7 @@ const SEGS = [
   { t: '1729_4275.jpg', l: ['image name (random id)', 'image name', '(random id)'] },
   { t: '?ig_cache_key=…', l: ['instagram’s cache key', 'instagram’s', 'cache key'] },
   { t: '&oh=…', l: ['hash (the signature)', 'hash', '(the signature)'] },
-  { t: '&oe=…', l: ['expiry, most probably', 'expiry,', 'most probably'] },
+  { t: '&oe=…', l: ['expiry', 'expiry', ''] },
   { t: '&nc_sid=…', l: ['the CDN’s own'] },
 ];
 
@@ -102,7 +102,7 @@ export function SignedUrl({ layout = 'wide' }: Layout) {
   const id = P ? 'l09-fig5b-p' : 'l09-fig5b';
   const s = (k: string) => `${id}-${k}`;
   const title = 'One signed URL';
-  const desc = 'An Instagram photo URL is a CDN host, a CDN path, an image name with the random ID, and query parameters: Instagram’s cache key, oh, a hash that works as the signature, oe, most probably the expiry, and the CDN’s own parameters. oh and oe are signed together, so changing one makes the check fail. The real host in the demo was Facebook’s CDN, instagram.fblr22-1.fna.fbcdn.net.';
+  const desc = 'An Instagram photo URL is a CDN host, a CDN path, an image name with the random ID, and query parameters: Instagram’s cache key, oh, a hash that works as the signature, oe, the expiry, and the CDN’s own parameters. oh and oe are signed together, so changing one makes the check fail. The real host in the demo was Facebook’s CDN, instagram.fblr22-1.fna.fbcdn.net.';
   if (P) {
     const CW = 8.6, rowH = 46, y0 = 12;
     return (
@@ -166,42 +166,3 @@ export function SignedUrl({ layout = 'wide' }: Layout) {
 
 /* ---------------------------------------------------------------- RuleBox §5 sketch: privacy lives in the API */
 
-export function PrivacyRule({ layout = 'wide' }: Layout) {
-  const P = layout === 'phone';
-  const id = P ? 'l09-rule5-p' : 'l09-rule5';
-  const s = (k: string) => `${id}-${k}`;
-  const title = 'Privacy lives in the API';
-  const desc = 'The API server decides who gets a photo’s signed URL and hands it to a follower; the follower can pass a copy to a friend, and the copy works too, until the expiry in the URL passes.';
-  if (P) {
-    return (
-      <Fig id={id} w={320} h={232} title={title} desc={desc}>
-        <Box x={8} y={30} w={70} h={36} label="api" seed={s('api')} />
-        <Arrow tone="green" pts={[[80, 48], [214, 48]]} seed={s('give')} />
-        <KeyTag x={90} y={36} w={80} text="…&oe=…" seed={s('t1')} />
-        <Label anchor="start" x={8} y={90} size={14}>decides who gets the URL</Label>
-        <Actor x={240} y={30} seed={s('f')} />
-        <Label x={240} y={98} size={14}>follower</Label>
-        <Arrow dashed pts={[[240, 108], [240, 176], [86, 176]]} seed={s('copy')} />
-        <KeyTag x={112} y={164} w={80} text="…&oe=…" seed={s('t2')} />
-        <Actor x={60} y={150} seed={s('fr')} />
-        <Label x={60} y={218} size={14}>a friend</Label>
-        <Label x={250} y={214} size={14}>until it expires</Label>
-      </Fig>
-    );
-  }
-  return (
-    <Fig id={id} w={480} h={164} title={title} desc={desc}>
-      <Box x={16} y={46} w={96} h={40} label="api" seed={s('api')} />
-      <Arrow tone="green" pts={[[114, 66], [264, 66]]} seed={s('give')} />
-      <KeyTag x={130} y={54} w={84} text="…&oe=…" seed={s('t1')} />
-      <Label anchor="start" x={10} y={112} size={14}>decides who gets the URL</Label>
-      <Actor x={290} y={52} seed={s('f')} />
-      <Label x={290} y={120} size={14}>follower</Label>
-      <Arrow dashed pts={[[308, 66], [430, 66]]} seed={s('copy')} />
-      <KeyTag x={318} y={80} w={84} text="…&oe=…" seed={s('t2')} />
-      <Actor x={452} y={52} seed={s('fr')} />
-      <Label x={452} y={120} size={14}>a friend</Label>
-      <Label anchor="end" x={474} y={150} size={14}>until it expires</Label>
-    </Fig>
-  );
-}

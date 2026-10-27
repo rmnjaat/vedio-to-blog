@@ -1,0 +1,112 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { WithoutCdn, PropertyRequest } from '../../../figures/lec09/s2-cdn';
+
+{/* Chapter 1 "A photo in Singapore, a reader in the US. Who sends the bytes?" Story rewrite: the naive path through
+    the API servers → why it is wrong (static, huge, far) → a component in between that pulls → the property, DNS and
+    the host swap (stepper) → miss then hit (clip), bytes, cacheability, invalidation → the open question of who
+    writes the CDN URL into the page (answered in 3.4). */}
+
+<Section id="s1" no="1" title="A photo in Singapore, a reader in the US. Who sends the bytes?" crumb="1 Who sends the bytes" meta="About 7 min">
+
+Start with the middle box in the picture, the API servers, and one photo. Your servers run in Singapore. Someone in the US opens a post, and the app asks for its photo: 10 MB of bytes that must cross the world. In the two-box design there is only one place they can come from. [[L-0027]]
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Why not let the API servers send it?" crumb="1.1 Through the API">
+
+Follow the request. DNS turns the image URL’s host into your load balancer’s IP, the load balancer passes the request to an API server, and the server reads the image from its disk and sends it back. It works, and for a handful of users nobody would notice anything. [[L-0023]]
+
+<Figure id="fig-1a" no="Fig 1·a" k="L-0023 L-0024 L-0025 L-0027" caption="Without anything in between. DNS sends the request to your load balancer, an API server reads the 10 MB image and sends it from Singapore to the US, through the same network card (red) that every other API call needs.">
+<Desk><WithoutCdn /></Desk>
+<Phone><WithoutCdn layout="phone" /></Phone>
+</Figure>
+
+Now look at what the API server just spent. A photo almost never changes once it is posted, so the server did no thinking at all: it copied the same bytes it copied for the last reader, and will copy for the next. And those bytes are heavy. A photo is 1, 2, 5, sometimes 10 MB, while most API responses are small. Every photo leaves through the network card that every other API call needs. Spending 10 MB of an API server’s bandwidth on a static file is close to a crime: you want your API servers lean and fast, doing the work only they can do. [[L-0024 L-0025]]
+
+Then there is distance. The reader in the US waits while 10 MB travels from Singapore, on every view, even though the photo is exactly the same file it was a minute ago. [[L-0027]]
+
+So two things are wrong, and they point the same way. The bytes shouldn’t come from your API servers, and they shouldn’t come from Singapore every time.
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="What could carry it instead?" crumb="1.2 In between">
+
+Suppose another component took care of the transfer, and kept copies of the photo near the people who read it, so that a reader in the US gets it from somewhere close and your servers never hear about it. That component exists, and it is exactly what a **CDN** (content delivery network) is. [[L-0026]]
+
+A CDN sits transparently between your user and your **origin**. Origin is the generic word for wherever the content really lives: an S3 bucket, a backend server, literally any URL you want served through the CDN. It doesn’t even have to be yours; to the CDN an origin is just a URL. [[L-0018 L-0020 L-0045]]
+
+<PauseAndThink k="L-0019 L-0036"
+  q="A user posts a new photo. How does a copy of it end up on the CDN?"
+  choices={[{ label: 'Your backend uploads it to the CDN after the post' }, { label: 'The CDN fetches it the first time someone asks', correct: true }]}
+  right="Right."
+  wrong="That is the most common picture of a CDN, and it is backwards.">
+
+Nobody pushes anything. The CDN pulls: when a request arrives for something it doesn’t have, it asks the origin, keeps the answer and serves it. CDNs do offer APIs these days, but storing your content isn’t their main job.
+
+</PauseAndThink>
+
+So the origin answers the CDN as it would anyone, and the user only ever talks to the CDN. The simplest origin is public. [[L-0019 L-0021]]
+
+How does a request get to the CDN in the first place, and how does the CDN know where your photos are?
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="How does a request find the CDN, and the CDN the photo?" crumb="1.3 The property">
+
+You sign up with a CDN provider, Akamai, Cloudflare, Amazon CloudFront or another, and configure one mapping, called a **CDN property**: a hostname on the provider, say `instacdn.net`, mapped to your origin, say `instaimages.com`. Any request to `instacdn.net` will be forwarded to `instaimages.com`. That is all the CDN asks for: one origin URL. [[L-0029 L-0030]]
+
+The rest is ordinary DNS. The browser doesn’t know or care that a hostname belongs to a CDN; it resolves whatever host is in the URL and sends the request to that IP. You point `instacdn.net` at the CDN provider in DNS, on Route 53 or at any domain provider, so that is where the request lands. [[L-0032 L-0033]]
+
+<StepThrough id="fig-1b" no="Fig 1·b" label="One request through a CDN property" grow
+  k="L-0030 L-0032 L-0033 L-0034 L-0035 L-0036"
+  stepK={['L-0032 L-0033', 'L-0030 L-0034', 'L-0034 L-0035 L-0048', 'L-0036', 'L-0036']}
+  caption="Time runs down. Lanes: the browser, DNS, the CDN (instacdn.net) and the origin (instaimages.com). The card on top is the CDN property."
+  steps={[
+    'The browser only sees a hostname. It asks DNS for <code>instacdn.net</code>, and DNS answers with the <strong>CDN provider’s IP</strong>.',
+    'The browser sends <code>GET /A/1729.png</code> to that IP. The CDN looks up the origin configured for this property: <code>instaimages.com</code>.',
+    'It swaps the host and keeps the path: <code>instacdn.net/A/1729.png</code> becomes <code>instaimages.com/A/1729.png</code>.',
+    'The CDN itself requests that URL from the origin, which answers as it always does.',
+    '<span class="term green">The CDN keeps a copy of the bytes and returns them</span> to the browser.',
+  ]}>
+<Desk><PropertyRequest /></Desk>
+<Phone><PropertyRequest layout="phone" /></Phone>
+</StepThrough>
+
+Step 3 is the whole trick, and it is plain string replacement: put the request’s path after the origin and make the call. So you never configure individual URLs. Every path under the property works, because the CDN carries the path over to the origin. The origin can even include a path of its own: configure `instaimages.com/static` and a request for `/A/1729.png` fetches `instaimages.com/static/A/1729.png`. [[L-0034 L-0035 L-0047 L-0048]]
+
+Try it: a free trial on any CDN, a site you control as the origin, and a dollar or two of experiments teach more than any description. [[L-0028]]
+
+</Section>
+
+<Section id="s1-4" no="1.4" title="A thousand people open the photo. How many reach you?" crumb="1.4 Miss, then hit">
+
+<AnimationClip clip="l09-cdn-miss-hit" no="Clip 1·1" k="L-0036 L-0037 L-0038 L-0043"
+  lead="A thousand people open the same photo. How many requests reach the origin?"
+  caption="One photo URL, one CDN, many viewers, from the first request until the cached copy expires." />
+
+That is all a CDN does: the cached copy if it has one, otherwise the same path from the origin. [[L-0038]] A request the CDN answers never enters your infrastructure, so your servers see a few requests each time a copy expires, and a couple of servers do the work of hundreds. [[L-0043]] You pay the CDN instead. By one rule of thumb the CDN bill is roughly what you save on servers, so the real gain is speed. [[L-0044]]
+
+To the CDN a response is a set of bytes, whether an image, a video or JSON. [[L-0040 L-0041]] The origin’s `Cache-Control` header, or your cache rules, decide whether and how long a copy lives; photos, which never change, can live a long time. [[L-0036 L-0040]]
+
+If a file does change at the origin, the CDN won’t notice until its copy expires, unless you call its invalidation API for that path, which you should whenever you can. That isn’t a push either: the next request simply misses and fetches again. [[L-0058 L-0059]]
+
+<MarginNote title="Go deeper: how a user reaches a nearby edge" why="the CDN’s side of the black box" k="L-0039 L-0206 L-0207">
+
+Keeping copies in many places and sending each user to a close one is the provider’s problem, not yours. Two mechanisms are common. Some CDNs answer DNS differently depending on where the request comes from. Others use anycast: the same IP is announced from every location, and internet routing (BGP) carries each user to the nearest. The tuning is proprietary; the mechanisms are documented.
+
+</MarginNote>
+
+One question is open. The app must ask for `instacdn.net/A/1729.png`, not `instaimages.com/…`, yet it just renders whatever URL it is given and has no idea whether the host is a CDN. So the backend must put CDN URLs into its responses. How it builds them is a decision with consequences, made in chapter 3. [[L-0054 L-0056 L-0057]]
+
+Reading is handled. But every photo the CDN serves first has to get into the origin, 5 million times a day.
+
+</Section>

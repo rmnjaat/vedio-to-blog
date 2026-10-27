@@ -9,7 +9,7 @@ import { Bucket, KeyTag, PhotoChip } from './s3a-parts';
 
 const F3C_TITLE = 'GitHub’s attachment upload, call by call';
 const F3C_DESC =
-  'Swim lanes for the browser, github.com, S3 and GitHub’s CDN, time running down, under a mock of the browser’s Network panel. 1: the browser POSTs only metadata (name, size 183938 bytes, content type image/png, a token) to github.com to register the upload. 2: the reply holds S3’s upload URL, the signed form fields (key, acl, policy, the X-Amz fields) and the future image URL, a CDN URL. 3: the browser POSTs the form fields and the file, about 173 KB, straight to S3, which answers 204. 4: a PUT to github.com confirms the asset (200) and the image markdown, starting with an exclamation mark, goes into the comment. 5: opening the image goes to the CDN, which misses, reads the key from S3, caches it and serves it; the next load is a hit.';
+  'Swim lanes for the browser, github.com, S3 and GitHub’s CDN, time running down, under a mock of the browser’s Network panel. 1: the browser POSTs only metadata (name, size 183938 bytes, content type image/png, a token) to github.com to register the upload. 2: the reply holds S3’s upload URL, the signed form fields (key, acl, policy, the X-Amz fields) and the future image URL, a CDN URL. 3: the browser POSTs the form fields and the 179 KB file straight to S3, which answers 204. 4: a PUT to github.com confirms the asset (200) and the image markdown, starting with an exclamation mark, goes into the comment. 5: opening the image goes to the CDN, which misses, reads the key from S3, caches it and serves it; the next load is a hit.';
 
 export function GitHubUpload({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   const P = layout === 'phone';
@@ -80,7 +80,7 @@ export function GitHubUpload({ layout = 'wide' }: { layout?: 'wide' | 'phone' })
       <Step n={3}>
         {under(3)}
         <PhotoChip x={P ? 70 : 104} y={456} seed={s('3c')} />
-        <Label kind="mono" anchor="start" x={P ? 88 : 122} y={465} size={M}>≈173 KB</Label>
+        <Label kind="mono" anchor="start" x={P ? 88 : 122} y={465} size={M}>179 KB</Label>
         <Arrow tone="blue" pts={[[L.br + 2, 472], [L.s3 - 2, 472]]} seed={s('3')} />
         <Label anchor="start" x={L.s3 + 8} y={476} size={13}>form fields</Label>
         <Label anchor="start" x={L.s3 + 8} y={492} size={13}>+ file</Label>
@@ -152,29 +152,3 @@ export function PrivateBucket() {
 
 // Design fix (critic C-04): §3.5 ran three screens of prose after Fig 3·d. This draws the Q&A's answer to "why is a
 // CDN faster than S3": geography first (a nearby edge vs a far region), then storage and the promise each one makes.
-export function CdnVsS3() {
-  const s = (k: string) => `fig3e-${k}`;
-  const C1 = 12, C2 = 212; // the two columns of the comparison
-  return (
-    <Fig id="fig3e" w={360} h={296} title="Why a CDN is faster than S3"
-      desc="A user in India reaches a nearby CDN edge in one short hop; Akamai has 18 or more locations in India, while S3 sits in one of AWS's few Indian regions, Mumbai or Hyderabad, a long trip away. Below, the two compared: a CDN may keep content on local disks or SSDs (we don't know), S3 stores an ocean of data on hard disks; a CDN promises response time, S3 promises durability, the nines.">
-      <Actor x={24} y={58} seed={s('u')} />
-      <Arrow tone="blue" pts={[[44, 64], [76, 64]]} seed={s('near')} />
-      <Cloud cx={122} cy={66} w={90} h={54} label="cdn" seed={s('cdn')} />
-      <Label muted x={122} y={112} size={13}>a nearby edge</Label>
-      <Label muted x={122} y={128} size={13}>(Akamai: 18+ in India)</Label>
-      <Bucket cx={306} cy={66} w={84} h={52} seed={s('s3')} />
-      <Arrow tone="blue" dashed pts={[[24, 116], [24, 150], [306, 150], [306, 98]]} seed={s('far')} />
-      <Label muted x={176} y={170} size={13}>a far region: Mumbai or Hyderabad</Label>
-      <Line className="lifeline" pts={[[8, 188], [352, 188]]} weight="thin" seed={s('rule')} />
-      <Label kind="mono" anchor="start" x={C1} y={210} size={14}>cdn</Label>
-      <Label kind="mono" anchor="start" x={C2} y={210} size={14}>s3</Label>
-      <Label anchor="start" x={C1} y={234} size={13}>maybe SSDs,</Label>
-      <Label anchor="start" x={C1} y={250} size={13}>we don’t know</Label>
-      <Label anchor="start" x={C2} y={234} size={13}>hard disks:</Label>
-      <Label anchor="start" x={C2} y={250} size={13}>an ocean of data</Label>
-      <Label tone="green" anchor="start" x={C1} y={280} size={13}>promise: response time</Label>
-      <Label anchor="start" x={C2} y={280} size={13}>promise: the nines</Label>
-    </Fig>
-  );
-}

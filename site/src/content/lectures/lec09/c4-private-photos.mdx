@@ -1,0 +1,89 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { IncognitoTest, SignedUrl } from '../../../figures/lec09/s5-privacy';
+import { SoFarPhotos } from '../../../figures/lec09/so-far';
+
+{/* Chapter 4 "This account is private. Who can open its photos?" Story rewrite: private photos still go through the
+    CDN → pause, then the private-window test (figure) → URL anatomy, the CDN knows no one, "Bad URL timestamp" →
+    signed URLs (figure + clip), expiry per request → privacy decided by the API → pseudo privacy and what more would
+    cost → the proprietary-format idea → the open question. */}
+
+<Section id="s4" no="4" title="This account is private. Who can open its photos?" crumb="4 Private photos" meta="About 7 min">
+
+A private account’s photos should be visible to its approved followers and nobody else. Look at the design for the place where that is checked.
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="Where the photos stand. A post service stores posts with only an image ID and builds each photo’s CDN URL per request; an image service hands out pre-signed upload URLs (new in chapter 3).">
+<Desk><SoFarPhotos stage={3} /></Desk>
+<Phone><SoFarPhotos stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="Copy one URL into a private window" crumb="4.1 The test">
+
+First, a private account’s photos still go through the CDN. Serving them from your own servers instead would bring back everything chapter 1 removed, and the cost would shoot up. You serve through a CDN for the best experience, so the private photo sits in the CDN’s cache like any other. [[L-0161]]
+
+<PauseAndThink k="L-0162 L-0164 L-0166"
+  q="A follower of a private account copies one photo’s URL and sends it to a friend who doesn’t follow the account. The friend opens it. What happens?"
+  choices={[{ label: 'The CDN refuses: the friend isn’t a follower' }, { label: 'The photo loads', correct: true }]}
+  right="Right, and you can check it yourself."
+  wrong="That is what most people expect. Try it.">
+
+It loads. If a photo is on the CDN, anyone who has its URL can open it.
+
+</PauseAndThink>
+
+You can run the test in a minute. Open a private profile you follow in a browser, open the developer tools (your best friend for seeing how real systems work), inspect a photo and copy its image URL. Paste it into a private window, where you aren’t logged in to anything. The photo opens. [[L-0164 L-0165 L-0166]]
+
+<Figure id="fig-4b" no="Fig 4·b" k="L-0161 L-0162 L-0164 L-0166" caption="a: a follower’s view of a private profile, and the photo URL in the inspector. b: the same URL in a private window, opened by someone who doesn’t follow the account: it loads. Nothing failed.">
+<Desk><IncognitoTest /></Desk>
+<Phone><IncognitoTest layout="phone" /></Phone>
+</Figure>
+
+Once something is out on the internet, privacy is weaker than the word suggests. The friend broke nothing; they only needed the URL, for a short time. That short time is the interesting part. [[L-0160]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="What does the CDN check, if it knows no one?" crumb="4.2 Signed URLs">
+
+Look at the URL you copied. It has the CDN’s host (Facebook’s CDN, `fbcdn.net`), a path, an image name built around the photo’s random ID, and then a long tail of query parameters. [[L-0167]]
+
+The CDN itself has no notion of users. It doesn’t know you are B, that B follows A, or that A’s account is private. It keeps no state about who anyone is. All it has is the request in front of it. So whatever protection the photo has must be in the URL. [[L-0168]]
+
+Delete a few of those parameters and try again, and the request fails with a short message from the CDN: “Bad URL timestamp”. The parameters carry a time, and the CDN checks it. [[L-0171]]
+
+<Figure id="fig-4c" no="Fig 4·c" k="L-0167 L-0169 L-0170" caption="The shape of an Instagram photo URL, with the parts named. oh and oe travel together: change either one and the CDN’s check fails. The real host is Facebook’s CDN.">
+<Desk><SignedUrl /></Desk>
+<Phone><SignedUrl layout="phone" /></Phone>
+</Figure>
+
+This is a **signed URL**, and it works like a JWT. The backend bakes an expiry time into the URL and adds a signature computed over the URL and that time with a key the CDN can verify, so nobody can change the time without breaking the signature. On each request the CDN checks the signature, then the expiry, and serves the photo or refuses. In Instagram’s URLs, `oe` is most probably the expiry and `oh` the hash; Facebook doesn’t document them, but every CDN has its own version. On CloudFront you sign with a private key and the CDN verifies with the matching public key; Cloudflare’s token authentication uses a shared secret instead <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html">docs.aws.amazon.com</Cite> <Cite href="https://developers.cloudflare.com/waf/custom-rules/use-cases/configure-token-authentication/">developers.cloudflare.com</Cite>. [[L-0169 L-0170 L-0177 L-0178]]
+
+<AnimationClip clip="l09-signed-url-expiry" no="Clip 4·1" k="L-0162 L-0164 L-0168 L-0169 L-0172 L-0177 L-0178"
+  lead="A follower forwards a photo URL with a five-minute expiry. The friend opens it after two minutes, and again after ten. What happens each time?"
+  caption="One signed URL, forwarded, opened at minute 2 and at minute 10." />
+
+The expiry is checked when each request arrives, however long the photo itself stays in the CDN’s cache. A download that started just before the expiry still completes; a retry after it fails. [[L-0163]] You have met this shape already: chapter 2’s pre-signed URL let whoever held it write one path for a minute. This one lets whoever holds it read one photo for a few minutes.
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="So who decides, and what would real privacy cost?" crumb="4.3 Who decides">
+
+If the CDN can’t tell a follower from a stranger, the decision has to happen before anyone holds a URL. It happens in the API server. To show a profile, the app needs the JSON response that lists the photos and their signed URLs. When you open a profile you follow, the post service sends you that list. When the account is private and you don’t follow it, the API server doesn’t send the response at all, so there is nothing to render, and the app shows “This account is private”. Only the API server can make that call, because only it can read the database that knows who follows whom. [[L-0172 L-0173]]
+
+Call it what it is: pseudo privacy. The company makes it hard to barge in, not impossible. Anyone who receives a photo’s URL can pass it on, and it keeps working until it expires. If a follower scrapes your photos and shares them, your privacy is gone. [[L-0174]]
+
+Could Instagram do better? A platform that must check every single read against who follows whom can’t hand that check to a CDN, because only your servers know. Every download would go through your own servers, checking on every request whether this user may read this image. At Instagram’s size that means carrying every photo byte yourself again. By one engineer’s estimate it would take 50 to 100 times as many servers; the exact factor isn’t public, but the direction is obvious. Instagram can’t afford it, so it accepts pseudo privacy. [[L-0175 L-0176]]
+
+There is middle ground: shorter expiries, signed URLs limited to the viewer’s IP range on CloudFront, or signed cookies that protect many files at once <Cite href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-cookies.html">docs.aws.amazon.com</Cite>. Each tightens the window and costs some complexity. [[L-0175]]
+
+(A secret image format only the app can open doesn’t help either: the app has to ship the decoder, and anything shipped in an APK can be decompiled.) [[L-0197 L-0199]]
+
+Privacy is settled where it can be: in the API. The photo is stored, served and guarded. Two more things still need to happen every time a photo is posted.
+
+</Section>

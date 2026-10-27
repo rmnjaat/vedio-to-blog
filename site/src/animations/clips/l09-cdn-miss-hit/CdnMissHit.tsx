@@ -75,7 +75,7 @@ const build = (layout: Layout) => {
         cdn: {x: C.cx, y: 246, anchor: 'middle'},
         ttl: {x: SLOT.x - 12, y: 342, anchor: 'end'},
         status: {x: C.cx, y: 150, anchor: 'middle'},
-        req: {x: BUS + 16, y: 262},
+        req: {x: BUS + 4, y: 262},
         fetch: {x: R_OUT + 18, y: 262},
         more: {x: 24, y: 520},
         cdnHost: {x: C.cx, y: 456, anchor: 'middle'},
@@ -288,8 +288,8 @@ export const CdnMissHit: React.FC<CdnMissHitProps> = ({theme, layout = 'wide'}) 
         {lbl('origin', 'origin', {variant: 'mono'})}
 
         {/* hosts (as on the board) and counters */}
-        {lbl('cdnHost', 'a.mycdn.net', {variant: 'mono', color: 'ink2'})}
-        {lbl('oHost', 'arpitbhayani.me', {variant: 'mono', color: 'ink2'})}
+        {lbl('cdnHost', 'instacdn.net', {variant: 'mono', color: 'ink2'})}
+        {lbl('oHost', 'instaimages.com', {variant: 'mono', color: 'ink2'})}
         {G.countWords ? (
           <>
             {lbl('cdnCount', `${comma(nCdn)} request${nCdn === 1 ? '' : 's'}`, {variant: 'mono', weight: 600})}
@@ -305,8 +305,8 @@ export const CdnMissHit: React.FC<CdnMissHitProps> = ({theme, layout = 'wide'}) 
         )}
 
         {/* ① ④ the request and the fetch carry the same path */}
-        {lbl('req', 'GET logo.png', {variant: 'mono', color: 'blue', progress: ramp(frame, ...EV.reqLabel), opacity: getO})}
-        {lbl('fetch', 'GET logo.png', {variant: 'mono', progress: ramp(frame, ...EV.fetchLabel), opacity: getO})}
+        {lbl('req', 'GET A/1729.png', {variant: 'mono', color: 'blue', progress: ramp(frame, ...EV.reqLabel), opacity: getO})}
+        {lbl('fetch', 'GET A/1729.png', {variant: 'mono', progress: ramp(frame, ...EV.fetchLabel), opacity: getO})}
 
         {/* status: miss / ✓ hit */}
         <Write x={S.x} y={S.y} anchor={S.anchor ?? 'start'} text="miss" size={TS} color="ink2" progress={missP} opacity={missO} />

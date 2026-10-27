@@ -67,33 +67,6 @@ export function HashtagPage({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
 const R7_TITLE = 'From the page to the storage';
 const R7_DESC = 'Each thing the hashtag page shows (the tag, the photo count, the grid) maps to one field of a single document: tag, total_photos, top_100.';
 
-export function PageToDoc({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
-  const P = layout === 'phone';
-  const s = (k: string) => `r7${P ? '-p' : ''}-${k}`;
-  const SX = P ? 14 : 40, SY = 14, SW = P ? 92 : 104, SH = 172;
-  const DX = P ? 150 : 250, DW = P ? 178 : 200;
-  const rows = ['tag: sunset', 'total_photos: 1.2m', 'top_100: [ … ]'];
-  const DY = 46, ROW = 30;
-  const rowY = (i: number) => DY + 4 + i * ROW + ROW / 2;
-  const tile = 22, gap = 6, gx = SX + (SW - (3 * tile + 2 * gap)) / 2;
-  const src = [SY + 38, SY + 60, SY + 82 + tile * 1.5 + gap];
-  return (
-    <Fig id={P ? 'r7-p' : 'r7'} w={P ? 340 : 480} h={200} title={R7_TITLE} desc={R7_DESC}>
-      <Screen x={SX} y={SY} w={SW} h={SH} seed={s('screen')} />
-      <Label kind="mono" x={SX + SW / 2} y={SY + 42} size={P ? 14 : 13}>#sunset</Label>
-      <Label x={SX + SW / 2} y={SY + 64} size={14}>1.2m</Label>
-      {[0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => (
-        <Tile key={`${r}${c}`} x={gx + c * (tile + gap)} y={SY + 82 + r * (tile + gap)} s={tile} seed={s(`t${r}${c}`)} />
-      )))}
-      <DocCard x={DX} y={DY} w={DW} lines={rows} row={ROW} size={P ? 13.5 : 13} seed={s('doc')} />
-      {src.map((y, i) => (
-        <Arrow key={i} weight="thin" pts={[[SX + SW + 4, y], [(SX + SW + DX) / 2 + (i - 1) * 8, y], [(SX + SW + DX) / 2 + (i - 1) * 8, rowY(i)], [DX - 4, rowY(i)]]} seed={s(`a${i}`)} />
-      ))}
-      <Label x={DX + DW / 2} y={DY + docHeight(3, ROW) + 26} size={14}>one document, one read</Label>
-    </Fig>
-  );
-}
-
 /* ------------------------------------------------------------------ Fig 7·b (T4 header) */
 
 const F7B_TITLE = 'Two ways to hold the top 100';

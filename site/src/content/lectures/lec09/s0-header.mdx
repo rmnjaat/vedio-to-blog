@@ -1,33 +1,47 @@
-import MarginNote from '../../../components/MarginNote.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { SoFarPhotos } from '../../../figures/lec09/so-far';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec09.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec09.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 07 · week 4, day 1 · running case: Instagram"
-      title: Instagram photos and hashtags
-      dek: "Upload and serve photos the way Instagram and GitHub do with pre-signed URLs and a CDN, then build a hashtag page with counting on Kafka."
-      contents: 1 Instagram's first year · 2 A CDN as a black box · 3 Uploading a photo · 4 Storing the post ·
-                5 Who can see a private photo? · 6 Extend and optimize · 7 The hashtag page: what to store ·
-                8 Counting hashtags · 9 The whole hashtag design · 10 Running the pipeline · 11 What to keep.
-    The outline gives the header no figure. "Instagram so far" teaches nothing new, so it carries no ids. */}
+{/* Lecture 07 (lec09) overview body: the hook, where you are, the two builds, what you will be able to do. Story
+    rewrite, see lectures/lec09/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+Your servers are in Singapore. Someone in the US opens a 10 MB photo on Instagram. Then they tap `#sunset` and expect a page at once: “1.2m photos” and the top 100 of them. Instagram reached 14 million users in its first year with three engineers <Cite href="https://highscalability.com/instagram-architecture-14-million-users-terabytes-of-photos/">highscalability.com</Cite>, so whatever serves those photos and that page can’t need an army to run. [[L-0007 L-0027 L-0211]]
 
-This is day 1 of week 4, and it opens the course’s block on social networks. The idea for the day is to understand how real social networks are built. The board’s agenda had four items: Instagram’s year-one architecture, how a CDN works, uploading photos at scale, and a hashtag service. [[L-0001]]
+Draw it on a whiteboard and you get two boxes behind the app: API servers and a database. Photos go in, photos come out, a count goes up. It looks like a simple problem, and it is one. Yet go one level deeper, into what actually happens to the bytes and the numbers, and nearly every assumption those two boxes made gets broken. [[L-0002 L-0152]]
 
-The session starts with the first of those, Instagram’s year-one architecture, and this page follows the agenda’s order. [[L-0004]]
+<Figure id="fig-0a" max={640} no="Fig 0·a" k="L-0002 L-0152" caption="The two boxes everyone draws first. Every photo goes in and out through the API servers, and the database holds the rest. Each chapter of the first build opens on this picture as it has grown so far.">
+<Desk><SoFarPhotos stage={0} /></Desk>
+<Phone><SoFarPhotos stage={0} layout="phone" /></Phone>
+</Figure>
 
-The hashtag service, in the second half, looks like a very simple problem, and scale is not even discussed. Yet going just one level deep into designing it, and thinking about how it would be implemented, uncovers hidden components, and a lot of assumptions get busted. [§7](#s7) opens on that promise. [[L-0002]]
+### Where you are
 
-**How this lecture connects.** It leans on four earlier ones, each linked where it is used: Lecture 2 for the CDN as a cache level and the Kafka essentials, Lecture 4 for Slack’s Redis Pub/Sub, Lecture 5 for load balancers, and Lecture 6 for how Instagram mints its IDs. Lecture 8, the next day, continues the social-network block.
+<LectureLink lec="lec01">Lecture 2</LectureLink> put a CDN between the reader and your servers and cached responses there, and it sent the blog’s publish events through Kafka: one topic split into partitions by `user_id`, read by consumer groups that commit how far they got. <LectureLink lec="lec02">Lecture 4</LectureLink> pushed Slack messages through Redis Pub/Sub, and watched a push vanish when a server wasn’t listening at that moment. <LectureLink lec="lec03">Lecture 6</LectureLink> gave every Instagram photo a 64-bit ID, made inside the database, that sorts by time.
 
-</MarginNote>
+All of that comes back here. Lecture 2 used the CDN as a cache; this lecture opens it just enough to use it well, as a black box you configure rather than build. [[L-0003 L-0017]]
 
-### Instagram so far
+### What you’ll build
 
-In Lecture 6, Instagram was an ID scheme: 64-bit IDs that pack time, a logical shard and a sequence, minted by a function inside its database, so no API server knows anything about IDs.
+**Build 1, Instagram’s photos (chapters 1–5).** A photo is big: a few megabytes, sometimes tens. Your target is 5 million uploads a day, and a photo posted in one country is opened in many others. The problem is the bytes: how they reach every reader fast, how they get in without flooding your API servers, what you store about them, and who is allowed to see them. [[L-0025 L-0063 L-0061]]
 
-Here Instagram is a product. Its photos have to load fast on a slow phone, some accounts are private, and every hashtag has a page of its own. Each chapter of this lecture opens on one of those problems, and the first one asks what Instagram was running when it became famous.
+**Build 2, the hashtag page (chapters 6–9).** Every hashtag has a page that must open in one request, for millions of hashtags, with a count that every new post can change. The bytes are small now. The problem is the work: a write for every tag of every post, a top 100 that another team computes, and a page that must render instantly anyway. Chapter 5 ends with the hand-off between the two. [[L-0211 L-0212 L-0213]]
+
+### What you’ll be able to do
+
+- Put a CDN in front of any URL, and get photos in and out at Instagram’s volume without your API servers paying for it.
+- Decide what a table stores and what it computes, and say what “private” means for a photo on a CDN.
+- Keep a count that millions of posts change, on a stream other teams already depend on.
+- Check a design path by path, and run a Kafka pipeline through outages, restarts and growth.
+
+### Before you start
+
+You need HTTP requests and responses, DNS, what an object store like S3 is, and Kafka topics, partitions and consumer groups from <LectureLink lec="lec01">Lecture 2</LectureLink>.
+
+Each chapter opens on the design as it stands, with the piece the last chapter added marked. When a “Pause and think” box asks you something, commit to an answer before you open it. Most of the ideas in this lecture come from first answering wrong and finding out why.
 
 </div>

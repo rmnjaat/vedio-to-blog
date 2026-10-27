@@ -78,8 +78,7 @@ export function KeyTag({ x, y, w, h = 22, seed, children, size = 13, kind = 'han
 
 /** Section ids of this lecture. Links between chapters are plain #sN-M hrefs; the template routes them. */
 const HREF: Record<string, string> = {
-  '2': '#s2', '3': '#s3', '3.1': '#s3-1', '3.2': '#s3-2', '3.3': '#s3-3', '3.4': '#s3-4', '3.5': '#s3-5',
-  '4': '#s4', '4.4': '#s4-4', '5': '#s5', '6.1': '#s6-1', '6.2': '#s6-2',
+  '1': '#s1', '2': '#s2', '3': '#s3', '3.4': '#s3-4', '4': '#s4', '5.1': '#s5-1', '5.2': '#s5-2', '8.2': '#s8-2',
 };
 
 /** A chapter tag: mono, muted, a link to the section that covers the box. `href` overrides the lookup (ranges). */

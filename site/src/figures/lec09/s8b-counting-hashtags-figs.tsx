@@ -10,25 +10,6 @@ import { DocCard, Msg } from './s7-hashtag-storage-parts';
 const R8_TITLE = 'Batch it';
 const R8_DESC = 'Left: eight single count++ writes hammer a database outlined in red. Right: one heavy count += 8 write lands on a calm database. Batching needs one server per hashtag.';
 
-export function BatchSketch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
-  const P = layout === 'phone';
-  const s = (k: string) => `r8${P ? '-p' : ''}-${k}`;
-  const W = P ? 340 : 480;
-  const L = P ? 86 : 120, R = P ? 254 : 360;
-  const fan = Array.from({ length: 8 }, (_, i) => L - 42 + i * 12);
-  return (
-    <Fig id={P ? 'r8-p' : 'r8'} w={W} h={196} title={R8_TITLE} desc={R8_DESC}>
-      {fan.map((x, i) => <Arrow key={i} weight="thin" pts={[[x, 20], [L + (x - L) * 0.4, 84]]} seed={s(`f${i}`)} />)}
-      <Cyl cx={L} top={90} rx={34} ry={8} h={40} tone="red" seed={s('db1')} />
-      <Label kind="mono" x={L} y={160} size={13}>count++ × 8</Label>
-      <Arrow tone="green" weight="heavy" pts={[[R, 22], [R, 82]]} seed={s('one')} />
-      <Cyl cx={R} top={90} rx={34} ry={8} h={40} seed={s('db2')} />
-      <Label kind="mono" tone="green" x={R} y={160} size={13}>count += 8</Label>
-      <Label x={W / 2} y={188} size={P ? 13 : 14}>one server per hashtag makes the batch whole</Label>
-    </Fig>
-  );
-}
-
 /* ------------------------------------------------------------------ Fig 8·d */
 
 const F8D_TITLE = 'One batch on one counting server';

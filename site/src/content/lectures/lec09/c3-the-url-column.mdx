@@ -1,0 +1,132 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import Cite from '../../../components/Cite.astro';
+import { PostsAndPath, ImageAndPostServices, ProfileLoad } from '../../../figures/lec09/s4-storing-the-post';
+import { SoFarPhotos } from '../../../figures/lec09/so-far';
+
+{/* Chapter 3 "Should the posts table store the photo's URL?" Story rewrite: the table almost everyone designs (tags in
+    the caption, a CDN URL column) → what-ifs: Instagram's CDN move, a cloud price rise, the 20% CDN test, deleting
+    a photo → the pause: what the row needs → derive, don't store; the per-user S3 layout; the URL built per request
+    → image service and post service, linked only by image_id → B loads A's profile (stepper), answering 1.4. */}
+
+<Section id="s3" no="3" title="Should the posts table store the photo’s URL?" crumb="3 The URL column" meta="About 8 min">
+
+Photos now go straight to S3 under a random ID, and the CDN serves them. What’s missing is the post itself: the thing that says “A shared this photo, with this caption”, and that the app loads when someone opens A’s profile.
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="Where the photos stand. Uploads go straight to a private S3 bucket with a pre-signed URL, and the CDN reads from that bucket (new in chapter 2). Nothing stores the posts yet.">
+<Desk><SoFarPhotos stage={2} /></Desk>
+<Phone><SoFarPhotos stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="What goes in a post?" crumb="3.1 The table">
+
+Design the posts table before you read on. You probably wrote down something like this: an ID, the user who posted, the caption, when it was created, and the photo. [[L-0120 L-0121]]
+
+Two things usually tempt people here. The first is a column for tags. On Instagram, tags aren’t separate fields: a hashtag is just part of the caption text. (Keep that in mind; the second half of this lecture depends on it.) [[L-0122]]
+
+The second is the photo’s URL. Not the pre-signed URL, which was only for uploading and expired a minute later, but the URL people will load it from. Photos are served through the CDN, so the natural choice is the CDN URL, `instacdn.net/A/1729.png`. It is the natural design, and it works. Live with it for a few years, though. [[L-0123 L-0124 L-0126]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="Then the company switches CDN" crumb="3.2 What if">
+
+Instagram served its photos from S3 through Amazon CloudFront <Cite href="https://highscalability.com/instagram-architecture-14-million-users-terabytes-of-photos/">highscalability.com</Cite>. Then Facebook bought it, and the photos moved to Facebook’s own CDN: today their URLs are on `fbcdn.net`, as you will see in chapter 4. With a CDN URL stored in every post, that move means going through the entire database and rewriting the image URL of every single post, while new uploads keep arriving and need to be served from the right place too. [[L-0127 L-0144]]
+
+So store the S3 URL instead? That ties you to a cloud provider in the same way: if Amazon put its prices up fourfold, there would be little you could do, and vendors do this (Microsoft raised its Bing Search API prices roughly three- to tenfold in 2023 <Cite href="https://www.computerworld.com/article/1618921/microsoft-more-than-triples-bing-search-api-prices-to-recoup-investments.html">computerworld.com</Cite>). Build so that you are never bound to one vendor. [[L-0128 L-0129 L-0130]]
+
+Smaller versions happen all the time. In one engineer’s experience, roughly every two years management decides the CDN bill is too high and asks to switch, or to send 20% of the traffic to another CDN and compare. With the URL in every row, the 20% split is impossible: the row already says which CDN to use. [[L-0139 L-0140]]
+
+Then a user deletes a photo. S3 needs its path, and all you have is a CDN URL to trim and rebuild: about the worst way to build a system. [[L-0145]]
+
+<PauseAndThink k="L-0125 L-0132 L-0137"
+  q="Every one of these problems came from one column. What does the row actually need to hold about the photo?"
+  choices={[{ label: 'The S3 path, so deletes are easy' }, { label: 'Both URLs, CDN and S3' }, { label: 'Only the image ID', correct: true }]}
+  right="Right."
+  wrong="Any stored URL or path fixes a choice that may change.">
+
+Given the user ID and the image ID, every URL and path can be built when it is needed. So store those, and nothing that can be derived from them.
+
+</PauseAndThink>
+
+</Section>
+
+<Section id="s3-3" no="3.3" title="What do you keep instead?" crumb="3.3 Derive it">
+
+That one rule, store the crux and compute the rest, makes every scenario above easy: switch the CDN whenever you like, move to another cloud, or run two CDNs at once. [[L-0125 L-0131 L-0138]]
+
+```sql
+CREATE TABLE posts (
+  id         BIGINT PRIMARY KEY,  -- a 64-bit, time-sortable ID (Lecture 6)
+  user_id    BIGINT NOT NULL,     -- who posted it
+  image_id   BIGINT NOT NULL,     -- the random ID the image service made
+  caption    TEXT,                -- hashtags live in here
+  created_at DATETIME NOT NULL
+);
+```
+
+For this to work, lay out the bucket so the path can be computed. Chapter 2 signed a random name in the root folder; change that to a folder per user. In the bucket `insta-images` the key is `<user_id>/<image_id>.png`, and that is the path the image service now signs its upload URL for. The CDN keeps the path, so the CDN URL is the same key under the CDN’s host. That is why GitHub’s upload key started with the uploader’s ID. [[L-0135 L-0136 L-0137]]
+
+<Figure id="fig-3b" no="Fig 3·b" max={760} k="L-0123 L-0132 L-0133 L-0135 L-0137" caption="The posts table with its url row struck out. The S3 path is built from two columns that are already there: user_id and image_id.">
+<Desk><PostsAndPath /></Desk>
+<Phone><PostsAndPath layout="phone" /></Phone>
+</Figure>
+
+The URL is built where it is used, in the API handler, per request. The 20% experiment becomes a few lines (pick the CDN by image, so the same photo always goes to the same CDN and stays cached there; that is a fifth of the photos, and roughly a fifth of the traffic), and a delete builds the S3 key from the same two columns. [[L-0142 L-0143 L-0145]]
+
+```python
+import zlib
+
+def photo_url(user_id, image_id):
+    # 20% of photos go to the other CDN; the same photo always gets the same CDN
+    slot = zlib.crc32(f"{user_id}/{image_id}".encode()) % 100
+    host = "https://othercdn.net" if slot < 20 else "https://instacdn.net"
+    return f"{host}/{s3_key(user_id, image_id)}"
+
+def s3_key(user_id, image_id):
+    return f"{user_id}/{image_id}.png"    # in the bucket insta-images; the CDN URL uses the same path
+```
+
+A stored S3 URL wouldn’t have saved this code anyway: the bucket is private, so you would still rewrite it into a CDN URL on every read. [[L-0141]]
+
+</Section>
+
+<Section id="s3-4" no="3.4" title="How does the app learn the photo’s address?" crumb="3.4 Serving">
+
+The table gives the post its own home. Give it its own service too. A **post service** handles creating and reading posts; the **image service** from chapter 2 handles uploads. Posting a photo now takes three calls: ask the image service to prepare an upload, send the photo straight to S3, then ask the post service to create the post with the image ID it got back. The post service can check that the image ID really belongs to the user posting it. [[L-0146 L-0147 L-0148]]
+
+<Figure id="fig-3c" no="Fig 3·c" k="L-0146 L-0147 L-0148 L-0149 L-0150 L-0151" caption="① A asks the image service to prepare an upload and gets a signed URL and an image ID. ② The photo goes straight to S3. ③ A asks the post service to create the post with that image ID. Nothing else connects the two halves.">
+<Desk><ImageAndPostServices /></Desk>
+<Phone><ImageAndPostServices layout="phone" /></Phone>
+</Figure>
+
+Images and posts are connected only through that image ID, and that matters: Instagram today is also videos, reels and stories, and each can get an upload service of its own while the idea of a post stays the same. [[L-0149 L-0150 L-0151]]
+
+Now the question chapter 1 left open. B opens A’s profile. Where does B’s app get `instacdn.net` URLs from, when nothing stores them? [[L-0153 L-0154]]
+
+<StepThrough id="fig-3d" no="Fig 3·d" label="B loads A’s profile, call by call" grow k="L-0153 L-0154 L-0155 L-0156 L-0157"
+  caption="Time runs down. Lanes are B’s app, the post service, the posts database, the CDN at instacdn.net and S3. The small filled box is the photo itself."
+  stepK={['L-0153', 'L-0155', 'L-0154 L-0155 L-0156', 'L-0156', 'L-0157', 'L-0157']}
+  steps={[
+    'B opens A’s profile. The app asks the post service for A’s posts: <code>GET /users/A/posts</code>.',
+    'The post service selects A’s rows, <code>WHERE user_id = A</code>. They hold IDs, image IDs and captions. No URLs.',
+    'For each row it builds the CDN URL in code, the CDN prefix plus the user ID plus the image ID plus <code>.png</code>, perhaps following a CDN experiment, and returns it in the JSON in place of the image ID. <span class="term green">This is how the app learns the CDN URL.</span>',
+    'The app puts the URL in an <code>img</code> tag (an image view on Android or iOS), and the tag makes a GET request to it, on the CDN.',
+    'First view: a miss. The CDN reads the photo from S3, caches it and sends it back.',
+    'The next viewer gets a <span class="term green">hit</span>. S3 isn’t touched.',
+  ]}>
+<Desk><ProfileLoad /></Desk>
+<Phone><ProfileLoad layout="phone" /></Phone>
+</StepThrough>
+
+Because the URL is built per request, adding a second CDN is a change to one function, without touching a single row. That is the payoff of never storing the derived value. [[L-0158]]
+
+For a public account, that is the whole story. Instagram also has private accounts, whose photos only approved followers should see. Look at the steps again: where in this picture is that enforced?
+
+</Section>

@@ -10,7 +10,7 @@ import { Msg } from './s7-hashtag-storage-parts';
 
 const R10_TITLE = 'Decide what a lost message costs';
 const R10_DESC =
-  'When Kafka is down, a write can be buffered in memory, dropped, or sent to a fallback queue (the board called it a dead letter queue). A balance weighs the cost of a lost message: a hashtag count is light, an SOS button is heavy.';
+  'When Kafka is down, a write can be buffered in memory, dropped, or sent to a fallback queue. A balance weighs the cost of a lost message: a hashtag count is light, an SOS button is heavy.';
 
 export function LossSketch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   const P = layout === 'phone';
@@ -33,7 +33,6 @@ export function LossSketch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
           <Label kind="mono" anchor="start" x={sx + 42} y={fy + dy + 5} size={13}>{l}</Label>
         </g>
       ))}
-      <Label muted anchor="start" x={fx} y={fy + 64} size={12.5}>(“dead letter queue” on the board)</Label>
 
       <Label x={bx} y={by - 40} size={14}>cost of a lost message</Label>
       <Line pts={[[bx, by - 18], [bx, by + 44]]} seed={s('post')} />
@@ -53,9 +52,9 @@ export function LossSketch({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
 
 /* ------------------------------------------------------------------ Fig 10·a */
 
-const F10A_TITLE = 'A stream with H and LC';
+const F10A_TITLE = 'Where can a consumer start reading?';
 const F10A_DESC =
-  'One partition as a row of offsets 0 to 11. 1: messages 0 to 8 arrive. 2: a 30-day deletion policy removes 0 to 2, and the horizon H moves to 3; nothing before it can be read. 3: the search consumer reads 3 to 5 and commits: the last commit LC is at 6. 4: it processes 6 to 8 and crashes before the next commit. 5: on restart it resumes from LC and processes 6 to 8 again. 6: a brand-new consumer should start from the horizon to read history; Kafka’s default for a new group is the latest message, so you set earliest.';
+  'One partition of POST_HASHTAG as a row of offsets 0 to 11. 1: messages 0 to 8 arrive. 2: the 7-day retention removes 0 to 2, and H, the oldest message still kept, moves to 3; nothing before it can be read. 3: the counting server reads 3 to 5 and commits: the last commit LC is at 6. 4: it processes 6 to 8 and crashes before the next commit. 5: on restart it resumes from LC and processes 6 to 8 again.';
 
 export function StreamSteps({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   const P = layout === 'phone';
@@ -84,8 +83,8 @@ export function StreamSteps({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
   );
   const latest = 9;
   return (
-    <Fig id={id} w={W} h={384} title={F10A_TITLE} desc={F10A_DESC}>
-      <Label kind="mono" muted anchor="start" x={x0} y={20} size={T}>post topic, one partition</Label>
+    <Fig id={id} w={W} h={270} title={F10A_TITLE} desc={F10A_DESC}>
+      <Label kind="mono" muted anchor="start" x={x0} y={20} size={T}>POST_HASHTAG, one partition</Label>
       {/* the board's ring round the stream, drawn as a thin frame only as tall as the boxes, so the offset numbers
           sit clear below it (critic C-01) */}
       <path className="ink thin" d={chamferRect(x0 - 5, cy - ch / 2 - 6, stripEnd - x0 + 10, ch + 12, s('ring'), 3)} />
@@ -111,13 +110,13 @@ export function StreamSteps({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
           {[0, 1, 2].map((i) => <g key={i}><Msg x={cx(i)} y={cy} tone="ink" faint seed={s(`g${i}`)} />{strike(i, `x${i}`)}</g>)}
           {caret(3, 'H', 'ink', 'h3')}
         </StepState>
-        <Label anchor="start" x={x0} y={40} size={T}>retention: older than 30 days</Label>
+        <Label anchor="start" x={x0} y={40} size={T}>retention: 7 days</Label>
         {/* under the struck boxes 0–2, clear of the arrows at offsets 3 and 4 */}
         <Num x={cx(0)} y={cy + 58} n={2} />
         <Label anchor="start" x={cx(0) + 12} y={cy + 63} size={T}>deleted</Label>
       </Step>
       <Step n={3}>
-        <Worker x={c1.x} y={c1.y} w={c1.w} h={c1.h} label="search consumer" seed={s('c1')} size={T} />
+        <Worker x={c1.x} y={c1.y} w={c1.w} h={c1.h} label="counting server" seed={s('c1')} size={T} />
         <Arrow dashed pts={[[cx(4), c1.y], [cx(4), cy + 44]]} seed={s('pull')} />
         <Label anchor="start" x={cx(4) + 6} y={c1.y - 8} size={T}>pulls 3–5</Label>
         {caret(6, 'LC', 'green', 'lc')}
@@ -135,19 +134,6 @@ export function StreamSteps({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) 
         <path className="red thin" d={ellipse(cx(7), cy, pitch * 1.5 + 4, 15, s('re'))} />
         <Label tone="red" anchor="start" x={c1.x} y={c1.y + c1.h + 38} size={T}>restarts at LC: 6–8 again</Label>
         <Num x={NX} y={c1.y + c1.h + 33} n={5} tone="red" />
-      </Step>
-      <Step n={6}>
-        <g style={{ opacity: 0.6 }}>
-          <Worker x={c2.x} y={c2.y} w={c2.w} h={c2.h} label="new consumer" seed={s('c2')} size={T} />
-        </g>
-        <Arrow dashed pts={[[c2.x + 20, c2.y], [c2.x + 20, c2.y - 14], [cx(3), c2.y - 14], [cx(3), cy + 44]]} seed={s('toH')} />
-        <Label anchor="end" x={cx(3) - 6} y={c2.y - 34} size={T}>history</Label>
-        <Arrow tone="red" dashed pts={[[c2.x + c2.w, c2.y + 17], [W - 4, c2.y + 17], [W - 4, cy - 40], [cx(latest), cy - 40], [cx(latest), cy - 20]]} seed={s('toL')} />
-        <Label tone="red" anchor="end" x={W - 14} y={cy - 46} size={T}>latest</Label>
-        <Label anchor="start" x={x0} y={c2.y + c2.h + 24} size={T}>from the horizon: read history</Label>
-        <Label tone="red" anchor="start" x={x0} y={c2.y + c2.h + 42} size={T}>Kafka’s default for a new group: latest;</Label>
-        <Label tone="red" anchor="start" x={x0} y={c2.y + c2.h + 60} size={T}>set earliest</Label>
-        <Num x={NX} y={c2.y + 17} n={6} />
       </Step>
     </Fig>
   );

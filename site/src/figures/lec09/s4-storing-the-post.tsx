@@ -14,24 +14,21 @@ export function PostsAndPath({ layout = 'wide' }: Layout) {
   const id = P ? 'l09-fig4a-p' : 'l09-fig4a';
   const s = (k: string) => `${id}-${k}`;
   const title = 'posts, and the path it implies';
-  const desc = 'The posts table keeps id, user_id, image_id and caption; the URL column is struck out because the S3 path, s3://insta-images/<user_id>/<image_id>, is built from user_id and image_id.';
+  const desc = 'The posts table keeps id, user_id, image_id and caption; the URL column is struck out because the S3 path, s3://insta-images/<user_id>/<image_id>.png, is built from user_id and image_id.';
   const rows = ['id', 'user_id', 'image_id', 'caption', 'url'];
   if (P) {
     const tx = 14, ty = 10;
     const gloss = ['from an id generator', 'author of the post', 'random id, from image svc', '', ''];
     const urlY = tableRowY(ty, 4);
     return (
-      <Fig id={id} w={340} h={364} title={title} desc={desc}>
+      <Fig id={id} w={340} h={330} title={title} desc={desc}>
         <TableBlock x={tx} y={ty} w={312} name="posts" rows={rows} seed={s('t')} size={14} />
         {gloss.map((g, i) => g && <Label key={i} anchor="start" x={108} y={tableRowY(ty, i) + 5} size={14}>{g}</Label>)}
         <Line weight="heavy" pts={[[20, urlY], [60, urlY]]} seed={s('strike')} />
         <Label anchor="start" x={108} y={urlY + 5} size={14}>derivable: don’t store it</Label>
         <Label kind="mono" anchor="start" x={14} y={256} size={14}>s3://insta-images/</Label>
-        <Arrow pts={[[186, 214], [186, 284]]} weight="thin" seed={s('cu')} />
-        <Arrow pts={[[272, 214], [272, 284]]} weight="thin" seed={s('ci')} />
-        <Label kind="mono" anchor="start" x={150} y={302} size={14}>&lt;user_id&gt;/&lt;image_id&gt;</Label>
-        <Label anchor="start" x={14} y={330} size={14}>the S3 path, built from two columns</Label>
-        <Label muted anchor="start" x={14} y={352} size={14}>* LinkedIn and CDNs also do this</Label>
+        <Label kind="mono" anchor="start" x={14} y={280} size={14}>&lt;user_id&gt;/&lt;image_id&gt;.png</Label>
+        <Label anchor="start" x={14} y={312} size={14}>the S3 path, built from user_id and image_id</Label>
       </Fig>
     );
   }
@@ -48,13 +45,12 @@ export function PostsAndPath({ layout = 'wide' }: Layout) {
       <Label anchor="start" x={gx} y={ry(2) + 5}>→ random photo id from the image svc</Label>
       <Line weight="heavy" pts={[[tx + 6, ry(4)], [tx + 52, ry(4)]]} seed={s('strike')} />
       <Label anchor="start" x={gx} y={ry(4) + 5}>→ derivable: don’t store it</Label>
-      <Label muted anchor="end" x={740} y={36}>* LinkedIn and CDNs also do this</Label>
 
       <Label anchor="start" x={x0} y={262}>the photo’s S3 path can be computed:</Label>
       <Label kind="mono" anchor="start" x={x0} y={294}>s3://insta-images/</Label>
       <Label kind="mono" anchor="start" x={xu} y={294}>&lt;user_id&gt;</Label>
       <Label kind="mono" anchor="start" x={xu + 80} y={294}>/</Label>
-      <Label kind="mono" anchor="start" x={xi} y={294}>&lt;image_id&gt;</Label>
+      <Label kind="mono" anchor="start" x={xi} y={294}>&lt;image_id&gt;.png</Label>
       <Arrow weight="thin" pts={[[tx, ry(1)], [42, ry(1)], [42, 318], [cu, 318], [cu, 302]]} seed={s('cu')} />
       <Arrow weight="thin" pts={[[tx, ry(2)], [26, ry(2)], [26, 334], [ci, 334], [ci, 302]]} seed={s('ci')} />
     </Fig>
@@ -62,39 +58,6 @@ export function PostsAndPath({ layout = 'wide' }: Layout) {
 }
 
 /* ---------------------------------------------------------------- RuleBox §4 sketch: derivable, so not stored */
-
-export function DerivableRule({ layout = 'wide' }: Layout) {
-  const P = layout === 'phone';
-  const id = P ? 'l09-rule4-p' : 'l09-rule4';
-  const s = (k: string) => `${id}-${k}`;
-  const title = 'Derivable, so not stored';
-  const desc = 'A posts table with user_id and image_id, and its url column struck out; the URL cdn/<user_id>/<image_id>.png is built from the two IDs when it is asked for.';
-  const rows = ['user_id', 'image_id', 'url'];
-  if (P) {
-    const tx = 95, ty = 8;
-    return (
-      <Fig id={id} w={320} h={228} title={title} desc={desc}>
-        <TableBlock x={tx} y={ty} w={130} name="posts" rows={rows} rowH={30} seed={s('t')} />
-        <Line weight="heavy" pts={[[tx + 6, tableRowY(ty, 2, 30)], [tx + 40, tableRowY(ty, 2, 30)]]} seed={s('strike')} />
-        <Arrow pts={[[160, 138], [160, 168]]} seed={s('a')} />
-        <Label kind="mono" x={160} y={190} size={14}>cdn/&lt;user_id&gt;/&lt;image_id&gt;.png</Label>
-        <Label x={160} y={214}>built when asked</Label>
-      </Fig>
-    );
-  }
-  const tx = 16, ty = 10;
-  const y1 = tableRowY(ty, 0, 30), y2 = tableRowY(ty, 1, 30), y3 = tableRowY(ty, 2, 30);
-  return (
-    <Fig id={id} w={480} h={150} title={title} desc={desc}>
-      <TableBlock x={tx} y={ty} w={120} name="posts" rows={rows} rowH={30} seed={s('t')} />
-      <Line weight="heavy" pts={[[tx + 6, y3], [tx + 40, y3]]} seed={s('strike')} />
-      <Line pts={[[142, y1], [152, y1], [152, y2], [142, y2]]} seed={s('br')} />
-      <Arrow pts={[[152, (y1 + y2) / 2], [198, (y1 + y2) / 2]]} seed={s('a')} />
-      <Label kind="mono" anchor="start" x={204} y={(y1 + y2) / 2 + 5} size={14}>cdn/&lt;user_id&gt;/&lt;image_id&gt;.png</Label>
-      <Label x={318} y={(y1 + y2) / 2 + 32}>built when asked</Label>
-    </Fig>
-  );
-}
 
 /* ---------------------------------------------------------------- Fig 4·b  image service and post service */
 
