@@ -1,0 +1,109 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { SharingLadder, QueueSeven } from '../../../figures/lec08/s6a-remote-locks';
+import { SoFarLock } from '../../../figures/lec08/so-far';
+
+{/* Chapter 6 "Three machines, one queue that protects nothing. Who reads next?" Story rewrite, Build 2 opens: the
+    queue 7 brief → why machines need to take turns (two transactions, one row; MongoDB) → threads/RAM, processes/a file
+    lock, machines/the network (apt-get story, ladder) → the constrained puzzle → a lock manager in a store → the holder
+    dies: TTL → what the store must offer → Redis SET NX EX → hand-off: release. */}
+
+<Section id="s6" no="6" title="Three machines, one queue that protects nothing. Who reads next?" crumb="6 Take turns" meta="About 7 min">
+
+Here is the second build. Someone has built a very careless remote queue; its ID is queue 7, and the lock you build will be named after it. It is remote, like Amazon SQS, but it offers none of SQS’s guarantees. Its whole API is one call, and behind that call the queue simply pops the next message. Two consumers that call at the same moment can both get the same message. [[L-0248]]
+
+You have three consumers on three machines reading from it, and one rule: at any moment, only one of them may be reading and processing a message. Throughput doesn’t matter here; exclusivity does. You can’t change the queue, and you can’t touch the machine it runs on. To you it is a black box with one unprotected call. [[L-0249 L-0251 L-0253]] (Real queues such as SQS, RabbitMQ and Kafka do keep two consumers off the same message, though they may deliver it again later. This one is a constraint, chosen so that you have to build the protection yourself.) [[L-0248 L-0303]]
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="The lock so far: nothing. Three consumers, one queue with a single unprotected call, and two consumers holding the same message.">
+<Desk><SoFarLock stage={0} /></Desk>
+<Phone><SoFarLock stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Why would machines ever need to take turns?" crumb="6.1 Why lock">
+
+Because their work touches the same things, and no single machine sees all of it. In <LectureLink lec="lec05">Lecture 3</LectureLink> every booking transaction ran inside one database, and the database recorded, in its own memory, which transaction held which row. One machine, one process: taking a lock was a memory update. [[L-0242]]
+
+Now spread the work out. Two transactions run in a distributed fashion, across machines, and both are about to update the same data; one has to stop the other, or the data ends up wrong. There is no single database whose memory holds the record any more. Whenever several processes on different machines must coordinate to keep data consistent, they need a lock they all respect, and that lock is the heart of keeping a distributed system’s data correct. [[L-0010 L-0011]] Even a database spread over shards has to keep this record across machines: a MongoDB transaction that updates documents on shards 1, 3 and 5 holds a lock on each of them, and each shard keeps the locks for its own documents. [[L-0305 L-0306]]
+
+Outside a database, what you need is a **lock manager**: something all the machines can reach, which keeps track of which item is locked by whom and tells everyone else to wait. [[L-0241]] The queue consumers are the smallest case of it: three processes, three machines, one shared thing that protects nothing. When nothing in the middle keeps the record, you build it.
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="Threads share memory, processes share a disk. What do machines share?" crumb="6.2 What they share">
+
+Start small. Threads in one process take turns through memory: a mutex, a semaphore, an atomic instruction. They share RAM, so they coordinate through it. The transactions inside Lecture 3’s database did the same. [[L-0243]]
+
+Processes don’t share RAM. One engineer met that in his first year of college, around 2008: to make an Ubuntu upgrade go twice as fast he ran `apt-get upgrade` in two terminals at once, and the second one refused to run because it couldn’t get the lock. [[L-0244]] Two installs at once would leave the system inconsistent, so the package manager holds a lock on a file, `/var/lib/dpkg/lock`; the kernel keeps that lock and drops it the moment the holder exits. Two processes coordinate through something they do share: a file on the same machine. [[L-0245 L-0246]]
+
+Now two machines. They share no RAM and no disk. What is left?
+
+<Figure id="fig-6b" max={600} no="Fig 6·b" k="L-0243 L-0245 L-0246 L-0308" caption="Each rung shares less. Threads coordinate through memory, processes through a lock on a file, and machines through the only thing they still have in common: the network.">
+<Desk><SharingLadder /></Desk>
+<Phone><SharingLadder layout="phone" /></Phone>
+</Figure>
+
+To make two things take turns, look for the nearest storage they share. For machines, that is only the network, so their lock must live in something they all reach over it: a remote lock. [[L-0246 L-0308]] It is also the most expensive way to coordinate there is. A mutex is two lines of code and costs almost nothing, while every network call is a round trip. So if the work that needs protecting lives on one server, use that server’s own primitives, a mutex or an atomic instruction, and keep the network out of it. [[L-0311 L-0312 L-0313]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="The queue protects nothing. What can you change?" crumb="6.3 The puzzle">
+
+Only your own consumer code. Hold the constraints in mind (three machines, a black-box queue, one unprotected call) and pick a fix.
+
+<PauseAndThink k="L-0250 L-0251 L-0252 L-0253 L-0254"
+  q="Which of these keeps two of your consumers from reading queue 7 at the same time?"
+  choices={[{ label: 'A synchronized block around the pop call' }, { label: 'A lock on the queue’s own server' }, { label: 'A gatekeeper service in front of the queue' }, { label: 'A record, in a store all three consumers reach, saying who may read', correct: true }]}
+  right="Right."
+  wrong="That one runs into a constraint.">
+
+A synchronized block coordinates threads that share memory, and your consumers are on three machines. The queue’s server is out of reach. A gatekeeper could work, but only because it would itself be a lock manager, one more service to build and keep alive (chapter 7 builds one). At its core, what you need is a record of who may read. What’s left is a lock manager: a store holding `queue7 → consumer 1`.
+
+</PauseAndThink>
+
+The protocol is short. Consumer 1’s name is in the store, so consumer 1 reads; consumers 2 and 3 see a name that isn’t theirs, and wait. When consumer 1 has read and processed its message, it removes its name. Consumers 2 and 3 race to write theirs, the winner reads, and the loser waits again. [[L-0255]] A lock manager stores exactly two things: what the resource is, and who owns it. [[L-0256]]
+
+Nothing connects the store to the queue. A consumer could skip the lock and read anyway, and then two of them could get the same message again. The protection holds only because you write the consumer code, and every consumer runs the same steps: take the lock, read, process, release. [[L-0261 L-0304]]
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="The holder dies holding the lock. Now what?" crumb="6.4 Expiry">
+
+Consumer 1 takes the lock, and its machine dies before it can remove its name. Nobody else ever will. The lock is held forever by a consumer that no longer exists, and the whole system stalls. So every lock entry gets a **TTL**: if the holder hasn’t removed it within a set time, the entry expires on its own. [[L-0257 L-0310]]
+
+Now you know what the store has to offer: key-value access (resource → owner), atomic instructions (so two consumers can’t both take the lock) and expiry. Only then pick a store that has all three. Redis does, and it keeps its data in memory, which makes it fast; DynamoDB is another option. [[L-0258 L-0260 L-0262]] Choosing in that order, needs first and product last, is the habit to keep. [[L-0298]]
+
+<Figure id="fig-6c" max={700} no="Fig 6·c" k="L-0254 L-0256 L-0257 L-0258" caption="The lock lives in a store every consumer can reach. Consumer 1’s name is in it, so consumer 1 reads and the others wait. The entry carries a TTL, so a dead holder can’t keep it forever.">
+<Desk><QueueSeven state={2} /></Desk>
+<Phone><QueueSeven layout="phone" state={2} /></Phone>
+</Figure>
+
+In Redis, the whole lock is one command: [[L-0263 L-0264]]
+
+```
+SET queue7 <token> NX EX 300
+```
+
+`NX` sets the key only if it doesn’t exist yet, so an existing lock is never overwritten, and `EX 300` attaches a five-minute expiry in the same command. Redis answers `OK` if it set the key and nothing (nil) if someone else holds it. [[L-0265]] Two details matter. Set the expiry in that one command, not with a separate `EXPIRE` afterwards: a consumer that dies between the two calls would leave a lock that never expires. And make the value a token unique to this lock request, such as 20 random bytes, not just the machine’s name, because two processes or two retries on one machine can contend too.
+
+Why can only one consumer win? Because Redis runs one command at a time: while one command executes, no other runs. However many consumers send that `SET` at the same moment, exactly one gets `OK`. [[L-0266]] The losers keep trying until the lock is free. Make them pause for a short random moment between attempts rather than spin, or they hammer Redis with requests. [[L-0267]] With redis-py:
+
+```python
+import random, secrets, time
+import redis
+
+r = redis.Redis()
+token = secrets.token_hex(20)          # unique to this lock request
+while not r.set("queue7", token, nx=True, ex=300):
+    time.sleep(random.uniform(0.05, 0.2))  # someone holds it: wait, then retry
+# we hold the lock: read and process one message, then release
+```
+
+Acquiring is safe now. Releasing looks like the easy part: when you are done, delete the key.
+
+</Section>

@@ -125,7 +125,7 @@ export const META = {
   id: 'l08-rr-vs-leastconn',
   title: 'Why long requests pile up',
   lecture: 5,
-  section: '2.4 Least connections',
+  section: '2.3 What if some requests take an hour?',
   ledger: ['L-0053', 'L-0070', 'L-0072', 'L-0074', 'L-0075', 'L-0077', 'L-0078'],
   width: 1200,
   height: 800,

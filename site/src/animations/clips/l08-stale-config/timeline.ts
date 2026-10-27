@@ -113,7 +113,7 @@ export const META = {
   id: 'l08-stale-config',
   title: 'Nine seconds of errors',
   lecture: 5,
-  section: '4.4 Getting the change to every LB server',
+  section: '4.2 Who tells the LB servers, and how?',
   ledger: ['L-0154', 'L-0164', 'L-0167', 'L-0169', 'L-0170', 'L-0171', 'L-0174', 'L-0176'],
   width: 1200,
   height: 800,

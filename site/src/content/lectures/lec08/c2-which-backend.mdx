@@ -1,0 +1,90 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { PanelWRR } from '../../../figures/lec08/s2-algorithms';
+import { SoFarLb } from '../../../figures/lec08/so-far';
+
+{/* Chapter 2 "Three servers, one request. Which one gets it?" Story rewrite: the strategy behind GetNextBackend →
+    round robin (uniform servers, uniform load) → weighted round robin (a bigger server, money) → least connections
+    (high variance, clip) → why not route on CPU (microseconds, heuristics) → hand-off to counting connections. */}
+
+<Section id="s2" no="2" title="Three servers, one request. Which one gets it?" crumb="2 Which backend" meta="About 6 min">
+
+`GetNextBackend` is the **load-balancing algorithm**: the rule by which the load balancer decides which server gets the next request. [[L-0052]] There are many. Three cover most of what you will meet, and each one fits a particular kind of infrastructure and a particular kind of traffic. Learn why each fits and you can place the others yourself. [[L-0069]]
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The load balancer so far. Marked new: one LB server, two TCP connections per client, and bytes copied both ways.">
+<Desk><SoFarLb stage={1} /></Desk>
+<Phone><SoFarLb stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What if every server is the same?" crumb="2.1 Round robin">
+
+Then take turns: request 1 to backend 1, request 2 to backend 2, request 3 to backend 3, request 4 to backend 1 again. That is **round robin**, the most common algorithm and the default in almost every load balancer. [[L-0053]] It needs no state beyond one integer, the index of the backend that got the last request. [[L-0054 L-0345]] In the Go load balancer of chapter 1, the whole strategy is one line: [[L-0133]]
+
+```go
+s.Index = (s.Index + 1) % len(s.Backends) // 1 2 3, 1 2 3, …
+```
+
+Round robin is right when two things hold. The infrastructure is uniform: every backend has the same configuration, say 4 GB of RAM each. And the load is uniform: whichever API a request hits, the answer comes back within a narrow range of time, say under a second. [[L-0055 L-0056]] Then no request ties up one server much longer than another, and dealing them out in turn spreads the work almost evenly. [[L-0057]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="What if one server is twice the size?" crumb="2.2 Weighted">
+
+It happens. Say your three backends have 4 GB, 8 GB and 4 GB, because you bought reserved instances of different sizes and leaving any of them idle wastes money you already paid. [[L-0060]] The middle one is twice the machine: double the memory and double the cores.
+
+<PauseAndThink k="L-0061 L-0062"
+  q="Under plain round robin, the two 4 GB servers run at 80% of their capacity. Where does the 8 GB server run?"
+  choices={[{ label: 'About 80%, like the others' }, { label: 'About 40%', correct: true }, { label: 'Over 100%' }]}
+  right="Right."
+  wrong="Count its share of requests, then its capacity.">
+
+Round robin gives it exactly the same share of requests as each small server, and it has twice the capacity to handle them, so it sits at about half their load. You are paying for a machine and using half of it.
+
+</PauseAndThink>
+
+**Weighted round robin** fixes it. Give each backend a weight and deal requests in proportion: weights 1 : 2 : 1, so of every four requests the big server gets two. At the same total traffic, every server now sits near 60%: each small one now gets a quarter of the requests instead of a third, and the big one half. The gain is headroom: about a third more traffic fits before any server reaches 80%. [[L-0059 L-0062]]
+
+<Figure id="fig-2b" wide={false} no="Fig 2·b" k="L-0059 L-0061 L-0062" caption="Weights 1 : 2 : 1 over 4, 8 and 4 GB. The big server takes two of every four requests. The gauges show each server’s utilisation: plain round robin leaves the big one near 40%; with weights, at the same traffic, all three sit near 60%.">
+<PanelWRR />
+</Figure>
+
+One team arrived here by mistake. They had bought reserved instances in the wrong mix of sizes, and the cloud provider wouldn’t exchange them. Rather than keep them as spares, they put them into existing workloads and turned on weighted round robin. [[L-0065]]
+
+Notice what the choice was really about: money. The algorithm matters because you pay for every machine behind the load balancer; if you don’t care whether the infrastructure is used well, the algorithm doesn’t matter at all. [[L-0066]] Every load balancer offers a fixed menu of algorithms, so check its documentation. [[L-0063 L-0064]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="What if some requests take an hour?" crumb="2.3 Least connections">
+
+Now change the traffic, not the servers. An analytics service answers one query in a second and the next in an hour or two. [[L-0075]] The servers are identical, so round robin looks fine on paper.
+
+<AnimationClip clip="l08-rr-vs-leastconn" no="Clip 2·1" k="L-0070 L-0072 L-0074 L-0075 L-0077 L-0078"
+  lead="Before you play it: the same ten requests, some short and some long, go to two load balancers. One deals them in turn. The other sends each request to the server with the fewest connections open. Which one leaves a server drowning?"
+  caption="The same ten requests through two load balancers: one dealing in turn, one picking the server with the fewest open connections." />
+
+**Least connections** works like this. [[L-0077]] The load balancer counts the connections it has open to each backend; a finished request closes its connection and frees that slot, and each new request goes to the backend with the fewest open. [[L-0070 L-0072]] If two backends tie, pick either one at random. [[L-0089]]
+
+Why would a connection count say anything about load? In the proxy of chapter 1, every client gets its own connection to a backend, open exactly as long as that client’s request is being served. So an open connection is a request in flight, and more of them means a busier server. [[L-0073 L-0074]] A load balancer that keeps idle connections open between requests counts the active ones, or the outstanding requests directly; AWS’s Application Load Balancer, for one, offers “least outstanding requests”. [[L-0078]]
+
+It is only a local decision: each request goes to whichever server looks least busy at that moment, and nothing plans globally. That is enough. With real workloads you have many more than three servers, and keeping each request off the busiest ones is all you need. [[L-0090]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Why not just ask each server how busy it is?" crumb="2.4 Why not CPU?">
+
+It is the obvious improvement: before routing, check every backend’s CPU and send the request to the idlest. [[L-0080]]
+
+The load balancer knows nothing about a backend’s CPU or memory. All it can see is its own network connections. [[L-0079]] To route on CPU, it would have to call another system, fire a query, look at recent usage and only then decide, for every request. That adds a network hop and milliseconds of delay to every request, when the routing decision has to take microseconds. [[L-0080 L-0081]] So load-balancing algorithms are heuristics: the connection count is a rough measure of busyness that costs nothing to read. [[L-0079 L-0081]]
+
+What you can’t afford is a question per request. Load reports gathered in the background are fine: gRPC’s client-side weighted round robin, for instance, has backends report their utilisation and adjusts each backend’s weight from it, while every individual decision stays local and fast. Whenever you propose a clever design, ask whether it is practical at the speed the component has to run. [[L-0082]]
+
+The strategy is settled, and your laptop load balancer now picks well. Before you put it in front of real users, though, count what each client costs it. You saw the number in chapter 1. <LectureLink lec="lec01">Lecture 2</LectureLink> taught you to size a fleet by what one machine can serve; the load balancer is a machine too.
+
+</Section>

@@ -122,7 +122,7 @@ export const META = {
   id: 'l08-lock-ttl',
   title: 'A lock outlives its holder’s time',
   lecture: 5,
-  section: '6.6 Release: never delete a lock that isn’t yours',
+  section: '7.1 What does a plain DEL delete?',
   ledger: ['L-0257', 'L-0263', 'L-0264', 'L-0267', 'L-0268', 'L-0269', 'L-0270', 'L-0273'],
   width: 1200,
   height: 800,

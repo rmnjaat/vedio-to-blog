@@ -114,34 +114,6 @@ export function WhoDeletes({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   );
 }
 
-/* ------------------------------------------------------------------ Fig 6·e */
-
-export function ShardLocks() {
-  const s = (k: string) => `f6e-${k}`;
-  const C = [56, 170, 284];
-  const names = ['shard 1', 'shard 3', 'shard 5'];
-  return (
-    <Fig id="fig6e" w={340} h={286} title="Locks on three shards"
-      desc="Transaction A holds locks on one document in each of shards 1, 3 and 5. Transaction B wants the same three documents. As taught, B waits until A commits or rolls back; more precisely, in MongoDB B waits up to 5 ms, then aborts and retries.">
-      <Label x={170} y={18} size={14}>txn A holds a lock on each document</Label>
-      {C.map((cx, i) => (
-        <g key={i}>
-          <Label kind="mono" x={cx} y={44} size={14}>{names[i]}</Label>
-          <Cyl cx={cx} top={62} rx={46} h={56} seed={s(`c${i}`)} />
-          <Box x={cx - 38} y={84} w={18} h={24} seed={s(`d${i}`)} />
-          <LockTag x={cx - 16} y={84} w={52} h={24} text="A" seed={s(`t${i}`)} size={14} />
-        </g>
-      ))}
-      <Box x={120} y={186} w={100} h={36} label="txn B" seed={s('b')} />
-      <Arrow dashed pts={[[144, 186], [144, 160], [56, 160], [56, 132]]} seed={s('a0')} />
-      <Arrow dashed pts={[[170, 186], [170, 132]]} seed={s('a1')} />
-      <Arrow dashed pts={[[196, 186], [196, 160], [284, 160], [284, 132]]} seed={s('a2')} />
-      <Label x={170} y={248} size={14}>as taught: waits until A commits or rolls back</Label>
-      <Label tone="red" x={170} y={270} size={14}>MongoDB: waits up to 5 ms, aborts, retries</Label>
-    </Fig>
-  );
-}
-
 /* ------------------------------------------------------------------ §6.7 one-connection lock server */
 
 export function OneConnectionLock() {
@@ -150,7 +122,7 @@ export function OneConnectionLock() {
   const mid = CX.map((x) => x + (cw - 16) / 2);
   return (
     <Fig id="fig6k" w={340} h={270} title="A lock server that accepts one connection"
-      desc="Three consumers above one TCP lock server that accepts only one connection at a time. Consumer 1 has connected, solid green: its open connection is the lock. Consumers 2 and 3 try to connect, dashed red, and are turned away or wait until consumer 1's connection closes.">
+      desc="Three consumers above one TCP lock server that serves only one connection at a time. Consumer 1 has connected, solid green, and the server has written “granted” to its connection: that is the lock. Consumers 2 and 3 connect too, dashed; their connections are open but have received nothing, and they wait in the server’s backlog until consumer 1’s connection closes.">
       {CX.map((x, i) => (
         <g key={i}>
           <Worker x={x} y={cy} w={cw} h={ch} label="" seed={s(`c${i}`)} />
@@ -159,17 +131,16 @@ export function OneConnectionLock() {
         </g>
       ))}
       <Arrow tone="green" pts={[[mid[0], cy + ch], [mid[0], 190], [94, 190]]} seed={s('hold')} />
-      <Label tone="green" anchor="start" x={mid[0] + 8} y={112} size={14}>holds</Label>
-      <Label tone="green" anchor="start" x={mid[0] + 8} y={130} size={14}>the lock</Label>
+      <Label tone="green" anchor="start" x={mid[0] + 8} y={112} size={14}>got</Label>
+      <Label tone="green" anchor="start" x={mid[0] + 8} y={130} size={14}>“granted”</Label>
       {[1, 2].map((i) => (
         <g key={i}>
-          <Arrow dashed tone="red" pts={[[mid[i], cy + ch], [mid[i], 146]]} seed={s(`try${i}`)} />
-          <Cross x={mid[i]} y={156} size={12} seed={s(`x${i}`)} />
+          <Arrow dashed pts={[[mid[i], cy + ch], [mid[i], 166]]} seed={s(`try${i}`)} />
         </g>
       ))}
       <Box x={96} y={168} w={200} h={46} label="lock server" seed={s('srv')} />
-      <Label x={196} y={236} size={14}>accepts one connection at a time</Label>
-      <Label tone="red" x={196} y={258} size={14}>the others are turned away, or wait</Label>
+      <Label x={196} y={236} size={14}>serves one connection at a time</Label>
+      <Label muted x={196} y={258} size={14}>the others wait in its backlog</Label>
     </Fig>
   );
 }

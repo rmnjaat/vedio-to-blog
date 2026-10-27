@@ -1,41 +1,50 @@
-import MarginNote from '../../../components/MarginNote.astro';
-import ForwardChip from '../../../components/ForwardChip.astro';
 import Figure from '../../../components/Figure.astro';
 import Desk from '../../../components/Desk.astro';
 import Phone from '../../../components/Phone.astro';
-import { LbSoFar } from '../../../figures/lec08/s0-header';
+import LectureLink from '../../../components/LectureLink.astro';
+import { OneEntryPoint } from '../../../figures/lec08/s2-algorithms';
 
-{/* Lecture header block, the part that lives in the page body. Imported by lec08.mdx right after the frontmatter.
-    The kicker, H1, dek, meta line and TOC come from lec08.mdx's frontmatter (LectureHeader). Values for it, per outline.md:
-      kicker: "Lecture 05 · week 3, day 1 · running case: a load balancer you build yourself"
-      title: Building a load balancer
-      dek: "How to approach any distributed system, shown by building the box everyone draws and nobody opens, and then by locking things across machines."
-      contents: 1 How to approach distributed systems … 8 What to keep (eight chapters, one page each).
-    Placed here (section "about"): L-0001 L-0004 L-0006 L-0009 L-0017 L-0019. The "so far" block is untagged: it
-    restates where Lectures 1–4 left the load balancer and teaches nothing new. Its unnumbered "so far" sketch
-    (figures/lec08/s0-header.tsx) was added by the design fix (critic C-09), as lec01 has "Medium so far". */}
+{/* Lecture 05 (lec08) overview body: the hook, where the reader is, the two builds, what they will be able to do.
+    Story rewrite, see lectures/lec08/story/NOTES.md. */}
 
 <div class="col">
 
-<MarginNote title="About this class" why="where this page sits in the course">
+Your payments service runs on three servers behind one name. One of them crashes. For how many seconds do customers’ payments keep failing, and what decides that? The answer sits inside a rectangle that almost every system diagram has and almost nobody opens: the one labelled “load balancer”. [[L-0046 L-0170]]
 
-This is day 1 of week 3, and week 3 is all about distributed systems. The next session, tomorrow, covers distributed ID generators. [[L-0001]] <ForwardChip when="Lecture 6" k="L-0001">distributed ID generators</ForwardChip>
+Somebody wrote that box. It is a program, and its core is about ten lines of code. In this lecture you write it, then keep it working: one address that never changes, requests spread sensibly over the servers behind it, and as few failed requests as possible when a server dies, when one machine is no longer enough, or when one of the machines you added to fix that dies too. [[L-0008 L-0050 L-0087]]
 
-The board’s agenda for this session had four items: how to approach designing a distributed system, designing a load balancer, remote and distributed locks, and synchronizing consumers. The first one is about approach, not theory, and there is no secret sauce to it. [[L-0004]] The load balancer gets a very realistic design plus a short walk through the source code of a tiny load balancer written for the class, to see the core logic rather than just draw boxes; that code is in no way production-ready. [[L-0006]] Remote and distributed locks came after the break, and this page keeps the class’s order. [[L-0009]]
-
-**How to study this page.** Real design discussions run three or four hours straight, and covering a system has to happen in one go, because re-setting the context costs about 20 minutes; so read a chapter in one sitting. [[L-0019]] Advice for sessions this long: keep your phone in another room, and keep pen and paper beside you to scribble on. Sketch rather than type, because a browser is one click away from every distraction. [[L-0017]]
-
-</MarginNote>
-
-### The load balancer so far
-
-So far in this course the load balancer has only been a box. In Lecture 2 Medium’s API servers scaled out behind one. The pieces this lecture builds it from are already here. Lecture 1’s online indicator turned heartbeats into a failure detector, and chapter 4 turns them into health checks. [[L-0165 L-0350]] Lecture 3 locked rows inside one database for an airline check-in, and chapters 6 and 7 do the same across machines. [[L-0014]] Lecture 4 pushed Slack’s membership changes over Pub/Sub, and chapter 4 pushes configuration the same way. [[L-0177]]
-
-<Figure id="fig-0-sofar" max={700} k="L-0165 L-0350 L-0014 L-0177" caption="The load balancer so far: a closed box in front of the API servers, as Lecture 2 left it. Three pieces from earlier lectures point into it, and this page uses each one to open the box.">
-  <Desk><LbSoFar /></Desk>
-  <Phone><LbSoFar layout="phone" /></Phone>
+<Figure id="fig-0a" max={700} no="Fig 0·a" k="L-0049 L-0050 L-0051" caption="The brief, in one picture. Clients know one name that never changes; the load balancer forwards each request to one of the servers behind it.">
+<Desk><OneEntryPoint /></Desk>
+<Phone><OneEntryPoint layout="phone" /></Phone>
 </Figure>
 
-This page opens the box. After a chapter on how to approach any distributed system and one on load-balancing algorithms, it starts with one TCP proxy on one laptop and grows a chapter at a time. From there on, each chapter starts with whatever broke at the end of the one before.
+### Where you are
+
+Every lecture so far has drawn this box without opening it. <LectureLink lec="lec04">Lecture 1</LectureLink>’s day-zero design already had users, a load balancer, an API server and a database, and its heartbeat story ended on a promise: the signal that turns a silent user grey is the one a load balancer uses to stop sending requests to a dead server. <LectureLink lec="lec01">Lecture 2</LectureLink> scaled the Medium-like blog’s API servers out behind a load balancer and sized the fleet by dividing the peak load by what one machine can serve. <LectureLink lec="lec05">Lecture 3</LectureLink> locked airline seats inside one database, which kept track of who held each lock by itself. <LectureLink lec="lec02">Lecture 4</LectureLink> pushed Slack’s messages between servers through a real-time Pub/Sub.
+
+Each of those pieces turns up again here, inside the box or right next to it.
+
+### What you’ll build
+
+**Build 1, a load balancer (chapters 1–5).** It starts as one process on a laptop that copies bytes between two connections. Then it runs out of room, and you grow it into a fleet of machines that must agree, at every moment, on which servers are alive. Every machine you add raises the question this lecture keeps asking: what happens when *this one* dies? [[L-0029]]
+
+**Build 2, a lock across machines (chapters 6–8).** Once work runs on many machines, two of them can reach for the same thing at the same moment, and no single database is there to keep them apart. Three consumers on three machines read from a remote queue that hands the same message to anyone who asks, and you can’t change the queue. You build a lock they all respect, with nothing shared between them but the network, and then ask Build 1’s question of it: what if the lock’s own server dies? [[L-0011 L-0248]]
+
+The two builds share one habit. After every line of the design, assume something lags or dies right there, and check that the system still holds. [[L-0274]]
+
+### What you’ll be able to do
+
+- Explain what a load balancer does to every byte of a request, and build one on a laptop.
+- Pick a balancing algorithm from the shape of your servers and your traffic.
+- Keep a fleet of load balancers in step with the backends, without a window of errors when one dies.
+- Point clients at many machines through one name, and say what DNS does and doesn’t do.
+- Find the single point of failure in a design, and say whether a fix buys capacity or survival.
+- Lock a shared resource across machines safely, and say what it costs to make that lock survive a crash.
+
+### Before you start
+
+You need the basics of TCP (a connection between an IP address and a port), HTTP running over TCP, and threads. The code is short Go and Python; any language with sockets and threads works the same way. [[L-0123]]
+
+Nothing here needs a cloud account. The load balancer runs as four processes on one laptop, and the last chapter’s five lock servers as five processes on one laptop. Each chapter opens with a small map of the design so far. When a “Pause and think” box asks you something, commit to an answer before you open it. [[L-0321]]
 
 </div>

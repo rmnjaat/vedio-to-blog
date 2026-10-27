@@ -48,5 +48,5 @@ export function numberOf(id: string, fallback?: number): number {
 }
 /** A frontmatter kicker with its leading "Lecture NN" set to the course number. */
 export function kickerOf(id: string, kicker: string, fallback?: number): string {
-  return kicker.replace(/^Lecture\s+\d+/, `Lecture ${pad(numberOf(id, fallback))}`);
+  return kicker.replace(/^Lecture\s+\d+/, `Lecture ${numberOf(id, fallback)}`);
 }

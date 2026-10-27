@@ -1,0 +1,84 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { ConfigCopy, OrchestratorAsks } from '../../../figures/lec08/s4a-control-plane';
+import { SoFarLb } from '../../../figures/lec08/so-far';
+
+{/* Chapter 3 "One LB server can hold 10,000 connections. How many clients is that?" Story rewrite: two connections per
+    client → 5,000 clients → many LB servers, unit economics → where they learn the backend list (config in a
+    database, in-memory copy, not per request) → the copy goes stale → who notices a dead backend (orchestrator,
+    /health, the service not the VM, pull not push) → hand-off: the database knows, the LB servers don't. */}
+
+<Section id="s3" no="3" title="One LB server can hold 10,000 connections. How many clients is that?" crumb="3 Many LB servers" meta="About 5 min">
+
+Your load balancer is one process on one machine, and a machine can hold only so many TCP connections at once. Say yours can hold 10,000. The number is only an example; real limits come from memory, file descriptors and ports. [[L-0122]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="The load balancer so far. Marked new: the strategy that picks the next backend.">
+<Desk><SoFarLb stage={2} /></Desk>
+<Phone><SoFarLb stage={2} layout="phone" /></Phone>
+</Figure>
+
+<PauseAndThink k="L-0112 L-0122 L-0145"
+  q="An LB server can hold 10,000 TCP connections. How many clients can it serve at the same time?"
+  choices={[{ label: '10,000' }, { label: 'About 5,000', correct: true }, { label: 'About 3,300, one for each backend' }]}
+  right="Right."
+  wrong="Count the connections one client costs the LB server.">
+
+Every client costs two connections: its own to the LB server, and the LB server’s to a backend. Half the budget goes to backends, so 10,000 ÷ 2 = 5,000 clients.
+
+</PauseAndThink>
+
+So one LB server is a bottleneck, and the load balancer, like every other layer, has to scale horizontally: many LB servers instead of one. [[L-0145 L-0037]] That is the test for every layer, not only the API servers: an autoscaling policy that adds API servers doesn’t make a system horizontally scalable if the load balancer, cache or database in front of or behind them can’t grow. A layer can stay on one machine (a database often does) as long as it carries the peak load and has a standby. [[L-0039 L-0040 L-0044]] The number you just worked out is what makes that possible to plan. Knowing what one server can carry, its unit economics, turns scaling into division, the same arithmetic <LectureLink lec="lec01">Lecture 2</LectureLink> used for API servers: as long as the servers share nothing that runs out first, ten of them carry about ten times as much. Without that number you add machines by guesswork and either run short or pay for idle ones. [[L-0041 L-0042]]
+
+Many LB servers, though, raise a question one server never had. (Which of them a client dials comes back in chapter 5; first, what each one needs to know.) Each of them needs the backend list, and they all need the same one.
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Where do ten LB servers learn the backend list?" crumb="3.1 Config">
+
+Write down what a load balancer has to know. At the bare minimum: which algorithm it uses, and the `ip:port` of every backend behind it. You can make it fancier later, but start from the minimum. [[L-0147 L-0148]] Keep that configuration in a database, the simple starting point, where every LB server can read it. [[L-0149]]
+
+Not on every request, though. A load balancer already adds one network hop to every request, and it should add as little delay as possible. A call to the database costs a few milliseconds, around three to five, and paying that on every request passing through is far too expensive. [[L-0150 L-0151]] So each LB server pulls its configuration from the database once, when it starts, and keeps a copy in memory. Requests are then routed from memory, without a network call. [[L-0152]] That is exactly what the laptop load balancer was already doing with its hardcoded list. [[L-0153]]
+
+<Figure id="fig-3b" max={700} no="Fig 3·b" k="L-0147 L-0148 L-0149 L-0150 L-0151 L-0152" caption="Pulled once at startup, then every request is routed from memory. The dashed arrows are the LB servers asking the database for their configuration. The card spells out what is stored, including a field the next section explains.">
+<Desk><ConfigCopy /></Desk>
+<Phone><ConfigCopy layout="phone" /></Phone>
+</Figure>
+
+The catch is in the word *copy*. The moment the configuration changes, every copy is out of date. And it will change: the most ordinary change of all is a backend going down. [[L-0154]]
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="A backend’s process crashes. Who notices?" crumb="3.2 Health checks">
+
+Before any copy can be fixed, something has to detect the failure. Give that job to a component of its own: the **orchestrator**, the part of the load-balancer system that watches the backends. [[L-0155 L-0156]]
+
+What does it check? Not the machine. A backend is a virtual machine that may run hundreds of processes (SSH, nginx, other servers), and the load balancer cares about exactly one of them: the web server it sends requests to, say the profile service on port `8081`. That process can crash on a divide-by-zero or a null pointer while the VM stays perfectly healthy, and a check of the VM would never notice. [[L-0159 L-0162]] So the check is aimed at the service: a dedicated **health endpoint**, such as `/health` or `/status`, which answers 200 while the service can serve. Every HTTP server you build should have one, and its path goes into the load balancer’s configuration next to the algorithm and the backend list. [[L-0157 L-0160 L-0161]] A bare TCP check is a real option, and some cloud load balancers default to it, but it proves only that the port accepts connections, not that the service behind it can answer. [[L-0158]]
+
+What the endpoint verifies is up to the service’s owner, not the load balancer. Most return OK as long as the web server runs; a stricter one also checks that it can reach its database. Which responses count as healthy is configurable too. [[L-0372 L-0373]]
+
+<PauseAndThink k="L-0371 L-0374 L-0375 L-0376"
+  q="Who should start the conversation: should each backend send heartbeats to the orchestrator, or should the orchestrator call each backend’s <code>/health</code>?"
+  choices={[{ label: 'Each backend sends heartbeats' }, { label: 'The orchestrator calls /health', correct: true }]}
+  right="Right."
+  wrong="Ask which side knows where the other one is.">
+
+The orchestrator has every backend’s address in the configuration, while a deployed service doesn’t know the orchestrator’s address at all. A health endpoint is also far less work for the people writing services than a thread that keeps sending heartbeats, and a self-report can claim “up” while the service can’t actually serve.
+
+</PauseAndThink>
+
+<LectureLink lec="lec04" sec="s1-3">Lecture 1</LectureLink>’s green dot had to work the other way round, and for the mirror-image reason: a server can’t open a connection to a laptop behind a home router, so the laptop had to push its own heartbeats. An orchestrator inside your network can reach every backend, so it asks. The building block is the same: something alive keeps proving it, and silence means down. [[L-0165 L-0350]]
+
+So the orchestrator fires health checks at every backend, continuously. When one fails, it updates the configuration in the database at once, taking that backend out of the list, and it keeps checking so the backend can come back when it answers again. [[L-0163 L-0164]]
+
+<Figure id="fig-3c" max={700} no="Fig 3·c" k="L-0156 L-0157 L-0159 L-0162 L-0163 L-0164 L-0371" caption="The orchestrator asks; backends only answer. b srv2’s VM is up but its process has crashed, so its /health returns no 200, and the orchestrator removes it from the configuration in the database.">
+<Desk><OrchestratorAsks /></Desk>
+<Phone><OrchestratorAsks layout="phone" /></Phone>
+</Figure>
+
+The database now says backend 2 is dead. Every LB server is still routing from the copy it pulled when it started.
+
+</Section>

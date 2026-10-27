@@ -1,0 +1,141 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { TwoHolders } from '../../../figures/lec08/s7-distributed-locks';
+import { SoFarLock } from '../../../figures/lec08/so-far';
+
+{/* Chapter 8 "All locking runs through one Redis. What happens when it dies?" Story rewrite: single point of failure →
+    why not a replica (asynchronous replication) → Redlock: majority of five independent nodes within the TTL, release
+    everywhere on failure (clip), the cost → the restart edge case told correctly once (stepper), delayed restarts,
+    minimized not removed, simulate on a laptop → distribute for fault tolerance vs scale for throughput, tying both
+    builds → what you can now do, recall → Lecture 6. */}
+
+<Section id="s8" no="8" title="All locking runs through one Redis. What happens when it dies?" crumb="8 The lock store dies" meta="About 8 min">
+
+The lock is correct now. Every consumer takes it with one atomic `SET`, and releases it with one atomic script. And all of it runs through a single Redis server. If that server goes down, nobody can take the lock: every consumer’s `SET` fails, and the system stalls. It is a single point of failure, the same question Build 1 asked of the orchestrator. [[L-0275]]
+
+<Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="The lock so far. Marked new: the release, a script that deletes the key only if it still holds this consumer’s token, run inside Redis in one step.">
+<Desk><SoFarLock stage={2} /></Desk>
+<Phone><SoFarLock stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="Why not just add a replica?" crumb="8.1 A replica?">
+
+<PauseAndThink k="L-0277"
+  q="Give the lock’s Redis a replica, and promote the replica automatically when the primary dies. Is the lock now safe?"
+  choices={[{ label: 'Yes: the replica takes over with the same keys' }, { label: 'No: the replica may not have the lock yet', correct: true }]}
+  right="Right."
+  wrong="Ask what the replica knows at the moment the primary dies.">
+
+Redis copies writes to its replicas asynchronously. If the primary grants consumer 1 the lock and dies before that key reaches the replica, the promoted replica has never heard of the lock, and consumer 2 gets it too.
+
+</PauseAndThink>
+
+Lock services that do run as clusters, such as ZooKeeper, etcd and Google’s Chubby, replicate their state with a consensus protocol, where the servers agree on each change before it counts. [[L-0277]] ZooKeeper’s lock works like this: each client creates a numbered, temporary node under the lock’s path; the lowest number holds the lock, and every other client watches only the node just before its own, so a release wakes exactly one waiter. The node disappears when its client’s session ends. It is the same ZooKeeper that could have carried the configuration changes in chapter 4; know how it works inside rather than just naming it. [[L-0328 L-0330 L-0331]]
+
+**Redlock**, the distributed version of the Redis lock, takes a third route, and its only purpose is to remove the single point of failure of a lock that lives on one instance. [[L-0277]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="Five independent nodes. When is the lock yours?" crumb="8.2 Redlock">
+
+Run five Redis servers, fully independent: no replication, no link between them at all. To take the lock, send the same `SET queue7 <token> NX EX 300` to all five, one after another or in parallel. [[L-0278]]
+
+The lock is yours only if two things are true: you got it on a majority of the nodes, at least three of the five, and getting them took less time than the lock’s TTL. The time you may actually use is the TTL minus the time you spent acquiring. A majority is what makes the lock exclusive: two clients can’t both hold three of five. [[L-0279]]
+
+If you don’t get a majority, release at once, so the others can try. Release on all five nodes, even the ones you think you didn’t get, because a `SET` can succeed while its reply is lost; the release script deletes only your own token, so this is safe. Then wait a random moment before trying again, so that competing clients stop colliding. [[L-0280]]
+
+<AnimationClip clip="l08-redlock" no="Clip 8·1" k="L-0275 L-0278 L-0279 L-0280 L-0281 L-0282"
+  lead="Two clients race for the same lock on five nodes; one gets three, the other two. What happens to the winner’s lock when a node goes down?"
+  caption="Three of five, in time, wins the lock; the loser releases what it took and retries later. One node going down doesn’t free the lock: no one else can reach three." />
+
+None of this is free: every acquire now talks to five servers instead of one. Section 8.4 comes back to what that costs. [[L-0281]]
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Two of your three nodes restart empty. Who holds the lock?" crumb="8.3 The edge case">
+
+One node dying is no problem: your other two still hold the lock, and nobody else can reach three. [[L-0282]] But nodes come back.
+
+<StepThrough id="fig-8b" no="Fig 8·b" label="Two holders"
+  k="L-0279 L-0314 L-0315 L-0317 L-0318"
+  stepK={['L-0279 L-0314', 'L-0314', 'L-0314 L-0315', 'L-0318', 'L-0315 L-0317']}
+  caption="Each row is the lock entry on each of the five Redis nodes at one moment; time runs down."
+  steps={[
+    'C1 locks r1, r2 and r3: <span class="term green">three of five</span>, a majority.',
+    'r1 and r2 crash and restart straight away, with no memory of the lock. Only r3 still says <code>c1</code>.',
+    'C2 locks r1, r2 and r4: three of five as well, and C1 still believes it holds the lock. <span class="term red">Two holders.</span>',
+    'C1 does not go back for more nodes; it holds what it won in one pass. So this can happen at any time until its lock expires: the window is the whole TTL.',
+    'The fix: keep a crashed node out for longer than the longest TTL before it rejoins. Every lock it held has expired by then, and C2 reaches only two of five: <span class="term green">no majority</span>.',
+  ]}>
+  <Desk><TwoHolders /></Desk>
+  <Phone><TwoHolders layout="phone" /></Phone>
+</StepThrough>
+
+Redis calls that fix **delayed restarts**; the alternative is to have every node write each lock to disk before answering (`appendonly yes` with `appendfsync always`, at a cost in write speed). [[L-0315 L-0317 L-0318]] Other gaps remain: a holder whose process pauses can wake after its lock expired and carry on, and Redis measures expiry with the wall clock, so a clock that jumps can expire a lock early. Redis’s own documentation therefore asks you to use fencing tokens rather than trust that a lock lasts as long as the process that took it. [[L-0282]]
+
+So Redlock doesn’t remove every edge case; it shrinks them. In distributed systems you say an edge case is minimized, never that it is fully covered. [[L-0315 L-0322]] It fits where a lock must survive its server dying, and correctness and availability matter more than throughput. Martin Kleppmann draws the line more sharply: if a lock only saves duplicate work, a single Redis is enough; if it protects correctness, use a consensus system such as ZooKeeper, with fencing tokens: a number that grows with every lock granted and travels with every write, so the storage can reject a write from a holder whose lock has passed to someone else. [[L-0281]]
+
+You don’t need five servers to see this. Run five Redis processes on one laptop, on ports 6379 to 6383, inject delays of one, five and fifteen seconds, kill two nodes and restart them at once, and watch two consumers hold the lock. Restart them only after the TTL, and that failure goes away. [[L-0320 L-0321 L-0323]]
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="Five nodes, and the lock got slower. Why do it?" crumb="8.4 Distribute or scale">
+
+Because you weren’t trying to make it faster. Spreading the lock over five nodes doesn’t handle more load; with five round trips per acquire, and contending clients taking and returning partial locks, it lowers throughput. You don’t put it on a hot path. What it buys is that the lock survives a server dying: fault tolerance and availability. [[L-0281 L-0287]] In one engineer’s experience, few companies ever need a lock spread over several servers: managed cloud services already give most teams the guarantees they need, and the ones who must build it are the teams building those services. A single-server lock like the one in chapter 7 is far more common. [[L-0276]]
+
+Build 1 made both moves. Adding LB servers, each good for about 5,000 clients, was **scaling out**: more machines for more load. Leader election and the standbys were there so that a death costs seconds instead of an outage: **distributing for fault tolerance**. Redlock is the second move in its purest form, paid for in throughput. [[L-0288]] When someone proposes “making it distributed”, ask which one they mean.
+
+</Section>
+
+<Section id="s8-5" no="8.5" title="What you can now do" crumb="8.5 What you can do">
+
+- **Build a load balancer:** accept, dial a backend, copy bytes both ways, close both when one side ends. Two connections per client: 10,000 connections serve 5,000 clients.
+- **Pick the algorithm** from servers and traffic: round robin for identical ones, weights for mixed sizes, least connections when response times vary widely. Never a query per request.
+- **Keep a fleet consistent:** config in a database, copied into memory; an orchestrator calling `/health`; changes pushed through a meta port or a real-time Pub/Sub, with a re-pull on reconnect. A 10-second poll means up to almost 10 seconds of errors.
+- **Give many machines one name:** a private DNS entry the orchestrator keeps current. DNS answers and steps aside.
+- **Classify failures:** can’t scale out is a bottleneck; no standby is a single point of failure.
+- **Lock across machines:** `SET key <unique token> NX EX ttl`; release with a script that deletes only your token; extend the lease for long jobs. To survive the lock server: a majority of five independent nodes within the TTL, delayed restarts, fencing tokens where correctness depends on it.
+
+<RecallQuestions>
+  <RecallItem q="Your LB servers re-read their configuration every 30 seconds. A backend dies. What do users see, and what two designs shrink it to almost nothing?" k="L-0169 L-0170 L-0171 L-0178">
+
+Up to almost 30 seconds of failed requests: every LB server keeps routing to the dead backend from its stale copy until its next read. Push the change instead: whoever changes the configuration calls each LB server’s meta port, or publishes it once to a real-time Pub/Sub that every LB server listens to (and pulls the full configuration whenever it reconnects, since a missed message is gone).
+
+  </RecallItem>
+  <RecallItem q="If every client looks up the load balancer’s name in CoreDNS, why isn’t CoreDNS the new bottleneck?" k="L-0218 L-0219 L-0220">
+
+DNS only turns the name into an address; the client then connects to the LB server itself, and caches the answer for the record’s TTL. No request passes through DNS, and CoreDNS, holding nothing but the name-to-addresses map, runs as several copies.
+
+  </RecallItem>
+  <RecallItem q="Consumer 1 checks that the lock key still holds its token, then deletes it, in two Python calls. What can go wrong, and what is the fix?" k="L-0271 L-0273">
+
+Between the `GET` and the `DEL` the key can expire and consumer 2 can take it, so the `DEL` removes consumer 2’s lock. The check and the delete must run as one step inside Redis: a Lua script sent with `EVAL`.
+
+  </RecallItem>
+  <RecallItem q="Five Redis nodes: when do you hold a Redlock, what do you do when you don’t, and what does the whole arrangement buy you?" k="L-0279 L-0280 L-0287">
+
+When you got the lock on at least three of the five, in less time than the TTL. Otherwise release on all five, even the ones you think you missed, and retry after a random delay. It buys fault tolerance (one node can die and the lock still works), not throughput, which goes down.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s8-6" no="8.6" title="Build it, then count something" crumb="8.6 Next">
+
+Build both on your laptop before you move on, and kill things on purpose. [[L-0098 L-0323]]
+
+Every box in Build 1 became many machines, and Build 2 showed that many machines need a way to agree. There is one more thing a fleet has to agree on, and it looks too small to matter: numbers. Picture an orders table that has outgrown one MySQL server and now lives on two masters, each counting its own auto-increment IDs: 1, 2, 3, 4 on one, and 1, 2, 3, 4 on the other. Order 3 now means two different orders. <LectureLink lec="lec03">Lecture 6</LectureLink> takes that apart: how do you hand out IDs that never repeat, from many machines at once, without a lock around every single one? [[L-0001]]
+
+</Section>

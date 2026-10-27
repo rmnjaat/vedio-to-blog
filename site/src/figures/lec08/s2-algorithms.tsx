@@ -16,7 +16,7 @@ const NB = ' ';
 const ENTRY_T = 'One entry point';
 const ENTRY_D =
   'Two clients send their requests to one load balancer, reached by one name that never changes. The load balancer forwards each request ' +
-  'to one of three API servers. Advantages written beside it: fault tolerance, and no over-clocked server.';
+  'to one of three API servers. Advantages written beside it: fault tolerance, and no overloaded server.';
 
 export function OneEntryPoint({ layout = 'wide' }: Layout) {
   if (layout === 'phone') {
@@ -29,7 +29,7 @@ export function OneEntryPoint({ layout = 'wide' }: Layout) {
         <Arrow tone="blue" pts={[[230, 70], [230, 112]]} seed="f2a-p-a2" />
         <Box x={40} y={116} w={260} h={24} seed="f2a-p-lb" />
         <Label kind="mono" anchor="start" x={50} y={133} size={14}>lb</Label>
-        <Label kind="mono" x={170} y={164} size={14}>payments.example.com</Label>
+        <Label kind="mono" x={170} y={164} size={14}>payments.lb.google.com</Label>
         {xs.map((x, i) => (
           <g key={i}>
             <Arrow pts={[[x, 184], [x, 228]]} seed={`f2a-p-f${i}`} />
@@ -42,7 +42,7 @@ export function OneEntryPoint({ layout = 'wide' }: Layout) {
         <Label x={170} y={304} size={15}>single point of entry</Label>
         <Label muted x={170} y={344} size={14}>advantages:</Label>
         <Label x={170} y={368} size={14}>fault tolerance</Label>
-        <Label x={170} y={392} size={14}>no over-clocked server</Label>
+        <Label x={170} y={392} size={14}>no overloaded server</Label>
       </Fig>
     );
   }
@@ -53,7 +53,7 @@ export function OneEntryPoint({ layout = 'wide' }: Layout) {
       <Actor x={90} y={176} seed="f2a-c2" />
       <Arrow tone="blue" pts={[[114, 96], [200, 96], [200, 140], [296, 140]]} seed="f2a-a1" />
       <Arrow tone="blue" pts={[[114, 208], [200, 208], [200, 160], [296, 160]]} seed="f2a-a2" />
-      <Label kind="mono" x={312} y={34} size={15}>payments.example.com</Label>
+      <Label kind="mono" x={312} y={34} size={15}>payments.lb.google.com</Label>
       <LoadBalancer x={300} y={76} w={24} h={148} seed="f2a-lb" size={15} />
       {ys.map((y, i) => (
         <g key={i}>
@@ -64,7 +64,7 @@ export function OneEntryPoint({ layout = 'wide' }: Layout) {
       <Label x={312} y={256} size={15}>single point of entry</Label>
       <Label muted anchor="start" x={672} y={118} size={15}>advantages:</Label>
       <Label anchor="start" x={672} y={146} size={15}>fault tolerance</Label>
-      <Label anchor="start" x={672} y={172} size={15}>no over-clocked server</Label>
+      <Label anchor="start" x={672} y={172} size={15}>no overloaded server</Label>
     </Fig>
   );
 }
@@ -113,13 +113,13 @@ export function PanelRR({ sfx = '' }: { sfx?: string }) {
 const WRR_D =
   'Weighted round robin: 4 GB, 8 GB and 4 GB servers with weights 1, 2 and 1. Of every four requests the 8 GB server gets two: ' +
   '1 and 5, then 2, 3, 6 and 7, then 4 and 8. Under plain round robin the 8 GB server would sit at about 40% while the others ran at 80%; ' +
-  'with weights all three run at about 80%.';
+  'with weights, at the same total load, all three run at about 60%, so about a third more traffic fits before any server reaches 80%.';
 export function PanelWRR({ sfx = '' }: { sfx?: string }) {
   const id = 'f2b-b' + sfx;
   const GX = [12, 108, 204], GW = 54, GH = 12;
-  /** One fill gauge per server: outline plus a heavy fill, red when the server idles. */
+  /** One fill gauge per server: outline plus a heavy fill, red when the server idles (under half its capacity). */
   const gauge = (x: number, y: number, pct: number, k: string) => {
-    const tone = pct < 80 ? 'red' : 'ink';
+    const tone = pct < 50 ? 'red' : 'ink';
     const fx = x + 3 + ((GW - 6) * pct) / 100;
     return (
       <g key={k}>
@@ -145,7 +145,7 @@ export function PanelWRR({ sfx = '' }: { sfx?: string }) {
           <Label key={g + i} kind="mono" muted x={GX[i] + GW / 2} y={212} size={14}>{g}</Label>
         ))}
         {row(236, 'round robin', [80, 40, 80], 'rr')}
-        {row(290, 'weighted 1 : 2 : 1', [80, 80, 80], 'w')}
+        {row(290, 'weighted 1 : 2 : 1', [60, 60, 60], 'w')}
       </Fan>
     </Fig>
   );

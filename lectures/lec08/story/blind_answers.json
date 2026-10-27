@@ -1,0 +1,986 @@
+[
+ {
+  "id": "Q001",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q002",
+  "answer": "Not said in those words. The page implies it: the client sees one address/name while any number of machines work behind it, which is what makes many machines look like one system.",
+  "evidence": "'The client sees one address; behind it, any number of machines do the work.' (ch1 intro); 'many machines that together look like one coherent system' (§5.5)",
+  "found": false
+ },
+ {
+  "id": "Q003",
+  "answer": "About ten lines (the copying itself is two).",
+  "evidence": "'its core is about ten lines of code' (overview); 'The copying itself is two lines; with the accept loop and the dial, the whole core is about ten' (§1.2)",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "When processes on different machines must coordinate to keep data consistent, no single database's memory holds the record of who holds what; a lock they all respect is what keeps the data from ending up wrong.",
+  "evidence": "'they need a lock they all respect, and that lock is the heart of keeping a distributed system's data correct' (§6.1)",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "Many machines that together look like one coherent system to whoever uses it.",
+  "evidence": "'That is what a distributed system is: many machines that together look like one coherent system to whoever uses it.' (§5.5)",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "Professor quote not on page. Design rule on page: assume anything that can go wrong will; after every line, assume something lags or dies and check the system still holds.",
+  "evidence": "'assume anything that can go wrong will' (§5.5); 'After every line of the design, assume something lags or dies right there' (overview)",
+  "found": false
+ },
+ {
+  "id": "Q007",
+  "answer": "The first version: one machine, no thought of scale. Get one machine right first, then scale each part.",
+  "evidence": "'start with the day-zero version. One machine, no thought of scale yet.' (ch1 intro)",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Only partly on page: get one machine right, then scale each part and watch where it breaks. Board loop/arrow not on page.",
+  "evidence": "'get one machine right first, then scale each part and watch where it breaks' (ch1 intro)",
+  "found": false
+ },
+ {
+  "id": "Q009",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q010",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q011",
+  "answer": "The page does not give this scenario. Closest: scaling claims need unit economics (what one server carries); without it you add machines by guesswork.",
+  "evidence": "'Without that number you add machines by guesswork and either run short or pay for idle ones.' (ch3 intro)",
+  "found": false
+ },
+ {
+  "id": "Q012",
+  "answer": "Its unit economics: what one server can carry. Then scaling is division (10 servers ≈ 10x) as long as they share nothing that runs out first; without it you guess and either run short or pay for idle machines.",
+  "evidence": "'Knowing what one server can carry, its unit economics, turns scaling into division' (ch3 intro)",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "NOT ON PAGE (only that a DB standby gives survival not scale).",
+  "evidence": "§5.5 Multi-AZ standby 'isn't a scaling solution'",
+  "found": false
+ },
+ {
+  "id": "Q014",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q015",
+  "answer": "Fault tolerance and no overloaded server.",
+  "evidence": "Fig 0a labels 'advantages: fault tolerance · no overloaded server'",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "Two clients send requests to one load balancer reached by one name (payments.lb.google.com), single point of entry; it forwards to one of three API servers; advantages fault tolerance and no overloaded server.",
+  "evidence": "Fig 0a description",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Clients know one name that never changes; the load balancer forwards each request to a server behind it, so backends can change.",
+  "evidence": "Fig 0a caption",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "Take turns: 1→b1, 2→b2, 3→b3, 4→b1. Most common algorithm, default in almost every LB; needs only one integer of state.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "When infrastructure is uniform (same config) and load is uniform (responses in a narrow time range, e.g. under a second).",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "Implied: backend 1 gets 1, 4 (7…), backend 2 gets 2, 5, backend 3 gets 3, 6. Diagram not on page.",
+  "evidence": "'request 1 to backend 1, request 2 to backend 2, request 3 to backend 3, request 4 to backend 1 again' (§2.1)",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "Plain RR gives the 8 GB machine the same share, so it runs at ~40% while 4 GB ones run at 80%: half used. Weights 1:2:1 fix it (all ~60%, a third more headroom).",
+  "evidence": "§2.2, Fig 2b",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "The 8 GB server (w=2) gets requests 2,3,6,7; the 4 GB ones get 1,5 and 4,8, i.e. two of every four go to the big one. (How it is drawn larger not stated.)",
+  "evidence": "Fig 2b labels",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "A team bought reserved instances in the wrong mix of sizes; the provider wouldn't exchange them, so they used them in existing workloads with weighted RR.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q024",
+  "answer": "In the load balancer's configuration; each LB offers a fixed menu of algorithms, so check its documentation. What to do if missing: not on page.",
+  "evidence": "'Every load balancer offers a fixed menu of algorithms, so check its documentation.' (§2.2)",
+  "found": false
+ },
+ {
+  "id": "Q025",
+  "answer": "Money: you pay for every machine behind the LB; the algorithm matters only because you care about using infrastructure well.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Counts open connections per backend; new request goes to the backend with fewest; ties broken at random.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Each client gets its own backend connection, open exactly as long as its request is served, so an open connection is a request in flight.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "When response times vary a lot; analytics service where one query takes a second and the next an hour or two.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "RR deals in turn regardless of what is running, so long requests pile onto a busy server while others sit idle.",
+  "evidence": "Clip 2·1 text",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "The LB only sees its connections; knowing CPU needs a call to another system per request, adding a hop and milliseconds when the decision must take microseconds. Background-gathered load reports are fine.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "Partly: in the clip, least connections sends 7 to s2 and 10 to s3 (long 4 on s1). Full diagram assignment not on page.",
+  "evidence": "Clip 2·1 text",
+  "found": false
+ },
+ {
+  "id": "Q032",
+  "answer": "No; in the proxy each client request gets its own backend connection while it's being served; LBs that keep idle connections count active ones or outstanding requests.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q034",
+  "answer": "Page only says it's a local heuristic decision with no global planning, and that's enough with many servers.",
+  "evidence": "'It is only a local decision ... nothing plans globally. That is enough.' (§2.3)",
+  "found": false
+ },
+ {
+  "id": "Q035",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q036",
+  "answer": "One address that never changes; requests spread sensibly across servers; as few failed requests as possible when a server dies (or a machine isn't enough).",
+  "evidence": "overview para 2",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "His was 5-6x faster than Nginx; not a breakthrough: Nginx and HAProxy do far more than his did.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "LB server = machine running the LB process; backend servers = where requests end up (payment, auth, profile), black boxes to the LB.",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "A plain TCP server process (not HTTP); LB server at static IP 10.0.0.1.",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "LB 10.0.0.1:9000; backends 10.0.0.7/8/9 port 8081; LB stores backend list (ip:port) and connection map tcp1→tcp2.",
+  "evidence": "Fig 1b",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "An IP address and a port.",
+  "evidence": "'a connection between an IP address and a port' (Before you start); §1.1",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "Two: client→LB server and LB server→backend.",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "Source connection → target connection (tcp1→tcp2), in an in-memory hash table; not a DB because connections are local.",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "No; it copies bytes blindly, any TCP protocol.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Backend answers on tcp2; LB sees data on tcp2, looks up tcp1, copies it back to the client.",
+  "evidence": "§1.2, Fig 1b",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "tcp1 → tcp2, tcp3 → tcp4.",
+  "evidence": "Fig 1b",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Each client costs two connections, so 10,000 connections serve 5,000 clients; one LB server is a bottleneck → scale horizontally.",
+  "evidence": "ch3 intro",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "Run LB as one process on port 9000 and three backends on 8081-8083 on localhost; no cloud/VMs/Docker.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "Port 9090; four Flask hello-world backends hardcoded on local ports 8081-8084.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "Infinite loop on Accept; each connection handed to a goroutine running proxy, tagged with a uuid request ID.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "Ask strategy for backend; Dial it (on error write 'backend not available'); increment NumRequests; start two io.Copy goroutines (client→backend, backend→client); wait for first to finish; deferred Closes close both.",
+  "evidence": "§1.2 code",
+  "found": true
+ },
+ {
+  "id": "Q052",
+  "answer": "io.Copy blocks until EOF; inline, the first copy would hold proxy for the whole connection and the response copy would never start.",
+  "evidence": "§1.2 Pause and think",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "s.Index = (s.Index + 1) % len(s.Backends).",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "Page shows round robin in the Go LB's strategy; full list of strategies implemented not stated.",
+  "evidence": "§2.1",
+  "found": false
+ },
+ {
+  "id": "Q055",
+  "answer": "It tracked number of requests per backend, not connection counts; you know a connection ended when io.Copy returns (nil at EOF or an error).",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "No; only a TCP connection with bytes copied.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Few people get to scale a system; anyone can build one locally; you need many machines only for scaling.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "5,000: two connections per client.",
+  "evidence": "ch3 intro",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q060",
+  "answer": "Algorithm and ip:port of every backend (health endpoint added later).",
+  "evidence": "§3.1, Fig 3b",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "A DB call costs ~3-5 ms; paying that per request is too expensive; LB should add minimal delay.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Pull config once at startup into memory; the copy goes stale whenever config changes (e.g. backend dies).",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "The orchestrator.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "The VM can be healthy while the service process crashed (divide by zero, null pointer); check the service.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "A dedicated endpoint like /health or /status returning 200 while service can serve; path stored in LB config; orchestrator calls it continuously.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "Orchestrator → backends (orchestrator calls each /health); it writes to the config db.",
+  "evidence": "Fig 3c",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Updates config in DB at once removing it; keeps checking so it can come back.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "Re-read every 10s, crash 1s after read → ~9 s of failed requests to it; error-rate spike every time; polling only narrows.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Page: routing is from memory; the real cost of polling is failed requests during the stale window, more than DB load. Student exchange itself not on page.",
+  "evidence": "§4.1",
+  "found": false
+ },
+ {
+  "id": "Q070",
+  "answer": "The orchestrator (health failures) and developers via the LB console (also autoscaling).",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Unclear attribution; page's first push: a meta port 9091 on each LB server that the changer calls so it re-reads the DB. (A separate handler service is rejected.)",
+  "evidence": "§4.2",
+  "found": false
+ },
+ {
+  "id": "Q072",
+  "answer": "Publish one message to a real-time Pub/Sub (Redis) all LB servers subscribe to; publishers incl. the DB via CDC.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "CDC turns each committed DB change into an event on Redis Pub/Sub, pushed to every LB, which refreshes its copy, instead of timed polling.",
+  "evidence": "§4.3, Fig 4b",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "Not stated as one being 'right'; page prefers Pub/Sub over calling fifty ports; meta port is 'option 1'. Both are push.",
+  "evidence": "§4.3",
+  "found": false
+ },
+ {
+  "id": "Q075",
+  "answer": "Lecture 4's Slack design.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Whether overwhelmed: CPU, memory, network, disk, open TCP connections, to scale the fleet up/down.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "A server at 100% may not answer, and you want to act at 60-80% on a trend, which needs history.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "Time series vs key-value.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "Don't build a metrics system; plug into the org's central one (e.g. Prometheus).",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "Central metrics system (Prometheus); every VM runs an agent exposing metrics and Prometheus pulls them.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "You write a rule like 'if average CPU passes X, add a server'; cloud evaluates it against its metrics store.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "Prometheus scrapes agents on all machines; orchestrator queries it; feeds autoscaling.",
+  "evidence": "Fig 4c, Fig 5d",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "A plain IP belongs to one machine; a DNS name abstracts many IPs.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "DNS can be private: you can run it inside your network.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "CoreDNS; run it inside infra and configure every machine to use it.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "Hands addresses in turn or shuffles; doesn't know load; client chooses.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "No; it only returns an address.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "Fig 5b: client asks CoreDNS, gets 10.0.0.1, forward path struck out, client caches and connects, on failure re-asks and gets 10.0.0.2. (Brainstorm diagram itself not on page.)",
+  "evidence": "Fig 5b",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "The orchestrator adds its IP to the DNS entry.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Client looks up name in CoreDNS, gets 10.0.0.1, connects to LB server, LB picks backend by strategy from memory, response back.",
+  "evidence": "Fig 5d",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "Developer/console, autoscaling or orchestrator writes config DB → CDC → Redis Pub/Sub → every LB → refresh in-memory copy.",
+  "evidence": "Fig 5d",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Health checks, update backend list, scale LB fleet, add/remove LB IPs in DNS.",
+  "evidence": "§5.3, Fig 5d",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "Average CPU over last 30 minutes etc., from Prometheus.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "'leader election' above the orchestrator; Prometheus feeds Autoscaling.",
+  "evidence": "Fig 5d",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Google's Maglev paper.",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "No; try other addresses from the same answer, then re-ask; toothache analogy.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "Run several copies; each machine lists up to three nameservers tried in order.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Through an API gateway on public DNS (payments.google.com) which forwards to the private LB resolved via CoreDNS.",
+  "evidence": "§5.4 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "No; each service gets its own.",
+  "evidence": "§5.4 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "Something all machines can reach that tracks which item is locked by whom and tells others to wait.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "There one DB kept in its own memory who held each row; distributed work has no single DB holding the record.",
+  "evidence": "§6.1, §5.5",
+  "found": true
+ },
+ {
+  "id": "Q102",
+  "answer": "Through shared memory: mutex, semaphore, atomic instruction, because they share RAM.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Two apt-get upgrades at once: second refuses, couldn't get lock on /var/lib/dpkg/lock; kernel holds file lock, freed when holder exits; processes coordinate via a shared file.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "Threads → RAM; processes → disk (file); machines → network (remote lock). Principle: use the nearest storage they share.",
+  "evidence": "§6.2, Fig 6b",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "A careless remote queue 'queue 7', one unprotected pop call; three consumers on three machines; only one may read/process at a time; can't change queue.",
+  "evidence": "ch6 intro",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "Synchronized block needs shared memory; queue's server is out of reach; a gatekeeper layer would itself be a lock manager to build and run.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "Store holds queue7 → consumer; holder reads, others wait; holder removes name; others race.",
+  "evidence": "§6.3, Fig 6c",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "The resource and its owner.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q109",
+  "answer": "Lock held forever, system stalls; fix TTL.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "Key-value, atomic instructions, expiry; Redis (DynamoDB too).",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "Take lock, read, process, release.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q112",
+  "answer": "Atomicity (so two consumers can't both take it) and TTL (so a dead holder can't hold forever).",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "Redis and DynamoDB; Redis in-memory so fast.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "Key queue7 held by consumer 2, expiring in 300 s.",
+  "evidence": "inferred from Fig 6c / §6.4",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "Loop: SET queue7 token NX EX 300; if nil, sleep random 50-200 ms and retry; on OK, proceed.",
+  "evidence": "§6.4 code",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "NX sets only if absent; Redis runs one command at a time so exactly one gets OK; set expiry in same command.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q117",
+  "answer": "Lock expires mid-job, other consumer takes it, the DEL removes its lock.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q118",
+  "answer": "Between GET and DEL the key may expire and another take it; then the DEL deletes theirs.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q119",
+  "answer": "Lua script via EVAL checking token then deleting, atomically inside Redis.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "After every line, imagine something lags or goes down, and check the system still holds.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q121",
+  "answer": "Single point of failure: if it dies nobody can take the lock; system stalls.",
+  "evidence": "ch8 intro",
+  "found": true
+ },
+ {
+  "id": "Q122",
+  "answer": "Needed when a lock must survive its server dying; few companies need it - mostly teams building managed cloud services.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q123",
+  "answer": "Five fully independent Redis servers, no replication.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q124",
+  "answer": "Send SET NX EX to all five; win if majority (≥3) and time < TTL; usable time TTL minus acquire time; else release all five and retry after random delay.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q125",
+  "answer": "Lower throughput (five round trips, contention); not on hot path; use where lock must survive server death and correctness/availability matter more than throughput.",
+  "evidence": "§8.3, §8.4",
+  "found": true
+ },
+ {
+  "id": "Q126",
+  "answer": "No; it shrinks edge cases (restarts, pauses, clock jumps); use fencing tokens.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q127",
+  "answer": "Not to make it faster; for fault tolerance and availability.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q128",
+  "answer": "Redis docs on Redlock and Martin Kleppmann's view; ZooKeeper recipe. ('further reading' not explicitly labelled)",
+  "evidence": "§8.3",
+  "found": false
+ },
+ {
+  "id": "Q129",
+  "answer": "No; lower throughput; for fault tolerance.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q130",
+  "answer": "A fundamental idea, a few hours of work; works, with caveats (backlog, needs timeout).",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q131",
+  "answer": "Yes: a lock row (handle expiry yourself) or GET_LOCK named locks; single server.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q132",
+  "answer": "No; atomicity comes from Redis running the script inside the server.",
+  "evidence": "§7.2",
+  "found": true
+ },
+ {
+  "id": "Q133",
+  "answer": "It's a constraint chosen so you build protection yourself; real queues do prevent it.",
+  "evidence": "ch6 intro",
+  "found": true
+ },
+ {
+  "id": "Q134",
+  "answer": "Nothing; it relies on every consumer running the same steps.",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q135",
+  "answer": "A transaction updating docs on shards 1,3,5 holds locks on all three.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q136",
+  "answer": "The network.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q137",
+  "answer": "Yes; keep TTL short and extend while still working (token-checked script / lease heartbeats).",
+  "evidence": "§7.2 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q138",
+  "answer": "Network lock.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q139",
+  "answer": "Server's own primitives: mutex or atomic instruction.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q140",
+  "answer": "Yes, if they restart empty, another can reach majority; minimized by delayed restarts > max TTL (or fsync always); fencing tokens.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q141",
+  "answer": "Page says the opposite: C1 doesn't go back for more nodes, holds what it won in one pass. Reason it should: not on page.",
+  "evidence": "Fig 8b step 4",
+  "found": false
+ },
+ {
+  "id": "Q142",
+  "answer": "Five Redis processes on one laptop, ports 6379-6383, inject delays 1/5/15 s, kill and restart nodes.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q143",
+  "answer": "Page doesn't say why not; Kleppmann: if correctness, use consensus system like ZooKeeper with fencing tokens.",
+  "evidence": "§8.3",
+  "found": false
+ },
+ {
+  "id": "Q144",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q145",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q146",
+  "answer": "No; DNS doesn't know about load.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q147",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q148",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q149",
+  "answer": "Don't add a box when an existing one can do the work (handler service, metrics system).",
+  "evidence": "§4.2, §4.4",
+  "found": true
+ },
+ {
+  "id": "Q150",
+  "answer": "No; only one integer index.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q151",
+  "answer": "No; DNS only hands out addresses (cached) and balancing stays in LB servers.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q152",
+  "answer": "Design shouldn't depend on the metrics system doing a job it wasn't chosen for.",
+  "evidence": "§4.4",
+  "found": true
+ },
+ {
+  "id": "Q153",
+  "answer": "Nothing about Redis is essential; SSE would work too.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q154",
+  "answer": "Leader/followers with leader election; stateless; global monitor with standby above.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q155",
+  "answer": "Public DNS → API gateway → private LB via CoreDNS.",
+  "evidence": "§5.4 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q156",
+  "answer": "A load balancer is a reverse proxy spreading requests over homogeneous servers; an API gateway is a more powerful proxy in front.",
+  "evidence": "§5.4 Go deeper",
+  "found": false
+ },
+ {
+  "id": "Q157",
+  "answer": "Not in the LB; authorization is the service's business logic. Authentication location not stated.",
+  "evidence": "§5.4 Go deeper",
+  "found": false
+ },
+ {
+  "id": "Q158",
+  "answer": "No; stateless, all state in DB.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q159",
+  "answer": "NOT ON PAGE",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q160",
+  "answer": "The orchestrator.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q161",
+  "answer": "Returns 200 while it can serve; healthy responses configurable; DB check is the owner's choice (stricter ones do).",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q162",
+  "answer": "Orchestrator knows backends' addresses, services don't know the orchestrator's; less work; self-reports can lie.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q163",
+  "answer": "NOT ON PAGE (page says orchestrator plays autoscaling role for LB fleet; Fig 5d shows separate autoscaling box).",
+  "evidence": "§4.4",
+  "found": false
+ },
+ {
+  "id": "Q164",
+  "answer": "A global monitor with a standby.",
+  "evidence": "§5.3",
+  "found": true
+ }
+]

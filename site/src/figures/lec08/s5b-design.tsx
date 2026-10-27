@@ -23,7 +23,7 @@ function LbFleet({ x, y, w, h, seed, size = 14 }: { x: number; y: number; w: num
 
 const T5C = 'The finished load balancer';
 const D5C =
-  'The whole design with two traced paths. Request path, blue, numbered 1 to 5: the client looks up payments.lb.google.com in the private CoreDNS, gets 10.0.0.1 back, connects to that LB server, the LB server picks a backend by its strategy, and the response goes back to the client in green. Config path, dashed, lettered A to D: a developer through the LB console, autoscaling, or the orchestrator changes the config database; CDC carries the change to Redis Pub/Sub; Pub/Sub pushes it to every LB server; each LB server refreshes its in-memory config copy. Control lines, thin: the orchestrator sends health checks to the LB servers and the backends, queries Prometheus, and adds or removes LB IPs in CoreDNS; Prometheus scrapes the backends and feeds autoscaling, and autoscaling points into the LB console / APIs. The orchestrator runs with leader election (the board wrote leaderElec above it).';
+  'The whole design with two traced paths. Request path, blue, numbered 1 to 5: the client looks up payments.lb.google.com in the private CoreDNS, gets 10.0.0.1 back, connects to that LB server, the LB server picks a backend by its strategy, and the response goes back to the client in green. Config path, dashed, lettered A to D: a developer through the LB console, autoscaling, or the orchestrator changes the config database; CDC carries the change to Redis Pub/Sub; Pub/Sub pushes it to every LB server; each LB server refreshes its in-memory config copy. Control lines, thin: the orchestrator sends health checks to the LB servers and the backends, queries Prometheus, and adds or removes LB IPs in CoreDNS; Prometheus scrapes the backends and feeds autoscaling, and autoscaling points into the LB console / APIs. The orchestrator runs as an elected leader with followers.';
 
 export function FinishedDesign({ layout = 'wide' }: { layout?: 'wide' | 'request' | 'config' }) {
   if (layout === 'request') {
@@ -168,7 +168,7 @@ export function FinishedDesign({ layout = 'wide' }: { layout?: 'wide' | 'request
 
 const T5D = 'Base of the recursion';
 const D5D =
-  'Three tiers. Top: a global monitor with a standby; its only job is to watch the master orchestrators. Middle: the orchestrator as one leader and two followers that do grunt work rather than sit idle. The leader sends health checks to the LB servers and the backends. All state lives in the config database, so followers copy nothing. The leader has failed (red outline, a cross at its corner), and a follower takes over as leader within one or two seconds and simply starts sending health checks.';
+  'Three tiers. Top: a global monitor with a standby; its only job is to watch the leaders of the orchestrators. Middle: the orchestrator as one leader and two followers, any of which can take over. The leader sends health checks to the LB servers and the backends. All state lives in the config database, so followers copy nothing. The leader has failed (red outline, a cross at its corner), and a follower takes over as leader within one or two seconds and simply starts sending health checks.';
 
 export function BaseOfRecursion({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
   if (layout === 'phone') {
@@ -191,8 +191,8 @@ export function BaseOfRecursion({ layout = 'wide' }: { layout?: 'wide' | 'phone'
         ))}
         <Label muted anchor="end" x={336} y={140} size={14}>orchestrator ×3</Label>
         <Cross x={110} y={152} size={20} seed={s('x')} />
-        <Label anchor="start" x={86} y={224} size={14}>followers do grunt work,</Label>
-        <Label anchor="start" x={86} y={240} size={14}>not idle</Label>
+        <Label anchor="start" x={86} y={224} size={14}>any follower</Label>
+        <Label anchor="start" x={86} y={240} size={14}>can take over</Label>
         <Arrow dashed weight="thin" pts={[[280, 200], [280, 248]]} seed={s('db-l')} />
         <Cyl cx={280} top={250} rx={28} h={30} seed={s('db')} />
         <Label kind="mono" anchor="end" x={244} y={262} size={14}>config db</Label>
@@ -221,7 +221,7 @@ export function BaseOfRecursion({ layout = 'wide' }: { layout?: 'wide' | 'phone'
           seed={s(`o${i}`)} tone={i === 0 ? 'red' : 'ink'} />
       ))}
       <Cross x={188} y={162} size={22} seed={s('x')} />
-      <Label x={350} y={234} size={13.5}>followers do grunt work, not idle</Label>
+      <Label x={350} y={234} size={13.5}>any follower can take over</Label>
 
       <Arrow dashed weight="thin" pts={[[490, 187], [548, 187]]} seed={s('db-l')} />
       <Cyl cx={580} top={164} rx={30} h={40} seed={s('db')} label="config db" />

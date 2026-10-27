@@ -65,7 +65,7 @@ export function FiveNodes({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
 
 const T7B = 'Two holders';
 const D7B =
-  'Five lock cells, one per Redis node r1 to r5, shown again at each moment. 1: c1 holds r1, r2 and r3, a majority. 2: r1 and r2 crash and restart empty; only r3 still says c1. 3: c2 locks r1, r2 and r4, three of five; c1 also believes it holds the lock: two holders. 4: as taught, this needs both nodes to fail in the two or three seconds before c1 grabs the rest, so it is unlikely. 5: more precisely, the window is the whole TTL; keep a restarted node out for longer than the max TTL, and c2 can get only two of five.';
+  'Five lock cells, one per Redis node r1 to r5, shown again at each moment. 1: c1 holds r1, r2 and r3, a majority. 2: r1 and r2 crash and restart straight away, empty; only r3 still says c1. 3: c2 locks r1, r2 and r4, three of five; c1 also believes it holds the lock: two holders. 4: c1 does not go back for more nodes, so this can happen at any time until its lock expires: the window is the whole TTL. 5: the fix, keep a crashed node out for longer than the max TTL; r1 and r2 stay out, and c2 can get only r4 and r5, two of five, no majority.';
 
 type Cell = { v?: string; tone?: 'ink' | 'red' | 'green'; out?: boolean; x?: boolean };
 
@@ -91,7 +91,7 @@ export function TwoHolders({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
     </g>
   );
   return (
-    <Fig id={id} w={W} h={P ? 432 : 486} title={T7B} desc={D7B}>
+    <Fig id={id} w={W} h={P ? 410 : 464} title={T7B} desc={D7B}>
       {X.map((x, i) => <Cyl key={i} cx={x} top={18} rx={P ? 14 : 16} h={16} seed={s(`h${i}`)} label={`r${i + 1}`} />)}
 
       <Step n={1}>
@@ -112,15 +112,14 @@ export function TwoHolders({ layout = 'wide' }: { layout?: 'wide' | 'phone' }) {
       </Step>
       <Step n={4}>
         <Num x={NX} y={322 - dy(4)} n={4} size={P ? 14 : 12.5} />
-        <Label anchor="start" x={LX} y={327 - dy(4)} size={T}>as taught: unlikely, a window of</Label>
-        <Label anchor="start" x={LX} y={345 - dy(4)} size={T}>2–3 s while c1 grabs the rest</Label>
+        <Label anchor="start" x={LX} y={327 - dy(4)} size={T}>possible until c1’s lock expires:</Label>
+        <Label anchor="start" x={LX} y={345 - dy(4)} size={T}>the window is the whole TTL</Label>
       </Step>
       <Step n={5}>
         <Num x={NX} y={380 - dy(5)} n={5} tone="green" size={P ? 14 : 12.5} />
         <Label anchor="start" x={LX} y={385 - dy(5)} size={T}>fix: keep r1, r2 out &gt; max TTL</Label>
         {row(394 - dy(5), [{ v: 'out', out: true }, { v: 'out', out: true }, { v: 'c1', tone: 'green' }, { v: 'c2' }, { v: 'c2' }], 'e')}
         <Label tone="green" x={(X[0] + X[4]) / 2} y={444 - dy(5)} size={T}>c2 gets two of five: no majority</Label>
-        <Label x={(X[0] + X[4]) / 2} y={466 - dy(5)} size={T}>the real window is the TTL</Label>
       </Step>
     </Fig>
   );

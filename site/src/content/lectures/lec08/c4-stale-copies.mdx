@@ -1,0 +1,102 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { ChangeReaches, VitalsFlow } from '../../../figures/lec08/s4b-control-plane';
+import { SoFarLb } from '../../../figures/lec08/so-far';
+
+{/* Chapter 4 "The database says backend 2 is dead. The LB servers haven’t heard." Story rewrite: polling and its window
+    of errors → push through a meta port (clip) → fifty LB servers: publish once through a real-time Pub/Sub, CDC,
+    re-pull on reconnect → the LB servers themselves get busy: vitals, history, Prometheus, the orchestrator scales the
+    fleet → hand-off: one address, many LB servers. */}
+
+<Section id="s4" no="4" title="The database says backend 2 is dead. The LB servers haven’t heard." crumb="4 Stale copies" meta="About 6 min">
+
+The orchestrator did its job: the configuration in the database no longer lists backend 2. But no LB server reads the database per request. Each routes from the copy in its own memory, and nothing has touched those copies yet. [[L-0166]]
+
+<Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The load balancer so far. Marked new: many LB servers with in-memory copies of a configuration kept in a database, and an orchestrator that checks every backend’s health endpoint.">
+<Desk><SoFarLb stage={3} /></Desk>
+<Phone><SoFarLb stage={3} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s4-1" no="4.1" title="How long until the LB servers find out?" crumb="4.1 Polling">
+
+The simplest fix is for every LB server to re-read the database on a timer. [[L-0167]]
+
+<PauseAndThink k="L-0152 L-0169 L-0170"
+  q="Your LB servers re-read the configuration every 10 seconds. Backend 2 crashes one second after a read. What happens to the requests that the LB servers send it until the next read?"
+  choices={[{ label: 'Nothing: the orchestrator already removed it from the database' }, { label: 'They fail, for up to nine seconds', correct: true }]}
+  right="Right."
+  wrong="The database is right, but nobody is reading it.">
+
+The LB servers route from their copies, which still list backend 2, so every request dealt to it fails until the next read, nine seconds later. In general, an interval of N seconds means up to almost N seconds of failures, depending on when in the interval the crash lands.
+
+</PauseAndThink>
+
+Your users see that window as a spike in the error rate, every time a backend dies. That is the real cost of polling, more than the load it puts on the database (the health checks themselves run on the orchestrator, so no user request waits on them): for as long as a copy is stale, real requests fail. [[L-0170]] Some load balancers do route around failures on their own: nginx marks a server unavailable after a failed attempt (or as many as you configure) and keeps it out for ten seconds by default. But that costs real requests first, and the list still has to change. Polling more often only narrows the window. To close it, the change itself has to trigger the update, the moment it happens. [[L-0168 L-0176]]
+
+</Section>
+
+<Section id="s4-2" no="4.2" title="Who tells the LB servers, and how?" crumb="4.2 Push">
+
+Give every LB server a second door. Next to the port clients use, `9000`, open a second one, `9091`, a “meta” port: a small handler in the same process, or a second process that shares its memory. Whoever changes the configuration makes an ordinary call to that port, and its handler reads the database and replaces the in-memory copy. The update is near immediate. [[L-0171 L-0174]]
+
+You might be tempted to add a separate “handler” service that watches the database and tells the LB servers. Don’t: that is one more box to run and keep alive, for work the orchestrator can do by calling the port itself. [[L-0172]]
+
+The orchestrator isn’t the only source of changes, either. Developers change configuration through the load balancer’s console: add backends, switch the algorithm, change the health endpoint. Every one of those changes lands in the database, and every one has to reach every LB server’s copy. [[L-0173]]
+
+<AnimationClip clip="l08-stale-config" no="Clip 4·1" k="L-0154 L-0164 L-0167 L-0169 L-0170 L-0171 L-0174 L-0176"
+  lead="The same crash, first with the 10-second poll, then with a call to the meta port. Watch where the red stops."
+  caption="Polling leaves the LB servers routing to a dead backend until the next read. A call to the meta port makes them pull at once, and the window almost disappears." />
+
+</Section>
+
+<Section id="s4-3" no="4.3" title="Fifty LB servers. Does someone call fifty ports?" crumb="4.3 Pub/Sub">
+
+<LectureLink lec="lec02">Lecture 4</LectureLink> met this problem in Slack. Waiting for a poll was too slow to deliver each message, so every message was pushed to the servers that needed it the moment it happened, through a real-time Pub/Sub, and a timed fetch on the client was kept only as the fallback for a push that got lost. [[L-0177]] Do the same here. Calling fifty ports means one process making a call to every LB server, each time anything changes. Instead, publish one message to a real-time Pub/Sub such as Redis, which every LB server subscribes to, and that one publish reaches them all. [[L-0178 L-0349]]
+
+Who publishes? The orchestrator, the console, autoscaling (4.4), or the database itself, through **CDC** (change data capture), which turns each committed change in the database into an event. [[L-0178 L-0180]] On a message, the LB server either takes the new configuration from it, or treats it as a signal and pulls the latest from the database; that part is your choice. [[L-0181 L-0182]]
+
+Remember what a real-time Pub/Sub promises, from Lecture 4: it delivers at most once. It hands a message to every subscriber connected at that moment, and keeps nothing. An LB server that was restarting or briefly disconnected when a change went out never sees it. So whenever an LB server (re)connects, it pulls the whole configuration once before it trusts the stream; or you use something durable, such as Redis Streams, which stores messages so that a reader that was away can catch up. [[L-0227]]
+
+<Figure id="fig-4b" max={700} no="Fig 4·b" k="L-0171 L-0173 L-0178 L-0180 L-0182 L-0227" caption="The config path, Ⓐ to Ⓓ. Any change goes to the database, reaches the broker (through CDC, or published directly), and is pushed to every LB server, which refreshes its copy. It is dashed because no request waits on it. Option 1, on the left, is the meta-port call.">
+<Desk><ChangeReaches /></Desk>
+<Phone><ChangeReaches layout="phone" /></Phone>
+</Figure>
+
+Nothing about Redis is essential. What the design needs is a reactive broadcast, and server-sent events, ZooKeeper or plain HTTP calls to each server would all do. [[L-0349]] ZooKeeper, for instance, stores configuration and notifies every client watching it when it changes. [[L-0331 L-0332]] Because every LB server still routes from memory, none of this costs a request anything. [[L-0228]]
+
+Neither push is the one right answer; the call to each meta port and the broadcast each fit some situations. [[L-0175 L-0182]] What both get right is the rule below.
+
+<RuleBox label="The rule to keep" rule="Make systems ==reactive, not polling-based==." k="L-0181 L-0176">
+
+A poll is a promise to be wrong for up to one interval. When something changes, tell everyone who depends on it.
+
+</RuleBox>
+
+</Section>
+
+<Section id="s4-4" no="4.4" title="Every LB server is busy. Who adds another?" crumb="4.4 Metrics">
+
+The fleet has to grow when traffic does, and shrink when it drops. The orchestrator already watches the backends; it watches the LB servers too, and not only whether they are alive but whether they are overwhelmed. When the LB servers run hot it adds one, and when the load drops it removes one. [[L-0183 L-0184]] For that it needs each LB server’s vital signs: CPU, memory, network, disk, and the number of open TCP connections. [[L-0185]]
+
+Asking each LB server for its CPU now and then, the way the orchestrator asks for health, isn’t enough: a server at 100% may not even answer, and you want to act at 60, 70 or 80%, on a trend, which needs history. [[L-0186 L-0187 L-0190]] Nor does that history belong in the configuration database: configuration is key-value data, vitals are time series. [[L-0189]]
+
+Don’t build a metrics system for the load balancer. Any organisation big enough to run its own load balancers already has a central place where every machine’s metrics are collected, and plugging into it is cheaper than reinventing it. [[L-0191 L-0192 L-0198 L-0199]] Prometheus is a common choice. Every VM, LB server and backend alike, runs a small agent that exposes its metrics; Prometheus collects them by pulling from each agent on a schedule and keeps them as time series. The orchestrator queries it, say for average CPU over the last 30 minutes, and scales on the answer. [[L-0195 L-0197 L-0200 L-0368]]
+
+<Figure id="fig-4c" max={700} no="Fig 4·c" k="L-0185 L-0187 L-0189 L-0199 L-0200 L-0202" caption="One place for every machine’s vitals. Prometheus scrapes the agents and keeps history; the orchestrator reads it and grows or shrinks the LB fleet itself.">
+<Desk><VitalsFlow /></Desk>
+<Phone><VitalsFlow layout="phone" /></Phone>
+</Figure>
+
+It is the same machinery as the autoscaling group <LectureLink lec="lec01">Lecture 2</LectureLink> put behind its load balancer: you write a rule such as “if average CPU passes this, add a server”, and the cloud evaluates it against its own metrics store. Here the orchestrator plays that part for the LB fleet itself, which users never see: to them there is only the name. [[L-0201 L-0202]] It still runs its own health checks, though, instead of reading “up” from Prometheus: the design shouldn’t depend on the metrics system doing a job it wasn’t chosen for. [[L-0348]]
+
+The fleet now grows and shrinks by itself, and every member has a fresh copy of the configuration. One thing doesn’t move: the client. It connected to one address in chapter 1, and it still has only that one.
+
+</Section>

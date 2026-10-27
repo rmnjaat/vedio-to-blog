@@ -2,7 +2,7 @@
 // Pure TS (no JSX) so scripts/check.mts can import it with plain `node`.
 // One story: C1 and C2 race for one lock on five independent Redis nodes; C1 lands first on r1-r3 (3/5, in time:
 // acquired), C2 on r4-r5 (2/5: failed), so C2 releases them and waits a random delay; r2 goes down, C1 still holds,
-// and C2's retry again reaches only 2/5. Distributing the lock buys fault tolerance, not speed.
+// and C2's retry again reaches only 2/5. One node down, and the lock still holds.
 
 export const FPS = 30;
 export const DURATION = 1070; // 35.7 s
@@ -69,7 +69,7 @@ export const CAPTIONS: Cue[] = [
   {from: BEAT.verdict, text: 'More than half, in time, is a win. Two of five is not.'},
   {from: BEAT.release, text: 'The loser gives back what it took, at once, and retries later.'},
   {from: BEAT.crash, text: 'r2 goes down. C1 still holds; no one else can win three of five.'},
-  {from: BEAT.end, text: 'Distributing the lock buys fault tolerance, not speed.'},
+  {from: BEAT.end, text: 'One node down, and the lock still holds.'},
 ];
 
 // Chapter marks sit 10 frames into the beat, so a seek lands on a settled frame with its caption fully up.
@@ -101,7 +101,7 @@ export const META = {
   id: 'l08-redlock',
   title: 'Winning a majority',
   lecture: 5,
-  section: '7.2 Redlock: a majority of five',
+  section: '8.2 Five independent nodes. When is the lock yours?',
   ledger: ['L-0275', 'L-0278', 'L-0279', 'L-0280', 'L-0281', 'L-0282'],
   width: 1200,
   height: 800,
@@ -112,5 +112,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    'Five independent Redis nodes, r1 to r5, with no replication between them. Two clients, C1 and C2, each send SET NX for the same lock to all five nodes at once. C1\'s requests land first on r1, r2 and r3, which store c1; C2\'s land first on r4 and r5, which store c2; every later request is refused. C1 holds three of five, more than half, and got them in less than the lock\'s TTL, so it has acquired the lock. C2 holds two of five, which is not a majority, so it fails: it immediately releases r4 and r5 and waits a random delay before retrying. Then r2 goes down and its key is lost. C1 still holds the lock, and when C2 retries it is refused on r1 and r3, gets no answer from r2, and again gets only r4 and r5, two of five, so it fails and releases them again. Spreading the lock over five nodes buys fault tolerance, not speed.',
+    'Five independent Redis nodes, r1 to r5, with no replication between them. Two clients, C1 and C2, each send SET NX for the same lock to all five nodes at once. C1\'s requests land first on r1, r2 and r3, which store c1; C2\'s land first on r4 and r5, which store c2; every later request is refused. C1 holds three of five, more than half, and got them in less than the lock\'s TTL, so it has acquired the lock. C2 holds two of five, which is not a majority, so it fails: it immediately releases r4 and r5 and waits a random delay before retrying. Then r2 goes down and its key is lost. C1 still holds the lock, and when C2 retries it is refused on r1 and r3, gets no answer from r2, and again gets only r4 and r5, two of five, so it fails and releases them again. One node down, and the lock still holds.',
 };

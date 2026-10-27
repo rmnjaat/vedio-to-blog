@@ -1,0 +1,120 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import MarginNote from '../../../components/MarginNote.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { ResolveConnect } from '../../../figures/lec08/s5a-dns';
+import { FinishedDesign, BaseOfRecursion } from '../../../figures/lec08/s5b-design';
+import { SoFarLb } from '../../../figures/lec08/so-far';
+
+{/* Chapter 5 "Ten LB servers. Which address does the client dial?" Story rewrite: an IP belongs to a machine → a name
+    for many IPs, private DNS (CoreDNS) → DNS answers and steps aside (stepper), caching, re-resolving, CoreDNS replicas
+    → who watches the orchestrator (leader election, stateless, global monitor) → the whole design, two paths (climax)
+    → what every box had in common → hand-off to Build 2: many machines, one shared thing. */}
+
+<Section id="s5" no="5" title="Ten LB servers. Which address does the client dial?" crumb="5 One address" meta="About 8 min">
+
+In chapter 1 the client connected to `10.0.0.1`, the only address it had. Now the orchestrator adds `10.0.0.2`, `10.0.0.3` and more as traffic grows, and removes them as it falls. Nothing so far tells the client that any of them exist. [[L-0204]]
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="The load balancer so far. Marked new: configuration changes pushed to every LB server through a real-time Pub/Sub, and Prometheus holding every machine’s vitals for the orchestrator to scale on.">
+<Desk><SoFarLb stage={4} /></Desk>
+<Phone><SoFarLb stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Why can’t the client keep one IP address?" crumb="5.1 A name">
+
+Because a plain IP address belongs to one machine. Hand clients the address of an LB server and you have tied the whole load balancer to that machine: two machines can’t answer to it, so the fleet can’t grow past one. [[L-0208]] (Very large systems do make one address stand for many machines at the network level. Google’s Maglev, for example, has routers spread packets across many load-balancer machines. This design takes the simpler road.)
+
+What stands for many addresses is a **name**. Every load balancer you create gets its own domain name, say `payments.lb.google.com`, and its DNS entry holds the IP addresses of its LB servers: `10.0.0.1`, `10.0.0.2`, and so on. Machine addresses only, no ports: every LB server listens on the same port, `9000`. [[L-0205 L-0206 L-0209]] When the orchestrator adds an LB server, it adds that machine’s IP to the entry, and when one goes down it takes the IP out. Nobody edits DNS by hand. [[L-0221]]
+
+And it is a *private* name. When people hear DNS they think of public names like `google.com`, but you can run DNS inside your own network, and a load balancer for an internal service should stay private. A private one needs many LB servers just as much as a public one does. [[L-0207 L-0210]] A DNS server is a light, simple process. **CoreDNS** is a common open-source one, used across the Kubernetes world. Run it inside your infrastructure, configure every machine to use it, and every name those machines look up is resolved by your CoreDNS. [[L-0212 L-0213]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="Does every request now pass through DNS?" crumb="5.2 Answers only">
+
+If it did, you would have rebuilt the problem: DNS would be the box every request squeezes through, a load balancer with a new name. Running several DNS servers would only move the question to “who balances between them?” [[L-0217]] Step through one request and watch where DNS drops out.
+
+<StepThrough id="fig-5b" no="Fig 5·b" label="Resolve, then connect"
+  k="L-0215 L-0216 L-0218 L-0219 L-0220 L-0231"
+  stepK={['L-0216', 'L-0215 L-0219', 'L-0218', 'L-0216 L-0220', 'L-0231']}
+  caption="Time runs down. Dashed arrows are the lookup and its answer; blue is the request, green the response. DNS takes part in steps 1, 2 and 5, never in the request itself."
+  steps={[
+    'The client asks DNS for the load balancer’s name, <code>payments.lb.google.com</code>.',
+    'DNS answers with an LB server’s IP, <code>10.0.0.1</code>. That is all it does.',
+    'The struck-out path never happens: DNS does not pass the request on. If it did, it would be the load balancer.',
+    'The client caches <code>10.0.0.1</code> and connects to it itself. The LB server proxies to a backend, and the response comes back the same way.',
+    'Later, that LB server is dead. The client’s connect fails, it asks DNS again, and it connects to <code>10.0.0.2</code>.',
+  ]}>
+  <Desk><ResolveConnect /></Desk>
+  <Phone><ResolveConnect layout="phone" /></Phone>
+</StepThrough>
+
+DNS is a name-resolution service: given a name, it returns an address, nothing more. It never sees the request, so it is no bottleneck for requests. [[L-0218 L-0219]] It doesn’t even know about load: it hands the addresses out in turn, or shuffles their order, and balancing stays in the LB servers. Many answers carry several addresses, and the client chooses which to use. [[L-0215 L-0216 L-0337 L-0339 L-0347]]
+
+The client keeps the answer for a while, the record’s TTL, so it doesn’t ask on every request. AWS’s load balancers use a 60-second TTL, so that addresses can be remapped quickly. [[L-0220]] When a cached address stops answering, a well-built client doesn’t sit out the rest of the TTL. Many clients first try the other addresses from the same answer, and failing that, they ask again. It’s like a toothache: you have a check-up booked, but if the tooth hurts today, you don’t wait for the date. [[L-0231 L-0232]]
+
+And CoreDNS itself? It holds nothing but that map, so you run several copies of it, and every machine lists more than one nameserver (up to three), tried in order. [[L-0233 L-0353]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="The orchestrator watches everything. Who watches the orchestrator?" crumb="5.3 The watcher">
+
+Look at what now depends on the orchestrator: every health check, every update to the backend list, every LB server added to DNS. If it dies, dead backends stay in rotation and the fleet stops adjusting. It is a single point of failure, and that is not acceptable. [[L-0351]]
+
+<PauseAndThink k="L-0351 L-0352 L-0354"
+  q="You run three copies of the orchestrator from the same code, one of them in charge. It dies. How does one of the others take over?"
+  choices={[{ label: 'An operator notices and promotes one' }, { label: 'The others pick a new leader by themselves', correct: true }]}
+  right="Right."
+  wrong="That works, but it takes as long as the operator does.">
+
+Run them as leader and followers. If the leader dies, a follower takes its place automatically, with a second or two of downtime. Choosing the new leader is called **leader election**, and it replaces a human spinning up a replacement by hand.
+
+</PauseAndThink>
+
+The takeover is that quick because the orchestrator is stateless. Every piece of state, the LB servers’ IPs, the backends’ IPs, the configuration, lives in the database, so the new leader has nothing to copy. It simply starts sending the health checks, and the servers answer whoever asks; they never need to know who the leader is. [[L-0366 L-0367]]
+
+The leader election needs a watcher too, and this time the recursion stops. Above the orchestrators sits one global monitor, with a standby of its own. Its only job is to watch the leader of every orchestrator cluster you run and react when one goes down, by triggering an election or adding nodes. Its job is so small that nothing needs to sit above it, and the standby makes its failure unlikely. It is the base condition of the recursion. [[L-0379 L-0380 L-0381]]
+
+<Figure id="fig-5c" max={640} no="Fig 5·c" k="L-0351 L-0352 L-0366 L-0367 L-0379 L-0380 L-0381" caption="The leader has just failed (red), and a follower takes over. It copies nothing, because all state is in the config database; it simply starts sending health checks. Above it, one global monitor with a standby ends the recursion.">
+<Desk><BaseOfRecursion /></Desk>
+<Phone><BaseOfRecursion layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="What does the whole thing look like?" crumb="5.4 The whole design">
+
+Put every piece on one page. Several LB servers behind one private name; CoreDNS answering for that name; the configuration database with the console developers use; the orchestrator, elected, checking health and scaling the fleet; Prometheus holding every machine’s vitals; and the Pub/Sub that carries every change. [[L-0222]]
+
+<Figure id="fig-5d" no="Fig 5·d" k="L-0222 L-0225 L-0226 L-0229" caption="The finished load balancer. The request path is the only blue line, ① to ⑤; the config path is dashed, Ⓐ to Ⓓ, because no request waits on it. The thin lines are the orchestrator’s health checks, its query to Prometheus and its writes to CoreDNS, and Prometheus scraping the machines and feeding autoscaling.">
+<Desk><FinishedDesign /></Desk>
+<Phone><FinishedDesign layout="request" /><FinishedDesign layout="config" /></Phone>
+</Figure>
+
+Two paths run through it, and they never wait on each other: a request touches nothing but memory on its way to a backend, and a change goes into the database and is pushed out to every LB server’s copy. [[L-0225 L-0226]] Google’s Maglev paper covers the same ground at far larger scale, including the network-level road this design skipped in 5.1, and much of this design draws on it. [[L-0229]]
+
+<MarginNote title="Go deeper: what a load balancer is not" why="skip unless you design the edge" k="L-0239 L-0340 L-0342 L-0357 L-0358 L-0362 L-0363 L-0364">
+
+A load balancer spreads requests over a homogeneous set of servers; each service gets its own. It is a reverse proxy, and an API gateway is a more powerful proxy in front of it. Users reach `payments.google.com`, the gateway, through public DNS; the gateway forwards each path to a private load balancer, resolved through CoreDNS. Deciding whether A may pay B is the service’s business logic, not the load balancer’s.
+
+</MarginNote>
+
+</Section>
+
+<Section id="s5-5" no="5.5" title="What did every box you added have in common?" crumb="5.5 Every box">
+
+Each one was added because something else could die. One LB server ran out of connections, so there are many. A backend could crash, so the orchestrator checks. The orchestrator could crash, so it has followers and a monitor. CoreDNS runs as several copies. Even the configuration database needs a standby. Every component of the design stays up when one of its machines doesn’t. [[L-0353]] That is the habit the whole build ran on: assume anything that can go wrong will. [[L-0026 L-0029]]
+
+Two different failures hid in that list. A layer that can’t scale out is a **bottleneck**: one LB server, 5,000 clients. A layer with no standby is a **single point of failure**: one orchestrator, gone. [[L-0038]] Fixing one doesn’t fix the other: a database standby survives a crash but serves no reads, and AWS says outright that its Multi-AZ standby “isn’t a scaling solution”. [[L-0039]]
+
+And from the outside, none of it shows. A client sees one name, `payments.lb.google.com`, and gets an answer. Behind it, machines join, die and are replaced. That is what a distributed system is: many machines that together look like one coherent system to whoever uses it. [[L-0022 L-0023]]
+
+Now look at what that costs you. Work now runs on many machines, and many machines can reach for the same thing at the same moment. Inside one database, <LectureLink lec="lec05">Lecture 3</LectureLink>’s locks just worked, because the database kept, in its own memory, the record of who held which row. When the thing being fought over lives on no single machine, nobody keeps that record unless you build it. That is the second build. [[L-0010 L-0242]]
+
+</Section>

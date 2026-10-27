@@ -1,0 +1,119 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import { TwoConnections, OneLaptop } from '../../../figures/lec08/s3-one-laptop';
+import { SoFarLb } from '../../../figures/lec08/so-far';
+
+{/* Chapter 1 "What is inside the box labelled “load balancer”?" Story rewrite: the box as code → day zero, LB server
+    vs backends → one request, two TCP connections, a map → copy bytes both ways (the code, why two goroutines) →
+    build it on a laptop, the first-build story, building vs scaling → hand-off to the strategy. */}
+
+<Section id="s1" no="1" title="What is inside the box labelled “load balancer”?" crumb="1 Inside the box" meta="About 7 min">
+
+The client sees one address; behind it, any number of machines do the work. Open that box on one machine first. [[L-0005 L-0050 L-0047]]
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="The load balancer so far: a closed box between clients and three backends. This chapter opens it.">
+<Desk><SoFarLb stage={0} /></Desk>
+<Phone><SoFarLb stage={0} layout="phone" /></Phone>
+</Figure>
+
+Start the way you would start any distributed system: with the day-zero version. One machine, no thought of scale yet. Thinking about scale on day zero is the surest way to build the wrong thing; get one machine right first, then scale each part and watch where it breaks. [[L-0030 L-0031 L-0104]]
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="What does a client actually connect to?" crumb="1.1 Two connections">
+
+Two names keep the rest clear. The **LB server** is the machine that runs the load balancer, and the load balancer itself is just a process on it. The **backend servers** are where requests end up: a payment service, an auth service, a profile service. To the load balancer you are writing, they are black boxes. [[L-0100 L-0101]]
+
+Give them addresses. One LB server at `10.0.0.1`, a static IP that doesn’t change. Three backends at `10.0.0.7`, `10.0.0.8` and `10.0.0.9`, each running an ordinary HTTP server (Flask, Spring Boot, any framework) on port `8081` that answers `/index.html` with “hello world”. The load balancer keeps their list as `ip:port`, the same list you fill in on a cloud console when you choose which servers sit behind a load balancer. [[L-0103 L-0105 L-0106 L-0107]]
+
+The load-balancing process is a plain TCP server, not even an HTTP server, listening on a port of its own, say `9000`. [[L-0102]] When a client “sends a request to the load balancer”, what it really does is open a TCP connection to `10.0.0.1:9000`, because that is the only address it has. [[L-0108 L-0109]]
+
+The backend is waiting on `8081`, and the client’s connection ends at the LB server. So the LB server picks a backend (the simplest rule: one of the three at random) and opens a TCP connection of its own to it, say to `10.0.0.7:8081`. One request from one client costs **two TCP connections**: client to LB server, and LB server to backend. [[L-0111 L-0112]]
+
+<Figure id="fig-1b" max={700} no="Fig 1·b" k="L-0103 L-0106 L-0107 L-0112 L-0113 L-0114 L-0116 L-0121" caption="One request, two connections: tcp1 from the client to the LB server, tcp2 from the LB server to a backend. A second client gets its own pair, tcp3 and tcp4. The backend list and the map of pairs live in the LB server’s memory.">
+<Desk><TwoConnections /></Desk>
+<Phone><TwoConnections layout="phone" /></Phone>
+</Figure>
+
+The LB server has to remember which connection belongs with which. It keeps a map from each **source** connection (client to LB server) to its **target** connection (LB server to backend): `tcp1 → tcp2`, `tcp3 → tcp4`. [[L-0113 L-0114]] The map lives in an in-memory hash table. A database would be useless here: a TCP connection exists only on this one machine, so there is nothing anyone else could share. [[L-0116]]
+
+This kind of load balancer, one that ends the client’s connection and opens its own, is a TCP proxy. Others work at the HTTP level, or forward packets without opening a second connection, but the proxy is the clearest place to see what the job is.
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="What does the LB server do with the bytes?" crumb="1.2 Copy both ways">
+
+Bytes arrive on tcp1. The LB server looks up tcp2 in its map and writes the same bytes there, without reading what they say. [[L-0117]] It doesn’t care what protocol they carry: HTTP, WebSocket, RTMP, anything that rides on TCP. [[L-0118]] What reaches the backend is a well-formed HTTP request, so the backend answers it on the connection it arrived on. The LB server sees data on tcp2, looks up tcp1, and copies the answer back. [[L-0119]] There are no REST calls between the load balancer and the backend, only a TCP connection with bytes copied across it. [[L-0139]]
+
+Read from the client’s socket, write to the backend’s; read from the backend’s socket, write to the client’s. The copying itself is two lines; with the accept loop and the dial, the whole core is about ten. [[L-0120]] Here they are, lightly cleaned up from a small experimental Go load balancer (ARLB). It listens on `9090` and has four Flask hello-world backends hardcoded on local ports `8081` to `8084`, because its purpose was to test balancing, not to scale anything. [[L-0126 L-0006]]
+
+```go
+func (lb *LB) Run() {
+    ln, err := net.Listen("tcp", ":9090")
+    if err != nil {
+        log.Fatal(err)
+    }
+    for {
+        srcConn, err := ln.Accept() // wait for the next client
+        if err != nil {
+            continue
+        }
+        go lb.proxy(IncomingReq{srcConn: srcConn, reqId: uuid.NewString()})
+    }
+}
+
+func (lb *LB) proxy(req IncomingReq) {
+    defer req.srcConn.Close()
+    backend := lb.strategy.GetNextBackend(req) // which backend? (chapter 2)
+    backendConn, err := net.Dial("tcp", backend.String())
+    if err != nil {
+        req.srcConn.Write([]byte("backend not available"))
+        return
+    }
+    defer backendConn.Close()
+    backend.NumRequests++
+    done := make(chan error, 2)
+    go func() { _, err := io.Copy(backendConn, req.srcConn); done <- err }() // request: client → backend
+    go func() { _, err := io.Copy(req.srcConn, backendConn); done <- err }() // response: backend → client
+    <-done // one side hung up: the deferred Closes end the other copy
+}
+```
+
+(ARLB listens on `9090` and hardcodes four backends; the design on this page keeps `9000` and three.)
+
+An infinite loop waits in `Accept` for the next client and hands each connection to `proxy`, tagged with a request ID for the logs. `proxy` asks the strategy for a backend, dials it, and starts two copies. [[L-0127 L-0128 L-0129]]
+
+<PauseAndThink k="L-0129 L-0130 L-0140 L-0141"
+  q="Why does each <code>io.Copy</code> get its own goroutine? What would go wrong if <code>proxy</code> simply called the two copies one after the other?"
+  choices={[{ label: 'Nothing much; it would only be slower' }, { label: 'The response would not come back while the client stays connected', correct: true }]}
+  right="Right."
+  wrong="It’s worse than slow.">
+
+`io.Copy` blocks. It keeps copying until the source sends EOF, and only then returns. Called inline, the first copy would hold `proxy` for as long as the client stayed connected, and the copy that carries the response would never start. In two goroutines, the two directions run side by side.
+
+</PauseAndThink>
+
+When a copy does return, that is how the LB server learns the connection is over. In Go, `io.Copy` returns `nil` at a clean EOF, or an error such as a reset. `proxy` waits for the first return, then closes both connections so the other copy ends too; skip that, and every request leaves two sockets open for good. (This takes the first EOF as the end of the conversation. A client that only stops sending and still waits for the answer would lose it; production proxies pass that half-close on to the backend instead.) That return is also the place to update anything you track per backend. This little load balancer tracks one thing, the number of requests each backend has handled, which is enough to check that the balancing works. [[L-0137 L-0138]]
+
+It isn’t efficient: it starts three goroutines for every client. [[L-0131]] It doesn’t need to be: it is there to show the core.
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="Do you need three servers to try this?" crumb="1.3 One laptop">
+
+No. Start the load balancer as one process on port `9000` (Go, C++, Java, Python, whatever you like) and three backends as three more processes on the same machine, on ports `8081`, `8082` and `8083`. One machine can’t have three processes listening on `8081`, which is the only reason the ports differ. No cloud, no VMs, no Docker. [[L-0123]]
+
+<Figure id="fig-1c" wide={false} no="Fig 1·c" k="L-0123" caption="The whole setup on one laptop: the load balancer on port 9000 and three backends on 8081, 8082 and 8083 of localhost.">
+<OneLaptop />
+</Figure>
+
+With basic networking knowledge it is about five hours of work. [[L-0132]]
+
+One engineer built his first load balancer exactly like this, in plain Go, in March 2021, during the COVID lockdown at his in-laws’ house, because he wanted a real demo rather than what he had read in papers. When it first balanced requests across his servers he went around the house explaining load balancers to anyone he could find. Nobody understood, and he didn’t mind. Then he benchmarked it: five to six times faster than Nginx. A breakthrough? No. Reading deeper into Nginx showed him why: Nginx and HAProxy do far more than his load balancer did. [[L-0095 L-0096 L-0097]]
+
+That is the difference between **building** and **scaling**. Very few people get to scale a system; everyone can build one locally, and you need many machines only for the scaling. [[L-0144 L-0125]] So build this one. Then look hard at the one line that decides anything: with three backends, which one should `GetNextBackend` return?
+
+</Section>

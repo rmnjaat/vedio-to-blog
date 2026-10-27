@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getCollection, getEntry, render, type CollectionEntry } from 'astro:content';
-import { LECTURES, pad, numberOf } from '../data/course';
+import { LECTURES, numberOf } from '../data/course';
 import { url } from './url';
 import { lectureOnDisk } from './xlec';
 
@@ -81,14 +81,14 @@ export async function courseNav(): Promise<NavLecture[]> {
     // isolated build (VTB_ONLY): a lecture outside the build that is published still links (read from its MDX file)
     const d = !e ? lectureOnDisk(l.id) : null;
     if (d && d.status === 'published') return {
-      number: l.number, id: l.id, label: `Lecture ${pad(l.number)}`, title: d.title, href: lectureHref(l.id),
+      number: l.number, id: l.id, label: `Lecture ${l.number}`, title: d.title, href: lectureHref(l.id),
       chapters: d.chapters.map((c) => ({
         no: c.no, slug: c.slug, title: d.contents.find((x) => x.no === c.no)?.title ?? c.slug, summary: c.summary ?? '',
         parts: c.parts, href: url(`lectures/${l.id}/${c.slug}/`), sections: [],
       })),
     };
     return {
-      number: l.number, id: l.id, label: `Lecture ${pad(l.number)}`,
+      number: l.number, id: l.id, label: `Lecture ${l.number}`,
       title: e?.data.title ?? l.title, href: e ? lectureHref(l.id) : undefined, chapters: e ? chaptersOf(e) : undefined,
     };
   });

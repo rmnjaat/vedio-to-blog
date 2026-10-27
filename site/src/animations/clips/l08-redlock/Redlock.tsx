@@ -1,6 +1,6 @@
 // Clip l08-redlock — "Winning a majority": two clients race for one lock on five independent Redis nodes. C1 lands
 // first on r1-r3 (3/5, in time: acquired), C2 on r4-r5 (2/5: failed), so C2 gives them back and waits a random delay;
-// r2 goes down, C1 still holds, and C2's retry again reaches only 2/5. Fault tolerant, not faster.
+// r2 goes down, C1 still holds, and C2's retry again reaches only 2/5. The lock still holds.
 // Storyboard: lectures/lec08/animations/l08-redlock/storyboard.{yaml,md}.
 // Ledger: L-0275, L-0278, L-0279, L-0280, L-0281, L-0282 (+ A-LDA-05 'took < TTL', A-LDA-06 'random delay').
 // Frame 0 = Fig 7·a (five independent cylinders, clients wired to every node); the last frame is the annotated poster.
@@ -246,7 +246,7 @@ export const Redlock: React.FC<RedlockProps> = ({theme, layout = 'wide'}) => {
         <Pen d={G.retryCross} progress={ramp(frame, ...at(EV.retryCross))} color="red" width={STROKE.ink + 0.8} />
 
         {/* ===== B5: the takeaway ===== */}
-        <Write x={G.takeaway.x} y={G.takeaway.y} text="fault tolerant, not faster" size={S} anchor="middle" weight={620} progress={ramp(frame, ...at(EV.takeaway))} />
+        <Write x={G.takeaway.x} y={G.takeaway.y} text="one node down: still locked" size={S} anchor="middle" weight={620} progress={ramp(frame, ...at(EV.takeaway))} />
       </Stage>
       <CaptionBand cues={CAPTIONS} top={G.CAPTION_TOP} layout={layout} />
     </Sheet>
