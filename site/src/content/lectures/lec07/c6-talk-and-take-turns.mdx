@@ -1,0 +1,134 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { BytesOnWire, CasRace, OneThreadCores } from '../../../figures/lec07/s4-protocol-and-concurrency-figs';
+import { SoFarCache } from '../../../figures/lec07/so-far';
+
+{/* Chapter 6 "Every API server calls the box. What do they send, and who goes first?" Story rewrite: which
+    protocol → it's all TCP; HTTP/1.1 keeps connections open, its cost is text → HTTP typed by hand (one engineer's
+    2015 story) → set a 1 in bytes: HTTP vs RESP (pause, figure), gRPC, what to pick → two writers on one key: a lock
+    (Lectures 2, 3) → no lock: compare-and-swap (stepper) → no threads: Redis, why the zmalloc counter is safe, the
+    idle cores and shards per machine (figure) → one node is done; it isn't enough. */}
+
+<Section id="s6" no="6" title="Every API server calls the box. What do they send, and who goes first?" crumb="6 Talk, take turns" meta="About 8 min">
+
+Inside, the box is done: it stores typed values, counts its bytes, evicts and expires on its own. Two questions remain before the blog’s API servers can use it. What do they speak to it? And what happens when two of them change the same key at the same instant?
+
+<Figure id="fig-6-sofar" max={640} no="Fig 6·a" caption="Our Redis so far, one node. Marked new: two more fields in the wrapper, 24 eviction bits and an absolute expiry time, and the rules that use them.">
+<Desk><SoFarCache stage={2} /></Desk>
+<Phone><SoFarCache stage={2} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s6-1" no="6.1" title="Which protocol should the cache speak?" crumb="6.1 It’s all TCP">
+
+The candidates come quickly: HTTP, WebSockets, gRPC, or a protocol of your own. [[L-0176 L-0178 L-0180]] HTTP is often charged with a big payload, but the value has to cross the network whatever you choose, so that is not what separates them. [[L-0179]]
+
+Look underneath instead. HTTP, gRPC and a custom protocol all run over a TCP connection. There is nothing fancy about any of them; they differ only in how the bytes are wrapped. [[L-0177 L-0181]] And TCP rather than UDP, because the cache needs delivery it can count on, with acknowledgments. UDP is fire and forget, and a cache is, in its way, a database: it shouldn’t lose your writes. [[L-0205]]
+
+Nor does HTTP cost a connection per call. HTTP/1.1 keeps its TCP connection open by default, so one connection carries request after request. [[L-0182]] What every request does carry is text. Here is how plain it is.
+
+Open a raw TCP connection to a web server with netcat and type an HTTP request by hand, and it answers; type nonsense and you get `400 Bad Request`, because the server reads whatever arrives as HTTP. One engineer used exactly this to let IoT sensors that could only send raw bytes talk to a Flask server. [[L-0183 L-0184 L-0188 L-0190 L-0191]]
+
+```text
+$ nc localhost 3000
+GET /hello HTTP/1.1
+Host: localhost
+                                ← an empty line ends the request
+
+HTTP/1.1 200 OK
+…
+hello world
+```
+
+A connection carries any bytes at all; a web server simply understands bytes in the HTTP format, a request line and header lines, all plain text. A strict server also insists on that `Host` line. [[L-0186 L-0187 L-0190 L-0189]]
+
+</Section>
+
+<Section id="s6-2" no="6.2" title="How many bytes does it take to store a = 1?" crumb="6.2 Bytes on the wire">
+
+Now read that text through the cache’s eyes. To store just the key `a` with the value `1`, you send a request line and a set of headers, and the cache parses every byte of them on every call. The more you send, the more it has to process. [[L-0193]]
+
+<PauseAndThink k="L-0193 L-0195"
+  q="Storing <code>a = 1</code> as an HTTP request, with a request line and three short headers, takes about 117 bytes. Redis’s own protocol says the same thing too. Roughly how many bytes does it need?"
+  choices={[{ label: 'About 100: the command has to be spelled out somehow' }, { label: 'About 30', correct: true }]}
+  right="Right."
+  wrong="Count only what the cache needs to know.">
+
+27 bytes. The cache needs three things, `SET`, `a` and `1`, and the length of each, so that it can read them without guessing where one ends.
+
+</PauseAndThink>
+
+<Figure id="fig-6b" no="Fig 6·b" k="L-0193 L-0195" caption="Bytes on the wire for set a 1. The HTTP request is an example built for this page: a request line and three headers carry a 9-byte body. In RESP, *3 says three parts follow, and each $n says how many bytes the next part has.">
+<Desk><BytesOnWire /></Desk>
+<Phone><BytesOnWire layout="phone" /></Phone>
+</Figure>
+
+That is **RESP**, the protocol Redis defined for itself. Just as any server that claims to speak HTTP follows the HTTP specification, every Redis client speaks RESP. Because each part is length-prefixed, it is safe for any bytes and quick to parse. [[L-0195]] Memcached also has a protocol of its own that all its clients use. [[L-0196]] Underneath, a custom protocol is still raw TCP: whatever bytes arrive, your handler interprets them, by your own rules. That control is why Redis wanted its own format. [[L-0197 L-0198]]
+
+The other good option is **gRPC**. It runs over HTTP/2, so a connection stays open and carries many calls at once, and messages travel as compact binary, usually Protobuf. [[L-0199]] Which to choose depends on your clients. If they support gRPC well, or you are prototyping, use it. Otherwise define your own format and publish it, as Redis did with RESP. You need not choose only one: open a port per protocol over the same hash table and make it configurable. Either way, keep it lean: every byte of every call is parsed on the cache, and in 6.5 that work all lands on one thread. [[L-0200 L-0201 L-0207]]
+
+</Section>
+
+<Section id="s6-3" no="6.3" title="Two clients change the same key at the same instant" crumb="6.3 A lock">
+
+Two updates on the same key reach the cache at the same moment, on two threads. `a` is 10, and each client adds 1. Both read 10, both write 11, and one increment is gone: the lost clap from Lecture 2. The answer should be 12. There are three ways to get it. [[L-0223]]
+
+The first is the one you know from <LectureLink lec="lec01" sec="s4-2">Lecture 2</LectureLink>: **pessimistic locking**. Wrap the critical step in a lock that every thread must take first: acquire, update, release. Two threads arrive together; one goes in and the other waits. On one machine that is a mutex or a semaphore; a Java `synchronized` block is exactly this. [[L-0224 L-0226]] It is correct, and every waiting thread is throughput you gave up.
+
+</Section>
+
+<Section id="s6-4" no="6.4" title="What if nobody takes a lock?" crumb="6.4 Compare-and-swap">
+
+**Optimistic locking** starts from the opposite belief: two writers rarely touch the same thing at once, so don’t take a lock up front. Just make sure that if they do, only one of them succeeds. [[L-0227]] Lecture 2 sketched it as checking at write time whether the value changed underneath you. Here is how you build it.
+
+Make the update conditional. Each write says what it expects to find: not `set a = 11`, but `set a = 11 where a = 10`. [[L-0228]] That only works if the check and the write are one indivisible step, and that step is a standard CPU instruction: **compare-and-swap**. `CAS(a, 10 → 11)` changes `a` to 11 only if it is still 10. [[L-0229]]
+
+<StepThrough id="fig-6c" no="Fig 6·c" label="Two increments, no lock"
+  k="L-0227 L-0228 L-0229 L-0231"
+  stepK={['L-0227', 'L-0228', 'L-0229 L-0231', 'L-0228', 'L-0227']}
+  caption="Time runs down. Lanes: thread 1, the value a, thread 2. Nobody takes a lock; the compare-and-swap decides. Step through with the buttons or the arrow keys."
+  steps={[
+    'Both threads see <code>a = 10</code> and want to add 1. Neither takes a lock.',
+    'Each write says what it expects to find: <code>a = 11 where a = 10</code>.',
+    'Thread 1’s <code>CAS(a, 10 → 11)</code> runs first, as one atomic step: <span class="term green">a becomes 11</span>.',
+    'Thread 2’s <code>CAS(a, 10 → 11)</code> finds 11, not 10, and <span class="term red">does nothing</span>.',
+    'Thread 2 re-reads 11 and retries: <code>CAS(a, 11 → 12)</code>. <span class="term green">a is 12</span>; no increment was lost.',
+  ]}>
+  <Desk><CasRace /></Desk>
+  <Phone><CasRace layout="phone" /></Phone>
+</StepThrough>
+
+The hardware does the compare and the write as one operation that every core sees whole, so nothing can slip in between. Every language wraps it, Go’s `sync/atomic` or C++’s `std::atomic` for example, and the compiler uses your processor’s instruction. [[L-0230 L-0231]] Write a small optimistic lock with compare-and-swap yourself; it is very easy, and it makes the idea click. [[L-0232]]
+
+</Section>
+
+<Section id="s6-5" no="6.5" title="What if there is only one thread?" crumb="6.5 One thread">
+
+The third way questions the premise. Concurrency problems exist because several threads run at once. What if the cache runs only one? Then it needs no concurrency control at all. That is what Redis did: its commands run on a single main thread, with a few background threads for chores such as freeing large values. [[L-0233]]
+
+One thread doesn’t mean clients block each other. A single thread serving many connections from an event loop is how such systems are built. [[L-0239]] And now look back at chapter 4. Two threads running `total_size += b` at once would lose updates, the same race as the increment in 6.3, and the counter the whole memory cap rests on would drift. In our design the single thread is what makes `zmalloc`, and everything else on this node, correct without a single lock. (Real Redis, whose background threads also allocate and free, updates its counter with atomic instructions: compare-and-swap’s family, not a lock.) It saves the cost of switching between threads, too. [[L-0356]]
+
+<PauseAndThink k="L-0354 L-0355 L-0357"
+  q="You run this single-threaded cache on a 32-core machine. What is the catch, and how would you get your money’s worth?"
+  choices={[{ label: 'No catch: one thread is always enough' }, { label: '31 cores sit idle', correct: true }]}
+  right="Right."
+  wrong="Count the busy cores.">
+
+One core runs the cache and 31 sit idle. So run several copies of the cache on the same machine, each with its own share of the keys, one per core. Each copy stays single threaded and simple, and together they use the hardware.
+
+</PauseAndThink>
+
+<Figure id="fig-6d" max={640} no="Fig 6·d" k="L-0354 L-0355" caption="One thread, many cores, drawn with eight. Left: a single-threaded cache keeps one core busy. Right: eight single-threaded copies on the same box use them all.">
+<Desk><OneThreadCores /></Desk>
+<Phone><OneThreadCores layout="phone" /></Phone>
+</Figure>
+
+Notice what running several copies quietly did. It is not one cache any more. It is several, and somebody has to know which one holds which key. Push a little further, past what one machine’s RAM can hold or one machine can serve, and that question is the whole design. [[L-0241]]
+
+</Section>

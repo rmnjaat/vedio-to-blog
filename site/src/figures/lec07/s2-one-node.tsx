@@ -40,7 +40,7 @@ export function HashTable() {
 /* ------------------------------------------------------------------ Fig 2·a, continued (2.3): MyValue, stage 1 */
 
 const TYPES = ['string', 'set', 'list', 'bloom'];
-const ROWS = ['void *value;', 'int type : 4;'];
+const ROWS = ['void *value;', 'unsigned type : 4;'];
 
 export function StructStage1({ layout = 'wide' }: { layout?: Layout }) {
   const P = layout === 'phone';
@@ -206,7 +206,7 @@ export function SizeofVsData({ layout = 'wide' }: { layout?: Layout }) {
 
 const ZM = (P: boolean): Parameters<typeof CodePanel>[0]['lines'] => [
   ['zmalloc(b) {'],
-  ['  if total_size + b ', { t: '> maxmemory', tone: 'red' }],
+  ['  while total_size + b ', { t: '> maxmemory', tone: 'red' }],
   ['      ', { t: '→ evict', tone: 'red' }, { t: P ? '  // our design' : '      // our design', tone: 'muted' }],
   ['  o = malloc(b)'],
   ['  total_size += b'],
@@ -242,12 +242,12 @@ export function ZmallocCap({ layout = 'wide' }: { layout?: Layout }) {
   const P = layout === 'phone';
   const id = P ? 'l7-fig2d-p' : 'l7-fig2d';
   const title = 'zmalloc and the cap';
-  const desc = 'zmalloc wraps malloc: in our design it first checks whether total_size plus b would pass maxmemory and, if so, evicts (chapter 3); then it mallocs b bytes, adds b to the global total_size and returns the object. Beside the code, a gauge of total_size sits just under its 1 GB cap, on a machine with 32 GB of RAM.';
+  const desc = 'zmalloc wraps malloc: in our design it first evicts keys (chapter 5) for as long as total_size plus b would pass maxmemory; then it mallocs b bytes, adds b to the global total_size and returns the object. Beside the code, a gauge of total_size sits just under its 1 GB cap, on a machine with 32 GB of RAM.';
   if (P)
     return (
       <Fig id={id} w={340} h={510} title={title} desc={desc}>
         <CodePanel x={4} y={8} w={332} lines={ZM(true)} seed={id + '-code'} />
-        <Label anchor="start" muted x={14} y={240}>evict → chapter 3</Label>
+        <Label anchor="start" muted x={14} y={240}>evict → chapter 5</Label>
         <CapGauge ox={95} oy={256} id={id} />
       </Fig>
     );
@@ -255,7 +255,7 @@ export function ZmallocCap({ layout = 'wide' }: { layout?: Layout }) {
     <Fig id={id} w={720} h={286} title={title} desc={desc}>
       <CodePanel x={10} y={14} w={400} lines={ZM(false)} seed={id + '-code'} />
       <Arrow pts={[[414, 88], [448, 88]]} seed={id + '-ev'} />
-      <Label anchor="start" muted x={454} y={93}>§3</Label>
+      <Label anchor="start" muted x={454} y={93}>ch. 5</Label>
       <CapGauge ox={530} oy={24} id={id} />
     </Fig>
   );

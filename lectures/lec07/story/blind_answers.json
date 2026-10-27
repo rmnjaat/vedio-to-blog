@@ -1,0 +1,722 @@
+[
+ {
+  "id": "Q001",
+  "answer": "Two parts: (1) a complete copy of production for the analysts, i.e. CDC (change data capture), and (2) building our own Redis / distributed cache from scratch.",
+  "evidence": "overview 'What you'll build': Part 1 a complete copy; Part 2 our Redis",
+  "found": true
+ },
+ {
+  "id": "Q002",
+  "answer": "Readers call an API server, which talks to the production MongoDB (plus, later, a dashboard tool). Readers never touch the database; they reach it only through the API. The page does not spell out why beyond that.",
+  "evidence": "Fig 1·b caption",
+  "found": true
+ },
+ {
+  "id": "Q003",
+  "answer": "A dashboard tool such as Grafana or Metabase fires its queries straight at production; usually the first step after that is to point it at a read replica so heavy queries don't slow the app. Works up to roughly 10k-50k users.",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q004",
+  "answer": "Production holds everyone's personal data (PII), so handing it even read-only is risky; also production is MongoDB while analysts (and warehouses) work in SQL; heavy queries can slow the app.",
+  "evidence": "§1.1",
+  "found": true
+ },
+ {
+  "id": "Q005",
+  "answer": "When a blog is published the API server writes MongoDB and publishes a blog_published event (carrying the id) to Kafka; consumers read the events and write rows into an analytics MySQL that the insights team queries.",
+  "evidence": "§1.2, Fig 1·c",
+  "found": true
+ },
+ {
+  "id": "Q006",
+  "answer": "1) changes with no event at all (views++, a likes aggregation job that bypasses the API); 2) events too thin: they lack data so the consumer must fetch the rest from the DB (load) or messages become large; 3) dual write: API saves the row then crashes before publishing; 4) a new table whose event nobody remembered to add. None raises an error; the copy silently drifts.",
+  "evidence": "Fig 1·c, §1.2",
+  "found": true
+ },
+ {
+  "id": "Q007",
+  "answer": "Change Data Capture: any change in the data is captured; rather than trusting events from the API server, read changes from the actual source of truth, the database itself (its log).",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q008",
+  "answer": "Debezium and Airbyte; Airbyte was found the easier to set up.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q009",
+  "answer": "A source, a transformation and a sink.",
+  "evidence": "§1.3",
+  "found": true
+ },
+ {
+  "id": "Q010",
+  "answer": "It reads the database's change log (MySQL binlog, Postgres WAL via logical decoding, MongoDB oplog via change streams), keeping a checkpoint; if the store has no change log (e.g. Elasticsearch) it can only iterate/scan the table rows again and again (needs a last_updated column; misses deletes between scans). It starts with a snapshot.",
+  "evidence": "§2.1",
+  "found": true
+ },
+ {
+  "id": "Q011",
+  "answer": "Nothing is captured while it is down; when it comes back the tool resumes from its checkpoint and reads everything the log gathered meanwhile (if the log still holds it; otherwise a fresh snapshot).",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q012",
+  "answer": "No. Sinks can be Kafka, SQS, Kinesis, local disk, Elasticsearch, Redshift, S3, MySQL.",
+  "evidence": "Fig 1·d, §2.3",
+  "found": true
+ },
+ {
+  "id": "Q013",
+  "answer": "Use CDC when moving raw data; use API events into Kafka when you need application context (the fact that something happened on the API server). They can combine via an outbox table.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q014",
+  "answer": "Transactional MySQL -> CDC -> Elasticsearch (search); MySQL -> CDC -> Redshift (analytics); Redshift -> CDC -> S3 (backup).",
+  "evidence": "Fig 2·c",
+  "found": true
+ },
+ {
+  "id": "Q015",
+  "answer": "It moves raw data, complete, and can fetch and write rows in bulk, whereas one event per published blog consumed one at a time is far slower (and events miss changes).",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q016",
+  "answer": "About 80%.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q017",
+  "answer": "Through the database's own client, which is better than parsing raw log files, because if the log format changes the client still decodes it and the plugin needs no update.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q018",
+  "answer": "No, it is a sequential read and puts little load on the DB. To reduce further, point it at a replica (MySQL replica writes own binlog; Postgres logical decoding on standby from v16).",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q019",
+  "answer": "API servers pushed every single update to Kafka; a fleet of consumers read each event, applied a very simple transformation and wrote it to the other DB, one read and one write at a time, no batching; it took more than sixty consumer machines with 32 GB each. And it silently lost changes.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q020",
+  "answer": "Two ordinary EC2 instances.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q021",
+  "answer": "No; replication lag dropped to a bare minimum, since these tools fetch in parallel and are optimised for small transformations.",
+  "evidence": "§2.4",
+  "found": true
+ },
+ {
+  "id": "Q022",
+  "answer": "No, it is asynchronous and eventually consistent; you can't use it where you need strong consistency (synchronous processing).",
+  "evidence": "§2.5",
+  "found": true
+ },
+ {
+  "id": "Q023",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q024",
+  "answer": "Yes in commit order: a transaction's statements reach the log together at commit, transactions land in commit order, CDC reads in that order. But sink gets one event per changed row, not per transaction; Debezium keeps order per table unless transaction markers.",
+  "evidence": "§2.2",
+  "found": true
+ },
+ {
+  "id": "Q025",
+  "answer": "No; use Apache Spark. CDC is for light transformations.",
+  "evidence": "§2.5",
+  "found": true
+ },
+ {
+  "id": "Q026",
+  "answer": "Supports GET, PUT, DELETE and TTL, with high throughput and low latency, and distributed. (Plus two rules: RAM is expensive; it must never crash.)",
+  "evidence": "§3",
+  "found": true
+ },
+ {
+  "id": "Q027",
+  "answer": "Storage (how data is stored), how full it is (memory), eviction, how clients talk to it (protocol), concurrency (two writers), expiry (TTL). Board order not given on page.",
+  "evidence": "§3",
+  "found": true
+ },
+ {
+  "id": "Q028",
+  "answer": "In a hash table in memory: keys in an array, each with a pointer to where its value is stored.",
+  "evidence": "§3.1",
+  "found": true
+ },
+ {
+  "id": "Q029",
+  "answer": "Wrap each value in a small struct (MyValue) with a void* pointer to the value and a type field; before running a command, get the value, read its type, check the type supports the operation, then cast and run.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q030",
+  "answer": "Putting the type in the key (set:myset) means every lookup must parse it; a wrapper per value also has room to grow for more metadata (LRU bits, expiry).",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q031",
+  "answer": "4 bits (16 types, there are only 5-10). Principle: in memory, be careful with every byte and every bit, because RAM is expensive and the cost multiplies by millions of keys.",
+  "evidence": "§3.2",
+  "found": true
+ },
+ {
+  "id": "Q032",
+  "answer": "malloc returns NULL (a careful program checks and refuses the write), or on Linux the OOM killer ends the process.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q033",
+  "answer": "Cap its own memory so it never reaches the limit, and therefore know how much memory it uses; evict or refuse writes at the cap.",
+  "evidence": "§4.1",
+  "found": true
+ },
+ {
+  "id": "Q034",
+  "answer": "The kernel knows the number so every check is a system call; the cache needs it on every write, and a syscall each time would slow it down.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q035",
+  "answer": "sizeof measures only the 16-byte wrapper (pointer + type); the value it points to (e.g. a 1 MB Bloom filter) is a separate allocation the counter never sees.",
+  "evidence": "§4.2",
+  "found": true
+ },
+ {
+  "id": "Q036",
+  "answer": "malloc takes a number of bytes and returns an address from the process heap (asking the OS for more when low); free gives a block back, marking it reusable.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q037",
+  "answer": "Everything stored (wrappers, Bloom filters, sets, list nodes) is allocated by the same malloc and released by the same free, so counting there includes the values themselves.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q038",
+  "answer": "zmalloc(b) { while total_size + b > maxmemory -> evict; o = malloc(b); total_size += b; return o; } (zfree subtracts).",
+  "evidence": "Fig 4·c, §4.3",
+  "found": true
+ },
+ {
+  "id": "Q039",
+  "answer": "With malloc at e.g. 50,000 places in a codebase, forgetting one makes the count wrong for good; the wrapper does it in one place.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q040",
+  "answer": "1 GB cap on a 32 GB machine (maxmemory). Hard/soft is not labelled; in our design it's checked before every allocation (a hard cap); Redis checks once per command.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q041",
+  "answer": "Inside zmalloc: before allocating, if total_size + b would pass the cap, evict keys (then allocate). Redis does it once per command before executing.",
+  "evidence": "§4.3, Fig 4·c",
+  "found": true
+ },
+ {
+  "id": "Q042",
+  "answer": "LRU: least recently used, evicts the key used longest ago. LFU: least frequently used, counts accesses and evicts the one used least.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q043",
+  "answer": "In each key's object header (the value wrapper), 24 bits sharing one 32-bit word with 4-bit type and 4-bit encoding: one integer of metadata per key.",
+  "evidence": "§5.1",
+  "found": true
+ },
+ {
+  "id": "Q044",
+  "answer": "Hash map + doubly linked list: map stores each key's node; on access unlink and move node to head in O(1); evict from the tail.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q045",
+  "answer": "Three pointers (next, prev, value) = 12 bytes with 4-byte pointers, 24 with 8-byte; the example a -> 2 is 5 bytes of data: overhead exceeds data.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q046",
+  "answer": "Fine where memory is not the constraint; in a cache every pointer is room another key could use.",
+  "evidence": "§5.2",
+  "found": true
+ },
+ {
+  "id": "Q047",
+  "answer": "Random eviction: the most memory-efficient, no per-key bookkeeping, fast.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q048",
+  "answer": "May evict a key that should have stayed (popular key -> one miss), but needs no bookkeeping so more keys fit and eviction is fast; not optimal.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q049",
+  "answer": "The cache took in many more keys with only a very small rise in miss ratio; net positive.",
+  "evidence": "§5.3",
+  "found": true
+ },
+ {
+  "id": "Q050",
+  "answer": "A nightly scan/report reads every article once: LRU flushes the evergreen pages, LFU keeps them. Also Wikipedia during the World Cup.",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q051",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q052",
+  "answer": "Wikipedia: during a World Cup spike the top pages read far more over time shouldn't be pushed out; they come back after the fad.",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q053",
+  "answer": "Not drawn on page as shapes; described: LRU key read very hard at first then hardly at all (spike then fade); LFU lopsided popularity, popular in past stays popular.",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q054",
+  "answer": "Google News (recent news is read, week-old rarely).",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q055",
+  "answer": "Understand your application's access pattern / key life, then decide; most systems see no difference. Redis supports LRU, LFU and random (sampled).",
+  "evidence": "§5.3-5.4",
+  "found": true
+ },
+ {
+  "id": "Q056",
+  "answer": "HTTP, gRPC, and a custom protocol (also WebSockets mentioned); all run over TCP.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q057",
+  "answer": "Page says HTTP/1.1 keeps its connection open by default; the cost is text: request line and headers parsed every call (~117 bytes vs 27 for set a 1). '3/2' is NOT ON PAGE.",
+  "evidence": "§6.1-6.2",
+  "found": true
+ },
+ {
+  "id": "Q058",
+  "answer": "IoT sensors could only send raw bytes and needed to talk to a Flask server.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q059",
+  "answer": "Nonsense raw text -> 400 Bad Request; GET /hello HTTP/1.1 (with Host) -> 200 OK hello world.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q060",
+  "answer": "A connection carries any bytes; a server just interprets bytes in its format; HTTP is plain text, so a protocol is just an envelope and you can define your own lean one on raw TCP.",
+  "evidence": "§6.1-6.2",
+  "found": true
+ },
+ {
+  "id": "Q061",
+  "answer": "Redis's own protocol: length-prefixed parts (*3 = three parts, $n = bytes of next part); every Redis client speaks it; binary-safe and quick to parse.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q062",
+  "answer": "Runs over HTTP/2: connection stays open, many calls at once, compact binary messages (Protobuf).",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q063",
+  "answer": "Depends on your clients: gRPC if they support it well or you are prototyping, else define and publish your own format. Supporting several not discussed.",
+  "evidence": "§6.2",
+  "found": true
+ },
+ {
+  "id": "Q064",
+  "answer": "Need reliable delivery with acknowledgments; UDP is fire and forget, and a cache, like a database, shouldn't lose writes.",
+  "evidence": "§6.1",
+  "found": true
+ },
+ {
+  "id": "Q065",
+  "answer": "NOT ON PAGE as a recap board; guess: by memory used (total bytes vs maxmemory) or by number of keys.",
+  "evidence": "",
+  "found": true
+ },
+ {
+  "id": "Q066",
+  "answer": "As the key's absolute expiry time, one number per key (in the wrapper; Redis keeps it in a second hash table of keys with TTL).",
+  "evidence": "§5.5",
+  "found": true
+ },
+ {
+  "id": "Q067",
+  "answer": "Priority queue ordered by expiry: simple and consistent, free from head; disadvantage: extra structure with pointers for every key (memory).",
+  "evidence": "§5.5",
+  "found": true
+ },
+ {
+  "id": "Q068",
+  "answer": "When a key is read and its expiry has passed, delete it right there (zfree).",
+  "evidence": "§5.5",
+  "found": true
+ },
+ {
+  "id": "Q069",
+  "answer": "Periodic job samples 20 keys that have a TTL, frees the expired ones, repeats while more than ~10% of the batch was expired; uses a hash table of keys with TTL.",
+  "evidence": "§5.5",
+  "found": true
+ },
+ {
+  "id": "Q070",
+  "answer": "Memory: no per-key ordered structure; one number per key plus a plain table; some memory leaks briefly but never for good.",
+  "evidence": "§5.5",
+  "found": true
+ },
+ {
+  "id": "Q071",
+  "answer": "Run several copies (shards), first one per core on the machine, then across machines with each owning a slice of the keys.",
+  "evidence": "§6.5, §7.1",
+  "found": true
+ },
+ {
+  "id": "Q072",
+  "answer": "Pessimistic locking, optimistic locking (compare-and-swap), and single-threadedness.",
+  "evidence": "§6.3-6.5",
+  "found": true
+ },
+ {
+  "id": "Q073",
+  "answer": "Wrap the critical step in a lock: acquire, update, release; others wait (mutex, semaphore, Java synchronized).",
+  "evidence": "§6.3",
+  "found": true
+ },
+ {
+  "id": "Q074",
+  "answer": "a=10, both add 1: each writes 'a = 11 where a = 10'; via CAS, thread 1 succeeds, thread 2 finds 11, fails, re-reads and retries CAS(11->12): a = 12. Implemented with the CPU compare-and-swap instruction (sync/atomic, std::atomic).",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q075",
+  "answer": "The hardware does the compare and write as one indivisible operation every core sees whole; nothing can slip in between.",
+  "evidence": "§6.4",
+  "found": true
+ },
+ {
+  "id": "Q076",
+  "answer": "Run commands on a single thread so no concurrency control is needed (Redis main thread plus background chores); event loop serves many connections.",
+  "evidence": "§6.5",
+  "found": true
+ },
+ {
+  "id": "Q077",
+  "answer": "Keep a few bits (24) per key in the existing wrapper and sample (5 keys) instead of a list; trade exactness for memory.",
+  "evidence": "§5.1-5.3",
+  "found": true
+ },
+ {
+  "id": "Q078",
+  "answer": "No; one thread serves many connections via an event loop. The catch is unused cores.",
+  "evidence": "§6.5",
+  "found": true
+ },
+ {
+  "id": "Q079",
+  "answer": "No; it counts every allocation, including values like the Bloom filter.",
+  "evidence": "§4.3",
+  "found": true
+ },
+ {
+  "id": "Q080",
+  "answer": "One node can no longer handle load or hold the data. Five: storage, routing, availability, reliability, scaling.",
+  "evidence": "§7",
+  "found": true
+ },
+ {
+  "id": "Q081",
+  "answer": "Run several copies of the single-node cache, each owning a non-overlapping slice: A-J, K-T, U-Z.",
+  "evidence": "§7.1",
+  "found": true
+ },
+ {
+  "id": "Q082",
+  "answer": "(a,j)->c1, (k,t)->c2, (u,z)->c3; held in a central routing box, or moved into the client (or wherever routing lives: proxy/node); later replaced by hashing/ring.",
+  "evidence": "Fig 7·c",
+  "found": true
+ },
+ {
+  "id": "Q083",
+  "answer": "The runner at the door (peon) who takes your form for a fee: a proxy, like a load balancer.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q084",
+  "answer": "The regular customer = smart client holding the routing table. Advantage: no middleman, saves a network hop; disadvantage: every client must be told when topology changes.",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q085",
+  "answer": "Any desk passes it on: forwarding, no central authority, a node forwards and relays the answer. The internet (packet routing).",
+  "evidence": "§7.3",
+  "found": true
+ },
+ {
+  "id": "Q086",
+  "answer": "'Go to counter 13': redirect, the client goes itself. DNS, Redis Cluster (MOVED).",
+  "evidence": "§7.3-7.4",
+  "found": true
+ },
+ {
+  "id": "Q087",
+  "answer": "Pick your battles: smart client to save a hop, proxy to make clients' life easy, forwarding for gigantic centreless systems, redirect; can mix (e.g. one for writes, another for reads).",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q088",
+  "answer": "A node that doesn't own the key replies MOVED naming the owner; the client retries there.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q089",
+  "answer": "Forwarding through any node.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q090",
+  "answer": "Range-based and hash-based; hashing (hash(key) % N / ring) is most common for caches.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q091",
+  "answer": "K2 (cache 0->2), K5 (1->0), K6 (0->2): 3 of 6, half the data.",
+  "evidence": "§8.1",
+  "found": true
+ },
+ {
+  "id": "Q092",
+  "answer": "Ownership: which node owns which key. It doesn't move or migrate data, isn't a service, gives no uptime guarantee.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q093",
+  "answer": "0 to 15 (2^4); cache 1 at 3, cache 3 at 5, cache 4 at 10, cache 2 at 12.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q094",
+  "answer": "Wherever routing lives: in the client, the proxy, or the redirecting component; as a sorted array with binary search.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q095",
+  "answer": "Cache 1: walking clockwise from 0 the first node is at 3.",
+  "evidence": "§8.2",
+  "found": true
+ },
+ {
+  "id": "Q096",
+  "answer": "It takes the slice (12,1]: K1 (and K6) now belong to cache 5, moved from cache 1; others unchanged.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q097",
+  "answer": "To the next node clockwise, cache 3. Graceful: copy cache 1's data to cache 3 then remove it. Abrupt: the slice lands on cache 3 cold.",
+  "evidence": "§8.3",
+  "found": true
+ },
+ {
+  "id": "Q098",
+  "answer": "Snapshot cache 1, build cache 5 from it, then add cache 5 to the ring, then slowly delete the keys cache 1 no longer owns.",
+  "evidence": "§8.4",
+  "found": true
+ },
+ {
+  "id": "Q099",
+  "answer": "A hash table spread over machines with a rule telling where each key lives, where any node can point you onward (no router); our cache is essentially one.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q100",
+  "answer": "BitTorrent's trackerless mode, IPFS.",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q101",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q102",
+  "answer": "Redundancy: a replica (standby) per node, or copies on the next nodes on the ring (replication factor).",
+  "evidence": "§9.2",
+  "found": true
+ },
+ {
+  "id": "Q103",
+  "answer": "Persisting to disk; Redis's AOF (append-only file) replayed on restart (fsync every second by default).",
+  "evidence": "§9.3",
+  "found": true
+ },
+ {
+  "id": "Q104",
+  "answer": "To keep the infrastructure simple: the node itself tells you where to go, no extra component.",
+  "evidence": "§7.4",
+  "found": true
+ },
+ {
+  "id": "Q105",
+  "answer": "Yes, both; hashing decides placement; fix with virtual nodes.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q106",
+  "answer": "New node's data comes from many sources in small slices: harder operations, many streams, slowest sets pace, slices easy to miss; plain ring is one snapshot.",
+  "evidence": "§9.1",
+  "found": true
+ },
+ {
+  "id": "Q107",
+  "answer": "No; malloc returns NULL; segfault only from using an unchecked NULL.",
+  "evidence": "§4.3 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q108",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q109",
+  "answer": "CDC reads the log sequentially and in bulk; event workers that get only an id must read the rest back from the DB, adding load.",
+  "evidence": "§1.2, §2.2",
+  "found": true
+ },
+ {
+  "id": "Q110",
+  "answer": "A view count going up (views++) when someone reads a post; also a likes recount job.",
+  "evidence": "§1.2",
+  "found": true
+ },
+ {
+  "id": "Q111",
+  "answer": "NOT ON PAGE (presumably grows via another zmalloc which is counted).",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q112",
+  "answer": "Partly: page says LFU pays off when popularity is lopsided, but the real criterion is that past popularity predicts future popularity (and scans).",
+  "evidence": "§5.4",
+  "found": true
+ },
+ {
+  "id": "Q113",
+  "answer": "With replication on the next nodes, cache 1 needn't delete them (they are copies it would hold anyway); otherwise slowly delete.",
+  "evidence": "§9.2, §8.4",
+  "found": true
+ },
+ {
+  "id": "Q114",
+  "answer": "One core used, 31 idle; run several single-threaded copies on the machine, one per core, each with its share of keys.",
+  "evidence": "§6.5",
+  "found": true
+ },
+ {
+  "id": "Q115",
+  "answer": "SIGKILL from the Linux OOM killer (uncatchable); a ulimit makes malloc fail with ENOMEM; overcommit; SIGABRT only from abort().",
+  "evidence": "§4.3 Go deeper",
+  "found": true
+ },
+ {
+  "id": "Q116",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q117",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q118",
+  "answer": "NOT ON PAGE.",
+  "evidence": "",
+  "found": false
+ },
+ {
+  "id": "Q119",
+  "answer": "Yes (Debezium via Kafka topics read by many sink connectors), at the cost of a transformation per sink and more memory.",
+  "evidence": "§2.3",
+  "found": true
+ },
+ {
+  "id": "Q120",
+  "answer": "Lecture 10: a terabyte dictionary with no database; build two storage engines from files on disk; append-only files return.",
+  "evidence": "§9.5",
+  "found": true
+ }
+]

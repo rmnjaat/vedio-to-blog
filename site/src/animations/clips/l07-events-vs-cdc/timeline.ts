@@ -61,7 +61,7 @@ export const CAPTIONS: Cue[] = [
   {from: BEAT.views, step: 2, color: 'red', text: 'views++ changes the database. No event exists for it.'},
   {from: BEAT.crash, step: 3, color: 'red', text: 'The API saves a post, then crashes before publishing.'},
   {from: BEAT.likes, step: 4, color: 'red', text: 'CDC stops. Meanwhile a worker updates likes; the log keeps it.'},
-  {from: BEAT.resume, text: 'CDC restarts and resumes from its checkpoint.'},
+  {from: BEAT.resume, text: 'CDC restarts and catches up.'},
   {from: BEAT.end, text: "Read the source of truth, not the API's events."},
 ];
 
@@ -108,5 +108,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    'Two pipelines copy the same blog database (MongoDB) into an analytics MySQL. Top: the API publishes events to Kafka and a consumer writes them to MySQL. Bottom: a CDC tool reads the database’s own log and writes MySQL. Four changes happen. A post is published: both copies get it. A views++ changes the database but no event exists for it, so only CDC copies it. The API saves a second post and crashes before publishing its event: the log has the row and CDC copies it; the event copy misses it. Then the CDC tool is stopped while a background job updates the likes count directly in the database, with no API call: the log keeps the change, and when CDC restarts it resumes from its checkpoint and copies it. The event copy ends with 1 of 4 changes, the CDC copy with 4 of 4: read the source of truth, not the API’s events.',
+    'Two pipelines copy the same blog database (MongoDB) into an analytics MySQL. Top: the API publishes events to Kafka and a consumer writes them to MySQL. Bottom: a CDC tool reads the database’s own log and writes MySQL. Four changes happen. A post is published: both copies get it. A views++ changes the database but no event exists for it, so only CDC copies it. The API saves a second post and crashes before publishing its event: the log has the row and CDC copies it; the event copy misses it. Then the CDC tool is stopped while a background job updates the likes count directly in the database, with no API call: the log keeps the change, and when CDC restarts it catches up and copies it. The event copy ends with 1 of 4 changes, the CDC copy with 4 of 4: read the source of truth, not the API’s events.',
 };

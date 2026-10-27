@@ -1,0 +1,96 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { KeyRanges, RoutingQuestion } from '../../../figures/lec07/s5-routing-figs';
+import { SoFarCache } from '../../../figures/lec07/so-far';
+
+{/* Chapter 7 "One box isn't enough. Who knows where kiwi lives?" Story rewrite: why distribute, the five concerns
+    → split the keys into ranges, one copy of the node each (figure; Lecture 3's range shards) → the routing problem:
+    a central table, respond or forward (pause, figure) → four ways, at a bank (clip) → which way for a cache, and
+    Redis Cluster's MOVED redirect → pick your battles → who decides ownership when the cluster grows? */}
+
+<Section id="s7" no="7" title="One box isn’t enough. Who knows where kiwi lives?" crumb="7 Many boxes" meta="About 6 min">
+
+The single node is finished. It has a port that speaks a lean protocol, one thread that never needs a lock, and a wrapper per key that knows its type, its last use and its expiry. On one node there is only one way to grow: vertically, with more RAM, CPU and network on the same machine. [[L-0221]] Then the blog outgrows it: one node can no longer handle the load, or hold the data. Spread the cache over several machines. [[L-0241]]
+
+<Figure id="fig-7-sofar" max={640} no="Fig 7·a" caption="Our Redis so far, one node, complete. Marked new: the resp port that clients speak, and the one thread that runs every command.">
+<Desk><SoFarCache stage={3} /></Desk>
+<Phone><SoFarCache stage={3} layout="phone" /></Phone>
+</Figure>
+
+Going from one node to many raises five concerns: storage, routing, availability, reliability and scaling. [[L-0242]] This chapter takes the first two. The next two chapters take the rest, and in this part of the design the cost of a decision is no longer counted in bytes. It is counted in network hops, and in keys that have to move.
+
+</Section>
+
+<Section id="s7-1" no="7.1" title="How do you split the keys?" crumb="7.1 Ranges">
+
+Storage is the easy part. Take the exact single-node cache you just built, run several copies of it, and give each one a slice of the keys that no other copy has: A to J on the first, K to T on the second, U to Z on the third. [[L-0243]] <LectureLink lec="lec05" sec="s9-3">Lecture 3</LectureLink> split its key-value store across two masters the same way.
+
+<Figure id="fig-7b" max={340} no="Fig 7·b" k="L-0243" caption="The key space cut into three slices that don’t overlap, one per copy of the same single-node cache.">
+<KeyRanges />
+</Figure>
+
+That is the whole idea of a distributed cache: many single cache servers working together as one coherent cache. [[L-0263]] It is also the sharding that chapter 3 set aside until the single node worked. [[L-0089]] But splitting the data creates a question that one machine never had.
+
+</Section>
+
+<Section id="s7-2" no="7.2" title="A client wants kiwi. Which node does it ask?" crumb="7.2 Routing">
+
+A client wants to read or write the key `kiwi`. How does it know that cache 2 owns K to T? [[L-0244]] This isn’t special to caches. Any storage split into N slices that don’t overlap has to get each client to the right slice. [[L-0247]]
+
+The first idea is a central place that holds the table, A–J on cache 1, K–T on cache 2, U–Z on cache 3, and a client asks it first. [[L-0245]] That works, and it raises the sharper question: does that place *answer* the client with where to go, or *forward* the request itself? Both have pros and cons, and different systems do it differently. [[L-0246]]
+
+<PauseAndThink k="L-0244 L-0245 L-0246 L-0248"
+  q="Three cache nodes own the ranges a–j, k–t and u–z. Must every request go through one central routing table to find its node?"
+  choices={[{ label: 'Yes: someone central has to know who owns what' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="That is one option among several.">
+
+The table could live in other places too, and each place costs something different: an extra hop, or more for the client to know.
+
+</PauseAndThink>
+
+<Figure id="fig-7c" no="Fig 7·c" k="L-0245" caption="Where does the table live? Left: a routing box holds it; the client asks first, then goes to c2. Right: the table moves into the client, which goes straight to c2.">
+<Desk><RoutingQuestion /></Desk>
+<Phone><RoutingQuestion layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s7-3" no="7.3" title="Four ways through a bank" crumb="7.3 Four ways">
+
+There are four ways to route a request, and each is something you already do when you visit a bank. Every distributed system routes in one of these four ways. [[L-0248]]
+
+**1 · The runner at the door.** For a small fee, a runner takes your form and gets the work done. You never learn how many desks are inside. That is a **proxy**. [[L-0249]] A load balancer works exactly this way, a single entry point responsible for getting every request done, and you built one in <LectureLink lec="lec08" sec="s1">Lecture 5</LectureLink>. [[L-0256]]
+
+**2 · The regular customer.** Someone who has banked there for years walks straight to the right desk. Here the routing table lives in the client itself: a **smart client** knows every node and needs no router. [[L-0250]] Lecture 3’s API servers did this: each held the ranges and a connection to every master. The catch: when a desk’s job moves, every regular customer has to be told. The reward: no middleman, so you skip the fee, which here is the network latency of an extra hop. [[L-0251]]
+
+**3 · Any desk passes it on.** No runner, no regulars. You go to the nearest desk, and that desk sends your request to the one that can handle it, waits, and hands you the answer. There is no central authority: any node takes responsibility for **forwarding**. [[L-0252]] The internet itself works like this: your packets go to one machine, which passes them on to the next, and the answer comes back the same way. [[L-0258]]
+
+**4 · “Go to counter 13.”** You go to the nearest desk, and it says: I can’t help, go to counter 13. You walk there yourself. That is a **redirect**, and it is what DNS does: it gives you an address, and you connect to it directly, as Lecture 5 saw. [[L-0255]]
+
+The four differ in who sends the next message. Watch one request go through each bank, and count the legs:
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l07-four-routes" no="Clip 7·1" k="L-0249 L-0250 L-0251 L-0252 L-0255"
+  lead="Same request, four banks. Which one costs the client two round trips?"
+  caption="Proxy, smart client, forwarding and redirect differ in who sends the next message. The smart client saves a hop, until a job moves and its table is stale." />
+</div>
+
+</Section>
+
+<Section id="s7-4" no="7.4" title="Which way for our cache?" crumb="7.4 For a cache">
+
+For a cache, a proxy that holds the table and forwards every request would work, much like a load balancer. A smart client would work too, as long as you can tell every client about every change in the topology. [[L-0259]] Forwarding through any node you would typically not use for a cache: it brings far too many complications. [[L-0260]]
+
+Redis Cluster picked the redirect. Send a command for a key to a node that doesn’t own it, and the node replies `MOVED`, naming the node that does; the client retries there itself. [[L-0261]] Why not put a load balancer in front instead? To keep the infrastructure simple: if the node itself can tell you where to go, you don’t need another component. [[L-0323]]
+
+No one way is right. Make the client smarter to save a hop; add a proxy to make life easy for clients; let nodes forward when a system is gigantic and has no centre; or tell the client where to go. Pick your battles, and mix them if you like, one way for writes and another for reads. [[L-0257 L-0325 L-0262]]
+
+All four rest on one thing, though: something must know which node owns `kiwi`. In our build, call whatever holds that map, client, proxy or redirecting node, “the router”. With ranges, the map is a table somebody keeps. With three nodes the table is tiny. The interesting moment is when the cluster grows.
+
+</Section>

@@ -291,8 +291,8 @@ export function CasRace({ layout = 'desk' }: { layout?: Layout }) {
   const T1 = P ? 84 : 106, A = P ? 190 : 228, T2 = P ? 290 : 350;
   const NX = P ? 20 : 28;
   const sz = P ? 13 : 14;
-  const title = 'Two conditional updates, one winner';
-  const desc = 'Time runs down. Lanes: thread 1, the value a, thread 2. 1: a is 10 and both threads read it; neither takes a lock. 2: thread 1 prepares update a = 20 where a = 10; thread 2 prepares update a = 30 where a = 10. 3: CAS(a, 10 → 20) runs first, as one atomic step, and a becomes 20. 4: CAS(a, 10 → 30) finds 20, not 10, and changes nothing. 5: only one succeeded; thread 2 re-reads and retries or gives up.';
+  const title = 'Two increments, no lock, none lost';
+  const desc = 'Time runs down. Lanes: thread 1, the value a, thread 2. 1: a is 10 and both threads read it; neither takes a lock. 2: each wants to add 1, so each prepares a = 11 where a = 10. 3: thread 1’s CAS(a, 10 → 11) runs first, as one atomic step, and a becomes 11. 4: thread 2’s CAS(a, 10 → 11) finds 11, not 10, and changes nothing. 5: thread 2 re-reads 11 and retries with CAS(a, 11 → 12), which succeeds: a is 12, and neither increment was lost.';
   const valBox = (y: number, v: string, tone: 'ink' | 'green' | 'red', k: string) => (
     <g>
       <path className={`${tone} shape`} d={chamferRect(A - 38, y - 15, 76, 30, s(k), 2)} />
@@ -316,32 +316,33 @@ export function CasRace({ layout = 'desk' }: { layout?: Layout }) {
       </Step>
       <Step n={2}>
         <Num x={NX} y={170} n={2} size={14} />
-        <Label kind="mono" x={T1} y={164} size={sz}>a = 20</Label>
+        <Label kind="mono" x={T1} y={164} size={sz}>a = 11</Label>
         <Label kind="mono" x={T1} y={184} size={sz}>where a = 10</Label>
-        <Label kind="mono" x={T2} y={164} size={sz}>a = 30</Label>
+        <Label kind="mono" x={T2} y={164} size={sz}>a = 11</Label>
         <Label kind="mono" x={T2} y={184} size={sz}>where a = 10</Label>
       </Step>
       <Step n={3}>
         <Num x={NX} y={262} n={3} tone="green" size={14} />
-        <Label kind="mono" tone="blue" x={(T1 + A) / 2 + 6} y={240} size={sz}>CAS(a, 10 → 20)</Label>
+        <Label kind="mono" tone="blue" x={(T1 + A) / 2 + 6} y={240} size={sz}>CAS(a, 10 → 11)</Label>
         <Arrow tone="blue" pts={[[T1, 262], [A - 42, 262]]} seed={s('c1')} />
-        {valBox(262, 'a = 20', 'green', 'v3')}
+        {valBox(262, 'a = 11', 'green', 'v3')}
         <Label tone="green" x={A} y={296} size={13}>10 matched: swapped</Label>
       </Step>
       <Step n={4}>
         <Num x={NX} y={360} n={4} tone="red" size={14} />
-        <Label kind="mono" tone="blue" x={(T2 + A) / 2 - 4} y={338} size={sz}>CAS(a, 10 → 30)</Label>
+        <Label kind="mono" tone="blue" x={(T2 + A) / 2 - 4} y={338} size={sz}>CAS(a, 10 → 11)</Label>
         <Arrow tone="blue" pts={[[T2, 360], [A + 42, 360]]} seed={s('c2')} />
-        {valBox(360, 'a = 20', 'ink', 'v4')}
-        <Label tone="red" x={A} y={394} size={13}>finds 20, not 10:</Label>
+        {valBox(360, 'a = 11', 'ink', 'v4')}
+        <Label tone="red" x={A} y={394} size={13}>finds 11, not 10:</Label>
         <Label tone="red" x={A} y={412} size={13}>no change</Label>
       </Step>
       <Step n={5}>
         <Num x={NX} y={462} n={5} size={14} />
         <Label tone="green" x={T1} y={466} size={13}>won</Label>
-        <Label x={P ? T2 - 12 : T2} y={458} size={13}>re-reads: retry</Label>
-        <Label x={P ? T2 - 12 : T2} y={476} size={13}>or give up</Label>
-        <Label muted x={A} y={506} size={13}>only one succeeds</Label>
+        <Label x={P ? T2 - 12 : T2} y={448} size={13}>re-reads 11:</Label>
+        <Label kind="mono" x={P ? T2 - 12 : T2} y={468} size={13}>CAS(11 → 12)</Label>
+        {valBox(462, 'a = 12', 'green', 'v5')}
+        <Label muted x={A} y={506} size={13}>no increment lost</Label>
       </Step>
     </Fig>
   );

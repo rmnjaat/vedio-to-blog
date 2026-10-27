@@ -300,7 +300,7 @@ export function AddSafely({ layout = 'desk' }: { layout?: Layout }) {
   const NX = 42;
   return (
     <Fig id={id} w={W} h={560} halo title="Adding cache 5 safely"
-      desc="Lanes for the router, cache 5, cache 1 and the backend database, time running down. 1: a blank cache 5 is put on the ring at peak; a request for K1 goes to cache 5, misses, and falls through to the database, whose load rises. 2: instead, take a snapshot of cache 1 and build cache 5 from it. 3: then add cache 5 to the ring; the request for K1 hits. 4: then slowly delete the keys cache 1 no longer owns, the slice from 12 to 1. 5: with replicas on the ring, cache 1 may keep them anyway.">
+      desc="Lanes for the router, cache 5, cache 1 and the backend database, time running down. 1: a blank cache 5 is put on the ring at peak; a request for K1 goes to cache 5, misses, and falls through to the database, whose load rises. 2: instead, take a snapshot of cache 1 and build cache 5 from it. 3: then add cache 5 to the ring; the request for K1 hits. 4: then slowly delete the keys cache 1 no longer owns, the slice from 12 to 1.">
       <Box x={R - BW / 2} y={20} w={BW} h={30} label="router" labelSize={P ? 13 : T} seed={s('hr')} />
       <Box x={C5 - BW / 2} y={20} w={BW} h={30} label="cache 5" labelSize={P ? 13 : T} seed={s('h5')} />
       <Box x={C1 - BW / 2} y={20} w={BW} h={30} label="cache 1" labelSize={P ? 13 : T} seed={s('h1')} />
@@ -338,11 +338,6 @@ export function AddSafely({ layout = 'desk' }: { layout?: Layout }) {
         <Num x={NX} y={414} n={4} />
         <Label x={C1} y={410} size={T}>slowly delete</Label>
         <Label kind="mono" x={C1} y={430} size={T}>(12, 1]</Label>
-      </Step>
-      <Step n={5}>
-        <Num x={NX} y={494} n={5} />
-        <Label x={C1} y={490} size={T}>with replicas:</Label>
-        <Label x={C1} y={510} size={T}>may keep them</Label>
       </Step>
     </Fig>
   );

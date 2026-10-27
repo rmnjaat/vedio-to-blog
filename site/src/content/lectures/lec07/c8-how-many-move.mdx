@@ -1,0 +1,128 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import StepThrough from '../../../components/StepThrough.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import Cite from '../../../components/Cite.astro';
+import { OwnershipRing, AddSafely } from '../../../figures/lec07/s6a-consistent-hashing-figs';
+import { SoFarCache } from '../../../figures/lec07/so-far';
+
+{/* Chapter 8 "A fourth box joins. How many keys have to move?" Story rewrite: hash routing defines ownership →
+    six keys, % 2 → % 3 (pause): half move → what consistent hashing is and isn't → the ring (figure), the sorted
+    array and binary search (code) → cache 5 joins: one slice moves (clip) → removing a node, graceful and abrupt
+    (stepper) → a blank node at peak (pause, stepper): snapshot, add, delete → simple operations; the ring's weak
+    spots and a dead node are next. */}
+
+<Section id="s8" no="8" title="A fourth box joins. How many keys have to move?" crumb="8 A node joins" meta="About 8 min">
+
+Three nodes now share the keys, and a router, wherever it lives, knows who owns what. Then the blog grows again, and three nodes can’t keep up. The fix sounds trivial: add a fourth. How do you add it? [[L-0265]]
+
+<Figure id="fig-8-sofar" max={640} no="Fig 8·a" caption="Our Redis so far: the single node. Marked new: three copies of it, each owning a range of keys, and a router in front of them.">
+<Desk><SoFarCache stage={4} /></Desk>
+<Phone><SoFarCache stage={4} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s8-1" no="8.1" title="Hash the key, mod the node count. What happens at N + 1?" crumb="8.1 hash % N">
+
+Ranges need a table that somebody keeps up to date. A function needs none. In **hash-based routing**, the router passes every key through a simple hash function, and the result picks the node: `hash(key) % N`. [[L-0267]] Whatever picks the node defines *ownership*: the node a key is routed to is the node that owns it. Keep that word; it is the key idea of this chapter. [[L-0268 L-0269]] For a cache, hashing is the usual way, because a hash function spreads keys almost uniformly over the nodes. (Lecture 3 met the other side: sharded databases that rarely change their shard count often keep fixed ranges.) Not randomly: the same key always lands on the same node. [[L-0270]]
+
+Take a small case. Six keys, K1 to K6, on two caches. Through the hash function, K1, K2 and K6 land on cache 0 and K3, K4 and K5 on cache 1: three each. [[L-0271]] Now add a third cache. The function becomes `hash % 3`, and because the function changed, every key has to be checked again. [[L-0272]]
+
+<PauseAndThink k="L-0271 L-0272 L-0273 L-0274"
+  q="K1 to K6 hash to 6, 8, 7, 1, 3 and 2, and sit on <code>hash % 2</code>. You add a third cache and switch to <code>hash % 3</code>. How many of the six keys change node?"
+  choices={[{ label: 'One or two: only the new node’s share' }, { label: 'Three', correct: true }]}
+  right="Right."
+  wrong="Work out both remainders for each key.">
+
+K1 (6) stays on cache 0, and K3 (7) and K4 (1) stay on cache 1. But K2 (8) goes from cache 0 to cache 2, K5 (3) from cache 1 to cache 0, and K6 (2) from cache 0 to cache 2. Three keys of six, half the data, cross the network to add one node.
+
+</PauseAndThink>
+
+And half is the lucky case. [[L-0273 L-0274]] Under `% N → % (N+1)` a key stays only when both remainders agree, which happens for 1 key in N+1, so about N/(N+1) of all keys move: two thirds going from 2 nodes to 3, nine in ten going from 9 to 10, or, as Wikipedia puts it, nearly all keys are remapped <Cite href="https://en.wikipedia.org/wiki/Consistent_hashing">Wikipedia</Cite>. Every move is a copy over the network, and rebalancing that much data is very slow. [[L-0274 L-0290]]
+
+The usual fix has a famous name, and more myths than most: consistent hashing. [[L-0266]]
+
+</Section>
+
+<Section id="s8-2" no="8.2" title="What does consistent hashing actually decide?" crumb="8.2 The ring">
+
+Clear the myths first. Consistent hashing is not a service, or a microservice, and it is not a magic solution to all your problems. [[L-0275]] It solves for **ownership**, and nothing else: it tells you which node owns which key. It does not move your data, it migrates nothing, and it gives no uptime guarantee. Those are jobs you do yourself. [[L-0277 L-0278]]
+
+Everyone draws it as a ring. The ring is the hash function’s whole output range, from 0 up to 2<sup>n</sup> − 1, bent into a circle. [[L-0281 L-0283]] Place each node on it by hashing the node’s own id: cache 1 lands on 3, cache 2 on 12, cache 3 on 5, cache 4 on 10. [[L-0282 L-0284]] To find a key’s owner, hash the key and walk clockwise to the first node. Key K1 hashes to 0; the first node clockwise from 0 sits at 3, so cache 1 owns K1. [[L-0288 L-0289]]
+
+<Figure id="fig-8b" max={360} no="Fig 8·b" k="L-0282 L-0284 L-0288 L-0289" caption="The ring decides ownership. Nodes sit where their ids hash; a key belongs to the first node clockwise. The bubble is the myth: the ring moves nothing.">
+<OwnershipRing />
+</Figure>
+
+This example uses 16 positions, 2<sup>4</sup>. Real rings are as wide as their hash: 2<sup>128</sup> for MD5, 2<sup>160</sup> for SHA-1. [[L-0283]] The ring lives wherever routing lives: in the client if the client routes, in the proxy if a proxy does, in whatever component redirects. [[L-0285]] And it isn’t really a data structure. For four nodes you store four numbers, sorted, and find an owner with a binary search. [[L-0279 L-0286]]
+
+```python
+import bisect
+ring = [3, 5, 10, 12]              # sorted node positions
+node = {3: 'cache 1', 5: 'cache 3',
+        10: 'cache 4', 12: 'cache 2'}
+
+def owner(h):                      # h = hash(key)
+    i = bisect.bisect_left(ring, h)          # first position >= h
+    return node[ring[i % len(ring)]]         # past the end: wrap to 0
+```
+
+`owner(0)` is cache 1, and so is `owner(13)`: past 12 the search wraps around to 3. That is all consistent hashing does: it replaces the routing table, the map of who owns what, with a smaller, more elegant one. [[L-0287 L-0288]] Not every system uses a ring for that job. Redis Cluster maps every key to one of 16,384 fixed hash slots and assigns slots to nodes <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/">redis.io</Cite>: chapter 7’s range table again, with 16,384 fixed ranges, where moving a slot moves only its keys. Our build keeps the ring. [[L-0270 L-0300 L-0301]]
+
+</Section>
+
+<Section id="s8-3" no="8.3" title="Cache 5 joins the ring. Which keys change hands?" crumb="8.3 Add, remove">
+
+Scale four nodes to five. Cache 5 hashes to 1 and sits there on the ring. K1, at 0, used to walk clockwise to cache 1; now the first node it meets is cache 5. [[L-0291]] Which other keys change hands? Count them against `% N`: [[L-0292 L-0293]]
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l07-mod-vs-ring" no="Clip 8·1" k="L-0272 L-0273 L-0274 L-0291 L-0292 L-0294"
+  lead="Six keys, add a node. How many move with hash % N, and how many on the ring?"
+  caption="With hash % N every key is rechecked and half of them move; on the ring only the new node’s slice moves, all from one neighbour. On average, % N moves about N/(N+1) of the keys, a ring about 1/(N+1)." />
+</div>
+
+That is the entire benefit of consistent hashing: minimal data transfer when you scale up or down. There is no magic sauce behind it, and it is very simple and beautiful in hindsight. [[L-0294]]
+
+Scaling down is the same move in reverse. Say the cluster is over-provisioned and you remove cache 1 to save money. Its keys now walk on to the next node clockwise, cache 3, and every other key stays put. [[L-0295 L-0296 L-0299]] Graceful: copy cache 1’s data to cache 3, then take cache 1 off the ring. Abrupt: cache 1 dies, and its whole slice lands on cache 3 cold. [[L-0297 L-0298]]
+
+</Section>
+
+<Section id="s8-4" no="8.4" title="Traffic peaks, and you add a blank cache 5" crumb="8.4 No blank nodes">
+
+Back to adding. It is peak traffic, so you start a fresh cache 5 and put it on the ring.
+
+<PauseAndThink k="L-0278 L-0302 L-0303"
+  q="Consistent hashing means only cache 5’s slice changes owner. You add a new, empty cache 5 at peak traffic. Is that enough?"
+  choices={[{ label: 'Yes: the ring takes care of it' }, { label: 'No', correct: true }]}
+  right="Right."
+  wrong="The ring changed the owner. Did anything change the data?">
+
+The ring hands cache 5 its slice the instant it joins, but the data is still on cache 1. Every request in that slice misses, and the misses fall through to the backend at the worst possible moment.
+
+</PauseAndThink>
+
+So the data has to arrive before the ring sends anyone there. [[L-0302 L-0303]] Step through the safe order:
+
+<StepThrough id="fig-8c" no="Fig 8·c" label="Adding cache 5 safely" grow
+  k="L-0302 L-0303 L-0333"
+  stepK={['L-0302', 'L-0303 L-0333', 'L-0303', 'L-0303']}
+  caption="Time runs down. Lanes: the router holding the ring, the new cache 5, cache 1 (which owns the slice today) and the database behind the cache. Blue is a request, red a miss and the load it pushes onto the database, dashed the snapshot copy, green data that is there."
+  steps={[
+    'A <span class="term">blank</span> cache 5 joins at peak. Requests for K1 go to it, <span class="term red">miss</span>, and fall through to the database.',
+    'Instead: take a snapshot of cache 1 and build cache 5 from it.',
+    'Now add cache 5 to the ring: requests for K1 <span class="term green">find their data</span>.',
+    'Then slowly delete the keys cache 1 no longer owns, the slice from 12 to 1.',
+  ]}>
+  <Desk><AddSafely /></Desk>
+  <Phone><AddSafely layout="phone" /></Phone>
+</StepThrough>
+
+For a stateful system this is about as simple as moving data gets: one snapshot of one node, one load. [[L-0333]]
+
+The ring is not perfect, though. You don’t choose where its nodes land, or where keys pile up. And the abrupt case above hasn’t been answered at all: a node that dies takes its data with it.
+
+</Section>

@@ -1,0 +1,127 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import RecallQuestions from '../../../components/RecallQuestions.astro';
+import RecallItem from '../../../components/RecallItem.astro';
+import Cite from '../../../components/Cite.astro';
+import { VirtualNodes, SurviveNode } from '../../../figures/lec07/s6b-consistent-hashing-figs';
+import { SoFarCache } from '../../../figures/lec07/so-far';
+
+{/* Chapter 9 "A box dies. Where are its keys?" Story rewrite: the ring's weak spots (close nodes, hot spots) →
+    virtual nodes, the trade stated once (figure) → a dead node: a replica, or copies on the next nodes; replication
+    factor counted correctly (pause, figure) → a restart: the append-only file → the finished map → Go deeper: DHTs →
+    what you can now do, recall → Lecture 10: data that doesn't fit in memory. */}
+
+<Section id="s9" no="9" title="A box dies. Where are its keys?" crumb="9 A node dies" meta="About 8 min">
+
+The ring tells every router who owns each key, and adding or removing a node moves one slice. Two problems are left over from the last chapter. Hashing decides where nodes and keys land, and it can land them badly. And a node that dies takes its slice of the data with it.
+
+<Figure id="fig-9-sofar" max={640} no="Fig 9·a" caption="Our Redis so far: the single node, and a client and a router in front of many nodes. Marked new: the nodes sit on a ring, and each key belongs to the first node clockwise from its hash.">
+<Desk><SoFarCache stage={5} /></Desk>
+<Phone><SoFarCache stage={5} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s9-1" no="9.1" title="Can the ring go lopsided?" crumb="9.1 Lopsided rings">
+
+It can, in two ways. Nodes can land too close together, because the hash of a node’s id decides where it sits, not you. [[L-0328]] And keys can pile up. A hash-based scheme hands the spread to the hash function and hopes it is uniform enough; with a skewed set of keys or a poor hash, one node runs much hotter than the rest, and you end up adding a node just to dilute it. [[L-0330]] Companies use the ring anyway, because it keeps scaling up and down simple. [[L-0331]] A wider ring doesn’t fix the imbalance, though. It comes from having few points on the circle, whatever its size. [[L-0331]]
+
+The standard fix adds points. With **virtual nodes**, each physical node takes many positions on the ring instead of one, so each owns many small slices spread around it. [[L-0332]] That changes where data moves from. When a node joins or leaves, the total moved is still about 1/N of the data, but it comes from, or goes to, many nodes in small pieces instead of one neighbour in a single copy. [[L-0332 L-0336]]
+
+<Figure id="fig-9b" no="Fig 9·b" k="L-0332 L-0334 L-0336" caption="Where a new node’s data comes from. One position per node: one copy from one neighbour. Virtual nodes: small slices from many nodes, the same total.">
+<Desk><VirtualNodes /></Desk>
+<Phone><VirtualNodes layout="phone" /></Phone>
+</Figure>
+
+Amazon’s Dynamo uses virtual nodes so that a failed node’s load spreads evenly over all the others <Cite href="https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html">Dynamo paper</Cite>. The cost is operational: loading a new node from many sources at once, where the slowest sets the pace and a slice is easy to miss. For a stateful cache some prefer the plain ring: snapshot one node, done. [[L-0334 L-0335 L-0337 L-0353]] Hot partitions, and a case where consistent hashing performs very badly, come later in the course. [[L-0264 L-0276]]
+
+</Section>
+
+<Section id="s9-2" no="9.2" title="Cache 3 dies. Where is its data?" crumb="9.2 Copies">
+
+Cache 3 goes down abruptly. Its keys now walk on to cache 4, which has none of them.
+
+Why care, if a cache may forget? One lost key is one miss. A lost node is a whole slice of misses at once, all falling through to the database: chapter 8’s peak problem, with no snapshot to load. That is why even a cache keeps copies.
+
+The basic answer is the same as for any database: a **replica**. Every node gets a standby copy that takes its place if it dies. It costs another machine for every node, and if availability matters to you, you pay it. [[L-0315]] The ring offers another shape, with no idle standby machines: every node serves traffic and spends some RAM on its neighbours’ copies. Whatever cache 1 owns, cache 3 holds as well; whatever cache 3 owns, cache 4 holds too. If cache 3 dies, cache 4 already has its data and serves its requests. [[L-0316]] That is two copies of every key, a replication factor of 2.
+
+<PauseAndThink k="L-0317"
+  q="Each key is stored on the node that owns it and on the next two nodes clockwise. What is the replication factor?"
+  choices={[{ label: '2: two extra copies' }, { label: '3', correct: true }]}
+  right="Right."
+  wrong="Count every copy.">
+
+Three. The replication factor counts every copy of a key, the owner’s included. In Dynamo each key lives on N nodes, its owner and the next N − 1 clockwise, and Cassandra’s “replication factor 3” likewise means three copies.
+
+</PauseAndThink>
+
+<Figure id="fig-9c" no="Fig 9·c" k="L-0315 L-0316 L-0317" caption="Two ways to survive a node: a standby replica per node, or copies on the next nodes of the ring.">
+<Desk><SurviveNode /></Desk>
+<Phone><SurviveNode layout="phone" /></Phone>
+</Figure>
+
+Either way it is redundancy, and redundancy is how you get availability: when a node goes down, you know where its data is and can rebuild the node from it. It is standard practice, even for a cache. [[L-0318]] It also means cache 1 needn’t delete the keys it handed to cache 5 in chapter 8: with copies on the next nodes, they are copies it would hold anyway. [[L-0352]]
+
+</Section>
+
+<Section id="s9-3" no="9.3" title="And when a node only restarts?" crumb="9.3 The AOF">
+
+Copies cover a node that is gone. A node that merely reboots comes back with empty RAM: a whole slice of misses again, unless it gets its own data back. Redis can keep an **append-only file**, the AOF (it is off by default; periodic snapshots are the default): every write is appended to a file on disk, and after a restart Redis replays the file to rebuild memory. It is chapter 2’s idea turned inward: a log you append to and replay, read by the node itself instead of a CDC tool. [[L-0319]] An append-only file is the standard way to make data *durable*. [[L-0320]] Two details matter in practice, and <LectureLink lec="lec04" sec="s3">Lecture 1</LectureLink> met the second one. Redis appends each command after running it, so the AOF is a log of what happened rather than a write-ahead log. And by default it flushes to disk once a second, so a crash can lose about a second of writes; flushing on every write is safer and much slower. [[L-0319]]
+
+<Figure id="fig-9d" max={640} no="Fig 9·d" caption="Our Redis, finished. One node: a resp port, one thread, a hash table of MyValue wrappers with type, eviction bits and expiry, and zmalloc under maxmemory. Many nodes on a ring behind a router. Marked new: a replica pulling from a node, and an append-only file on each node’s disk.">
+<Desk><SoFarCache stage={6} /></Desk>
+<Phone><SoFarCache stage={6} layout="phone" /></Phone>
+</Figure>
+
+Step back and look at what you built. It is a hash table spread over machines, with a rule that tells anyone where each key lives. Take away the router, so that any node can point you onward, and it has a general name: a **distributed hash table**, the design behind BitTorrent’s trackerless mode and IPFS. [[L-0304 L-0307 L-0314]]
+
+</Section>
+
+<Section id="s9-4" no="9.4" title="What you can now do" crumb="9.4 What you can do">
+
+- **Keep a copy complete** by reading the database’s log with CDC: it resumes from a checkpoint, delivers at least once (write with upserts) and is eventually consistent. Events for application context; Spark for joins.
+- **Store values on a budget:** a hash table of keys pointing at a small wrapper with a value pointer, a 4-bit type and room for per-key metadata.
+- **Know how full you are:** count every byte in one wrapper around `malloc` and check the cap before allocating. Never ask the OS on every write.
+- **Evict for the key’s life.** Price the textbook LRU list in bytes (12–24 per key). Random keeps nothing; sampled LRU or LFU costs a few bits. LRU for keys that spike and fade, LFU when the past predicts the future or scans would flush it.
+- **Expire without a queue:** an absolute expiry per key, an index of keys that have one, lazy deletion on read, sampling for the rest.
+- **Talk and take turns cheaply:** a lean protocol on a kept-open connection; one thread makes the node correct without locks, and more copies use the other cores.
+- **Route** with a proxy, a smart client, forwarding or a redirect: hops against what the client must know.
+- **Grow without moving everything.** `% N` moves about N/(N+1) of the keys; a ring moves one slice. Load a new node from a snapshot before it joins.
+- **Keep copies even of a cache:** a lost node is a slice of misses at once. Copies on the next nodes cover a death (count every copy for the replication factor); an append-only file covers a restart.
+
+<RecallQuestions>
+  <RecallItem q="An API server saves a new post and crashes before it publishes its Kafka event. Which copy of the data misses the post, and why doesn’t a CDC copy?" k="L-0028 L-0031 L-0034">
+
+The copy fed by Kafka events misses it: the row was saved but its event never left, and nothing reports an error. A CDC tool reads the database’s own log, where the committed row is, so the copy gets it whether or not any event was published.
+
+  </RecallItem>
+  <RecallItem q="Your cache must stay under 1 GB. Why can’t it add sizeof(MyValue) per key to a counter, and what does it do instead?" k="L-0112 L-0120 L-0122">
+
+`sizeof` measures only the wrapper, a pointer and a type. The set or Bloom filter it points to is allocated separately and can be megabytes. Instead, every allocation goes through one wrapper around `malloc` that adds the bytes to `total_size` (and every `free` subtracts them), so the count includes everything the cache holds.
+
+  </RecallItem>
+  <RecallItem q="A news site and an encyclopedia each put a cache in front of their pages. Which eviction policy fits each, and what would a nightly scan do to the wrong one?" k="L-0165 L-0168 L-0172">
+
+News: LRU, since stories are read hard for a day or two and then forgotten. The encyclopedia: LFU, since pages popular in the past stay popular. Under LRU, a scan that reads every article once makes them all “recent” and pushes the popular pages out; under LFU each scanned page has a count of one and can’t displace them.
+
+  </RecallItem>
+  <RecallItem q="You add a fifth node to a ring of four during peak traffic. What do you do, in order, and why not just add it?" k="L-0302 L-0303">
+
+Snapshot the node that owns the new node’s slice today, build the new node from the snapshot, add it to the ring, then delete the moved keys from the old owner. Added empty, it would own the slice with none of the data, so every request in it would miss and fall through to the database at the worst moment.
+
+  </RecallItem>
+</RecallQuestions>
+
+</Section>
+
+<Section id="s9-5" no="9.5" title="Everything here fits in RAM. What if it doesn’t?" crumb="9.5 Next">
+
+Our Redis keeps everything in memory, and leans on a file only to come back after a restart. That choice is why it is fast, and it is also its limit: RAM is the most expensive thing you own, and it is gone when the power goes.
+
+<LectureLink lec="lec10">Lecture 10</LectureLink> turns it around. It starts with a terabyte dictionary and no database allowed: the data no longer fits in memory and must survive restarts, so it lives in files, and you build two storage engines out of nothing but files on a disk. Append-only files come back there, in a much bigger role than a restart log. [[L-0376]]
+
+</Section>

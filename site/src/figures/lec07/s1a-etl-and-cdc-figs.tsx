@@ -259,7 +259,7 @@ export function EventLeaks({ layout = 'desk' }: { layout?: Layout }) {
 /* ------------------------------------------------------------------ Fig 1·c */
 
 const DESC_1C =
-  'Change data capture. The reader, the API server and MongoDB are unchanged. Under MongoDB sits its log (oplog or binlog). A CDC tool, drawn as a stack of instances (Airbyte, Debezium), reads that log (dashed arrow, the tool starts it), applies an optional transform, and writes the rows into MySQL in your format (green). Other sinks are possible: Kafka, SQS, Kinesis, local disk. Inset: in a Blogs table, an insert, an update and a delete each produce one CDC event, one per changed row.';
+  'Change data capture. The reader, the API server and MongoDB are unchanged. Under MongoDB sits its log, the oplog, which CDC tools read through change streams. A CDC tool, drawn as a stack of instances (Airbyte, Debezium), reads that log (dashed arrow, the tool starts it), applies an optional transform, and writes the rows into MySQL in your format (green). Other sinks are possible: Kafka, SQS, Kinesis, local disk. Inset: in a Blogs table, an insert, an update and a delete each produce one CDC event, one per changed row.';
 
 function BlogsInset({ x, y, id }: { x: number; y: number; id: string }) {
   return (
@@ -291,7 +291,7 @@ export function CdcReads({ layout = 'desk' }: { layout?: Layout }) {
         <Label kind="mono" anchor="start" x={246} y={40} size={13}>mongodb</Label>
         <LogStrip x={168} y={84} w={84} cells={6} seed={s('log')} />
         <Line pts={[[210, 74], [210, 84]]} weight="thin" seed={s('att')} />
-        <Label kind="mono" anchor="start" x={258} y={98} size={13}>binlog</Label>
+        <Label kind="mono" anchor="start" x={258} y={98} size={13}>oplog</Label>
         <Fleet x={150} y={168} w={110} h={38} n={3} countLabel={false} seed={s('cdc')} />
         <Label kind="mono" x={205} y={184}>cdc</Label>
         <Line pts={[[156, 192], [254, 192]]} weight="thin" seed={s('band')} />
@@ -320,7 +320,7 @@ export function CdcReads({ layout = 'desk' }: { layout?: Layout }) {
       <Label kind="mono" anchor="start" x={368} y={50}>mongodb</Label>
       <Line pts={[[326, 87], [326, 104]]} weight="thin" seed={s('att')} />
       <LogStrip x={274} y={104} w={104} cells={6} seed={s('log')} />
-      <Label kind="mono" anchor="start" x={386} y={118}>oplog / binlog</Label>
+      <Label kind="mono" anchor="start" x={386} y={118}>oplog</Label>
       <Fleet x={262} y={210} w={124} h={42} n={3} countLabel={false} seed={s('cdc')} />
       <Label kind="mono" x={324} y={228}>cdc</Label>
       <Line pts={[[268, 236], [380, 236]]} weight="thin" seed={s('band')} />
@@ -360,7 +360,7 @@ function LogPanel({ id }: { id: string }) {
   return (
     <g>
       <Cyl cx={62} top={22} rx={32} ry={8} h={42} seed={`${id}-db`} />
-      <Label kind="mono" anchor="start" x={70} y={96} size={13}>binlog</Label>
+      <Label kind="mono" anchor="start" x={70} y={96} size={13}>log</Label>
       <Line pts={[[62, 80], [62, 104]]} weight="thin" seed={`${id}-att`} />
       <Box x={142} y={30} w={76} h={34} label="cdc" seed={`${id}-cdc`} />
       <Arrow pts={[[180, 64], [180, 102]]} dashed seed={`${id}-reads`} />

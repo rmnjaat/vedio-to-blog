@@ -1,0 +1,93 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { DayZero, EventLeaks, CdcReads } from '../../../figures/lec07/s1a-etl-and-cdc-figs';
+import { SoFarCopy } from '../../../figures/lec07/so-far';
+
+{/* Chapter 1 "The analysts need a copy of production. What could it miss?" Story rewrite: Lecture 2's publish event
+    → day zero, dashboards on prod → analysts, PII, SQL → a copy that must be complete → the Kafka pipeline (pause)
+    → four leaks (figure) → change data capture: read the source of truth (figure, clip) → try it. */}
+
+<Section id="s1" no="1" title="The analysts need a copy of production. What could it miss?" crumb="1 The analysts’ copy" meta="About 6 min">
+
+In <LectureLink lec="lec01" sec="s3-4">Lecture 2</LectureLink> the blog grew a Kafka pipeline. Publishing a post put one event into a topic, and the search service read it at its own pace. That pipeline is still running. Now the company wants something new from the same data, and the first question is whether those events can carry it.
+
+<Figure id="fig-1-sofar" max={640} no="Fig 1·a" caption="The blog so far: the API server writes the production database and, when a post goes live, publishes an event that a consumer copies onward.">
+<Desk><SoFarCopy stage={0} /></Desk>
+<Phone><SoFarCopy stage={0} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s1-1" no="1.1" title="Why not point a dashboard at production?" crumb="1.1 Day zero">
+
+Until now the blog’s numbers, blogs published, active users, likes in the first hour, have come from a dashboard tool such as Grafana or Metabase firing its queries straight at production. [[L-0013 L-0014 L-0015]]
+
+<Figure id="fig-1b" max={620} no="Fig 1·b" k="L-0012 L-0015 L-0018" caption="Day zero. Readers reach the database only through the API; the dashboard fires its queries straight at production, which holds personal data. The dashed path is the usual first step away from that: point the dashboard at a replica.">
+<Desk><DayZero /></Desk>
+<Phone><DayZero layout="phone" /></Phone>
+</Figure>
+
+As a rule of thumb from experience, that works for a young company, up to roughly 10,000 to 50,000 users, especially once the dashboards move to a read replica so heavy queries don’t slow the app. [[L-0016 L-0015]] Then the CEO wants detailed reports and hires analysts. [[L-0017]] Handing them production, even a read-only replica, is risky: it holds everyone’s personal data. [[L-0018]] And production is MongoDB, chosen because it suited the app, while analysts work in SQL, and so does every warehouse. [[L-0019 L-0020 L-0021 L-0022]]
+
+So the company decides to build a copy: take the data out of MongoDB and put it into MySQL, the SQL database it knows. [[L-0023]] The copy has one hard requirement. It need not be real time, but it must be complete, consistent with production eventually. The analysts never see production, so a wrong copy means decisions made on wrong data. [[L-0025]]
+
+</Section>
+
+<Section id="s1-2" no="1.2" title="Kafka already carries the blog’s events. Is that enough?" crumb="1.2 Events">
+
+You already know Kafka, so the natural design writes itself. Whenever a blog is published, the API server publishes an event, and a consumer reads it and writes it into MySQL. [[L-0024]]
+
+<PauseAndThink k="L-0025 L-0026 L-0028 L-0034 L-0346"
+  q="Kafka never loses a message in this design, and every consumer keeps up. Can the analysts’ copy still end up missing changes?"
+  choices={[{ label: 'No: if Kafka keeps every event, the copy is complete' }, { label: 'Yes', correct: true }]}
+  right="Right."
+  wrong="Kafka can only deliver what somebody published.">
+
+List what changes the database, not what the API announces. A reader opens a post and its view count goes up by one: no event. A background job that periodically recounts the likes on a post never goes through the API at all. And an API server that saves a row and crashes before it publishes has lost that event for good.
+
+</PauseAndThink>
+
+<Figure id="fig-1c" max={680} no="Fig 1·c" k="L-0024 L-0026 L-0027 L-0028 L-0049 L-0346" caption="The event pipeline and the four places its copy drifts: ① changes that have no event, ② events too thin to use, ③ a save whose event never leaves, ④ a new table nobody wired up.">
+<Desk><EventLeaks /></Desk>
+<Phone><EventLeaks layout="phone" /></Phone>
+</Figure>
+
+The root of ① is what an event is. Events belong to the application: “blog published” carries the context of one use case, and the minor changes, a `views++`, never get one. The analysts want the opposite, raw data, every row as it is. [[L-0026 L-0346]]
+
+② bites even when the event exists. If it carries only the blog’s id, the consumer has to read the rest back from the database, which adds load on the very database you were protecting. Put the whole blog in the event instead and every message gets large. [[L-0027]]
+
+③ has a name: a *dual write*. Saving the row and publishing the event are two writes to two systems with no transaction spanning both, so one can succeed without the other. [[L-0028]] <LectureLink lec="lec06" sec="s4-3">Lecture 8</LectureLink>’s photo change did exactly this: write the database, then put an event on Kafka for the worker that purges the CDN. And ④ is slow and certain. Every new table means remembering to add its event, and one day somebody won’t. [[L-0049]]
+
+None of the four raises an error. The copy just drifts, and nobody notices. Events through Kafka look like the obvious answer, and they are not. [[L-0028]]
+
+</Section>
+
+<Section id="s1-3" no="1.3" title="What if the copy read the database itself?" crumb="1.3 Change data capture">
+
+Look at where all four changes land: the view count, the likes job, the crashed save, the new table. Every one of them is in the database. So read the changes from there. That is **change data capture**, or CDC: any change in the data is captured. Instead of trusting events from the API server, a CDC tool relies on the actual source of truth, the database itself. [[L-0029 L-0031]]
+
+A CDC tool typically lets you configure three things: a source, a transformation and a sink. It pulls changes out of the source and writes them into the sink in the format you want. [[L-0032]] A change your application never announced is still captured, and an API server that crashes before publishing loses nothing, because the copy never depended on its event. [[L-0033 L-0034]] Every insert, update or delete on a `Blogs` table becomes one change event, one per changed row. [[L-0041]]
+
+<Figure id="fig-1d" max={680} no="Fig 1·d" k="L-0029 L-0031 L-0032 L-0041 L-0042" caption="The same app with CDC. The tool reads the database’s log (dashed: the tool starts the read), optionally transforms each change, and writes it into MySQL in your format. Inset: three changes to Blogs, three events.">
+<Desk><CdcReads /></Desk>
+<Phone><CdcReads layout="phone" /></Phone>
+</Figure>
+
+Run both pipelines side by side on four changes:
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l07-events-vs-cdc" no="Clip 1·1" k="L-0026 L-0028 L-0033 L-0034 L-0040 L-0065 L-0346"
+  lead="The API saves a post and crashes before publishing. A worker bumps a like count with no event at all. Which copy ends up complete?"
+  caption="The event copy gets one change in four. CDC reads the database’s log and gets all four, even the one made while the tool itself was stopped." />
+</div>
+
+CDC is a good way to build replication between databases, with a light transformation in between. [[L-0042 L-0043]] Two open-source tools are worth knowing: Debezium, built for exactly this, and Airbyte, a general data-movement tool with a CDC mode, which the lecture found the easier of the two to set up. Install one and watch what a change looks like when it arrives. [[L-0030]]
+
+The clip glossed over two things. “Reads the database” has to mean something concrete. And the tool was stopped for a while, yet still caught up. How?
+
+</Section>

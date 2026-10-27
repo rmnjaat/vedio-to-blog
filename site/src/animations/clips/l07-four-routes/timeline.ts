@@ -6,7 +6,7 @@ export const DURATION = 1182; // 39.4 s (B6 holds 3.5 s: its 57-character captio
 
 export const BEAT = {
   intro: 0,
-  proxy: 96, // ① the peon at the door
+  proxy: 96, // ① the runner at the door
   smart: 312, // ② the regular customer
   forward: 490, // ③ the nearest desk forwards
   redirect: 700, // ④ "go to counter 13"
@@ -73,7 +73,7 @@ export const PANELS: PanelEv[] = [
 ];
 
 export const EV = {
-  bribe: [242, 20] as Span, // `the bribe` under the proxy
+  bribe: [242, 20] as Span, // `the fee` under the proxy
   noHop: [414, 22] as Span, // `no middle hop`
   goTo: [784, 26] as Span, // `c1: go to c2`
   move: [954, 40] as Span, // the job moves c2 → c3 (dashed)
@@ -87,9 +87,9 @@ export type Cue = {from: number; step?: number; color?: 'blue' | 'red' | 'green'
 
 export const CAPTIONS: Cue[] = [
   {from: BEAT.intro, text: 'Four ways to reach desk c2, which holds the key kiwi.'},
-  {from: BEAT.proxy, step: 1, color: 'blue', text: 'The peon at the door: you talk only to the proxy.'},
+  {from: BEAT.proxy, step: 1, color: 'blue', text: 'The runner at the door: you talk only to the proxy.'},
   {from: BEAT.smart, step: 2, color: 'blue', text: 'The regular customer walks straight to the right desk.'},
-  {from: BEAT.forward, step: 3, color: 'blue', text: 'No peon: the nearest desk forwards it and relays the answer.'},
+  {from: BEAT.forward, step: 3, color: 'blue', text: 'No runner: the nearest desk forwards it and relays the answer.'},
   {from: BEAT.redirect, step: 4, color: 'blue', text: 'Redirect: the desk says “go to c2”, and you go there yourself.'},
   {from: BEAT.moved, color: 'red', text: "c2's job moves to c3. The smart client's table is now stale."},
   {from: BEAT.end, text: 'The smart client saves a hop but must hear every change.'},
@@ -136,5 +136,5 @@ export const META = {
   chapters: CHAPTERS,
   captions: CAPTIONS,
   alt:
-    'Four panels, each a client and three desks c1, c2 and c3; the key kiwi lives on c2, and the same request plays in each panel in turn while a counter adds one leg per message. Proxy, the peon at the door: the client talks only to the proxy, which asks c2 and passes the answer back: 4 legs, 1 round trip for the client, and the extra hop is the bribe. Smart client, the regular customer: the client keeps the table kiwi → c2 and goes straight there: 2 legs, no middle hop. Forwarding: the client goes to the nearest desk c1, which forwards to c2 and relays the answer: 4 legs, 1 round trip. Redirect: c1 answers "go to c2" (the bank\'s "go to counter 13") and the client goes there itself: 4 legs and 2 round trips. Then c2\'s job moves to c3: the smart client\'s table is now stale and its old route fails. The smart client saves a hop but must hear about every change.',
+    'Four panels, each a client and three desks c1, c2 and c3; the key kiwi lives on c2, and the same request plays in each panel in turn while a counter adds one leg per message. Proxy, the runner at the door: the client talks only to the proxy, which asks c2 and passes the answer back: 4 legs, 1 round trip for the client, and the extra hop is the fee. Smart client, the regular customer: the client keeps the table kiwi → c2 and goes straight there: 2 legs, no middle hop. Forwarding: the client goes to the nearest desk c1, which forwards to c2 and relays the answer: 4 legs, 1 round trip. Redirect: c1 answers "go to c2" (the bank\'s "go to counter 13") and the client goes there itself: 4 legs and 2 round trips. Then c2\'s job moves to c3: the smart client\'s table is now stale and its old route fails. The smart client saves a hop but must hear about every change.',
 };

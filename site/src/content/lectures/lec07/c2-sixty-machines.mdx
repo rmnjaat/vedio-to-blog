@@ -1,0 +1,105 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { TwoWays } from '../../../figures/lec07/s1a-etl-and-cdc-figs';
+import { Tiers, SixtyToTwo } from '../../../figures/lec07/s1b-etl-and-cdc-figs';
+import { SoFarCopy } from '../../../figures/lec07/so-far';
+
+{/* Chapter 2 "The tool stopped and still caught up. How?" Revision 2: answers chapter 1's question first →
+    rows or the log (figure), what each database exposes, the first snapshot → the checkpoint: resume, at least once,
+    commit order, read through the client, from a replica → raw data vs application context, the outbox, many tiers
+    (figure), batching → the sixty machines (figure; told as one engineer's consulting experience) → what CDC won't
+    do → hand-off to Part 2: the copy every request reads. */}
+
+<Section id="s2" no="2" title="The tool stopped and still caught up. How?" crumb="2 Catching up" meta="About 7 min">
+
+Chapter 1 left two questions. What does a CDC tool actually read when it “reads the database”? And how did it catch up after being stopped? The answers are a log and a bookmark in it, and together they decide what CDC can promise, and what it can’t.
+
+<Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The blog so far. Marked new: a CDC tool that reads the database’s own log and writes every change into the copy.">
+<Desk><SoFarCopy stage={1} /></Desk>
+<Phone><SoFarCopy stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s2-1" no="2.1" title="What does “read the database” actually mean?" crumb="2.1 Rows or the log">
+
+There are two ways to read a database’s changes. The first is to iterate its tables, row by row, again and again. [[L-0036]] That works, but only up to a point. A table needs a column such as `last_updated` to tell what changed since the last pass, a row deleted between two passes is simply gone, and two updates between passes look like one. [[L-0036]]
+
+The second is the log. Every commit a database makes is also recorded in a log of changes: PostgreSQL’s write-ahead log, or MySQL’s binary log, the binlog, a replication log kept apart from InnoDB’s own redo log. The CDC tool reads that log and pushes the changes onwards. [[L-0037]]
+
+<Figure id="fig-2b" max={640} no="Fig 2·b" k="L-0036 L-0037 L-0038 L-0072" caption="Left: scanning rows sees only what is still there, so a row deleted between scans never reaches the copy. Right: tailing the log sees every commit in order and remembers how far it got; c5 and c6 are one transaction, written together at commit.">
+<Desk><TwoWays /></Desk>
+<Phone><TwoWays layout="phone" /></Phone>
+</Figure>
+
+Which one you get depends on what the database exposes. MySQL has its binlog, PostgreSQL has logical decoding, and MongoDB exposes its oplog through change streams, which need a replica set. A store with no change log, such as Elasticsearch, can only be scanned again. [[L-0038]] For you it hardly matters: you configure a source, a sink and a transformation, and the data flows. [[L-0039]]
+
+One detail at the start. A log doesn’t hold the database’s whole history, so a CDC tool begins with a snapshot, a full read of each table, and then streams changes from the log position it noted at that moment. [[L-0035]]
+
+</Section>
+
+<Section id="s2-2" no="2.2" title="The tool stops for a while. Where does it pick up?" crumb="2.2 Checkpoint">
+
+At heart, a CDC tool keeps track of three things: what it is reading, where it is writing, and how far it has got, its **checkpoint**. [[L-0055 L-0035]] Stop the tool, or lose the source database for a while, and nothing is captured in the meantime. When both are back, the tool resumes from its checkpoint and reads everything the log gathered while it was away. [[L-0040]] It only works while the log still holds those changes, so a tool that stays down long enough to fall off the end of the log has to take a fresh snapshot. [[L-0040]]
+
+<PauseAndThink k="L-0040 L-0065"
+  q="The CDC tool copies a change into MySQL, then crashes before it saves its new checkpoint. When it restarts, what does MySQL see?"
+  choices={[{ label: 'Nothing new: the change is already there' }, { label: 'The same change again', correct: true }]}
+  right="Right."
+  wrong="The checkpoint is all the tool remembers.">
+
+The checkpoint still points before that change, so the tool reads it again and writes it again. A checkpoint prevents loss, not duplicates: consumers see every change at least once. So make the sink apply a change idempotently, for example as an upsert by primary key, and a repeat does no harm.
+
+</PauseAndThink>
+
+The checkpoint is what makes CDC lossless, and it reads the log in order. A transaction may run ten statements, but they reach the log together when it commits, and transactions land in the log in the order they commit, so CDC reads them in that order. What arrives at the sink is a little weaker: one event per changed row, not one per transaction. Debezium, for example, keeps order per table, not across tables, unless you ask it for transaction markers. [[L-0065 L-0072 L-0073]]
+
+Where should the tool read from? The plainest way is through the database’s own client. It beats parsing raw log files, because if the log’s format changes, the client still decodes it and your plugin needs no update. [[L-0054 L-0056]] It is a sequential read, so it puts little load on the database. [[L-0057]] You can take even that off the primary: spin up a replica and point the tool at it, where the database allows it. A MySQL replica must write its own binlog (`log_replica_updates`, on by default), and PostgreSQL allows logical decoding on a standby only from version 16. One replica is enough, since every replica holds the same data. [[L-0058 L-0342]]
+
+</Section>
+
+<Section id="s2-3" no="2.3" title="Should every Kafka event become CDC?" crumb="2.3 CDC or events">
+
+One company answered that question with more than sixty machines: its API pushed every update to Kafka, and consumers wrote each one into another database. [[L-0060 L-0061]] Hold that number for 2.4. Many designs in this course had the API push to Kafka, and many could use CDC instead; neither is better in general. [[L-0045]] The line between them is this. When you are moving **raw data**, use CDC. When you need **application context**, the fact that *this* happened on the API server, have the API publish an event. [[L-0046]] The two even combine: the API writes its event as a row in an “outbox” table in the same transaction as the business data, and CDC carries that row to Kafka. You get the context without the dual write. [[L-0046]]
+
+Raw data has more than one destination. Take a transactional store in MySQL, as in the figure: CDC keeps it in sync with Elasticsearch for search, copies it into a warehouse such as Redshift for the analysts, and from there into S3 as a backup. [[L-0047 L-0048 L-0051 L-0052]] One CDC can often feed several sinks (Debezium writes once to Kafka topics that many sink connectors read; an Airbyte connection, by contrast, links one source to one destination), though a transformation per sink makes it hungrier for memory. [[L-0374 L-0375]]
+
+<Figure id="fig-2c" max={700} no="Fig 2·c" k="L-0047 L-0048 L-0051 L-0374 L-0375" caption="One source, many tiers: CDC keeps search and the warehouse in sync with MySQL, and copies the warehouse to S3 for backup.">
+<Desk><Tiers /></Desk>
+<Phone><Tiers layout="phone" /></Phone>
+</Figure>
+
+Raw data has one more advantage: CDC can fetch and write rows in bulk, while one event per published blog, consumed one at a time, moves the same data far more slowly. [[L-0050]]
+
+</Section>
+
+<Section id="s2-4" no="2.4" title="Sixty machines, one simple transformation" crumb="2.4 Sixty to two">
+
+Back to the sixty machines. This is a consulting case, as the engineer who advised them tells it. Their API servers pushed every single update to Kafka. A fleet of consumers read each event, applied a very simple transformation, and wrote it to the other database: one read and one write at a time. They could have batched, and didn’t, “because that’s how they thought systems are built”. Keeping up took more than sixty consumers, sixty machines with 32 GB each. [[L-0060 L-0061]]
+
+<Figure id="fig-2d" max={640} no="Fig 2·d" k="L-0053 L-0060 L-0061 L-0062 L-0064" caption="Before: every update one Kafka event, one read and one write, on more than sixty machines, and silently out of sync. After: a CDC tool on two machines, writing in batches.">
+<Desk><SixtyToTwo /></Desk>
+<Phone><SixtyToTwo layout="phone" /></Phone>
+</Figure>
+
+The transformation was simple, and both databases had Airbyte plugins. So the advice was to configure a simple CDC in Airbyte, put the transformation there, and write straight into the other database. Sixty machines and a Kafka became two ordinary EC2 instances, and that subsystem’s infrastructure cost fell by about 80%. [[L-0062 L-0053 L-0059]] Nothing got slower: by that account, replication lag dropped to a bare minimum, because these tools fetch in parallel and are heavily optimised for small transformations. [[L-0063]]
+
+The bigger finding was the data. The old pipeline had been losing changes all along. The two databases were out of sync, nobody knew, and when it was pointed out the plan was a cron job to resync them now and then. With CDC they stopped losing data. [[L-0064]]
+
+Would batching the events alone have fixed it? It would have been less bad. But one event at a time was the simplest thing to write, and as the company scaled nobody went back to it. Every company has a service nobody touches. [[L-0066 L-0067]]
+
+</Section>
+
+<Section id="s2-5" no="2.5" title="What CDC won’t do, and the copy it can’t make" crumb="2.5 Limits">
+
+CDC is asynchronous, so it is eventually consistent: it never promises that the copy matches the source at this instant. Where you need strong consistency, you need synchronous processing, and CDC can’t give you that. [[L-0068 L-0069]] Nor is it a transformation engine. Joins across many tables, aggregations, multi-step jobs: that is what Apache Spark is for. CDC is for the simple case: take what was written, extract it, put it somewhere, with a light transformation. [[L-0074 L-0075 L-0076 L-0044]]
+
+So the blog now has copies it can trust: search, the warehouse, a backup, each complete and a little behind production. None of them is what your API servers read on every request. That copy is the shared cache from <LectureLink lec="lec04" sec="s8-2">Lecture 1</LectureLink>, the box in front of the database, and it has the opposite job. It doesn’t need every row, only the hot ones. It isn’t there to be complete; it is there to be fast, answering from memory. And it may drop a key whenever it likes, because the database still has it: a lost key costs one miss, not data. [[L-0156]]
+
+Every read on the blog goes to that box first, and you can’t yet answer three questions about it: how it knows it is full, what it throws away, and what happens when one machine isn’t enough. Lecture 1 promised the course would build it. Build it, and find out.
+
+</Section>

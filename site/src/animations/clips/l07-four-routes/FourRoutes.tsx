@@ -322,7 +322,7 @@ export const FourRoutes: React.FC<FourRoutesProps> = ({theme, layout = 'wide'}) 
               <Count G={G} p={p} frame={frame} />
 
               {/* ===== annotations ===== */}
-              {p.i === 0 ? <Write x={p.px + L.bribe[0]} y={p.py + L.bribe[1]} text="the bribe" size={TS} anchor="middle" progress={ramp(frame, ...EV.bribe)} /> : null}
+              {p.i === 0 ? <Write x={p.px + L.bribe[0]} y={p.py + L.bribe[1]} text="the fee" size={TS} anchor="middle" progress={ramp(frame, ...EV.bribe)} /> : null}
               {p.i === 1 ? <Write x={p.px + L.under[0]} y={p.py + L.under[1]} text="no middle hop" size={TS} anchor="middle" progress={ramp(frame, ...EV.noHop)} /> : null}
               {p.i === 3 ? <Write x={p.px + L.under[0]} y={p.py + L.under[1]} text="c1: go to c2" size={TS} anchor="middle" progress={ramp(frame, ...EV.goTo)} /> : null}
 

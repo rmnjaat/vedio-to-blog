@@ -60,16 +60,16 @@ export function VirtualNodes({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l7-f6g-p' : 'l7-f6g';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Virtual nodes: where a new node’s data comes from';
-  const desc = 'Left, one token per node: four nodes on the ring and a new node at one position; its keys come from one neighbour, the next node clockwise, in one copy. Right, virtual nodes: each of c1 to c4 sits at three places on the ring, and the new node also sits at three places, so it copies three small slices from three different nodes. The total is the same, about 1/N of the data, but it comes from many sources. In the lecture’s view that means more places to copy from and harder operations; the Dynamo paper’s view is that the load spreads evenly across the other nodes.';
+  const desc = 'Left, one token per node: four nodes on the ring and a new node at one position; its keys come from one neighbour, the next node clockwise, in one copy. Right, virtual nodes: each of c1 to c4 sits at three places on the ring, and the new node also sits at three places, so it copies three small slices from three different nodes. The total is the same, about 1/N of the data, but it comes from many sources. That buys smoother balance, since the load spreads evenly across the other nodes, and costs harder operations: many streams to coordinate instead of one copy.';
   if (P)
     return (
       <Fig id={id} w={340} h={712} title={title} desc={desc}>
         <OneToken x0={10} y0={0} s={s} />
         <Line pts={[[30, 312], [310, 312]]} seed={s('div')} className="faint" />
         <Virtual x0={10} y0={318} s={s} />
-        <Label anchor="start" x={14} y={644}>the lecture: more places to copy</Label>
-        <Label anchor="start" x={14} y={662}>from, harder to run</Label>
-        <Label muted anchor="start" x={14} y={688}>Dynamo: load spreads evenly</Label>
+        <Label anchor="start" x={14} y={644}>cost: many streams to run</Label>
+        <Label anchor="start" x={14} y={662}>instead of one copy</Label>
+        <Label muted anchor="start" x={14} y={688}>gain: load spreads evenly</Label>
         <Label muted anchor="start" x={14} y={706}>across the others</Label>
       </Fig>
     );
@@ -78,8 +78,8 @@ export function VirtualNodes({ layout = 'desk' }: { layout?: Layout }) {
       <OneToken x0={10} y0={0} s={s} />
       <Line pts={[[340, 20], [340, 280]]} seed={s('div')} className="faint" />
       <Virtual x0={350} y0={0} s={s} />
-      <Label x={340} y={338}>the lecture: more places to copy from, harder to run</Label>
-      <Label muted x={340} y={362}>Dynamo: load spreads evenly across the others</Label>
+      <Label x={340} y={338}>cost: many streams to run instead of one copy</Label>
+      <Label muted x={340} y={362}>gain: the load spreads evenly across the others</Label>
     </Fig>
   );
 }
@@ -204,8 +204,8 @@ function CopiesPanel({ x0, y0, s }: { x0: number; y0: number; s: (k: string) => 
       <Label kind="mono" anchor="end" x={g.cx - 12} y={g.cy - g.r - 6}>K</Label>
       <Label tone="green" x={g.cx} y={g.cy + 4}>owner +</Label>
       <Label tone="green" x={g.cx} y={g.cy + 22}>next two</Label>
-      <Label kind="mono" x={x0 + 160} y={y0 + 222}>RF = 3 by the usual count</Label>
-      <Label muted x={x0 + 160} y={y0 + 242}>(“RF 2” as said in class)</Label>
+      <Label kind="mono" x={x0 + 160} y={y0 + 222}>replication factor 3</Label>
+      <Label muted x={x0 + 160} y={y0 + 242}>three copies in all</Label>
       <Label kind="title" x={x0 + 160} y={y0 + 268}>copies on the next nodes</Label>
     </g>
   );
@@ -216,7 +216,7 @@ export function SurviveNode({ layout = 'desk' }: { layout?: Layout }) {
   const id = P ? 'l7-f6i-p' : 'l7-f6i';
   const s = (k: string) => `${id}-${k}`;
   const title = 'Two ways to survive a node';
-  const desc = 'Left: cache 1 with a dashed replica that pulls its data; if cache 1 goes down the standby takes over, at the cost of one more node to run. Right: the ring with key K at 0; its owner c1 and the next two nodes clockwise, c3 and c4, are ringed: each holds a copy. That is a replication factor of 3 by the usual count, called RF 2 in class.';
+  const desc = 'Left: cache 1 with a dashed replica that pulls its data; if cache 1 goes down the standby takes over, at the cost of one more node to run. Right: the ring with key K at 0; its owner c1 and the next two nodes clockwise, c3 and c4, are ringed: each holds a copy. Three copies in all: a replication factor of 3.';
   if (P)
     return (
       <Fig id={id} w={340} h={572} title={title} desc={desc}>

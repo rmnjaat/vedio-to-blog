@@ -40,7 +40,7 @@ export function RuleSourceOfTruth({ layout = 'desk' }: { layout?: Layout }) {
 /* ------------------------------------------------------------------ Fig 1·e */
 
 const DESC_1E =
-  'One source, many tiers. Four columns: transactional (MySQL), search (Elasticsearch), analytics (Redshift) and backup (S3). One CDC reads MySQL and writes Elasticsearch; a second CDC reads MySQL and writes Redshift; a third reads Redshift and writes S3. Dashed arrows are the reads, started by the CDC tool; green arrows are the writes. The first two could be one CDC with two sinks, at the cost of one transform per sink and more memory. Tiered storage is only introduced here.';
+  'One source, many tiers. Four columns: transactional (MySQL), search (Elasticsearch), analytics (Redshift) and backup (S3). One CDC reads MySQL and writes Elasticsearch; a second CDC reads MySQL and writes Redshift; a third reads Redshift and writes S3. Dashed arrows are the reads, started by the CDC tool; green arrows are the writes. With some tools the first two could share one read of the source, at the cost of a transform per sink and more memory. Tiered storage is only introduced here.';
 
 export function Tiers({ layout = 'desk' }: { layout?: Layout }) {
   const title = 'One source, many tiers';

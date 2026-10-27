@@ -1,0 +1,97 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import RuleBox from '../../../components/RuleBox.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { HashTable, StructStage1 } from '../../../figures/lec07/s2-one-node';
+import { SoFarCopy } from '../../../figures/lec07/so-far';
+
+{/* Chapter 3 "Build the box. Where does a value live, and what is it?" Story rewrite (start of Part 2): the brief
+    and the two rules → one node first → storage: a hash table (figure), GET/PUT/DEL, growing a value → many value
+    types: key or wrapper (pause) → MyValue with a 4-bit type (code, figure) → every byte (rule) → the wrapper is
+    small; what it points to may not be. */}
+
+<Section id="s3" no="3" title="Build the box. Where does a value live, and what is it?" crumb="3 One box" meta="About 6 min">
+
+Part 2 builds the box in front of the database: a cache like Redis, written from scratch. Call it our Redis. The brief fits on one line. It answers four commands, `GET`, `PUT`, `DELETE` and `TTL`, with high throughput and low latency, and it is distributed. [[L-0080 L-0081 L-0083]]
+
+<Figure id="fig-3-sofar" max={640} no="Fig 3·a" caption="Part 1, finished: a CDC tool reads the database’s log from its checkpoint and keeps search, the warehouse and a backup in sync. Marked new, beside the API: the shared cache it reads on every request, the box this part opens.">
+<Desk><SoFarCopy stage={2} /></Desk>
+<Phone><SoFarCopy stage={2} layout="phone" /></Phone>
+</Figure>
+
+Two rules come with the brief, and nearly every decision in this part answers to one of them. First, RAM is expensive. <LectureLink lec="lec04" sec="s8-3">Lecture 1</LectureLink> priced it: far more per gigabyte than disk. Every byte the cache spends on its own bookkeeping is a byte of user data it can’t hold. [[L-0098]] Second, the cache must keep running no matter what. It must never crash, however much people write into it. [[L-0107]]
+
+“Distributed” waits. First build one node and get its details right: how it stores data, how it knows it is full, what it evicts, how clients talk to it, what happens when two of them write at once, and how keys expire. Spreading it over many machines comes after, in chapter 7. [[L-0084 L-0085 L-0082]] At each step you will also see what Redis chose, and why. [[L-0004]] The patterns travel: once you have seen one, you can copy it into almost any other system. [[L-0005 L-0006]]
+
+</Section>
+
+<Section id="s3-1" no="3.1" title="Where do a key and its value live?" crumb="3.1 Storage">
+
+One natural design keeps the keys in an array in memory, each holding a pointer to where its value is stored. Put simply, that is a hash table: a hash map from keys to values. [[L-0086 L-0087]]
+
+<Figure id="fig-3b" max={360} wide={false} no="Fig 3·b" k="L-0087" caption="One node’s storage: each slot of a hash table holds a key and a pointer to its value.">
+<HashTable />
+</Figure>
+
+It is tempting to go one level down and design the table itself: open addressing or chaining, a fixed size. Don’t. Hash maps exist and have solved that problem; use one. [[L-0088]] Three of the four commands are then one line each: [[L-0222]]
+
+```text
+GET k     → look k up in the hash table, return its value
+PUT k, v  → add k → v to the hash table
+DEL k     → delete k from the hash table
+```
+
+`TTL` needs more machinery, and gets it in chapter 5.
+
+</Section>
+
+<Section id="s3-2" no="3.2" title="A value can be a set or a Bloom filter. How does the cache tell?" crumb="3.2 Value types">
+
+<LectureLink lec="lec06">Lecture 8</LectureLink> kept a set per user in Redis and asked for its size in O(1). So a value can’t just be bytes: it can be a string, a set, a list, a Bloom filter, a HyperLogLog. How do you represent it? [[L-0090]] The way Java does: a value is an object on the heap, and the table holds a pointer to it (a small primitive could sit in place of the pointer). [[L-0091]]
+
+That raises a second problem. Commands depend on the type: `add` works on a set, `push` on a list. Before running a command, the cache has to check that the value is of the right type. [[L-0092]]
+
+<PauseAndThink k="L-0092 L-0093 L-0094 L-0096 L-0097"
+  q="A value can be a string, a set, a list or a Bloom filter, and <code>add</code> only works on a set. Where do you record each value’s type, and how much space should it take?"
+  choices={[{ label: 'With the key: everything is looked up by key anyway' }, { label: 'In a small wrapper around the value, in a few bits', correct: true }]}
+  right="Right."
+  wrong="Then every key carries a type, and every lookup has to strip or match it.">
+
+Put the type in the key, say `set:myset`, and every lookup has to parse it. Keep the key plain, and put the type next to the value, in a small wrapper of its own. As for size: there will only ever be a handful of types, five to ten, so 4 bits, which hold 16, are plenty.
+
+</PauseAndThink>
+
+The wrapper needs two fields: a pointer that can lead to anything (a `void *` in C, an `Object` in Java), and the type code. [[L-0093 L-0094]]
+
+```c
+// key → MyValue
+struct MyValue {
+    void    *value;     // points at anything
+    unsigned type : 4;  // 0 string, 1 int,
+                        // 2 set, 3 list …
+};
+```
+
+Running a typed command, say `add` on the key `myset`, now takes four steps: get the value, read its type, check that the type supports the operation, and if it does, cast the object to that type and run the operation. [[L-0095]]
+
+<Figure id="fig-3c" max={720} no="Fig 3·c" k="L-0087 L-0094 L-0096 L-0097" caption="The key stays a plain key. Its slot points at a small wrapper, MyValue, whose pointer can lead to anything, and whose type takes 4 bits of a 32-bit word.">
+<Desk><StructStage1 /></Desk>
+<Phone><StructStage1 layout="phone" /></Phone>
+</Figure>
+
+Redis caps the number of types and uses exactly four bits. [[L-0096 L-0097]] That looks like penny-pinching until you remember the multiplier: the cache holds millions of keys, and every bit in the wrapper is paid once per key. The other 28 bits of that word aren’t wasted either; chapter 5 fills them.
+
+<RuleBox rule="In memory, be careful with ==every byte and every bit==." label="The rule for this whole part" k="L-0098">
+
+RAM is expensive. Get the most out of every byte you spend, and when you can’t, cut it to the bare minimum you can work with.
+
+</RuleBox>
+
+There is a second reason the type lives in a wrapper and not squeezed in beside the key. A wrapper per value has room to grow. Redis keeps more metadata next to the type, in a C struct, and new fields arrive when new features need them. [[L-0099 L-0141]] You will need that room soon.
+
+On a 64-bit machine the wrapper is 16 bytes, the pointer plus a word whose spare bits the next fields will use. What it points to may be a large set, or a Bloom filter of a megabyte, and the cache has to hold millions of them in one machine’s RAM. Keep writing, and memory runs out. What happens then?
+
+</Section>

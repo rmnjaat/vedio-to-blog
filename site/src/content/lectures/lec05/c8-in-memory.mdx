@@ -63,7 +63,7 @@ That is how Redis’s periodic job works. It checks keys with a TTL 20 at a time
   lead="Keys with a TTL, about 15% of them expired. How many rounds before the job stops, and what does it leave behind?"
   caption="Check 20 keys with a TTL, delete the expired ones, and go again while more than 10% were expired. Leftovers are deleted lazily on their next read. One example run; the counts vary." />
 
-Notice what it never does: count the expired keys in the whole database. That count would itself be a slow scan. It works only on the batch in front of it, and it accepts some expired keys staying in memory for a while, because the batch says there aren’t many. Redis chooses speed over completeness, leaking a little memory to keep cleanup short. [[L-0249 L-0252 L-0301]] <LectureLink lec="lec07" sec="s3">Lecture 9</LectureLink> builds a Redis-like cache and comes back to expiry.
+Notice what it never does: count the expired keys in the whole database. That count would itself be a slow scan. It works only on the batch in front of it, and it accepts some expired keys staying in memory for a while, because the batch says there aren’t many. Redis chooses speed over completeness, leaking a little memory to keep cleanup short. [[L-0249 L-0252 L-0301]] <LectureLink lec="lec07" sec="s5-5">Lecture 9</LectureLink> builds a Redis-like cache and comes back to expiry.
 
 </Section>
 

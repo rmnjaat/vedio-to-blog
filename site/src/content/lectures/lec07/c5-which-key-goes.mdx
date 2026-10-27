@@ -1,0 +1,119 @@
+import Section from '../../../components/Section.astro';
+import Figure from '../../../components/Figure.astro';
+import Desk from '../../../components/Desk.astro';
+import Phone from '../../../components/Phone.astro';
+import AnimationClip from '../../../components/AnimationClip.astro';
+import PauseAndThink from '../../../components/PauseAndThink.astro';
+import LectureLink from '../../../components/LectureLink.astro';
+import { StructStage2 } from '../../../figures/lec07/s3-eviction-and-expiry-3a';
+import { TextbookLru } from '../../../figures/lec07/s3-eviction-and-expiry-3b';
+import { ExpiryQueue } from '../../../figures/lec07/s3-eviction-and-expiry-3d';
+import { SoFarCache } from '../../../figures/lec07/so-far';
+
+{/* Chapter 5 "The box is full. Which key goes?" Story rewrite: LRU and LFU need a little per key → keep it in the
+    wrapper (24 bits in Redis; figure) → the textbook list LRU, priced (pause, figure) → random: keep nothing (war
+    story told as one engineer's experience), and how Redis gets LRU on a few bits (sampling) → LRU or LFU: the scan
+    (clip), the stock, Wikipedia vs news, the key's life → expiry: one more field, no queue (figure), lazy deletion
+    and sampling, as Lecture 3 built them. */}
+
+<Section id="s5" no="5" title="The box is full. Which key goes?" crumb="5 Which key goes" meta="About 9 min">
+
+A write arrives and the check from chapter 4 fails: `total_size + b` would pass `maxmemory`. Before the new value can go in, some key has to leave. Two questions follow, and both answer to the byte budget. Which key do you evict? And the keys whose TTL has run out, who removes those?
+
+<Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="Our Redis so far, one node: a hash table of keys pointing at MyValue wrappers. Marked new: every allocation goes through zmalloc, which keeps total_size under maxmemory.">
+<Desk><SoFarCache stage={1} /></Desk>
+<Phone><SoFarCache stage={1} layout="phone" /></Phone>
+</Figure>
+
+</Section>
+
+<Section id="s5-1" no="5.1" title="Where does a key’s “last used” live?" crumb="5.1 Per-key bits">
+
+The two policies everyone names are LRU and LFU. **LRU**, least recently used, remembers when each key was last accessed and evicts the one used longest ago. **LFU**, least frequently used, counts how often each key is used and evicts the one used least. [[L-0133 L-0134 L-0135]]
+
+Either way, every key needs a little information, and before deciding how to implement either policy, decide where that information lives. [[L-0136]] The reflex is a separate structure, a priority queue ordered by last use, say. [[L-0137]] But there is already a place for per-key information: the wrapper around the value. Next to the type, keep a few bits for eviction. [[L-0138]]
+
+<Figure id="fig-5b" max={660} no="Fig 5·b" k="L-0138 L-0139 L-0142 L-0143" caption="The wrapper gains one field for eviction, updated on every access. In Redis it is 24 bits, sharing one 32-bit word with the 4-bit type and a 4-bit encoding.">
+<Desk><StructStage2 /></Desk>
+<Phone><StructStage2 layout="phone" /></Phone>
+</Figure>
+
+How many bits? Redis packs a 4-bit type, a 4-bit encoding and a 24-bit eviction field into one 32-bit word of every object’s header: one integer of metadata per key. [[L-0139]] Every access updates the field. Under LRU it holds the time of the last access; under LFU, a count of accesses (in Redis, 8 of the 24 bits hold a small counter that grows logarithmically and decays over time, the other 16 when it last decayed). [[L-0142 L-0143]] Most databases keep compact metadata like this inside a per-key object they already have. [[L-0140]]
+
+</Section>
+
+<Section id="s5-2" no="5.2" title="The interview answer for LRU. What does it cost here?" crumb="5.2 Textbook LRU">
+
+Knowing *when* each key was used is half the job. To evict, you need the oldest one. The textbook way is a hash map plus a doubly linked list. Each node holds an entry, the map stores each key’s node, and every access unlinks that key’s node and moves it to the head, all in O(1). The tail is always the least recently used key. [[L-0144 L-0145 L-0146]]
+
+<PauseAndThink k="L-0145 L-0147 L-0148 L-0149 L-0152"
+  q="The textbook LRU keeps one list node per key, with a next, a previous and a value pointer. Your keys look like <code>a → 2</code>. Is that bookkeeping worth it in a cache?"
+  choices={[{ label: 'Yes: it’s O(1), so it’s the standard answer' }, { label: 'No: the pointers cost more than the data', correct: true }]}
+  right="Right."
+  wrong="It is O(1) in time. Count it in bytes.">
+
+Three pointers per key is 12 bytes with 4-byte pointers, 24 on a 64-bit machine. The key `a` is 1 byte and the value `2` a 4-byte integer: 5 bytes of data carrying 12 to 24 bytes of bookkeeping whose only job is tracking recency, on top of the 16-byte wrapper you already pay.
+
+</PauseAndThink>
+
+<Figure id="fig-5c" max={720} no="Fig 5·c" k="L-0145 L-0146 L-0147 L-0148" caption="The textbook LRU and its bill. The map finds a key’s node in O(1); an accessed node moves to the head, so the tail is next to go. Each node is three pointers, for a key and value that together take 5 bytes.">
+<Desk><TextbookLru /></Desk>
+<Phone><TextbookLru layout="phone" /></Phone>
+</Figure>
+
+Lists are fine where memory is not the constraint. In a cache, every pointer is room another key could have used. [[L-0149 L-0150]] Redis keeps no such list; it would rather spend memory on your data than on its own bookkeeping. Other caches judge it differently: Memcached does keep doubly linked LRU lists, and pays for them. [[L-0152 L-0153]] LFU has the same bargain in a sharper form. An LFU that runs in O(1) time exists, and its memory use is very high: buy time, pay space. [[L-0238]]
+
+</Section>
+
+<Section id="s5-3" no="5.3" title="What if you kept nothing at all?" crumb="5.3 Random">
+
+There is a third policy, and it is the most memory-efficient of all: pick a key at random and evict it. No timestamps, no counts, no list. [[L-0155]]
+
+The risk is plain. You may evict a key that should have stayed. If it was a popular key, the next read misses, fetches it from the database and puts it back: one miss. [[L-0156]] And look at the odds. With millions of keys, how likely is it that the one you need most is the one picked, every time? [[L-0159]] In return, a design that evicts at random needs no per-key bookkeeping at all, so the same memory holds more keys, and eviction is as fast as it can be: not optimal, but fast. [[L-0157 L-0160]]
+
+One engineer made exactly this change eight months into his career. He switched a production cache’s eviction to random, and the cache took in a much larger number of keys with only a very small rise in its miss ratio. The two balanced out in its favour. [[L-0158]]
+
+That is the trade in its purest form: give up being exactly right about which key goes, and you save the space and the work of tracking recency. [[L-0161]]
+
+You don’t have to choose between a list and luck, though. Redis supports LRU, LFU and random, and it runs LRU and LFU on just those 24 bits by sampling. [[L-0154]] When it must evict, it looks at a handful of keys, five by default, and evicts the one idle longest (or, under LFU, the one with the lowest count). With ten samples, the result is very close to true LRU. [[L-0237 L-0236]] In Redis the 24 bits sit in every key’s header whatever the policy, so there random saves work, not memory; the memory saving belongs to a design that keeps no recency data at all. [[L-0155 L-0157]]
+
+</Section>
+
+<Section id="s5-4" no="5.4" title="A nightly scan reads every article once. What survives?" crumb="5.4 LRU or LFU">
+
+So when would you pick LRU, and when LFU? Here is a concrete test. [[L-0162 L-0164]]
+
+<div class="wide clip-col" style={{width: '100%', maxWidth: 'clamp(440px, (100vw - 640px) * 100, 540px)', justifySelf: 'center'}}>
+<AnimationClip clip="l07-lru-vs-lfu" no="Clip 5·1" k="L-0165 L-0167 L-0168 L-0169"
+  lead="A cache holds evergreen pages that are read all day. A nightly report then reads six other articles once each. Which cache still holds the evergreen pages in the morning?"
+  caption="To LRU, one read makes a page the newest, so the scan flushes the evergreen pages out. To LFU, one read is a count of one, so they stay." />
+</div>
+
+Scans, a report reading through a whole database say, are where LFU earns its keep. [[L-0165]]
+
+So use LFU when a key that was popular in the past is likely to be popular again, even if its traffic has just dipped. [[L-0167]] Wikipedia is the example: during a football World Cup everyone opens the World Cup pages, but that spike shouldn’t push out the top pages that have been read far more over time. When the fad passes, they are read as much as ever. It is how you hold a stock you trust: it did well for years and dipped this week, and you keep it instead of selling on recent performance. LFU treats a key the same way and ignores recency. LFU pays off when popularity is lopsided like this, a few keys used by everyone. [[L-0168 L-0169 L-0351]]
+
+LRU fits the opposite life: a key read very hard at first, then hardly at all. [[L-0170]] Google News is the textbook case: you rarely read week-old news, so the most recent items are the ones most likely to be read again. [[L-0171 L-0172]]
+
+In most production systems you would not even see a difference between the two; in some extreme cases it is large. [[L-0173]] So before you configure either, understand your application: how a key is accessed, and how its life runs in your system. Then decide. [[L-0174]]
+
+</Section>
+
+<Section id="s5-5" no="5.5" title="A key’s TTL runs out. Who deletes it?" crumb="5.5 Expiry">
+
+Expiry answers to the same budget: it must not cost a structure per key. [[L-0210]] <LectureLink lec="lec05" sec="s8">Lecture 3</LectureLink> moved its key-value store into memory and watched how Redis expires keys; the same machinery fits here. [[L-0211]]
+
+Store the minimum: the key’s absolute expiry time, one more number per key, here in the wrapper. [[L-0213]] The obvious way to clean up is a priority queue of keys ordered by expiry, freed from the head. It is simple and consistent, and it is one more structure with pointers for every key, so it is out. [[L-0214]]
+
+<Figure id="fig-5d" max={720} no="Fig 5·d" k="L-0213 L-0214" caption="Expiry: the queue we don’t build, and the one number per key we keep instead.">
+<Desk><ExpiryQueue /></Desk>
+<Phone><ExpiryQueue layout="phone" /></Phone>
+</Figure>
+
+Deletion happens two ways. When a key is read and its expiry time has passed, it is deleted right there, with `zfree`, which also takes its bytes off `total_size`. In memory that is one cheap call, and it catches every expired key that somebody reads again. [[L-0215 L-0216 L-0217]] For the keys nobody reads again, a periodic job samples keys that have a TTL, 20 at a time, frees the expired ones, and goes again while more than about 10% of a batch was expired. [[L-0218]] Some memory leaks for a while, never for good: a later read or a later sample gets every expired key in the end. [[L-0219]]
+
+To sample only keys that have a TTL, the job must be able to find them, so keep one more thing: a second hash table of just those keys. Redis does exactly this. Since Redis 8.2 it keeps each expiry time in the key’s own object, as our wrapper does, and the table only lists the keys that have one (earlier versions kept the times in the table itself). A plain table has no order to maintain, so it is far cheaper than a priority queue, though the Redis docs note that setting an expiry still costs memory. [[L-0220]]
+
+The node now stores anything, knows how full it is, and makes room on its own. Nobody has said yet how other machines talk to it, or what happens when two write the same key at once.
+
+</Section>

@@ -1,108 +1,127 @@
 ---
 title: "Build your own Redis"
-kicker: "Lecture 09 · week 5, day 1 · running case: build-your-own Redis"
-dek: "Copying data out without losing it, then a cache built from one hash table up to a ring of nodes, with the cost of each decision measured in bytes, hops and data moved."
-description: "Lecture 09: meet ETL and change data capture, then build a cache like Redis on one node and make it distributed with routing, consistent hashing and replicas."
-reviewed: 14 Oct 2026
+kicker: "Lecture 9 · running case: two copies of the blog’s data, one complete and one fast"
+dek: "The analysts’ copy of the blog is quietly missing changes, and the cache in front of the database is a box nobody has opened. Make the first copy complete, then build the second yourself, from one hash table on one machine to a ring of nodes."
+description: "Lecture 9: keep an analytics copy complete with change data capture, then build a Redis-like cache: a hash table on a byte budget, memory accounting, eviction and expiry, protocol and concurrency, then routing, consistent hashing and replicas across many nodes."
+reviewed: 27 Oct 2026
 status: published
 ledger: lectures/lec07/ledger/ledger.jsonl
+origin: "Two copies, two budgets"
+footnote: "facts checked against primary sources, linked where they come from outside this lecture."
 contents:
   - no: "1"
-    title: "ETL and change data capture"
+    title: "The analysts need a copy of production. What could it miss?"
     href: "#s1"
     children:
-      - { no: "1.1", title: "Day zero: dashboards on the production database", href: "#s1-1" }
-      - { no: "1.2", title: "The obvious pipeline: API events through Kafka", href: "#s1-2" }
-      - { no: "1.3", title: "Change data capture: read the source of truth", href: "#s1-3" }
-      - { no: "1.4", title: "How a CDC tool reads, and where to point it", href: "#s1-4" }
-      - { no: "1.5", title: "CDC or events? Raw data, and many tiers", href: "#s1-5" }
-      - { no: "1.6", title: "From practice: sixty machines down to two", href: "#s1-6" }
-      - { no: "1.7", title: "What CDC is not", href: "#s1-7" }
+      - { no: "1.1", title: "Why not point a dashboard at production?", href: "#s1-1" }
+      - { no: "1.2", title: "Kafka already carries the blog’s events. Is that enough?", href: "#s1-2" }
+      - { no: "1.3", title: "What if the copy read the database itself?", href: "#s1-3" }
   - no: "2"
-    title: "One node, every byte counted"
+    title: "The tool stopped and still caught up. How?"
     href: "#s2"
     children:
-      - { no: "2.1", title: "What we’re building", href: "#s2-1" }
-      - { no: "2.2", title: "Storage is a hash table", href: "#s2-2" }
-      - { no: "2.3", title: "Values of many types", href: "#s2-3" }
-      - { no: "2.4", title: "What happens when the heap runs out", href: "#s2-4" }
-      - { no: "2.5", title: "Knowing how much memory you use", href: "#s2-5" }
-      - { no: "2.6", title: "zmalloc: one wrapper, one counter, one cap", href: "#s2-6" }
+      - { no: "2.1", title: "What does “read the database” actually mean?", href: "#s2-1" }
+      - { no: "2.2", title: "The tool stops for a while. Where does it pick up?", href: "#s2-2" }
+      - { no: "2.3", title: "Should every Kafka event become CDC?", href: "#s2-3" }
+      - { no: "2.4", title: "Sixty machines, one simple transformation", href: "#s2-4" }
+      - { no: "2.5", title: "What CDC won’t do, and the copy it can’t make", href: "#s2-5" }
   - no: "3"
-    title: "When the cache is full: eviction and expiry"
+    title: "Build the box. Where does a value live, and what is it?"
     href: "#s3"
     children:
-      - { no: "3.1", title: "LRU, LFU, and where their bookkeeping lives", href: "#s3-1" }
-      - { no: "3.2", title: "The textbook LRU, priced in bytes", href: "#s3-2" }
-      - { no: "3.3", title: "Random eviction", href: "#s3-3" }
-      - { no: "3.4", title: "LRU or LFU? Follow the key’s life", href: "#s3-4" }
-      - { no: "3.5", title: "Expiry without extra structures", href: "#s3-5" }
+      - { no: "3.1", title: "Where do a key and its value live?", href: "#s3-1" }
+      - { no: "3.2", title: "A value can be a set or a Bloom filter. How does the cache tell?", href: "#s3-2" }
   - no: "4"
-    title: "Talking to the cache, and taking turns"
+    title: "How full is the box?"
     href: "#s4"
     children:
-      - { no: "4.1", title: "Which protocol? It’s all TCP", href: "#s4-1" }
-      - { no: "4.2", title: "From practice: HTTP typed by hand", href: "#s4-2" }
-      - { no: "4.3", title: "Your own protocol, or gRPC", href: "#s4-3" }
-      - { no: "4.4", title: "The single node so far", href: "#s4-4" }
-      - { no: "4.5", title: "Concurrency: lock, compare-and-swap, or one thread", href: "#s4-5" }
-      - { no: "4.6", title: "From class: the double-booked seats", href: "#s4-6" }
+      - { no: "4.1", title: "What happens when the heap runs out?", href: "#s4-1" }
+      - { no: "4.2", title: "Can’t you just ask the operating system?", href: "#s4-2" }
+      - { no: "4.3", title: "Every byte comes from somewhere. Where?", href: "#s4-3" }
   - no: "5"
-    title: "Many nodes: splitting the keys and finding them"
+    title: "The box is full. Which key goes?"
     href: "#s5"
     children:
-      - { no: "5.1", title: "Why distribute, and splitting the keys", href: "#s5-1" }
-      - { no: "5.2", title: "The routing problem", href: "#s5-2" }
-      - { no: "5.3", title: "Four ways to route: a visit to the bank", href: "#s5-3" }
-      - { no: "5.4", title: "Which way for a cache?", href: "#s5-4" }
+      - { no: "5.1", title: "Where does a key’s “last used” live?", href: "#s5-1" }
+      - { no: "5.2", title: "The interview answer for LRU. What does it cost here?", href: "#s5-2" }
+      - { no: "5.3", title: "What if you kept nothing at all?", href: "#s5-3" }
+      - { no: "5.4", title: "A nightly scan reads every article once. What survives?", href: "#s5-4" }
+      - { no: "5.5", title: "A key’s TTL runs out. Who deletes it?", href: "#s5-5" }
   - no: "6"
-    title: "Consistent hashing, DHTs and staying up"
+    title: "Every API server calls the box. What do they send, and who goes first?"
     href: "#s6"
     children:
-      - { no: "6.1", title: "Who owns a key?", href: "#s6-1" }
-      - { no: "6.2", title: "What consistent hashing is, and isn’t", href: "#s6-2" }
-      - { no: "6.3", title: "Adding and removing nodes", href: "#s6-3" }
-      - { no: "6.4", title: "Never add a blank node", href: "#s6-4" }
-      - { no: "6.5", title: "Where the ring hurts: close nodes, hot spots, virtual nodes", href: "#s6-5" }
-      - { no: "6.6", title: "The general idea: distributed hash tables", href: "#s6-6" }
-      - { no: "6.7", title: "Staying up: replicas, copies on the ring, and the AOF", href: "#s6-7" }
+      - { no: "6.1", title: "Which protocol should the cache speak?", href: "#s6-1" }
+      - { no: "6.2", title: "How many bytes does it take to store a = 1?", href: "#s6-2" }
+      - { no: "6.3", title: "Two clients change the same key at the same instant", href: "#s6-3" }
+      - { no: "6.4", title: "What if nobody takes a lock?", href: "#s6-4" }
+      - { no: "6.5", title: "What if there is only one thread?", href: "#s6-5" }
   - no: "7"
-    title: "What to keep"
+    title: "One box isn’t enough. Who knows where kiwi lives?"
     href: "#s7"
+    children:
+      - { no: "7.1", title: "How do you split the keys?", href: "#s7-1" }
+      - { no: "7.2", title: "A client wants kiwi. Which node does it ask?", href: "#s7-2" }
+      - { no: "7.3", title: "Four ways through a bank", href: "#s7-3" }
+      - { no: "7.4", title: "Which way for our cache?", href: "#s7-4" }
+  - no: "8"
+    title: "A fourth box joins. How many keys have to move?"
+    href: "#s8"
+    children:
+      - { no: "8.1", title: "Hash the key, mod the node count. What happens at N + 1?", href: "#s8-1" }
+      - { no: "8.2", title: "What does consistent hashing actually decide?", href: "#s8-2" }
+      - { no: "8.3", title: "Cache 5 joins the ring. Which keys change hands?", href: "#s8-3" }
+      - { no: "8.4", title: "Traffic peaks, and you add a blank cache 5", href: "#s8-4" }
+  - no: "9"
+    title: "A box dies. Where are its keys?"
+    href: "#s9"
+    children:
+      - { no: "9.1", title: "Can the ring go lopsided?", href: "#s9-1" }
+      - { no: "9.2", title: "Cache 3 dies. Where is its data?", href: "#s9-2" }
+      - { no: "9.3", title: "And when a node only restarts?", href: "#s9-3" }
+      - { no: "9.4", title: "What you can now do", href: "#s9-4" }
+      - { no: "9.5", title: "Everything here fits in RAM. What if it doesn’t?", href: "#s9-5" }
 chapters:
   - no: "1"
-    slug: 1-etl-and-cdc
-    parts: [s1a-etl-and-cdc, s1b-etl-and-cdc]
-    summary: "The blogging app's analysts need their own SQL copy of production. The obvious event pipeline drifts silently. Change data capture reads the database itself."
+    slug: 1-missing-changes
+    parts: [c1-missing-changes]
+    summary: "The company hires analysts, and they need a copy of production that is complete. The blog already sends events through Kafka. Is that enough, and if not, where else could a copy come from?"
   - no: "2"
-    slug: 2-one-node
-    parts: [s2-one-node]
-    summary: "Build the cache on one machine first: a hash table, values of many types, and a hard cap on memory that the cache can always check cheaply."
+    slug: 2-sixty-machines
+    parts: [c2-sixty-machines]
+    summary: "What the fix from chapter 1 actually reads, how it restarts after it stops, what it can promise, when events are still the right tool, and one company that kept a copy in sync on more than sixty machines."
   - no: "3"
-    slug: 3-eviction-and-expiry
-    parts: [s3-eviction-and-expiry]
-    summary: "Which key goes when memory runs out, and how expired keys disappear, without spending memory on bookkeeping."
+    slug: 3-one-box
+    parts: [c3-one-box]
+    summary: "Part 2 opens the cache in front of the database. On one machine, under two rules: where a key and its value live, and how the cache knows what kind of value it holds."
   - no: "4"
-    slug: 4-protocol-and-concurrency
-    parts: [s4-protocol-and-concurrency]
-    summary: "How other systems reach the cache (all of it is TCP; the question is the format), and how one node stays correct when two clients touch the same key."
+    slug: 4-how-full
+    parts: [c4-how-full]
+    summary: "Keep writing and memory runs out. What happens then, why a cache can’t let it, and how it can know its own size on every write without slowing down."
   - no: "5"
-    slug: 5-routing
-    parts: [s5-routing]
-    summary: "One node can't take the load. Split the keys across nodes, and then decide who tells a client where its key lives."
+    slug: 5-which-key-goes
+    parts: [c5-which-key-goes]
+    summary: "When the cache is full, something must go. Where eviction’s bookkeeping lives, what the textbook answer costs in bytes, how to choose by a key’s life, and how expired keys disappear."
   - no: "6"
-    slug: 6-consistent-hashing
-    parts: [s6a-consistent-hashing, s6b-consistent-hashing]
-    summary: "Adding a node with hash % N moves half the data. Consistent hashing decides ownership so only a slice moves. Then: running it in production, its weak spots, the general idea (DHTs), and replicas."
+    slug: 6-talk-and-take-turns
+    parts: [c6-talk-and-take-turns]
+    summary: "What the API servers should send to the cache, counted in bytes, and three ways to stay correct when two of them write the same key at once."
   - no: "7"
-    slug: 7-what-to-keep
-    parts: [s7-keep]
-    summary: "The decisions, the heuristics, and where the next lessons pick up."
+    slug: 7-where-kiwi-lives
+    parts: [c7-where-kiwi-lives]
+    summary: "One machine is no longer enough. Split the keys across several, then decide who tells a client which one holds its key: four answers, and the one Redis picked."
+  - no: "8"
+    slug: 8-how-many-move
+    parts: [c8-how-many-move]
+    summary: "Adding a node sounds trivial. Count the keys that have to move, find a scheme that moves far fewer, and add a node without hurting anyone."
+  - no: "9"
+    slug: 9-a-box-dies
+    parts: [c9-a-box-dies]
+    summary: "Where the ring goes lopsided, what keeps a dead node’s data alive, and how a restarted node gets its memory back. Then what you can now do, and the question Lecture 10 picks up."
 ---
 import Header from './lec07/s0-header.mdx';
 
-{/* Lecture 09 (lec07). This body is the lecture overview page (/lectures/lec07/): the header block
-    from s0-header.mdx. Each chapter is its own page, built from the parts listed under `chapters`. Written by the
-    pipeline scaffold (pipeline/lib/scaffold_page.py); the assembler owns this file. */}
+{/* Lecture 09 (lec07) overview page: the hook, where you are, the two parts. Chapters are their own pages (see
+    `chapters`). Story rewrite; see lectures/lec07/story/NOTES.md. */}
 
 <Header />
