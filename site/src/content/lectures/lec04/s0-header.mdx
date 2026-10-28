@@ -6,11 +6,9 @@ import { WhatUserSees } from '../../../figures/lec04/s2a-green-dots';
 
 <div class="col">
 
-Look at the small green dot next to a friend’s name in any chat app. It makes a promise: *this person is here, right now.* In this lecture you build that dot, and the first version you would naturally write will lie.
+It’s 11 p.m. You message a friend. The dot next to their name is green, so you wait for a reply. Nothing comes. The next morning: “Sorry, my phone died at 9.” For two hours the app told you they were there.
 
-The obvious design: when a user logs in, the app tells the server “I’m online”; when they log out, “I’m offline”. One true-or-false value per user. Done?
-
-Now let the laptop’s battery die on a train. No “offline” call ever leaves the machine. Your friend keeps seeing green for someone who has been gone for hours.
+Every chat app has that dot. It looks like the easiest feature on the screen. The first version almost everyone writes is simple: when a user logs in, the app tells the server “I’m online”; when they log out, “I’m offline”. And it lies the moment a battery dies, because a dead phone never sends “offline”.
 
 Fixing that one lie forces nearly every decision in the first half of this lecture: what to store, who deletes it, which database holds it, and why a tiny table can still bring its database to its knees. [[L-0021 L-0046]]
 
@@ -18,11 +16,13 @@ Fixing that one lie forces nearly every decision in the first half of this lectu
 <WhatUserSees />
 </Figure>
 
-### What you’ll build
+### The story
 
-**Build 1, the green dot (chapters 1–5).** You start from one boolean per user and find out, one failure at a time, what it takes to keep it honest: what the store must remember, who deletes it, which store holds it, and what happens to the database when every user writes at once.
+Picture your first month as the backend engineer at a small startup. Two tickets land on your desk.
 
-**Build 2, a blog’s first month (chapters 6–8).** Then you follow an ordinary Medium-like blog through its first month: a writer deletes the wrong post, the home page slows down, and one post goes viral. Each forces a decision about what the database stores and where copies of it live.
+**Part 1, ticket 1: make the green dot honest (chapters 1–5).** You start from the design everyone writes first, one true/false per user, and fix it one failure at a time: what the store must remember, who deletes it, which database holds it, and what happens to that database when a million users write at once.
+
+**Part 2, ticket 2: the company’s blog (chapters 6–8).** The startup also runs a Medium-like blog, and its first month brings three complaints: a writer deletes the wrong post, the home page gets slower every week, and one post goes viral. Each forces a decision about what the database stores and where copies of it live.
 
 The dot is tiny data with a brutal write rate. The blog is ordinary content that people care about. Between them they cover the two questions every design starts with: what must be stored, and what does it cost to read and write it.
 

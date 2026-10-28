@@ -17,7 +17,7 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
 
 <Section id="s4" no="4" title="Connection pooling" crumb="4 Connection pooling" meta="About 7 min">
 
-Chapter 2 asked whether a billion users was a storage problem, and the answer was no: 8 GB. But that estimate counted rows. It never counted how often those rows change, and the dot changes them all the time.
+The green dot now works: every client beats every 10 seconds, each beat writes one key with a 30-second TTL, and the store is chosen. Storage turned out to be no problem; a billion users fit in about 8 GB. But that estimate counted rows. It never counted how often those rows change, and the dot changes them all the time.
 
 <Figure id="fig-4-sofar" max={640} no="Fig 4·a" caption="The green dot so far. Marked new: the store choice, written down: Redis or DynamoDB, one key per online user with a 30-second TTL.">
 <Desk><SoFarDot stage={3} /></Desk>
@@ -44,7 +44,7 @@ Every 10 seconds is 6 beats a minute per user. 6 × 1,000,000 = **6 million writ
 
 The data for those million users is about 8 MB. The work on it never stops. Tiny data with an enormous write rate is the textbook case where **storage is not the problem; computation is**. [[L-0103 L-0104 L-0105]]
 
-How hard that bites depends on the store. In Redis’s own benchmarks a single node handles roughly a hundred thousand simple `SET`s a second, so it is within range, with little headroom <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/">redis.io</Cite>. A disk-based relational database committing 100,000 durable single-row updates a second is a much harder ask. [[L-0104]] So follow one heartbeat into the case where it hurts most: **a classic relational database such as PostgreSQL behind the API**. What you learn carries over to any store you reach over a network.
+How hard that bites depends on the store. In Redis’s own benchmarks a single node handles roughly a hundred thousand simple `SET`s a second, so it is within range, with little headroom <Cite href="https://redis.io/docs/latest/operate/oss_and_stack/management/optimization/benchmarks/">redis.io</Cite>. A disk-based relational database committing 100,000 durable single-row updates a second is a much harder ask. [[L-0104]] You might ask: didn’t chapter 3 just pick Redis or DynamoDB? It did. But plenty of teams start with the relational database they already run, and the cost this chapter is about is easiest to see there. So follow one heartbeat into the case where it hurts most: **a classic relational database such as PostgreSQL behind the API**. Everything you learn carries over to Redis, DynamoDB or any store you reach over a network.
 
 The usual answer to a write load like this is to split the data across machines, with sharding and partitioning. That comes in <LectureLink lec="lec01">Lecture 2</LectureLink> and later. [[L-0106]] Before reaching for it, look at a cost almost everyone ignores. It hides on the one line of the diagram nobody thinks about: the line between the API server and the store. [[L-0107]] What does one write actually spend its time on?
 

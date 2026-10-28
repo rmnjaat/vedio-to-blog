@@ -15,7 +15,7 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
 
 <Section id="s5" no="5" title="Sizing pools under a connection limit" crumb="5 Sizing pools" meta="About 7 min">
 
-Every API server now keeps its own pool of open connections, and each write is one request and one reply. But each pool is a promise a server makes to itself, and all those promises are drawn from one place: the database. So start there.
+Chapter 4 fixed the cost of each write with a connection pool: every API server opens a few database connections once, keeps them open, and reuses them. Now look at the whole fleet. Each server’s pool is a promise it makes to itself, and all those promises are drawn from one place, the database, which can only hold so many connections. This chapter finds out what happens when traffic spikes and you add servers.
 
 <Figure id="fig-5-sofar" max={640} no="Fig 5·a" caption="The green dot so far. Marked new: the pool of open connections between the API server and the store.">
 <Desk><SoFarDot stage={4} /></Desk>

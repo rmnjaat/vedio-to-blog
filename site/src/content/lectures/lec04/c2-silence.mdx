@@ -15,7 +15,7 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
 
 <Section id="s2" no="2" title="Storing presence" crumb="2 Storing presence" meta="About 7 min">
 
-The 30-second rule needs the time of the last beat, and the store only holds a boolean. So the row has to change. Once it does, a second question follows: when a user goes quiet, who removes what they left behind?
+Clients now send a heartbeat every 10 seconds, and a user counts as offline after 30 seconds of silence. To apply that rule, the server has to store something for each user. The first version stored a true/false, and that isn’t enough: it can’t say when the last beat arrived. This chapter decides what to store, works out how big it gets, and answers a question every timeout raises: when a user goes quiet, who removes what they left behind?
 
 <Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The green dot so far. Marked new: the periodic heartbeat that replaced the login and logout calls.">
 <Desk><SoFarDot stage={1} /></Desk>
