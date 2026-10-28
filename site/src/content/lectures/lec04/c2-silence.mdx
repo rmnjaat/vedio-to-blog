@@ -13,9 +13,9 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
     (8 GB, no) → why keep rows for people who left (absence = offline) → who deletes (cron's cost) → let the store
     expire it (TTL, clip) → two stores qualify. */}
 
-<Section id="s2" no="2" title="Who deletes the silence?" crumb="2 Silence" meta="About 7 min">
+<Section id="s2" no="2" title="Storing presence" crumb="2 Storing presence" meta="About 7 min">
 
-The 30-second rule needs the time of the last beat, and the store only holds a boolean. So the row has to change. Once it does, a second question follows from it, the one this chapter is named for: when a user goes quiet, who removes what they left behind?
+The 30-second rule needs the time of the last beat, and the store only holds a boolean. So the row has to change. Once it does, a second question follows: when a user goes quiet, who removes what they left behind?
 
 <Figure id="fig-2-sofar" max={640} no="Fig 2·a" caption="The green dot so far. Marked new: the periodic heartbeat that replaced the login and logout calls.">
 <Desk><SoFarDot stage={1} /></Desk>
@@ -26,7 +26,7 @@ Start with the row. What should it remember?
 
 </Section>
 
-<Section id="s2-1" no="2.1" title="What should a row remember?" crumb="2.1 The row">
+<Section id="s2-1" no="2.1" title="From a boolean to a timestamp" crumb="2.1 Timestamp">
 
 When the last beat arrived. Instead of `online = true`, the table becomes `pulse(user_id, last_heartbeat)`. Every `POST /heartbeat` overwrites that user’s row with the current time. [[L-0049 L-0051]]
 
@@ -53,7 +53,7 @@ Now watch the table over time. Every user who ever sends a beat gets a row, and 
 
 </Section>
 
-<Section id="s2-2" no="2.2" title="A row for every user, forever?" crumb="2.2 Forever?">
+<Section id="s2-2" no="2.2" title="Storage estimate: 8 GB for a billion users" crumb="2.2 Storage estimate">
 
 Don’t guess. Count.
 
@@ -75,7 +75,7 @@ Look at who those billion rows belong to. At any moment, most of them are people
 
 </Section>
 
-<Section id="s2-3" no="2.3" title="Why keep rows for people who left?" crumb="2.3 Rows who left">
+<Section id="s2-3" no="2.3" title="Keep only online users" crumb="2.3 Online users only">
 
 You don’t have to. The screen shows only green or grey, and an old timestamp and a missing row both mean grey. So let a missing row mean offline. A row then exists only while its user is online. [[L-0061 L-0062]]
 
@@ -104,7 +104,7 @@ Every box on a diagram is something you build, deploy and get paged for. More bo
 
 </Section>
 
-<Section id="s2-4" no="2.4" title="Can the store forget on its own?" crumb="2.4 Forget on its own">
+<Section id="s2-4" no="2.4" title="Let the store delete: TTL" crumb="2.4 TTL">
 
 Some stores can. You write a key with a **time to live (TTL)**, and the database deletes the key when the time runs out. With a store like that, writing your own deleter is reinventing the wheel. [[L-0068]]
 

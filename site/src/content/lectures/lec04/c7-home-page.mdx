@@ -12,7 +12,7 @@ import { SoFarBlog } from '../../../figures/lec04/so-far';
     drags along (body out of line, excerpt column) → what it compares (how published_at is stored) → what if
     neither native nor epoch fits (Redbus YYYYMMDD) → the viral post. */}
 
-<Section id="s7" no="7" title="The home page is slow. What’s in the row?" crumb="7 The row" meta="About 7 min">
+<Section id="s7" no="7" title="Row design: long text and dates" crumb="7 Row design" meta="About 7 min">
 
 The home page lists the posts published in the last seven days, each with its title and a short excerpt. This is the query the blog shipped with:
 
@@ -35,7 +35,7 @@ The SQL is four lines and nothing in it looks expensive. So where is the time go
 
 </Section>
 
-<Section id="s7-1" no="7.1" title="What is the list query paying for?" crumb="7.1 The bill">
+<Section id="s7-1" no="7.1" title="Why the home page is slow" crumb="7.1 Slow home page">
 
 Two things, and neither shows in the SQL.
 
@@ -47,7 +47,7 @@ Both costs come from the same place: decisions about the row that nobody made on
 
 </Section>
 
-<Section id="s7-2" no="7.2" title="Why don’t bio and body live the same way?" crumb="7.2 bio and body">
+<Section id="s7-2" no="7.2" title="Long text vs short text" crumb="7.2 Long vs short text">
 
 `bio` is about 140 characters. `body` can run to thousands of words. [[L-0189]] They shouldn’t be stored the same way, and the database already knows it.
 
@@ -68,7 +68,7 @@ The rows the list reads are now small. The second cost is still there: every row
 
 </Section>
 
-<Section id="s7-3" no="7.3" title="How should published_at sit on disk?" crumb="7.3 Dates">
+<Section id="s7-3" no="7.3" title="Storing dates: native vs epoch" crumb="7.3 Dates">
 
 Not as text. There are several better ways to store a date and time; here are three. [[L-0200]]
 
@@ -97,7 +97,7 @@ For a home page, either choice is fine. But picture a heavier workload, one that
 
 </Section>
 
-<Section id="s7-4" no="7.4" title="What if neither format fits?" crumb="7.4 Neither fits">
+<Section id="s7-4" no="7.4" title="Case study: Redbus’s YYYYMMDD dates" crumb="7.4 Redbus">
 
 One team at the bus-booking site Redbus hit exactly that, as an engineer who worked there tells it. In 2016 they had a table that stored dates as date-times. The workload was closer to analytics than to live transactions: queries comparing dates across huge numbers of rows, all day. At that volume the date comparisons themselves had become the bottleneck. Epoch integers would have sped them up, but the engineers debugged by reading values straight from their SQL tools, and epoch numbers would have made that miserable. [[L-0214 L-0215 L-0227]]
 

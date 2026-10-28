@@ -1,113 +1,113 @@
 ---
-title: "Green dots and blog rows"
-kicker: "Lecture 1 · two builds: a green dot, then a blog"
-dek: "Your friend’s laptop died an hour ago, so why is the dot next to their name still green? Build that dot so it never lies and keeps up when a million people are online, then follow an ordinary blog through its first month: a mistaken delete, a slow home page, a viral post."
+title: "Online indicator and a blog’s database"
+kicker: "Lecture 1 · part 1: online indicator · part 2: a blog’s database"
+dek: "Part 1 designs the online/offline indicator every chat app shows: heartbeats, expiry, choosing a store, and connection pools. Part 2 makes the everyday database decisions for a Medium-like blog: deleting posts, designing rows, and caching."
 description: "Lecture 1: design an online/offline indicator from heartbeats and a TTL, pool connections inside a budget, then make the everyday database and caching calls for a Medium-like blog."
 reviewed: 26 Oct 2026
 status: published
 ledger: lectures/lec04/ledger/ledger.jsonl
-origin: "Two builds, one story"
+origin: "Two parts, one lecture"
 footnote: "facts checked against primary sources, linked where they come from outside this lecture."
 contents:
   - no: "1"
-    title: "Why is the dot still green?"
+    title: "Designing an online indicator"
     href: "#s1"
     children:
-      - { no: "1.1", title: "What does one dot need?", href: "#s1-1" }
-      - { no: "1.2", title: "Who tells the server?", href: "#s1-2" }
-      - { no: "1.3", title: "Can the server check instead?", href: "#s1-3" }
-      - { no: "1.4", title: "How much silence means gone?", href: "#s1-4" }
+      - { no: "1.1", title: "Data model and batch API", href: "#s1-1" }
+      - { no: "1.2", title: "Why login and logout calls fail", href: "#s1-2" }
+      - { no: "1.3", title: "Push vs pull", href: "#s1-3" }
+      - { no: "1.4", title: "Heartbeats: interval and timeout", href: "#s1-4" }
   - no: "2"
-    title: "Who deletes the silence?"
+    title: "Storing presence"
     href: "#s2"
     children:
-      - { no: "2.1", title: "What should a row remember?", href: "#s2-1" }
-      - { no: "2.2", title: "A row for every user, forever?", href: "#s2-2" }
-      - { no: "2.3", title: "Why keep rows for people who left?", href: "#s2-3" }
-      - { no: "2.4", title: "Can the store forget on its own?", href: "#s2-4" }
+      - { no: "2.1", title: "From a boolean to a timestamp", href: "#s2-1" }
+      - { no: "2.2", title: "Storage estimate: 8 GB for a billion users", href: "#s2-2" }
+      - { no: "2.3", title: "Keep only online users", href: "#s2-3" }
+      - { no: "2.4", title: "Let the store delete: TTL", href: "#s2-4" }
   - no: "3"
-    title: "Two stores pass the test. Which one goes in the box?"
+    title: "Redis vs DynamoDB"
     href: "#s3"
     children:
-      - { no: "3.1", title: "Do persistence or speed decide it?", href: "#s3-1" }
-      - { no: "3.2", title: "Who keeps it running?", href: "#s3-2" }
-      - { no: "3.3", title: "What if you have to leave your cloud?", href: "#s3-3" }
-      - { no: "3.4", title: "What will the dot need next year?", href: "#s3-4" }
-      - { no: "3.5", title: "So which one would you write down?", href: "#s3-5" }
+      - { no: "3.1", title: "Persistence and speed", href: "#s3-1" }
+      - { no: "3.2", title: "Managed vs self-hosted", href: "#s3-2" }
+      - { no: "3.3", title: "Vendor lock-in", href: "#s3-3" }
+      - { no: "3.4", title: "Future needs and expiry events", href: "#s3-4" }
+      - { no: "3.5", title: "The decision", href: "#s3-5" }
   - no: "4"
-    title: "The table is tiny. Why is the store struggling?"
+    title: "Connection pooling"
     href: "#s4"
     children:
-      - { no: "4.1", title: "How often is the table written?", href: "#s4-1" }
-      - { no: "4.2", title: "Where does one tiny write spend its time?", href: "#s4-2" }
-      - { no: "4.3", title: "What if the connection never closed?", href: "#s4-3" }
-      - { no: "4.4", title: "Three connections. What about the fourth request?", href: "#s4-4" }
+      - { no: "4.1", title: "The write rate: 6 million a minute", href: "#s4-1" }
+      - { no: "4.2", title: "The cost of opening a connection", href: "#s4-2" }
+      - { no: "4.3", title: "How a connection pool works", href: "#s4-3" }
+      - { no: "4.4", title: "Pool settings: min, max and idle timeout", href: "#s4-4" }
   - no: "5"
-    title: "A spike hits and autoscaling adds twenty servers. What do they get?"
+    title: "Sizing pools under a connection limit"
     href: "#s5"
     children:
-      - { no: "5.1", title: "How many connections can a database give?", href: "#s5-1" }
-      - { no: "5.2", title: "What happens when the fleet grows?", href: "#s5-2" }
-      - { no: "5.3", title: "So how big should each pool be?", href: "#s5-3" }
-      - { no: "5.4", title: "Where else have you seen this dot?", href: "#s5-4" }
+      - { no: "5.1", title: "Database connection limits", href: "#s5-1" }
+      - { no: "5.2", title: "What breaks in a traffic spike", href: "#s5-2" }
+      - { no: "5.3", title: "How to size a pool", href: "#s5-3" }
+      - { no: "5.4", title: "The heartbeat pattern elsewhere", href: "#s5-4" }
   - no: "6"
-    title: "A writer deletes a post by mistake. Can you give it back?"
+    title: "Soft delete vs hard delete"
     href: "#s6"
     children:
-      - { no: "6.1", title: "What does the blog store?", href: "#s6-1" }
-      - { no: "6.2", title: "What should “delete” mean?", href: "#s6-2" }
-      - { no: "6.3", title: "Soft-deleted rows never leave. Then what?", href: "#s6-3" }
-      - { no: "6.4", title: "When can’t a delete wait?", href: "#s6-4" }
+      - { no: "6.1", title: "The blog schema", href: "#s6-1" }
+      - { no: "6.2", title: "Three reasons to soft delete", href: "#s6-2" }
+      - { no: "6.3", title: "Archive, then delete in batches", href: "#s6-3" }
+      - { no: "6.4", title: "When you must hard delete", href: "#s6-4" }
   - no: "7"
-    title: "The home page is slow. What’s in the row?"
+    title: "Row design: long text and dates"
     href: "#s7"
     children:
-      - { no: "7.1", title: "What is the list query paying for?", href: "#s7-1" }
-      - { no: "7.2", title: "Why don’t bio and body live the same way?", href: "#s7-2" }
-      - { no: "7.3", title: "How should published_at sit on disk?", href: "#s7-3" }
-      - { no: "7.4", title: "What if neither format fits?", href: "#s7-4" }
+      - { no: "7.1", title: "Why the home page is slow", href: "#s7-1" }
+      - { no: "7.2", title: "Long text vs short text", href: "#s7-2" }
+      - { no: "7.3", title: "Storing dates: native vs epoch", href: "#s7-3" }
+      - { no: "7.4", title: "Case study: Redbus’s YYYYMMDD dates", href: "#s7-4" }
   - no: "8"
-    title: "One post goes viral"
+    title: "Caching"
     href: "#s8"
     children:
-      - { no: "8.1", title: "What counts as a cache?", href: "#s8-1" }
-      - { no: "8.2", title: "Where should the copy live?", href: "#s8-2" }
-      - { no: "8.3", title: "Could a database table be the cache?", href: "#s8-3" }
+      - { no: "8.1", title: "What counts as a cache", href: "#s8-1" }
+      - { no: "8.2", title: "A shared cache with cache-aside", href: "#s8-2" }
+      - { no: "8.3", title: "A database table as a cache", href: "#s8-3" }
       - { no: "8.4", title: "What you can now do", href: "#s8-4" }
-      - { no: "8.5", title: "Where else could you keep a copy?", href: "#s8-5" }
+      - { no: "8.5", title: "Exercise: where else to cache", href: "#s8-5" }
 chapters:
   - no: "1"
     slug: 1-still-green
     parts: [c1-still-green]
-    summary: "The login/logout design lies when a battery dies. The server can’t check, so the client must keep beating. How much silence means gone?"
+    summary: "Why a login/logout flag shows dead users as online, and how heartbeats fix it."
   - no: "2"
     slug: 2-silence
     parts: [c2-silence]
-    summary: "The row learns when the last beat arrived. A row for every user forever is cheap, but why keep it at all? And then who deletes it?"
+    summary: "What to store for each user, how big it gets, and how expiry (TTL) cleans up users who go quiet."
   - no: "3"
     slug: 3-which-store
     parts: [c3-which-store]
-    summary: "Redis and DynamoDB both pass. Persistence and speed don’t decide it; who runs it, lock-in and next year’s needs do."
+    summary: "Both stores fit the need. How persistence, speed, operations, lock-in and future needs decide between them."
   - no: "4"
     slug: 4-tiny-table
     parts: [c4-six-million]
-    summary: "8 GB was never the problem. 6 million writes a minute is, and most of each write’s time goes into opening a connection."
+    summary: "A million users send 6 million writes a minute. Where each write’s time goes, and how a connection pool removes it."
   - no: "5"
     slug: 5-spike
     parts: [c5-spike]
-    summary: "Every pool draws from one database limit. What new servers get in a spike, how to size each pool, and where the dot’s pattern shows up again."
+    summary: "Every server’s pool shares one database limit. What breaks in a traffic spike, and how to size pools."
   - no: "6"
     slug: 6-delete
     parts: [c6-delete]
-    summary: "The second build: a blog where data is the product. A writer deletes the wrong post. What should delete mean, and where do deleted rows go?"
+    summary: "Part 2, a Medium-like blog. Soft delete vs hard delete, archiving, and when a delete must be real."
   - no: "7"
     slug: 7-home-page
     parts: [c7-home-page]
-    summary: "The home page gets slower every week. One query, two hidden costs: what it drags along and how it compares dates."
+    summary: "Why the home page slows down, and how storing long text and dates the right way fixes it."
   - no: "8"
     slug: 8-viral
     parts: [c8-viral]
-    summary: "One post goes viral. What a cache really is, where the copy should live, and the question Lecture 2 opens with."
+    summary: "What a cache really is, a shared cache for a viral post, a table as a cache, and an exercise."
 ---
 import Header from './lec04/s0-header.mdx';
 

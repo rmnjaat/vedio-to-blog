@@ -13,7 +13,7 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
     ruled out or narrowed, which raises the next: persistence/speed (don't decide) → who runs it (managed Redis
     exists) → the real difference, lock-in → what it needs next year (expiry push) → the written verdict. */}
 
-<Section id="s3" no="3" title="Two stores pass the test. Which one goes in the box?" crumb="3 Which store" meta="About 7 min">
+<Section id="s3" no="3" title="Redis vs DynamoDB" crumb="3 Redis vs DynamoDB" meta="About 7 min">
 
 Redis and DynamoDB both give you a key, a value and a TTL. Both are popular, fast and well documented. When two tools both meet the requirement, the feature list can’t decide between them. Something else has to, and it is usually something people forget to weigh. [[L-0071]]
 
@@ -26,7 +26,7 @@ This chapter takes the arguments one at a time, starting with the two everyone r
 
 </Section>
 
-<Section id="s3-1" no="3.1" title="Do persistence or speed decide it?" crumb="3.1 First answers">
+<Section id="s3-1" no="3.1" title="Persistence and speed" crumb="3.1 Persistence, speed">
 
 <PauseAndThink k="L-0072 L-0085"
   q="A teammate says: “DynamoDB, because our presence data has to persist.” Is persistence a good reason to pick a store for this table?"
@@ -46,7 +46,7 @@ So the two obvious arguments don’t decide it. The ones that do are about peopl
 
 </Section>
 
-<Section id="s3-2" no="3.2" title="Who keeps it running?" crumb="3.2 Who runs it">
+<Section id="s3-2" no="3.2" title="Managed vs self-hosted" crumb="3.2 Managed">
 
 With DynamoDB, AWS does. It is **managed**: AWS keeps it available and scales it, and your team writes business logic. A self-hosted Redis is yours. Your engineers keep it up, watch it, scale it before a surge and react during one. Running any database yourself, Redis or MySQL or anything else, comes with its own pain: observability, profiling, upgrades. [[L-0073 L-0099 L-0313]]
 
@@ -58,9 +58,9 @@ So “who runs it” narrows the choice to managed, but managed Redis and Dynamo
 
 </Section>
 
-<Section id="s3-3" no="3.3" title="What if you have to leave your cloud?" crumb="3.3 Lock-in">
+<Section id="s3-3" no="3.3" title="Vendor lock-in" crumb="3.3 Lock-in">
 
-Then every line of code that talks to DynamoDB gets rewritten. Being tied to one cloud because a tool you depend on exists only there is called **vendor lock-in**. [[L-0074 L-0077 L-0078]]
+If you leave AWS, every line of code that talks to DynamoDB gets rewritten. Being tied to one cloud because a tool you depend on exists only there is called **vendor lock-in**. [[L-0074 L-0077 L-0078]]
 
 Why would you ever leave? Pricing that grows out of hand. The rest of your infrastructure moving elsewhere. A better deal from another provider. A security incident that costs a provider your trust. A provider that keeps discontinuing services. People often fear lock-in more than it ends up costing them, but these reasons are real. [[L-0075 L-0076]]
 
@@ -77,7 +77,7 @@ Lock-in is about the day you might leave. The last argument is about staying: th
 
 </Section>
 
-<Section id="s3-4" no="3.4" title="What will the dot need next year?" crumb="3.4 Next year">
+<Section id="s3-4" no="3.4" title="Future needs and expiry events" crumb="3.4 Future needs">
 
 Today the dot needs a key and a timer. Next year it might need more. Redis isn’t only strings. It ships sorted sets, HyperLogLog for approximate counting, Bloom filters for fast “have I seen this?” checks, geospatial indexes and more. A later “friends online near you” or “how many people were online today” would have somewhere to live. DynamoDB covers some of that ground differently, with a change feed that triggers code you run beside it (Streams and Lambda). [[L-0088 L-0089 L-0090]]
 
@@ -101,7 +101,7 @@ That is every argument: persistence, speed, who runs it, lock-in and what comes 
 
 </Section>
 
-<Section id="s3-5" no="3.5" title="So which one would you write down?" crumb="3.5 The verdict">
+<Section id="s3-5" no="3.5" title="The decision" crumb="3.5 Decision">
 
 <TradeoffTable caption="Redis or DynamoDB for the presence store"
   k="L-0070 L-0073 L-0077 L-0089 L-0094 L-0097 L-0311"

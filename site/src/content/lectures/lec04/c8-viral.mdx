@@ -16,7 +16,7 @@ import { SoFarBlog } from '../../../figures/lec04/so-far';
     where should the copy live (shared, cache-aside clip) → could a table be the cache → what you can now do,
     recall → where else could a copy live (homework Lecture 2 opens with). */}
 
-<Section id="s8" no="8" title="One post goes viral" crumb="8 Viral" meta="About 8 min">
+<Section id="s8" no="8" title="Caching" crumb="8 Caching" meta="About 8 min">
 
 A post climbs to the top of the home page, and the whole internet opens it. Every open runs the same query: a join of the post with its author (in a real blog, also its tags and counts). Each time, the database assembles from scratch a result that hasn’t changed since the last reader saw it. It does the same expensive work thousands of times a minute.
 
@@ -29,7 +29,7 @@ Everyone knows the fix: add a cache. But where can a cache go? That depends on w
 
 </Section>
 
-<Section id="s8-1" no="8.1" title="What counts as a cache?" crumb="8.1 What a cache is">
+<Section id="s8-1" no="8.1" title="What counts as a cache" crumb="8.1 What a cache is">
 
 <PauseAndThink k="L-0238 L-0239 L-0241 L-0244"
   q="Your API server calls a slow partner API and saves each response on its own local disk, reading the disk next time instead of calling again. Is that a cache?"
@@ -54,7 +54,7 @@ For the viral post, the expensive work is the join on the database. Where should
 
 </Section>
 
-<Section id="s8-2" no="8.2" title="Where should the copy live?" crumb="8.2 One copy">
+<Section id="s8-2" no="8.2" title="A shared cache with cache-aside" crumb="8.2 Shared cache">
 
 Somewhere every API server can reach. A reader can land on any server, so the copy goes into a **shared remote cache**. Logically it sits between the API servers and the database; physically it is its own small box. [[L-0248]]
 
@@ -80,7 +80,7 @@ This answer used a separate box, typically Redis. But section 8.1 said a cache i
 
 </Section>
 
-<Section id="s8-3" no="8.3" title="Could a database table be the cache?" crumb="8.3 A table as cache">
+<Section id="s8-3" no="8.3" title="A database table as a cache" crumb="8.3 Table as cache">
 
 Yes. Precompute the expensive join and store its result in a table, and that table is a cache. Databases even have this built in: a PostgreSQL materialized view stores a query’s result as a table, as fresh as its last refresh <Cite href="https://www.postgresql.org/docs/current/rules-materializedviews.html">postgresql.org</Cite>. Ask “why not this?” about every option instead of reaching for RAM by reflex. [[L-0260 L-0261]]
 
@@ -140,7 +140,7 @@ You put one cache into the blog. It is far from the only place a copy could live
 
 </Section>
 
-<Section id="s8-5" no="8.5" title="Where else could you keep a copy?" crumb="8.5 Your turn">
+<Section id="s8-5" no="8.5" title="Exercise: where else to cache" crumb="8.5 Exercise">
 
 Here is the whole path a reader’s request takes, from their device to the database. [[L-0254]]
 

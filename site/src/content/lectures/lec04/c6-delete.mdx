@@ -13,7 +13,7 @@ import { SoFarBlog } from '../../../figures/lec04/so-far';
     (cheap data → data people care about) → the schema → what delete should mean (soft, three reasons) → soft-deleted
     rows never leave (archive, staggered hard delete) → when a delete can't wait (unique email, GDPR). */}
 
-<Section id="s6" no="6" title="A writer deletes a post by mistake. Can you give it back?" crumb="6 Delete" meta="About 7 min">
+<Section id="s6" no="6" title="Soft delete vs hard delete" crumb="6 Delete" meta="About 7 min">
 
 The dot’s data was worth nothing after 30 seconds. The second build is the opposite: an ordinary blog, a multi-user app like Medium, where the data *is* the product. No recommendation engine, nothing exotic. [[L-0170]]
 
@@ -30,9 +30,9 @@ The first problem arrives at midnight. A writer clicks delete on the wrong post:
 
 </Section>
 
-<Section id="s6-1" no="6.1" title="What does the blog store?" crumb="6.1 The schema">
+<Section id="s6-1" no="6.1" title="The blog schema" crumb="6.1 Schema">
 
-Not much; it fits on a napkin. `users` holds an auto-increment `id`, the `name` shown on the page and a short `bio` of about 140 characters. `blogs` holds an `id`, the `author_id` of whoever wrote it, a `title`, the `body`, `published_at` and `is_deleted`. [[L-0171 L-0172]]
+The schema fits on a napkin. `users` holds an auto-increment `id`, the `name` shown on the page and a short `bio` of about 140 characters. `blogs` holds an `id`, the `author_id` of whoever wrote it, a `title`, the `body`, `published_at` and `is_deleted`. [[L-0171 L-0172]]
 
 <Figure id="fig-6b" max={600} no="Fig 6·b" k="L-0171 L-0172 L-0173" caption="The blog schema. author_id points back to users.id. The ringed column is tonight’s question.">
 <Desk><BlogSchema /></Desk>
@@ -43,7 +43,7 @@ Nothing here looks interesting. But every column hides a decision you make wheth
 
 </Section>
 
-<Section id="s6-2" no="6.2" title="What should “delete” mean?" crumb="6.2 Delete">
+<Section id="s6-2" no="6.2" title="Three reasons to soft delete" crumb="6.2 Soft delete">
 
 The database gives you `DELETE`. Run it and the row is gone; your application can’t get it back. That is a **hard delete**. [[L-0174]] If the blog had done that, the answer to tonight’s writer would be no. So why would anyone add an `is_deleted` column and run an `UPDATE` instead? [[L-0173]]
 
@@ -71,7 +71,7 @@ The writer has their post back. But look at what soft delete really did: it remo
 
 </Section>
 
-<Section id="s6-3" no="6.3" title="Soft-deleted rows never leave. Then what?" crumb="6.3 They pile up">
+<Section id="s6-3" no="6.3" title="Archive, then delete in batches" crumb="6.3 Archive">
 
 They pile up. The table only grows, and every query the site runs now has to skip the marked rows with `AND NOT is_deleted`. Sooner or later the rows marked deleted have to go somewhere. When depends on the product: after a 30-day trash, after a day, or by a legal deadline. [[L-0263 L-0265]]
 
@@ -103,7 +103,7 @@ So deleted rows wait a day, then get archived and removed in small batches. For 
 
 </Section>
 
-<Section id="s6-4" no="6.4" title="When can’t a delete wait?" crumb="6.4 A real delete">
+<Section id="s6-4" no="6.4" title="When you must hard delete" crumb="6.4 Hard delete">
 
 When a soft-deleted row is still in someone’s way. Add the column every real `users` table has: an `email`, with a unique index on it. A user deletes their account and later signs up again with the same address. Their old row is only marked deleted. It still holds the email, and the signup fails. Either hard delete that row now, or make the index apply only to live rows. [[L-0296]]
 

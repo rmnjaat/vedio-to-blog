@@ -15,7 +15,7 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
     (6M/min) → where one write's time goes → never close (pool, clip) → three connections and a fourth request
     (stepper) → why a maximum at all: the database's limit. */}
 
-<Section id="s4" no="4" title="The table is tiny. Why is the store struggling?" crumb="4 Struggling" meta="About 7 min">
+<Section id="s4" no="4" title="Connection pooling" crumb="4 Connection pooling" meta="About 7 min">
 
 Chapter 2 asked whether a billion users was a storage problem, and the answer was no: 8 GB. But that estimate counted rows. It never counted how often those rows change, and the dot changes them all the time.
 
@@ -28,7 +28,7 @@ So count the writes.
 
 </Section>
 
-<Section id="s4-1" no="4.1" title="How often is the table written?" crumb="4.1 The write rate">
+<Section id="s4-1" no="4.1" title="The write rate: 6 million a minute" crumb="4.1 Write rate">
 
 Chapter 2 imagined 100,000 people online. A successful app has ten times that, so take a million.
 
@@ -50,7 +50,7 @@ The usual answer to a write load like this is to split the data across machines,
 
 </Section>
 
-<Section id="s4-2" no="4.2" title="Where does one tiny write spend its time?" crumb="4.2 One write">
+<Section id="s4-2" no="4.2" title="The cost of opening a connection" crumb="4.2 Connection cost">
 
 Follow one heartbeat. It reaches the API server as an HTTP request over the client’s TCP connection. To write it, the API server opens a *second* TCP connection, to the database. [[L-0108]]
 
@@ -64,7 +64,7 @@ Almost all of that cost comes from opening and closing. What if the connection n
 
 </Section>
 
-<Section id="s4-3" no="4.3" title="What if the connection never closed?" crumb="4.3 Never close">
+<Section id="s4-3" no="4.3" title="How a connection pool works" crumb="4.3 The pool">
 
 Nothing forces a connection to close after one query. Open a few connections once, keep them open, and hand them out to requests as needed. This is a **connection pool**. With one-row updates, where setup is most of the cost, it is the obvious fix. [[L-0112]]
 
@@ -82,7 +82,7 @@ A pool of three serves three requests at the same time. What happens when a four
 
 </Section>
 
-<Section id="s4-4" no="4.4" title="Three connections. What about the fourth request?" crumb="4.4 A fourth request">
+<Section id="s4-4" no="4.4" title="Pool settings: min, max and idle timeout" crumb="4.4 Pool settings">
 
 To answer that, look at what a pool is. It isn’t a new service. It is a library inside the API server’s own process. [[L-0126 L-0127]]
 

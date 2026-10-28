@@ -13,7 +13,7 @@ import { SoFarDot } from '../../../figures/lec04/so-far';
     limit → how the fleet shares it (spike pause + figure) → so how big should each pool be → step back: the
     same pattern elsewhere; build 1 closes and hands off to the blog. */}
 
-<Section id="s5" no="5" title="A spike hits and autoscaling adds twenty servers. What do they get?" crumb="5 The spike" meta="About 7 min">
+<Section id="s5" no="5" title="Sizing pools under a connection limit" crumb="5 Sizing pools" meta="About 7 min">
 
 Every API server now keeps its own pool of open connections, and each write is one request and one reply. But each pool is a promise a server makes to itself, and all those promises are drawn from one place: the database. So start there.
 
@@ -24,9 +24,9 @@ Every API server now keeps its own pool of open connections, and each write is o
 
 </Section>
 
-<Section id="s5-1" no="5.1" title="How many connections can a database give?" crumb="5.1 The limit">
+<Section id="s5-1" no="5.1" title="Database connection limits" crumb="5.1 Connection limits">
 
-Fewer than most people expect. Stay with the relational database from chapter 4, where this limit bites hardest. Every database caps the connections it will hold, and PostgreSQL’s `max_connections` is typically 100, with a few reserved for administrators <Cite href="https://www.postgresql.org/docs/current/runtime-config-connection.html">postgresql.org</Cite>. Managed services publish their limit, often as a formula. Amazon RDS derives it from the instance’s memory, because every connection costs memory. Run the database yourself and you benchmark the number on your own hardware, under your own load. [[L-0124 L-0146 L-0147 L-0148]]
+Every database caps the connections it will hold, and the cap is lower than most people expect. Stay with the relational database from chapter 4, where this limit bites hardest. PostgreSQL’s `max_connections` is typically 100, with a few reserved for administrators <Cite href="https://www.postgresql.org/docs/current/runtime-config-connection.html">postgresql.org</Cite>. Managed services publish their limit, often as a formula. Amazon RDS derives it from the instance’s memory, because every connection costs memory. Run the database yourself and you benchmark the number on your own hardware, under your own load. [[L-0124 L-0146 L-0147 L-0148]]
 
 For a store like the dot’s, this number is often the first wall you hit. Each read and write touches one row by key, so the queries are cheap, and the bottleneck moves to the connections and the network that carries them. So when you size this database, the number of concurrent connections you need decides how big it must be, not the 8 GB of data. [[L-0136 L-0137 L-0143 L-0144]]
 
@@ -36,7 +36,7 @@ Say your database allows 1,000 connections. That sounds like plenty. Whether it 
 
 </Section>
 
-<Section id="s5-2" no="5.2" title="What happens when the fleet grows?" crumb="5.2 The budget">
+<Section id="s5-2" no="5.2" title="What breaks in a traffic spike" crumb="5.2 Traffic spike">
 
 <PauseAndThink k="L-0158 L-0319 L-0320"
   q="Your database accepts at most 1,000 connections. Each API server’s pool keeps a minimum of 100 open. You run 10 servers. A spike hits and autoscaling adds 20 more. What happens?"
@@ -61,7 +61,7 @@ So you can’t pick a pool size by looking at one server. How do you size it?
 
 </Section>
 
-<Section id="s5-3" no="5.3" title="So how big should each pool be?" crumb="5.3 Sizing">
+<Section id="s5-3" no="5.3" title="How to size a pool" crumb="5.3 Sizing">
 
 Start from the budget. Divide the database’s maximum connections by the most servers you will ever run. 1,000 connections and up to 100 servers gives each server a maximum of **10**. [[L-0158]]
 
@@ -83,7 +83,7 @@ With the pools sized, the dot is finished. Before leaving it, look at the shape 
 
 </Section>
 
-<Section id="s5-4" no="5.4" title="Where else have you seen this dot?" crumb="5.4 Same pattern">
+<Section id="s5-4" no="5.4" title="The heartbeat pattern elsewhere" crumb="5.4 Same pattern">
 
 Strip the dot down to its idea. Things that are alive say so every few seconds. Silence for long enough means dead. Something cheap forgets the silent ones. That pattern is everywhere.
 
